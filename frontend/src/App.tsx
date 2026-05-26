@@ -23,7 +23,7 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { stopLoading, setAuth, logout } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout, resetSessionStatus } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetMeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount } from './redux/slices/notificationsSlice';
@@ -258,10 +258,11 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && isAuthenticated) {
-        console.log('[App] Tab visible: Re-syncing session...');
+        console.log('[App] Tab visible: Activating Auth Barrier and re-syncing session...');
+        // Put app back into "loading/unsettled" state to block background request storms.
+        dispatch(resetSessionStatus());
+        
         // Force refetch the 'me' endpoint to ensure session is still valid.
-        // The background fetch of feeds/lists should be handled naturally by the
-        // isAppReady change or by explicit dispatches AFTER refetch() settles.
         refetch().unwrap().then(() => {
             console.log('[App] Session re-verified. Poking SignalR.');
             signalrService.startConnection();

@@ -129,6 +129,22 @@ export const setupFetchInterceptor = () => {
         const isRefreshRequest = url.endsWith('/auth/refresh');
         const isLoginRequest = url.endsWith('/auth/login') || url.endsWith('/auth/register');
 
+        // DEADLOCK PREVENTION: If a session refresh is already in progress, 
+        // we must wait BEFORE calling fetchWithTimeout to preserve limited 
+        // browser connection slots (6 per origin).
+        if (isRefreshing && refreshPromise && !isRefreshRequest) {
+            console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
+            try {
+                await Promise.race([
+                    refreshPromise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 20000))
+                ]);
+            } catch (err) {
+                console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
+                // Continue anyway and let it hit its own 401 or timeout
+            }
+        }
+
         const isSameOrigin = !url.startsWith('http') || url.startsWith(window.location.origin);
         const isExternalRequest = url.startsWith('http') && !isSameOrigin;
 

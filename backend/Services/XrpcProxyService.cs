@@ -66,7 +66,7 @@ namespace BSkyClone.Services
             return fullKey;
         }
 
-        public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null)
+        public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, IQueryCollection queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null, System.Threading.CancellationToken ct = default)
         {
             bool cacheable = method.Equals("GET", StringComparison.OrdinalIgnoreCase) && ContentCacheWhitelist.Contains(nsid);
             string? cacheKey = cacheable ? GetContentCacheKey(didOrHandle, nsid, queryParams, userId) : null;
@@ -130,15 +130,16 @@ namespace BSkyClone.Services
                     request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 }
 
-                // 4. Forward the request
+                // Forward the request
                 var clientReq = _httpClientFactory.CreateClient();
                 clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
                 // Add a reasonable timeout to prevent hanging the whole backend thread
                 using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+                using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                 
-                var response = await clientReq.SendAsync(request, cts.Token);
-                var content = await response.Content.ReadAsStringAsync(cts.Token);
+                var response = await clientReq.SendAsync(request, linkedCts.Token);
+                var content = await response.Content.ReadAsStringAsync(linkedCts.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -173,10 +174,10 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null)
+        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null, System.Threading.CancellationToken ct = default)
         {
             var collection = new QueryCollection(queryParams.ToDictionary(p => p.Key, p => new Microsoft.Extensions.Primitives.StringValues(p.Value)));
-            return await ProxyRequestAsync(did, nsid, collection, token, method, body, userId);
+            return await ProxyRequestAsync(did, nsid, collection, token, method, body, userId, ct);
         }
 
         public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token, string method, System.IO.Stream bodyStream, Guid? userId, string mimeType)

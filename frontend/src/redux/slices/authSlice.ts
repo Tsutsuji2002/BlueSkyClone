@@ -193,6 +193,10 @@ const authSlice = createSlice({
         setSessionExpired: (state, action: PayloadAction<string>) => {
             AccountManager.clearTokens(action.payload);
             state.savedAccounts = AccountManager.getAccounts();
+        },
+        resetSessionStatus: (state) => {
+            state.isLoading = true;
+            state.isSessionSettled = false;
         }
     },
     extraReducers: (builder) => {
@@ -216,5 +220,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus } = authSlice.actions;
 export default authSlice.reducer;
