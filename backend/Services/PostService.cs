@@ -37,7 +37,7 @@ public class PostService : IPostService
     private readonly string _localDomain;
     private readonly Microsoft.Extensions.Caching.Distributed.IDistributedCache _distributedCache;
     private readonly IHttpClientFactory _httpClientFactory;
-    private static readonly SemaphoreSlim _resolutionSemaphore = new SemaphoreSlim(10, 10);
+    private static readonly SemaphoreSlim _resolutionSemaphore = new SemaphoreSlim(20, 20);
 
     private string NormalizeUri(string uri)
     {
@@ -230,33 +230,32 @@ public class PostService : IPostService
             var desiredPosts = Math.Clamp(skip + Math.Max(take, 1) * 3, 20, 80);
             var perActor = Math.Max(1, desiredPosts / distinctActors.Count);
 
-            var feedChunks = new List<PostDto[]>();
-            // Process actors in small parallel batches to avoid 504 timeouts and rate limits
-            for (int i = 0; i < distinctActors.Count; i += 6)
+            // Process actors in parallel with a strict aggregate timeout
+            using var ctsAggregate = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var actorTasks = distinctActors.Select(async actor =>
             {
-                var chunk = distinctActors.Skip(i).Take(6);
-                var chunkTasks = chunk.Select(async actor =>
+                try
                 {
-                    try
-                    {
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                        var actorFeedUrl = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={Uri.EscapeDataString(actor)}&limit={perActor}&filter=posts_no_replies";
-                        var actorResponse = await httpClient.GetAsync(actorFeedUrl, cts.Token);
-                        if (!actorResponse.IsSuccessStatusCode) return new List<PostDto>();
+                    using var ctsActor = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ctsActor.Token, ctsAggregate.Token);
+                    
+                    var actorFeedUrl = $"https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor={Uri.EscapeDataString(actor)}&limit={perActor}&filter=posts_no_replies";
+                    var actorResponse = await httpClient.GetAsync(actorFeedUrl, linkedCts.Token);
+                    if (!actorResponse.IsSuccessStatusCode) return new List<PostDto>();
 
-                        using var actorDoc = JsonDocument.Parse(await actorResponse.Content.ReadAsStringAsync());
-                        if (!actorDoc.RootElement.TryGetProperty("feed", out var actorFeed) || actorFeed.ValueKind != JsonValueKind.Array) return new List<PostDto>();
-                        return MapBlueskyFeed(actorFeed);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug("[BuildTimelineFallbackFromFollowingAsync] Skip {Actor}: {Msg}", actor, ex.Message);
-                        return new List<PostDto>();
-                    }
-                });
-                var chunkResults = await Task.WhenAll(chunkTasks);
-                feedChunks.AddRange(chunkResults.Select(r => r.ToArray()));
-            }
+                    using var actorDoc = JsonDocument.Parse(await actorResponse.Content.ReadAsStringAsync(linkedCts.Token));
+                    if (!actorDoc.RootElement.TryGetProperty("feed", out var actorFeed) || actorFeed.ValueKind != JsonValueKind.Array) return new List<PostDto>();
+                    return MapBlueskyFeed(actorFeed);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("[BuildTimelineFallbackFromFollowingAsync] Skip {Actor}: {Msg}", actor, ex.Message);
+                    return new List<PostDto>();
+                }
+            });
+
+            var chunkResults = await Task.WhenAll(actorTasks);
+            var feedChunks = chunkResults.Where(r => r != null).ToList();
 
             return feedChunks
                 .SelectMany(posts => posts)
@@ -1197,13 +1196,12 @@ public class PostService : IPostService
 
             if (isPostStub) stubPosts.Add(p.Uri!);
 
-            // Author is a stub if ID is empty, it's just a DID/handle placeholder, or metadata is missing
+            // [OPTIMIZATION] Avoid resolving if we already have the essentials from the initial AppView fetch.
+            // Presence of Handle and DisplayName is usually enough for a good UI experience.
             if (p.Author != null)
             {
-                bool isAuthorStub = p.Author.Id == Guid.Empty || 
-                                   string.IsNullOrEmpty(p.Author.Handle) || 
-                                   p.Author.Did == p.Author.Handle ||
-                                   (string.IsNullOrEmpty(p.Author.AvatarUrl) && !string.IsNullOrEmpty(p.Author.Did));
+                bool isAuthorStub = (p.Author.Id == Guid.Empty || string.IsNullOrEmpty(p.Author.Handle) || p.Author.Did == p.Author.Handle) &&
+                                   (string.IsNullOrEmpty(p.Author.DisplayName) || p.Author.DisplayName == p.Author.Did);
 
                 if (isAuthorStub && !string.IsNullOrEmpty(p.Author.Did)) stubAuthors.Add(p.Author.Did);
             }
@@ -1265,7 +1263,13 @@ public class PostService : IPostService
 
         if (resolveTasks.Any())
         {
-            await Task.WhenAll(resolveTasks);
+            // [OPTIMIZATION] Aggregate timeout for all stubs to prevent hanging the whole request.
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(7));
+            var completedTask = await Task.WhenAny(Task.WhenAll(resolveTasks), timeoutTask);
+            if (completedTask == timeoutTask)
+            {
+                _logger.LogWarning("[EnrichAndFilterPostsAsync] Stub resolution timed out after 7s for {Count} authors/posts", stubAuthors.Count + stubPosts.Count);
+            }
         }
 
         var filteredPosts = new List<PostDto>();

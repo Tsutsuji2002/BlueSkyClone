@@ -129,9 +129,10 @@ export const setupFetchInterceptor = () => {
         const isRefreshRequest = url.endsWith('/auth/refresh');
         const isLoginRequest = url.endsWith('/auth/login') || url.endsWith('/auth/register');
 
-        // DEADLOCK PREVENTION: If a session refresh is already in progress, 
-        // we must wait BEFORE calling fetchWithTimeout to preserve limited 
-        // browser connection slots (6 per origin).
+        const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || isLoginRequest || isRefreshRequest;
+
+        // DEADLOCK PREVENTION & STAGGERING:
+        // If a session refresh is in progress, background requests wait and stagger.
         if (isRefreshing && refreshPromise && !isRefreshRequest) {
             console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
             try {
@@ -139,6 +140,13 @@ export const setupFetchInterceptor = () => {
                     refreshPromise,
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 20000))
                 ]);
+                
+                // Add a small jittered stagger for background requests to prevent a "thundering herd"
+                // when the refresh completes and all 50+ queued requests fire at once.
+                if (!isEssential) {
+                    const staggerDelay = Math.floor(Math.random() * 800) + 200; // 200-1000ms
+                    await new Promise(resolve => setTimeout(resolve, staggerDelay));
+                }
             } catch (err) {
                 console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
                 // Continue anyway and let it hit its own 401 or timeout

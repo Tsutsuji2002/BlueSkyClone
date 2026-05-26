@@ -1696,22 +1696,22 @@ public class UserService : IUserService
 
         _logger.LogInformation("[GetSuggestions] Found {Count} local quality users.", localQualityUsers.Count);
 
-        // 2. If we have enough quality local users, we still might want some remote variety
-        // but if we have very FEW, we definitely need remote ones.
+        // 2. If we have enough quality local users, return them immediately to avoid network latency.
+        // We can fire-and-forget a remote fetch to warm the cache for variety later, but don't block.
         if (localQualityUsers.Count >= limit) 
         {
-             // Even if we have enough local, let's mix in 20% remote if possible for variety
-             var remoteLimit = Math.Max(3, limit / 5);
-             var remoteVar = await GetRemoteSuggestionsAsync(remoteLimit, viewerId);
+             _logger.LogInformation("[GetSuggestions] Found sufficient local quality users ({Count}). Returning immediately.", localQualityUsers.Count);
              
-             var combinedVar = localQualityUsers.ToList();
-             var localDids = localQualityUsers.Select(u => u.Did).ToHashSet(StringComparer.OrdinalIgnoreCase);
-             
-             foreach (var r in remoteVar.Where(r => !localDids.Contains(r.Did)))
-             {
-                 combinedVar.Insert(Random.Shared.Next(0, combinedVar.Count), r);
-             }
-             return combinedVar.Take(limit).ToList();
+             // Background "warm up" of remote suggestions if needed
+             _ = Task.Run(async () => {
+                 try {
+                     using var scope = _scopeFactory.CreateScope();
+                     var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                     await userService.GetSuggestedUsersAsync(limit, viewerId); // This will populate cache/stubs
+                 } catch { }
+             });
+
+             return localQualityUsers.Take(limit).ToList();
         }
 
         // 3. Not enough local quality users, fetch remote suggestions
@@ -3157,13 +3157,15 @@ public class UserService : IUserService
             var users = new List<User>();
             var stubCache = new System.Collections.Concurrent.ConcurrentDictionary<string, User>(StringComparer.OrdinalIgnoreCase);
             
+            // Use 'complete: false' to prevent ResolveStubRemoteProfileAsync from calling SaveChangesAsync internally for EVERY actor.
+            // This turns 50 DB roundtrips into 1.
             var resolveTasks = actors.EnumerateArray().Select(async actor =>
             {
                 try
                 {
                     using var scope = _scopeFactory.CreateScope();
                     var scopedUserService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                    var u = await scopedUserService.ResolveStubRemoteProfileAsync(actor, new Dictionary<string, User>(stubCache), viewerId: viewerId, mergeDuplicates: false);
+                    var u = await scopedUserService.ResolveStubRemoteProfileAsync(actor, new Dictionary<string, User>(stubCache), complete: false, viewerId: viewerId, mergeDuplicates: false);
                     if (u != null)
                     {
                         lock (users) users.Add(u);
@@ -3178,6 +3180,7 @@ public class UserService : IUserService
 
             await Task.WhenAll(resolveTasks);
 
+            // BATCH SAVE: One roundtrip for all resolved stubs.
             await _unitOfWork.CompleteAsync();
             return users;
         }
