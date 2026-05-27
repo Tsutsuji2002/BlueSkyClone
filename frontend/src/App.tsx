@@ -273,29 +273,38 @@ const AppContent: React.FC = () => {
             dispatch(resetSessionStatus());
             
             try {
-                // Use a non-blocking timeout for the actual refetch to keep UI fluid
-                const refetchResult = await refetch().unwrap();
-                console.log('[App] Session re-verified. Resuming sync...');
+                // OPTIMISTIC RE-SYNC: 
+                // Don't await the refetch. Let it run in parallel with the data sync.
+                // This ensures "instant" load for the user.
+                refetch().unwrap()
+                    .then(() => {
+                        console.log('[App] Session re-verified background check OK.');
+                        dispatch(completeReverification());
+                    })
+                    .catch(() => {
+                        console.warn('[App] Session re-verification failed in background.');
+                        dispatch(completeReverification());
+                    });
+
+                console.log('[App] Resuming sync immediately (optimistic)...');
                 
                 // Priority 1: Real-time (Start on visible)
                 signalrService.startConnection();
                 postSignalrService.startConnection();
                 
-                // Priority 2: Core Data (slightly staggered)
+                // Priority 2: Core Data (slightly staggered for browser performance)
                 setTimeout(() => {
                     dispatch(fetchSubscribedFeeds() as any);
                     dispatch(fetchPinnedLists() as any);
-                }, 500);
+                }, 100);
 
                 // Priority 3: Notifications
                 setTimeout(() => {
                     dispatch(fetchNotifications({ limit: 40 }) as any);
                     dispatch(fetchUnreadCount() as any);
-                }, 1200);
-
-                dispatch(completeReverification());
+                }, 600);
             } catch (err) {
-                console.warn('[App] Session re-verification failed.');
+                console.error('[App] Critical recovery error:', err);
                 dispatch(completeReverification()); 
             }
         }

@@ -149,41 +149,49 @@ export const setupFetchInterceptor = () => {
             const state = store.getState();
             const isReverifying = (state.auth as any).isReverifying;
 
-            // If we are re-verifying and this isn't essential, just skip it to save connection slots.
-            if (!isEssential && isReverifying) {
-                console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
-                return new Response(JSON.stringify({ error: 'Skipped during re-verification' }), { 
-                    status: 409, 
-                    headers: { 'Content-Type': 'application/json' } 
-                });
-            }
-
-            console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
-            try {
-                const refreshedResult = await Promise.race([
-                    refreshPromise,
-                    new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 25000))
-                ]);
-
-                if (!refreshedResult) {
-                    console.warn(`[FetchInterceptor] Refresh failed for queued request: ${url}`);
-                    return new Response(JSON.stringify({ error: 'Auth refresh failed' }), { 
-                        status: 401, 
+            // OPTIMISTIC RE-SYNC: 
+            // If we are just re-verifying (background check), ALLOW essential requests to move through.
+            // Don't make them wait for the refresh promise if they might still work.
+            if (isEssential && isReverifying) {
+                console.log(`[FetchInterceptor] Optimistically allowing essential request during re-verification: ${url}`);
+                // Proceed to nativeFetch below
+            } else {
+                // If not essential AND re-verifying, skip it to save connection slots.
+                if (!isEssential && isReverifying) {
+                    console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
+                    return new Response(JSON.stringify({ error: 'Skipped during re-verification' }), { 
+                        status: 409, 
                         headers: { 'Content-Type': 'application/json' } 
                     });
                 }
-                
-                // Add a small jittered stagger for background requests to prevent a "thundering herd"
-                if (!isEssential) {
-                    const staggerDelay = Math.floor(Math.random() * 1500) + 500; // 500ms-2000ms
-                    await new Promise(resolve => setTimeout(resolve, staggerDelay));
+
+                console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
+                try {
+                    const refreshedResult = await Promise.race([
+                        refreshPromise,
+                        new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 25000))
+                    ]);
+
+                    if (!refreshedResult) {
+                        console.warn(`[FetchInterceptor] Refresh failed for queued request: ${url}`);
+                        return new Response(JSON.stringify({ error: 'Auth refresh failed' }), { 
+                            status: 401, 
+                            headers: { 'Content-Type': 'application/json' } 
+                        });
+                    }
+                    
+                    // Add a small jittered stagger for background requests to prevent a "thundering herd"
+                    if (!isEssential) {
+                        const staggerDelay = Math.floor(Math.random() * 1500) + 500; // 500ms-2000ms
+                        await new Promise(resolve => setTimeout(resolve, staggerDelay));
+                    }
+                } catch (err) {
+                    console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
+                    return new Response(JSON.stringify({ error: 'Auth wait timeout' }), { 
+                        status: 408, 
+                        headers: { 'Content-Type': 'application/json' } 
+                    });
                 }
-            } catch (err) {
-                console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
-                return new Response(JSON.stringify({ error: 'Auth wait timeout' }), { 
-                    status: 408, 
-                    headers: { 'Content-Type': 'application/json' } 
-                });
             }
         }
 
