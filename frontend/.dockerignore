@@ -4,3 +4,7 @@ build
 .git
 .gitignore
 README.md
+**/*.log
+**/*.txt
+logs/
+tmp/
