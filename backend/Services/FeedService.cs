@@ -204,22 +204,24 @@ public class FeedService : IFeedService
             }
 
             // Use the proxy for metadata resolution to ensure consistent network access via PDS
-            var resultList = new List<FeedDto>();
-            foreach (var uri in uris)
+            // [OPTIMIZATION] Using batch call app.bsky.feed.getFeedGenerators instead of sequential calls
+            var queryParams = uris.Select(uri => new KeyValuePair<string, string?>("feeds", uri)).ToList();
+            var resp = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getFeedGenerators", queryParams, token);
+            
+            if (resp.Success)
             {
-                var resp = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getFeedGenerator", 
-                    new Dictionary<string, string?> { ["feed"] = uri }, token);
-                
-                if (resp.Success)
+                using var gDoc = JsonDocument.Parse(resp.Content);
+                if (gDoc.RootElement.TryGetProperty("feeds", out var feedsArray))
                 {
-                    using var gDoc = JsonDocument.Parse(resp.Content);
-                    if (gDoc.RootElement.TryGetProperty("view", out var gen))
+                    var resultList = new List<FeedDto>();
+                    foreach (var gen in feedsArray.EnumerateArray())
                     {
-                         resultList.Add(MapGeneratorViewToDto(gen, savedUris, pinnedUris));
+                        resultList.Add(MapGeneratorViewToDto(gen, savedUris, pinnedUris));
                     }
+                    return resultList;
                 }
             }
-            return resultList;
+            return new List<FeedDto>();
         }
         catch (Exception ex)
         {
@@ -234,19 +236,25 @@ public class FeedService : IFeedService
         try {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
-            foreach (var uri in uris)
+            
+            // [OPTIMIZATION] Batch call even for public API
+            var queryParams = string.Join("&", uris.Select(u => $"feeds={Uri.EscapeDataString(u)}"));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{queryParams}", cts.Token);
+            
+            if (response.IsSuccessStatusCode)
             {
-                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-                 var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(uri)}", cts.Token);
-                 if (response.IsSuccessStatusCode)
-                 {
-                     var content = await response.Content.ReadAsStringAsync(cts.Token);
-                     using var doc = JsonDocument.Parse(content);
-                     if (doc.RootElement.TryGetProperty("view", out var gen))
-                         result.Add(MapGeneratorViewToDto(gen, saved, pinned));
-                 }
+                var content = await response.Content.ReadAsStringAsync(cts.Token);
+                using var doc = JsonDocument.Parse(content);
+                if (doc.RootElement.TryGetProperty("feeds", out var feedsArray))
+                {
+                    foreach (var gen in feedsArray.EnumerateArray())
+                        result.Add(MapGeneratorViewToDto(gen, saved, pinned));
+                }
             }
-        } catch {}
+        } catch (Exception ex) {
+            _logger.LogWarning(ex, "[FeedService] ResolveMetadataDirectAsync error");
+        }
         return result;
     }
 
@@ -381,10 +389,18 @@ public class FeedService : IFeedService
 
         // 1. Get Preferences
         var prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
-        if (!prefResponse.Success) return new List<FeedDto>();
+        if (!prefResponse.Success) 
+        {
+            _logger.LogWarning("[FeedService] GetRemoteFeedsAsync for {UserId}: getPreferences failed with status {Status}. Content: {Content}", userId, prefResponse.StatusCode, prefResponse.Content);
+            return new List<FeedDto>();
+        }
 
         using var doc = JsonDocument.Parse(prefResponse.Content);
-        if (!doc.RootElement.TryGetProperty("preferences", out var prefs)) return new List<FeedDto>();
+        if (!doc.RootElement.TryGetProperty("preferences", out var prefs)) 
+        {
+            _logger.LogWarning("[FeedService] GetRemoteFeedsAsync for {UserId}: no preferences property found in response.", userId);
+            return new List<FeedDto>();
+        }
         
         var savedUris = new List<string>();
         var pinnedUris = new List<string>();
@@ -446,7 +462,13 @@ public class FeedService : IFeedService
             }
         }
 
-        if (!savedUris.Any()) return new List<FeedDto>();
+        if (!savedUris.Any()) 
+        {
+            _logger.LogInformation("[FeedService] GetRemoteFeedsAsync for {UserId}: No saved feeds found in preferences.", userId);
+            return new List<FeedDto>();
+        }
+
+        _logger.LogInformation("[FeedService] GetRemoteFeedsAsync for {UserId}: Found {Count} saved URIs in preferences.", userId, savedUris.Distinct().Count());
 
         int ResolvePinnedOrder(string? uri)
         {

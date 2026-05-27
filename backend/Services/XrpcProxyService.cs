@@ -175,9 +175,11 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, Dictionary<string, string?> queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null, System.Threading.CancellationToken ct = default)
+        public async Task<ProxyResponse> ProxyRequestAsync(string did, string nsid, IEnumerable<KeyValuePair<string, string?>> queryParams, string? token = null, string method = "GET", object? body = null, Guid? userId = null, System.Threading.CancellationToken ct = default)
         {
-            var collection = new QueryCollection(queryParams.ToDictionary(p => p.Key, p => new Microsoft.Extensions.Primitives.StringValues(p.Value)));
+            var collection = new QueryCollection(queryParams
+                .GroupBy(p => p.Key)
+                .ToDictionary(g => g.Key, g => new Microsoft.Extensions.Primitives.StringValues(g.Select(x => x.Value).ToArray())));
             return await ProxyRequestAsync(did, nsid, collection, token, method, body, userId, ct);
         }
 

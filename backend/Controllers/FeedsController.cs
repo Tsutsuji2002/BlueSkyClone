@@ -182,7 +182,7 @@ public class FeedsController : ControllerBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[FeedsController] GetSubscribed error: {ex.Message}");
+            _logger.LogError(ex, "[FeedsController] GetSubscribed error: {Msg}", ex.Message);
             return Ok(new List<FeedDto>());
         }
     }
