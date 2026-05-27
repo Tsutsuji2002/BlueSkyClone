@@ -117,6 +117,8 @@ namespace BSkyClone.Services
         {
             try
             {
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 return await client.GetFromJsonAsync<DidDocument>($"{_plcDirectory}/{did}", cts.Token);
             }
