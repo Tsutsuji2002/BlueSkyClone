@@ -735,6 +735,35 @@ const userSlice = createSlice({
             state.searchFetchedByTab = {};
             state.searchResults = [];
         },
+        clearUser: (state: UserState) => {
+            state.profile = null;
+            state.users = [];
+            state.suggestedUsers = [];
+            state.mutedWords = [];
+            state.mutedUsers = [];
+            state.mutedCursor = null;
+            state.mutedHasMore = true;
+            state.blockedUsers = [];
+            state.blockedCursor = null;
+            state.blockedHasMore = true;
+            state.followersOwnerId = null;
+            state.followers = [];
+            state.followersCursor = null;
+            state.followersHasMore = true;
+            state.followingOwnerId = null;
+            state.followingUsers = [];
+            state.followingCursor = null;
+            state.followingHasMore = true;
+            state.followersInitializedOwnerId = null;
+            state.followingInitializedOwnerId = null;
+            state.followersLoading = false;
+            state.followingLoading = false;
+            state.followersCache = {};
+            state.followingCache = {};
+            state.searchResults = [];
+            state.isLoading = false;
+            state.error = null;
+        }
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
@@ -1292,6 +1321,7 @@ export const {
     clearBlockedUsers,
     clearFollowers,
     clearFollowing,
-    clearSearchResults
+    clearSearchResults,
+    clearUser
 } = userSlice.actions;
 export default userSlice.reducer;

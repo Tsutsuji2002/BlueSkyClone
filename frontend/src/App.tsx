@@ -30,6 +30,7 @@ import { fetchUnreadCount, fetchNotifications } from './redux/slices/notificatio
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { hydrateForAccount as hydrateFeedsForAccount, fetchSubscribedFeeds } from './redux/slices/feedsSlice';
 import { hydrateForAccount as hydrateListsForAccount, fetchPinnedLists } from './redux/slices/listsSlice';
+import { apiSlice } from './redux/api/apiSlice';
 import signalrService, { HubStatus } from './services/signalrService';
 import postSignalrService from './services/postSignalrService';
 import { closeAllModals } from './redux/slices/modalsSlice';
@@ -244,17 +245,32 @@ const AppContent: React.FC = () => {
   }, [location.pathname, dispatch]);
 
   // Prevent "Ghost" states: Clear caches when transitioning from logged-in to logged-out
+  // OR when switching accounts (did change)
   const prevAuth = React.useRef(isAuthenticated);
+  const prevDid = React.useRef(useAppSelector((state: RootState) => state.auth.user?.did));
+  const currentDid = useAppSelector((state: RootState) => state.auth.user?.did);
+
   useEffect(() => {
-    if (prevAuth.current && !isAuthenticated) {
-        console.log('[App] Auth lost: Clearing caches to prevent ghost data.');
-        dispatch(authApi.util.resetApiState());
-        // For other API slices like userApi, postsApi if they have their own cache:
-        // dispatch(userApi.util.resetApiState());
-        // dispatch(postsApi.util.resetApiState());
+    const authLost = prevAuth.current && !isAuthenticated;
+    const accountSwitched = currentDid && prevDid.current && currentDid !== prevDid.current;
+
+    if (authLost || accountSwitched) {
+        console.log(`[App] ${authLost ? 'Auth lost' : 'Account switched'}: Clearing caches to prevent ghost data.`);
+        dispatch(apiSlice.util.resetApiState());
+        
+        // Also clear local non-API slices that might hold account data
+        dispatch({ type: 'feeds/clearFeeds' });
+        dispatch({ type: 'lists/clearLists' });
+        dispatch({ type: 'notifications/clearNotifications' });
+        dispatch({ type: 'messages/clearMessages' });
+        dispatch({ type: 'user/clearUser' });
+        dispatch({ type: 'posts/clearPosts' });
+        dispatch({ type: 'posts/clearThreadPosts' });
     }
+    
     prevAuth.current = isAuthenticated;
-  }, [isAuthenticated, dispatch]);
+    prevDid.current = currentDid;
+  }, [isAuthenticated, currentDid, dispatch]);
 
   // Handle visibility changes to recover from background throttling
   useEffect(() => {

@@ -260,6 +260,18 @@ const messagesSlice = createSlice({
                 }
             });
         },
+        clearMessages: (state) => {
+            state.conversations = [];
+            state.conversationsCursor = null;
+            state.hasMoreConversations = true;
+            state.activeConversationMessages = [];
+            state.activeConversationId = null;
+            state.isLoading = false;
+            state.isLoadingMore = false;
+            state.isLoadingMoreConversations = false;
+            state.hasMore = true;
+            state.error = null;
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -356,5 +368,5 @@ const messagesSlice = createSlice({
     }
 });
 
-export const { setActiveConversation, addMessage, updateMessageInStore, removeMessageFromStore } = messagesSlice.actions;
+export const { setActiveConversation, addMessage, updateMessageInStore, removeMessageFromStore, clearMessages } = messagesSlice.actions;
 export default messagesSlice.reducer;

@@ -82,12 +82,6 @@ const Sidebar: React.FC = () => {
                         type: 'success'
                     }
                 });
-
-                dispatch(hydrateFeedsForAccount(account.did));
-                dispatch(hydrateListsForAccount(account.did));
-
-                dispatch(fetchUnreadCount());
-                dispatch(fetchConversations());
                 return;
             } catch (err) {
                 console.warn('Instant switch failed, falling back to login form', err);

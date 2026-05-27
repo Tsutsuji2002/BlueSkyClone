@@ -141,6 +141,7 @@ export const setupFetchInterceptor = () => {
         const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || 
                             url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
                             url.includes('/app.bsky.feed.getFeed') || url.includes('/app.bsky.feed.getActorFeeds') ||
+                            url.includes('/feeds/subscribed') || url.includes('/lists/pinned') ||
                             isLoginRequest || isRefreshRequest;
 
         // DEADLOCK PREVENTION & STAGGERING:
