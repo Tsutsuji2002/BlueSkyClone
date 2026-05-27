@@ -374,16 +374,18 @@ public class PostService : IPostService
                     }
 
                     _logger.LogInformation("[GetUserPostsAsync] Fetching remote feed from AppView: {BaseUrl}/xrpc/app.bsky.feed.getAuthorFeed for {Actor}", baseUrl, handleOrDid);
-                    var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{queryStr}");
+                    
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                    var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{queryStr}", cts.Token);
                     
                     if (!response.IsSuccessStatusCode)
                     {
-                        var errContent = await response.Content.ReadAsStringAsync();
+                        var errContent = await response.Content.ReadAsStringAsync(cts.Token);
                         _logger.LogWarning("[GetUserPostsAsync] Remote feed fetch failed: {Status} for {Actor}. Error: {Error}", response.StatusCode, handleOrDid, errContent);
                         return new PagedPostDto();
                     }
 
-                    var jsonContent = await response.Content.ReadAsStringAsync();
+                    var jsonContent = await response.Content.ReadAsStringAsync(cts.Token);
                     using var doc = JsonDocument.Parse(jsonContent);
                     var responseBody = doc.RootElement;
                     var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();

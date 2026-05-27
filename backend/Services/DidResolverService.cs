@@ -52,10 +52,11 @@ namespace BSkyClone.Services
                 var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
-                var response = await client.GetAsync($"https://{handle}/.well-known/atproto-did");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var response = await client.GetAsync($"https://{handle}/.well-known/atproto-did", cts.Token);
                 if (response.IsSuccessStatusCode)
                 {
-                    var did = await response.Content.ReadAsStringAsync();
+                    var did = await response.Content.ReadAsStringAsync(cts.Token);
                     return new User { Did = did.Trim(), Handle = handle }; // Dummy user for external DIDs
                 }
             }
@@ -67,10 +68,11 @@ namespace BSkyClone.Services
                 var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 
-                var response = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var response = await client.GetAsync($"https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle={handle}", cts.Token);
                 if (response.IsSuccessStatusCode)
                 {
-                    var data = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                    var data = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>(cts.Token);
                     if (data != null && data.TryGetValue("did", out var did))
                     {
                         return new User { Did = did.Trim(), Handle = handle };
@@ -115,9 +117,8 @@ namespace BSkyClone.Services
         {
             try
             {
-                var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                return await client.GetFromJsonAsync<DidDocument>($"{_plcDirectory}/{did}");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                return await client.GetFromJsonAsync<DidDocument>($"{_plcDirectory}/{did}", cts.Token);
             }
             catch
             {
@@ -132,7 +133,8 @@ namespace BSkyClone.Services
                 var domain = did.Split(':').Last();
                 var client = _httpClientFactory.CreateClient();
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                return await client.GetFromJsonAsync<DidDocument>($"https://{domain}/.well-known/did.json");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                return await client.GetFromJsonAsync<DidDocument>($"https://{domain}/.well-known/did.json", cts.Token);
             }
             catch
             {

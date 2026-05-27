@@ -108,12 +108,13 @@ public class FeedService : IFeedService
                 client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 var url = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getPopularFeedGenerators?limit={limit}";
                 if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
-                var httpResponse = await client.GetAsync(url);
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var httpResponse = await client.GetAsync(url, cts.Token);
                 response = new ProxyResponse 
                 { 
                     Success = httpResponse.IsSuccessStatusCode, 
                     StatusCode = (int)httpResponse.StatusCode,
-                    Content = await httpResponse.Content.ReadAsStringAsync()
+                    Content = await httpResponse.Content.ReadAsStringAsync(cts.Token)
                 };
             }
             
@@ -235,10 +236,11 @@ public class FeedService : IFeedService
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
             foreach (var uri in uris)
             {
-                 var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(uri)}");
+                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                 var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(uri)}", cts.Token);
                  if (response.IsSuccessStatusCode)
                  {
-                     var content = await response.Content.ReadAsStringAsync();
+                     var content = await response.Content.ReadAsStringAsync(cts.Token);
                      using var doc = JsonDocument.Parse(content);
                      if (doc.RootElement.TryGetProperty("view", out var gen))
                          result.Add(MapGeneratorViewToDto(gen, saved, pinned));
@@ -1236,20 +1238,22 @@ public class FeedService : IFeedService
             {
                 try
                 {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     var batch = await httpClient.GetAsync(
-                        $"{host}/xrpc/app.bsky.feed.getFeedGenerators?uris={Uri.EscapeDataString(uri)}");
+                        $"{host}/xrpc/app.bsky.feed.getFeedGenerators?uris={Uri.EscapeDataString(uri)}", cts.Token);
                     if (batch.IsSuccessStatusCode)
                     {
-                        using var genDoc = JsonDocument.Parse(await batch.Content.ReadAsStringAsync());
+                        using var genDoc = JsonDocument.Parse(await batch.Content.ReadAsStringAsync(cts.Token));
                         if (genDoc.RootElement.TryGetProperty("feeds", out var feedsArr) && feedsArr.GetArrayLength() > 0)
                             return MapFeedGeneratorRowToDto(feedsArr[0]);
                     }
 
+                    using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                     var one = await httpClient.GetAsync(
-                        $"{host}/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(resolvedUri)}");
+                        $"{host}/xrpc/app.bsky.feed.getFeedGenerator?feed={Uri.EscapeDataString(resolvedUri)}", cts2.Token);
                     if (one.IsSuccessStatusCode)
                     {
-                        using var doc = JsonDocument.Parse(await one.Content.ReadAsStringAsync());
+                        using var doc = JsonDocument.Parse(await one.Content.ReadAsStringAsync(cts2.Token));
                         if (doc.RootElement.TryGetProperty("view", out var view))
                             return MapGeneratorViewToDto(view, noPrefs, noPrefs);
                     }
@@ -1387,7 +1391,8 @@ public class FeedService : IFeedService
                     var url = $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
                     if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
-                    var response = await httpClient.GetAsync(url);
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                    var response = await httpClient.GetAsync(url, cts.Token);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -1395,7 +1400,7 @@ public class FeedService : IFeedService
                         continue;
                     }
 
-                    var content = await response.Content.ReadAsStringAsync();
+                    var content = await response.Content.ReadAsStringAsync(cts.Token);
                     using var doc = JsonDocument.Parse(content);
                     if (!doc.RootElement.TryGetProperty("feed", out var feedArray))
                         continue;
