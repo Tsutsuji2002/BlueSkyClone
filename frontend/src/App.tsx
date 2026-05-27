@@ -56,6 +56,7 @@ const AppContent: React.FC = () => {
 
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const lastVisibilityCheckRef = React.useRef<number>(0);
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
 
   React.useLayoutEffect(() => {
@@ -259,12 +260,21 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        // 10s cooldown to prevent thundering herd on rapid tab switching
+        if (now - lastVisibilityCheckRef.current < 10000) {
+            console.log('[App] Visibility change ignored (cooldown)');
+            return;
+        }
+        lastVisibilityCheckRef.current = now;
+
         if (isAuthenticated) {
             console.log('[App] Tab visible: Re-syncing session...');
             dispatch(resetSessionStatus());
             
             try {
-                await refetch().unwrap();
+                // Use a non-blocking timeout for the actual refetch to keep UI fluid
+                const refetchResult = await refetch().unwrap();
                 console.log('[App] Session re-verified. Resuming sync...');
                 
                 // Priority 1: Real-time (Start on visible)

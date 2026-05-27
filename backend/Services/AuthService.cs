@@ -285,7 +285,7 @@ public class AuthService : IAuthService
             {
                 try 
                 {
-                    using var ctsProxy = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    using var ctsProxy = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     var refreshResult = await _xrpcProxy.ProxyRequestAsync(
                         user.Did, 
                         "com.atproto.server.refreshSession", 

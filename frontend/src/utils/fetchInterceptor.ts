@@ -88,11 +88,20 @@ async function tryRefreshToken(): Promise<boolean> {
 
     const refreshActual = (async () => {
         try {
-            const res = await fetchWithTimeout(`${API_URL}/auth/refresh`, {
+            console.log(`[FetchInterceptor] Requesting session refresh...`);
+            
+            // Hard timeout pattern to bypass browser timer throttling
+            const timeoutPromise = new Promise<Response>((_, reject) => 
+                setTimeout(() => reject(new Error('REFRESH_HARD_TIMEOUT')), 15000)
+            );
+
+            const refreshPromise = fetchWithTimeout(`${API_URL}/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' }
-            }, 15000); // Strict 15s for refresh
+            }, 14000);
+
+            const res = await Promise.race([refreshPromise, timeoutPromise]) as Response;
             
             console.log(`[FetchInterceptor] Refresh result: ${res.status}`);
             return res.ok;
@@ -131,6 +140,7 @@ export const setupFetchInterceptor = () => {
 
         const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || 
                             url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
+                            url.includes('/app.bsky.feed.getFeed') || url.includes('/app.bsky.feed.getActorFeeds') ||
                             isLoginRequest || isRefreshRequest;
 
         // DEADLOCK PREVENTION & STAGGERING:
