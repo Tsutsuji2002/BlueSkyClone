@@ -421,7 +421,7 @@ public class FeedService : IFeedService
         if (user == null || string.IsNullOrEmpty(user.Did)) return new List<FeedDto>();
 
         // 1. Get Preferences (with retry for transient recovery errors)
-        BSkyClone.Utilities.XrpcResponse prefResponse = null!;
+        BSkyClone.Services.ProxyResponse prefResponse = null!;
         for (int i = 0; i < 2; i++)
         {
             prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
