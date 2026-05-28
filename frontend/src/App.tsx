@@ -289,43 +289,33 @@ const AppContent: React.FC = () => {
             dispatch(resetSessionStatus());
             
             try {
-                // OPTIMISTIC RE-SYNC: 
-                // Don't await the refetch. Let it run in parallel with the data sync.
-                // This ensures "instant" load for the user.
-                refetch().unwrap()
-                    .then(() => {
-                        console.log('[App] Session re-verified background check OK.');
-                        dispatch(completeReverification());
-                    })
-                    .catch(() => {
-                        console.warn('[App] Session re-verification failed in background.');
-                        dispatch(completeReverification());
-                    });
+                // SEQUENTIAL RE-SYNC: 
+                // Await the refetch to ensure the session is valid (and refreshed if needed)
+                // before firing any secondary data requests. This prevents connection storms.
+                await refetch().unwrap();
+                console.log('[App] Session re-verified background check OK.');
+                dispatch(completeReverification());
 
-                console.log('[App] Resuming sync immediately (optimistic)...');
+                console.log('[App] Resuming sync after verification...');
                 
-                // Priority 1: Real-time (Start on visible)
+                // Priority 1: Real-time
                 signalrService.startConnection();
                 postSignalrService.startConnection();
                 
-                // Priority 2: Core Data (slightly staggered for browser performance)
-                // Note: fetchSubscribedFeeds is intentionally NOT dispatched here.
-                // The meData refetch above (refetch().unwrap()) will trigger the meData
-                // useEffect which already calls fetchSubscribedFeeds() after session verification.
-                // Calling it here would result in 2+ duplicate calls on every re-access.
+                // Priority 2: Core Data
                 setTimeout(() => {
                     dispatch(fetchPinnedLists() as any);
-                }, 100);
+                }, 50);
 
-                // Priority 3: Notifications & Background (Heavily staggered)
+                // Priority 3: Notifications & Background (Staggered)
                 setTimeout(() => {
                     dispatch(fetchUnreadCount() as any);
-                }, 1000);
+                }, 400);
                 setTimeout(() => {
                     dispatch(fetchNotifications({ limit: 40 }) as any);
-                }, 1500);
+                }, 800);
             } catch (err) {
-                console.error('[App] Critical recovery error:', err);
+                console.warn('[App] Session re-verification failed or timed out:', err);
                 dispatch(completeReverification()); 
             }
         }

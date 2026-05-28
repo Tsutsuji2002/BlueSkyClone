@@ -287,6 +287,17 @@ public class AuthService : IAuthService
                 {
                     using var ctsSync = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                     var bskyRefreshToken = await _cache.GetStringAsync($"BlueskyRefreshToken_{user.Id}", ctsSync.Token);
+                    
+                    if (string.IsNullOrEmpty(bskyRefreshToken))
+                    {
+                        // Fallback: recover from DB if cache expired
+                        bskyRefreshToken = user.BlueskyRefreshToken;
+                        if (!string.IsNullOrEmpty(bskyRefreshToken))
+                        {
+                            _logger.LogInformation("Recovered Bluesky refresh token from database for user {UserId}", user.Id);
+                        }
+                    }
+
                     if (!string.IsNullOrEmpty(bskyRefreshToken))
                     {
                         try 
