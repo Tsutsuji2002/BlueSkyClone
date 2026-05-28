@@ -120,7 +120,7 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    var queryArgs = new Dictionary<string, string?> { { "limit", "100" } };
+                    var queryArgs = new Dictionary<string, string?> { { "limit", "50" } };
                     if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
 
                     var result = await _xrpcProxy.ProxyRequestAsync(
@@ -741,7 +741,7 @@ public class PostService : IPostService
 
             token ??= viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
             
-            using var ctsTotal = new CancellationTokenSource(TimeSpan.FromSeconds(25));
+            using var ctsTotal = new CancellationTokenSource(TimeSpan.FromSeconds(15)); // Reduced to 15s to beat browser 30s timeout
             _logger.LogInformation("[EnrichAndFilterPostsAsync] Start: PostsCount={Count}, ViewerId={ViewerId}, HasToken={HasToken}", 
                 posts.Count, viewerId, !string.IsNullOrEmpty(token));
             var postIds = new HashSet<Guid>();
@@ -897,45 +897,46 @@ public class PostService : IPostService
             // Skip only if there's nothing to fetch.
             if (remoteUrisList.Any())
             {
-                _logger.LogInformation("[EnrichAndFilterPostsAsync] Fetching remote interactions for {Count} URIs. Sample: {Sample}", 
-                    remoteUrisList.Count, remoteUrisList.FirstOrDefault());
-                try
+                var cachedInteractions = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+                var missingUris = new List<string>();
+
+                // 1. Individual Cache Check
+                foreach (var uri in remoteUrisList)
                 {
-                    var chunks = remoteUrisList.Chunk(25).ToArray();
+                    var individualCacheKey = $"appview:v2:{uri}";
+                    var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(individualCacheKey) : null;
+                    if (!string.IsNullOrEmpty(cachedJson))
+                    {
+                        try {
+                            var doc = JsonDocument.Parse(cachedJson);
+                            cachedInteractions[uri] = doc.RootElement.Clone();
+                        } catch { missingUris.Add(uri); }
+                    }
+                    else { missingUris.Add(uri); }
+                }
+
+                if (missingUris.Any())
+                {
+                    _logger.LogInformation("[EnrichAndFilterPostsAsync] Fetching {Count}/{Total} remote interactions from AppView.", missingUris.Count, remoteUrisList.Count);
+                    var chunks = missingUris.Chunk(25).ToArray();
                     var tasks = chunks.Select(async chunk =>
                     {
-                        var cacheKey = $"appview:posts:{viewerId}:{string.Join(",", chunk.OrderBy(u => u)).GetHashCode()}";
-                        var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(cacheKey) : null;
-                        if (!string.IsNullOrEmpty(cachedJson)) return cachedJson;
+                        try {
+                            using var chunkClient = _httpClientFactory.CreateClient();
+                            chunkClient.Timeout = TimeSpan.FromSeconds(8);
+                            chunkClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                            if (!string.IsNullOrEmpty(token))
+                                chunkClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                        using var chunkClient = _httpClientFactory.CreateClient();
-                        chunkClient.Timeout = TimeSpan.FromSeconds(10);
-                        chunkClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-                        if (!string.IsNullOrEmpty(token))
-                            chunkClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-                        var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                        var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
-                        
-                        using var response = await chunkClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
-                        if (response.IsSuccessStatusCode)
-                        {
-                            var rawJson = await response.Content.ReadAsStringAsync();
-                            await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
-                            return rawJson;
-                        }
-                        else if (!string.IsNullOrEmpty(token))
-                        {
-                            // Fallback to public if private fails
-                            chunkClient.DefaultRequestHeaders.Authorization = null;
-                            using var pubResponse = await chunkClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
-                            if (pubResponse.IsSuccessStatusCode)
+                            var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                            var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                            
+                            using var response = await chunkClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}", ctsTotal.Token);
+                            if (response.IsSuccessStatusCode)
                             {
-                                var rawJson = await pubResponse.Content.ReadAsStringAsync();
-                                await _cacheService.SetAsync(cacheKey, rawJson, TimeSpan.FromMinutes(2));
-                                return rawJson;
+                                return await response.Content.ReadAsStringAsync();
                             }
-                        }
+                        } catch { }
                         return null;
                     });
 
@@ -953,80 +954,81 @@ public class PostService : IPostService
                                     var uri = uriProp.GetString();
                                     if (uri != null)
                                     {
-                                        var uriLower = uri.ToLower();
-                                        remoteInteractionCache[uriLower] = rp.Clone();
-                                        
-                                        // Refresh authoritative CID for remote posts
-                                        if (rp.TryGetProperty("cid", out var authoritativeCid))
-                                        {
-                                            var cidVal = authoritativeCid.GetString();
-                                            if (cidVal != null)
-                                            {
-                                                if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
-                                                {
-                                                    foreach (var raw in rawUris)
-                                                    {
-                                                        var target = posts.FirstOrDefault(p => (p.Uri != null && p.Uri.Equals(raw, StringComparison.OrdinalIgnoreCase)));
-                                                        if (target != null) target.Cid = cidVal;
-                                                    }
-                                                }
-                                                else 
-                                                {
-                                                    var target = posts.FirstOrDefault(p => p.Uri != null && p.Uri.Equals(uriLower, StringComparison.OrdinalIgnoreCase));
-                                                    if (target != null) target.Cid = cidVal;
-                                                }
-                                            }
-                                        }
-
-                                        // Index canonical URIs by all raw URIs that map to them
-                                        if (canonicalToRaw.TryGetValue(uriLower, out var rawUrisForCache))
-                                        {
-                                            foreach (var raw in rawUrisForCache)
-                                            {
-                                                remoteInteractionCache[raw.ToLower()] = rp.Clone();
-                                            }
-                                        }
-
-                                        void AddToActiveLabels(string subject, JsonElement labProp)
-                                        {
-                                            if (labProp.ValueKind != JsonValueKind.Array) return;
-                                            var labels = new List<string>();
-                                            foreach (var lab in labProp.EnumerateArray())
-                                            {
-                                                if (lab.TryGetProperty("val", out var valProp)) labels.Add(valProp.GetString()?.ToLower() ?? "");
-                                            }
-                                            if (labels.Any())
-                                            {
-                                                if (activeLabels.ContainsKey(subject)) activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
-                                                else activeLabels[subject] = labels;
-                                            }
-                                        }
-                                        if (rp.TryGetProperty("labels", out var pLabels)) AddToActiveLabels(uri, pLabels);
-                                        if (rp.TryGetProperty("author", out var authorProp) && authorProp.TryGetProperty("did", out var didProp))
-                                        {
-                                            var did = didProp.GetString();
-                                            if (did != null && authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
-                                        }
-                                        if (rp.TryGetProperty("embed", out var embedProp))
-                                        {
-                                            if (embedProp.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
-                                            {
-                                                foreach (var img in images.EnumerateArray())
-                                                {
-                                                    if (img.TryGetProperty("labels", out var imgLabels)) AddToActiveLabels(uri, imgLabels);
-                                                }
-                                            }
-                                            if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels)) AddToActiveLabels(uri, extLabels);
-                                        }
+                                        var cloned = rp.Clone();
+                                        cachedInteractions[uri] = cloned;
+                                        // Cache individually for 3 minutes
+                                        await _cacheService.SetAsync($"appview:v2:{uri}", cloned.ToString(), TimeSpan.FromMinutes(3));
                                     }
                                 }
                             }
                         }
                     }
                 }
-                catch (Exception ex)
+                
+                // 2. Refresh authoritative CID and track mapped posts
+                foreach (var kvp in cachedInteractions)
                 {
-                    _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to fetch remote counts for timeline posts");
+                    var uri = kvp.Key;
+                    var rp = kvp.Value;
+                    var uriLower = uri.ToLower();
+                    remoteInteractionCache[uriLower] = rp.Clone();
+
+                    // Refresh authoritative CID for remote posts
+                    if (rp.TryGetProperty("cid", out var authoritativeCid))
+                    {
+                        var cidVal = authoritativeCid.GetString();
+                        if (cidVal != null)
+                        {
+                            if (canonicalToRaw.TryGetValue(uriLower, out var rawUris))
+                            {
+                                foreach (var raw in rawUris)
+                                {
+                                    remoteInteractionCache[raw.ToLower()] = rp.Clone();
+                                    var target = posts.FirstOrDefault(p => (p.Uri != null && p.Uri.Equals(raw, StringComparison.OrdinalIgnoreCase)));
+                                    if (target != null) target.Cid = cidVal;
+                                }
+                            }
+                            else 
+                            {
+                                var target = posts.FirstOrDefault(p => p.Uri != null && p.Uri.Equals(uriLower, StringComparison.OrdinalIgnoreCase));
+                                if (target != null) target.Cid = cidVal;
+                            }
+                        }
+                    }
+
+                    // 3. Extract Labels from the Remote Response
+                    void AddToActiveLabels(string subject, JsonElement labProp)
+                    {
+                        if (labProp.ValueKind != JsonValueKind.Array) return;
+                        var labels = new List<string>();
+                        foreach (var lab in labProp.EnumerateArray())
+                        {
+                            if (lab.TryGetProperty("val", out var valProp)) labels.Add(valProp.GetString()?.ToLower() ?? "");
+                        }
+                        if (labels.Any())
+                        {
+                            if (activeLabels.ContainsKey(subject)) activeLabels[subject] = activeLabels[subject].Concat(labels).Distinct().ToList();
+                            else activeLabels[subject] = labels;
+                        }
+                    }
+
+                    if (rp.TryGetProperty("labels", out var pLabels)) AddToActiveLabels(uri, pLabels);
+                    if (rp.TryGetProperty("author", out var authorProp) && authorProp.TryGetProperty("did", out var didProp))
+                    {
+                        var did = didProp.GetString();
+                        if (did != null && authorProp.TryGetProperty("labels", out var aLabels)) AddToActiveLabels(did, aLabels);
+                    }
+                    if (rp.TryGetProperty("embed", out var embedProp))
+                    {
+                        if (embedProp.TryGetProperty("images", out var images) && images.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var img in images.EnumerateArray())
+                            {
+                                if (img.TryGetProperty("labels", out var imgLabels)) AddToActiveLabels(uri, imgLabels);
+                            }
+                        }
+                        if (embedProp.TryGetProperty("external", out var external) && external.TryGetProperty("labels", out var extLabels)) AddToActiveLabels(uri, extLabels);
+                    }
                 }
             }
 
