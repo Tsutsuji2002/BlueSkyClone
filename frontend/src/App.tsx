@@ -317,11 +317,13 @@ const AppContent: React.FC = () => {
                     dispatch(fetchPinnedLists() as any);
                 }, 100);
 
-                // Priority 3: Notifications
+                // Priority 3: Notifications & Background (Heavily staggered)
+                setTimeout(() => {
+                    dispatch(fetchUnreadCount() as any);
+                }, 1000);
                 setTimeout(() => {
                     dispatch(fetchNotifications({ limit: 40 }) as any);
-                    dispatch(fetchUnreadCount() as any);
-                }, 600);
+                }, 1500);
             } catch (err) {
                 console.error('[App] Critical recovery error:', err);
                 dispatch(completeReverification()); 

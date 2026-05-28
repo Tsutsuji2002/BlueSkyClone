@@ -142,7 +142,7 @@ export const setupFetchInterceptor = () => {
                             url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
                             url.includes('/app.bsky.feed.getFeed') || url.includes('/app.bsky.feed.getActorFeeds') ||
                             url.includes('/feeds/subscribed') || url.includes('/lists/pinned') ||
-                            isLoginRequest || isRefreshRequest;
+                            url.includes('/auth/me') || isLoginRequest || isRefreshRequest;
 
         // DEADLOCK PREVENTION & STAGGERING:
         // If a session refresh is in progress, background requests wait and stagger.
@@ -151,20 +151,27 @@ export const setupFetchInterceptor = () => {
             const isReverifying = (state.auth as any).isReverifying;
 
             // OPTIMISTIC RE-SYNC: 
-            // If we are just re-verifying (background check), ALLOW essential requests to move through.
-            // Don't make them wait for the refresh promise if they might still work.
-            if (isEssential && isReverifying) {
-                console.log(`[FetchInterceptor] Optimistically allowing essential request during re-verification: ${url}`);
-                // Proceed to nativeFetch below
-            } else {
-                // If not essential AND re-verifying, skip it to save connection slots.
-                if (!isEssential && isReverifying) {
+            // - If it's a re-verification (background check), highly prioritize /me and /refresh.
+            // - Other essential requests (like feed hydration) are allowed but with caution.
+            if (isReverifying) {
+                const isCoreRecovery = url.includes('/auth/me') || isRefreshRequest;
+                
+                if (isCoreRecovery) {
+                    console.log(`[FetchInterceptor] CRITICAL: Allowing core recovery request during re-verification: ${url}`);
+                    // Proceed to nativeFetch
+                } else if (isEssential) {
+                    // Stagger essential data requests during re-verification to allow /me and /refresh to win connection slots
+                    console.log(`[FetchInterceptor] Staggering essential data request during re-verification: ${url}`);
+                    await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
+                } else {
+                    // Strictly skip non-essential requests during re-verification to save connections
                     console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
                     return new Response(JSON.stringify({ error: 'Skipped during re-verification' }), { 
                         status: 409, 
                         headers: { 'Content-Type': 'application/json' } 
                     });
                 }
+            } else {
 
                 console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
                 try {

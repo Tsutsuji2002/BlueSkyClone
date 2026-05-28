@@ -48,7 +48,8 @@ public class UserService : IUserService
     }
 
     // Per-user semaphores to prevent thundering-herd when token expires (e.g. ~3 AM)
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _tokenRefreshLocks = new();
+    // Internal so AuthService can share the same lock to avoid parallel refresh conflicts.
+    internal static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _tokenRefreshLocks = new();
 
     public UserService(
         IUnitOfWork unitOfWork, 

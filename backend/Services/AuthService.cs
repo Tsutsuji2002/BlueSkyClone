@@ -279,56 +279,72 @@ public class AuthService : IAuthService
         // Synchronize Bluesky session refresh
         if (!string.IsNullOrEmpty(user.Did))
         {
-            using var ctsSync = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var bskyRefreshToken = await _cache.GetStringAsync($"BlueskyRefreshToken_{user.Id}", ctsSync.Token);
-            if (!string.IsNullOrEmpty(bskyRefreshToken))
+            var semaphore = UserService._tokenRefreshLocks.GetOrAdd(user.Id, _ => new SemaphoreSlim(1, 1));
+            // Wait up to 10 seconds for the lock, similar to UserService.GetOrRefreshBlueskyTokenAsync
+            if (await semaphore.WaitAsync(TimeSpan.FromSeconds(10)))
             {
-                try 
+                try
                 {
-                    using var ctsProxy = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    var refreshResult = await _xrpcProxy.ProxyRequestAsync(
-                        user.Did, 
-                        "com.atproto.server.refreshSession", 
-                        new Dictionary<string, string?>(), 
-                        bskyRefreshToken, 
-                        "POST"
-                    );
-                    
-                    if (refreshResult.Success)
+                    using var ctsSync = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    var bskyRefreshToken = await _cache.GetStringAsync($"BlueskyRefreshToken_{user.Id}", ctsSync.Token);
+                    if (!string.IsNullOrEmpty(bskyRefreshToken))
                     {
-                        var bskySession = JsonSerializer.Deserialize<JsonElement>(refreshResult.Content);
-                        string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
-                        string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
-                        
-                        if (bskySession.TryGetProperty("emailConfirmed", out var eco))
+                        try 
                         {
-                            user.EmailConfirmed = eco.GetBoolean();
+                            using var ctsProxy = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                            var refreshResult = await _xrpcProxy.ProxyRequestAsync(
+                                user.Did, 
+                                "com.atproto.server.refreshSession", 
+                                new Dictionary<string, string?>(), 
+                                bskyRefreshToken, 
+                                "POST"
+                            );
+                            
+                            if (refreshResult.Success)
+                            {
+                                var bskySession = JsonSerializer.Deserialize<JsonElement>(refreshResult.Content);
+                                string nextAccessJwt = bskySession.GetProperty("accessJwt").GetString()!;
+                                string nextRefreshJwt = bskySession.GetProperty("refreshJwt").GetString()!;
+                                
+                                if (bskySession.TryGetProperty("emailConfirmed", out var eco))
+                                {
+                                    user.EmailConfirmed = eco.GetBoolean();
+                                }
+
+                                // [FIX] Persist fresh tokens to DB for long-term recovery
+                                user.BlueskyAccessToken = nextAccessJwt;
+                                user.BlueskyRefreshToken = nextRefreshJwt;
+
+                                _unitOfWork.Users.Update(user);
+                                await _unitOfWork.CompleteAsync();
+
+                                var bskyCacheOptions = new DistributedCacheEntryOptions { 
+                                    AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+                                };
+                                using var ctsSet = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                                await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions, ctsSet.Token);
+                                await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions, ctsSet.Token);
+                                _logger.LogInformation("Successfully refreshed and PERSISTED Bluesky session for user {UserId}", user.Id);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, refreshResult.StatusCode, refreshResult.Content);
+                            }
                         }
-
-                        // [FIX] Persist fresh tokens to DB for long-term recovery
-                        user.BlueskyAccessToken = nextAccessJwt;
-                        user.BlueskyRefreshToken = nextRefreshJwt;
-
-                        _unitOfWork.Users.Update(user);
-                        await _unitOfWork.CompleteAsync();
-
-                        var bskyCacheOptions = new DistributedCacheEntryOptions { 
-                            AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
-                        };
-                        using var ctsSet = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions, ctsSet.Token);
-                        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions, ctsSet.Token);
-                        _logger.LogInformation("Successfully refreshed and PERSISTED Bluesky session for user {UserId}", user.Id);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to refresh Bluesky session for user {UserId}. Status: {Status}, Body: {Body}", user.Id, refreshResult.StatusCode, refreshResult.Content);
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error refreshing Bluesky session for user {UserId}", user.Id);
+                        }
                     }
                 }
-                catch (Exception ex)
+                finally
                 {
-                    _logger.LogError(ex, "Error refreshing Bluesky session for user {UserId}", user.Id);
+                    semaphore.Release();
                 }
+            }
+            else
+            {
+                _logger.LogWarning("[AuthService] Timeout waiting for refresh lock during session refresh for {UserId}", user.Id);
             }
         }
 
