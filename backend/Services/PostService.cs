@@ -404,7 +404,7 @@ public class PostService : IPostService
             }
 
             // [NEW] Pin logic for Profile Feed: Match vs the Author's pinned post instead of the Viewer's
-            var authorUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
+            var authorUser = await _unitOfWork.Users.Query().AsNoTracking().FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
             var pinnedUri = authorUser?.PinnedPostUri;
 
             var enriched = await EnrichAndFilterPostsAsync(result.Posts.ToList(), viewerId ?? Guid.Empty, token, false, false, !string.IsNullOrEmpty(token));
@@ -740,6 +740,8 @@ public class PostService : IPostService
             }
 
             token ??= viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
+            
+            using var ctsTotal = new CancellationTokenSource(TimeSpan.FromSeconds(25));
             _logger.LogInformation("[EnrichAndFilterPostsAsync] Start: PostsCount={Count}, ViewerId={ViewerId}, HasToken={HasToken}", 
                 posts.Count, viewerId, !string.IsNullOrEmpty(token));
             var postIds = new HashSet<Guid>();
@@ -770,9 +772,10 @@ public class PostService : IPostService
             if (postUrisForSync.Any())
             {
                 var uriToIdMap = await _unitOfWork.Posts.Query()
+                    .AsNoTracking()
                     .Where(p => postUrisForSync.Contains(p.Uri))
                     .Select(p => new { p.Uri, p.Id })
-                    .ToDictionaryAsync(x => x.Uri!.ToLower(), x => x.Id);
+                    .ToDictionaryAsync(x => x.Uri!.ToLower(), x => x.Id, ctsTotal.Token);
 
                 foreach (var p in posts)
                 {
@@ -793,9 +796,10 @@ public class PostService : IPostService
             if (allAuthorDids.Any())
             {
                 var didToIdMap = await _unitOfWork.Users.Query()
+                    .AsNoTracking()
                     .Where(u => allAuthorDids.Contains(u.Did))
                     .Select(u => new { u.Did, u.Id })
-                    .ToDictionaryAsync(x => x.Did, x => x.Id);
+                    .ToDictionaryAsync(x => x.Did, x => x.Id, ctsTotal.Token);
 
                 void SyncAuthorIdRecursive(PostDto? p)
                 {
@@ -826,8 +830,9 @@ public class PostService : IPostService
             if (allSubjectUris.Any())
             {
                 var labels = await _unitOfWork.Labels.Query()
+                    .AsNoTracking()
                     .Where(l => allSubjectUris.Contains(l.Uri) && !l.Neg)
-                    .ToListAsync();
+                    .ToListAsync(ctsTotal.Token);
                 
                 activeLabels = labels.GroupBy(l => l.Uri)
                     .ToDictionary(g => g.Key, g => g.Select(l => l.Val.ToLower()).ToList());
@@ -5896,6 +5901,40 @@ public class PostService : IPostService
             try
             {
                 var threeDaysAgo = now.AddDays(-3);
+                
+                // STAGE 1: Lightweight Candidate Fetch (No heavy includes)
+                // We only fetch enough info to rank the posts.
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                var topCandidateData = await _unitOfWork.Posts.Query()
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo && !string.IsNullOrEmpty(p.Content))
+                    .Select(p => new {
+                        p.Id,
+                        p.CreatedAt,
+                        p.LikesCount,
+                        p.RepostsCount,
+                        p.RepliesCount
+                    })
+                    .OrderByDescending(p => (p.LikesCount ?? 0)) // Fast index-friendly pre-sort
+                    .Take(1500)
+                    .ToListAsync(cts.Token);
+
+                if (!topCandidateData.Any()) return new List<PostDto>();
+
+                // Initial Global Scoring in memory
+                var scoredIds = topCandidateData
+                    .Select(p => {
+                        var ageInHours = (now - (p.CreatedAt ?? now)).TotalHours;
+                        var rawScore = (double)((p.LikesCount ?? 0) * 2 + (p.RepostsCount ?? 0) * 3 + (p.RepliesCount ?? 0));
+                        var decayScore = rawScore / Math.Pow(ageInHours + 2, 1.5);
+                        return new { p.Id, BaseScore = decayScore };
+                    })
+                    .OrderByDescending(x => x.BaseScore)
+                    .Take(300) 
+                    .Select(x => x.Id)
+                    .ToList();
+
+                // STAGE 2: Targeted Batch Hydration
+                // Now we fetch all info (8 includes) for ONLY the top 300 posts.
                 var topPosts = await _unitOfWork.Posts.Query()
                     .Include(p => p.Author)
                     .Include(p => p.PostMedia)
@@ -5905,30 +5944,20 @@ public class PostService : IPostService
                     .Include(p => p.QuotePost).ThenInclude(qp => qp!.LinkPreview)
                     .Include(p => p.Interests)
                     .Include(p => p.Hashtags)
-                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && p.ReplyToPostId == null && p.CreatedAt >= threeDaysAgo && !string.IsNullOrEmpty(p.Content))
-                    .OrderByDescending(p => (double)(p.LikesCount ?? 0) + (double)(p.RepostsCount ?? 0) + (double)(p.RepliesCount ?? 0))
-                    .Take(1000)
+                    .Where(p => scoredIds.Contains(p.Id))
                     .ToListAsync();
 
-                // Initial Global Scoring (Sorts by hotness once)
-                var scoredGlobal = topPosts
-                    .Select(p => {
-                        var ageInHours = (now - (p.CreatedAt ?? now)).TotalHours;
-                        var rawScore = (double)((p.LikesCount ?? 0) * 2 + (p.RepostsCount ?? 0) * 3 + (p.RepliesCount ?? 0));
-                        var decayScore = rawScore / Math.Pow(ageInHours + 2, 1.5);
-                        return new { Post = p, BaseScore = decayScore };
-                    })
-                    .OrderByDescending(x => x.BaseScore)
-                    .Take(500) // Keep top 500 in global pool
-                    .Select(x => MapToDto(x.Post))
-                    .ToList();
-
-                globalPool = scoredGlobal;
-                await _cacheService.SetAsync(cacheKey, globalPool, TimeSpan.FromMinutes(5));
+                globalPool = topPosts.Select(p => MapToDto(p)).ToList();
+                
+                // Cache for 15 minutes (was 5)
+                await _cacheService.SetAsync(cacheKey, globalPool, TimeSpan.FromMinutes(15));
             }
             catch (Exception ex)
             {
-                System.Console.WriteLine($"[PostService] GetTrendingPostsAsync Error: {ex.Message}");
+                _logger.LogError(ex, "[PostService] GetTrendingPostsAsync Global Fetch Error");
+                // Fallback: try to return stale cache if available
+                var stale = await _cacheService.GetAsync<List<PostDto>>(cacheKey);
+                if (stale != null) return stale;
                 return new List<PostDto>();
             }
         }
