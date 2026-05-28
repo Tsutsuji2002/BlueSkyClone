@@ -280,8 +280,8 @@ public class AuthService : IAuthService
         if (!string.IsNullOrEmpty(user.Did))
         {
             var semaphore = UserService._tokenRefreshLocks.GetOrAdd(user.Id, _ => new SemaphoreSlim(1, 1));
-            // Wait up to 10 seconds for the lock, similar to UserService.GetOrRefreshBlueskyTokenAsync
-            if (await semaphore.WaitAsync(TimeSpan.FromSeconds(10)))
+            // Wait up to 45 seconds for the lock, to avoid timing out during a slow Bluesky refresh
+            if (await semaphore.WaitAsync(TimeSpan.FromSeconds(45)))
             {
                 try
                 {

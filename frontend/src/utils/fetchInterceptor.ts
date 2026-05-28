@@ -257,11 +257,27 @@ export const setupFetchInterceptor = () => {
                         return fetchWithTimeout(input, finalOptions, 30000);
                     }
                 } else {
-                    // Refresh failed - session really is dead.
+                    // Refresh failed - but don't logout immediately!
+                    // Another tab or request might have just rotated the tokens successfully.
+                    console.warn(`[FetchInterceptor] Refresh attempt failed for ${url}. Verifying session before giving up...`);
+                    
+                    try {
+                        // "The Final Try": Perform a clean native fetch to /auth/me
+                        // If this succeeds, it means the session is actually alive (fixed by another tab).
+                        const meCheck = await nativeFetch('/api/auth/me', { credentials: 'include' });
+                        if (meCheck.ok) {
+                            console.log('[FetchInterceptor] Local session verification SUCCEEDED despite refresh failure. Retrying original request.');
+                            return interceptedFetch(input, init); // Recursive retry once
+                        }
+                    } catch (checkErr) {
+                        console.warn('[FetchInterceptor] Final session verification check failed:', checkErr);
+                    }
+
                     const state = store.getState();
                     const activeDid = state.auth.user?.did;
                     
                     if (state.auth.isAuthenticated) {
+                        console.error('[FetchInterceptor] Session definitively dead. Logging out.');
                         store.dispatch(logout());
                     }
 

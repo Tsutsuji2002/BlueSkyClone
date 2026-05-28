@@ -3012,7 +3012,7 @@ public class UserService : IUserService
         // When many requests hit simultaneously (e.g. after token expiry at night),
         // only ONE of them does the refresh; the rest wait and then reuse the result.
         var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(10)))
+        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(45)))
         {
             _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Timeout waiting for refresh lock for {UserId}", userId);
             return await _distributedCache.GetStringAsync($"BlueskyToken_{userId}"); // Try one last fast-path check
