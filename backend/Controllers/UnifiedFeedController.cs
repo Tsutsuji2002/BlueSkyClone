@@ -76,7 +76,18 @@ public class UnifiedFeedController : ControllerBase
                     else
                     {
                         var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
-                        posts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh);
+                        var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh);
+                        posts = trendingPosts.ToList();
+
+                        // [NEW] Resilient Fallback: If local trending is empty (due to query timeout or no local data),
+                        // immediately fallback to Bluesky's official "What's Hot" feed.
+                        if (!posts.Any() && skip == 0)
+                        {
+                            _logger.LogInformation("[UnifiedFeed] Local trending empty for {UserId}. Falling back to Bluesky What's Hot.", viewerId);
+                            var remoteResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor);
+                            posts = remoteResult.Posts;
+                            outCursor = remoteResult.Cursor;
+                        }
                     }
                     break;
                 case "internal-music":

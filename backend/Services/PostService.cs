@@ -5914,7 +5914,7 @@ public class PostService : IPostService
                         p.RepostsCount,
                         p.RepliesCount
                     })
-                    .OrderByDescending(p => (p.LikesCount ?? 0)) // Fast index-friendly pre-sort
+                    .OrderByDescending(p => p.LikesCount) // SARGable: allows index usage unlike (p.LikesCount ?? 0)
                     .Take(1500)
                     .ToListAsync(cts.Token);
 
