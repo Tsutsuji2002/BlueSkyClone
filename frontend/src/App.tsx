@@ -309,8 +309,11 @@ const AppContent: React.FC = () => {
                 postSignalrService.startConnection();
                 
                 // Priority 2: Core Data (slightly staggered for browser performance)
+                // Note: fetchSubscribedFeeds is intentionally NOT dispatched here.
+                // The meData refetch above (refetch().unwrap()) will trigger the meData
+                // useEffect which already calls fetchSubscribedFeeds() after session verification.
+                // Calling it here would result in 2+ duplicate calls on every re-access.
                 setTimeout(() => {
-                    dispatch(fetchSubscribedFeeds() as any);
                     dispatch(fetchPinnedLists() as any);
                 }, 100);
 

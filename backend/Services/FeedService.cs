@@ -352,18 +352,33 @@ public class FeedService : IFeedService
 
     public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId)
     {
+        var cacheKey = $"subscribed_feeds_v1:{userId}";
         try
         {
+            // [OPTIMIZATION] 2-minute cache to prevent hammering Bluesky on every re-access/tab return
+            var cached = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cached))
+            {
+                return JsonSerializer.Deserialize<List<FeedDto>>(cached) ?? new List<FeedDto>();
+            }
+
             var remoteFeeds = await GetRemoteFeedsAsync(userId);
             if (remoteFeeds.Any())
             {
                 _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Found {Count} remote feeds.", userId, remoteFeeds.Count);
+                
+                // Cache the result for 2 minutes
+                await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(remoteFeeds), new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
+                });
+                
                 return remoteFeeds;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[FeedService] Failed to fetch remote feeds for {UserId}", userId);
+            _logger.LogError(ex, "[FeedService] Failed to fetch or cache remote feeds for {UserId}", userId);
         }
 
         // Fallback to local subscriptions if remote fails or returns none
@@ -579,7 +594,9 @@ public class FeedService : IFeedService
         };
 
         await _unitOfWork.UserFeedSubscriptions.AddAsync(sub);
-        return await _unitOfWork.CompleteAsync() > 0;
+        bool success = await _unitOfWork.CompleteAsync() > 0;
+        if (success) await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
+        return success;
     }
 
     public async Task<bool> UnsaveFeedAsync(Guid userId, Guid feedId, string? uri = null)
@@ -597,7 +614,9 @@ public class FeedService : IFeedService
         if (existing == null) return true;
 
         _unitOfWork.UserFeedSubscriptions.Remove(existing);
-        return await _unitOfWork.CompleteAsync() > 0;
+        bool success = await _unitOfWork.CompleteAsync() > 0;
+        if (success) await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
+        return success;
     }
 
     public async Task<bool> PinFeedAsync(Guid userId, Guid feedId, string? uri = null)
@@ -639,7 +658,9 @@ public class FeedService : IFeedService
             _unitOfWork.UserFeedSubscriptions.Update(existing);
         }
 
-        return await _unitOfWork.CompleteAsync() > 0;
+        bool success = await _unitOfWork.CompleteAsync() > 0;
+        if (success) await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
+        return success;
     }
 
     public async Task<bool> UnpinFeedAsync(Guid userId, Guid feedId, string? uri = null)
@@ -659,7 +680,9 @@ public class FeedService : IFeedService
         existing.IsPinned = false;
         existing.PinnedOrder = 0;
 
-        return await _unitOfWork.CompleteAsync() > 0;
+        bool success = await _unitOfWork.CompleteAsync() > 0;
+        if (success) await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
+        return success;
     }
 
     private async Task<bool> UpdateRemoteFeedPreferenceAsync(Guid userId, string feedUri, bool save, bool? pinAction = null)
@@ -758,6 +781,7 @@ public class FeedService : IFeedService
             if (putResponse.Success)
             {
                 _logger.LogInformation("[FeedService] Successfully updated remote feed preferences for {UserId} (Feed: {Uri}, Save: {Save}, Pin: {Pin})", userId, normalizedFeedUri, save, pinAction);
+                await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
             }
             
             return putResponse.Success;
@@ -784,7 +808,9 @@ public class FeedService : IFeedService
             }
         }
 
-        return await _unitOfWork.CompleteAsync() > 0;
+        bool success = await _unitOfWork.CompleteAsync() > 0;
+        if (success) await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
+        return success;
     }
 
     public async Task<bool> ReorderRemotePinnedFeedsAsync(Guid userId, List<string> orderedPinnedKeys)
@@ -883,7 +909,10 @@ public class FeedService : IFeedService
             var putResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.putPreferences", queryParams: new Dictionary<string, string?>(), token: token, method: "POST", body: new { preferences = prefs });
 
             if (putResponse.Success)
+            {
                 _logger.LogInformation("[FeedService] Reordered remote pinned feeds for {UserId}", userId);
+                await _cache.RemoveAsync($"subscribed_feeds_v1:{userId}");
+            }
 
             return putResponse.Success;
         }
