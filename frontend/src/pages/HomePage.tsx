@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch, lastSubscribedFeedsFetch } = useAppSelector((state: RootState) => state.feeds);
-    const { isAuthenticated, user, isLoading: authLoading, isSessionSettled, isReverifying } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, user, isLoading: authLoading, isSessionSettled, isReverifying, isInitializing } = useAppSelector((state: RootState) => state.auth);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
 
@@ -72,7 +72,7 @@ const HomePage: React.FC = () => {
     const hasAnyData = subscribedFeeds.length > 0 || pinnedLists.length > 0 || (activeTab && feedPosts[activeTab]?.length > 0);
     // Stay in loading state if auth is still working, or if we are authenticated but haven't even started fetching feeds/lists yet.
     // We check lastSubscribedFeedsFetch === 0 to know if we've ever tried (even in past session).
-    const isInitialLoading = (feedsLoading || authLoading || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData;
+    const isInitialLoading = (feedsLoading || authLoading || isInitializing || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData;
 
     const isInitializingRef = React.useRef(false);
 
@@ -82,7 +82,7 @@ const HomePage: React.FC = () => {
     useEffect(() => {
         // Strict guard: ensure we don't start pulling feed content until the session is settled.
         // This prevents race conditions where feed requests block metadata (subscribed/pinned) from loading.
-        if (!activeTab || !isSessionSettled || isReverifying) return;
+        if (!activeTab || !isSessionSettled || isReverifying || isInitializing) return;
         const now = Date.now();
 
         if (activeTab.startsWith('list:')) {

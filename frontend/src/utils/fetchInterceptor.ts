@@ -144,11 +144,44 @@ export const setupFetchInterceptor = () => {
                             url.includes('/feeds/subscribed') || url.includes('/lists/pinned') ||
                             url.includes('/auth/me') || isLoginRequest || isRefreshRequest;
 
-        // DEADLOCK PREVENTION & STAGGERING:
-        // If a session refresh is in progress, background requests wait and stagger.
+        // INITIALIZATION FLOODGATE (First Load Protection):
+        // Hold all requests until the first session verification (isInitializing) is complete.
+        // This prevents parallel "me" and "refresh" calls from clogging the backend during startup.
+        const state = store.getState();
+        const authState = state.auth as any;
+
+        if (authState.isInitializing && !isRefreshRequest && !url.includes('/auth/me') && !isLoginRequest) {
+            console.log(`[FetchInterceptor] INITIALIZING: Buffering request until session is verified: ${url}`);
+            
+            await new Promise<void>(resolve => {
+                const unsubscribe = store.subscribe(() => {
+                    const newState = store.getState() as any;
+                    if (!newState.auth.isInitializing) {
+                        unsubscribe();
+                        resolve();
+                    }
+                });
+                // Safety timeout: don't hang requests forever if init fails silently
+                setTimeout(() => { unsubscribe(); resolve(); }, 25000);
+            });
+
+            // Re-check state after floodgate opens
+            const updatedState = store.getState() as any;
+            if (!updatedState.auth.isAuthenticated && isEssential) {
+                console.warn(`[FetchInterceptor] Auth failed during init. Rejecting essential request: ${url}`);
+                return new Response(JSON.stringify({ error: 'Auth failed during initialization' }), { 
+                    status: 401, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
+            }
+
+            // Stagger released requests by 100-800ms to prevent connection pool exhaustion
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 700 + 100));
+        }
+
+        // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:
         if (isRefreshing && refreshPromise && !isRefreshRequest) {
-            const state = store.getState();
-            const isReverifying = (state.auth as any).isReverifying;
+            const isReverifying = authState.isReverifying;
 
             // OPTIMISTIC RE-SYNC: 
             // - If it's a re-verification (background check), highly prioritize /me and /refresh.

@@ -425,6 +425,7 @@ export interface AuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     isSessionSettled: boolean;
+    isInitializing: boolean;
     isReverifying: boolean;
     error: string | null;
     savedAccounts: any[]; // Using any[] to avoid circular dependency if StoredAccount was imported, but we'll use a local type in authSlice

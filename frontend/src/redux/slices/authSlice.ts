@@ -109,6 +109,7 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
         isAuthenticated: !!activeAccount,
         isLoading: !activeAccount,
         isSessionSettled: false, 
+        isInitializing: true, // [NEW] Blocking flag for first load
         isReverifying: false, // New flag for background re-verification
         error: null,
         savedAccounts,
@@ -159,6 +160,7 @@ const authSlice = createSlice({
         stopLoading: (state) => {
             state.isLoading = false;
             state.isSessionSettled = true;
+            state.isInitializing = false;
         },
         setAuth: (state, action: PayloadAction<{ user: User; settings: any; token: string; refreshToken: string }>) => {
             state.isAuthenticated = true;
@@ -166,6 +168,7 @@ const authSlice = createSlice({
             state.settings = normalizeSettings(action.payload.settings);
             state.isLoading = false;
             state.isSessionSettled = true;
+            state.isInitializing = false;
             
             // Save to account manager with tokens and mark as active
             AccountManager.saveAccount(action.payload.user, action.payload.token, action.payload.refreshToken);
@@ -197,11 +200,13 @@ const authSlice = createSlice({
         },
         resetSessionStatus: (state) => {
             state.isReverifying = true;
+            state.isInitializing = true;
         },
         completeReverification: (state) => {
             state.isReverifying = false;
             state.isSessionSettled = true;
             state.isLoading = false;
+            state.isInitializing = false;
         }
     },
     extraReducers: (builder) => {
