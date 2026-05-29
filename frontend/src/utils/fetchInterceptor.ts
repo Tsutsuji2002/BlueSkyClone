@@ -175,8 +175,17 @@ export const setupFetchInterceptor = () => {
                 });
             }
 
-            // Stagger released requests by 100-800ms to prevent connection pool exhaustion
-            await new Promise(resolve => setTimeout(resolve, Math.random() * 700 + 100));
+            // Stagger released requests to prevent connection pool exhaustion.
+            // [OPTIMIZATION] Skip jitter for user-initiated interactions (Like, Repost, etc.) 
+            // these should feel instantaneous once the floodgate opens.
+            const isInteraction = (init?.method === 'POST' || init?.method === 'DELETE') && 
+                                 (url.includes('/like') || url.includes('/repost') || url.includes('/blocks') || url.includes('/follows'));
+            
+            if (!isInteraction) {
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 700 + 100));
+            } else {
+                console.log(`[FetchInterceptor] FAST-PATH: Releasing interaction immediately: ${url}`);
+            }
         }
 
         // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:

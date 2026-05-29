@@ -5336,15 +5336,42 @@ public class PostService : IPostService
 
         try
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            // 1. Fetch User and Token in parallel
+            var userTask = _unitOfWork.Users.GetByIdAsync(userId);
+            var tokenTask = _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            await Task.WhenAll(userTask, tokenTask);
+
+            var user = await userTask;
+            var token = await tokenTask;
+
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isLiked = false, error = "User not found or missing DID" };
 
             PostDto? freshPost = null;
             if (postId != Guid.Empty)
             {
-                // 1. Fetch Post Info (FORCE bypassCache to ensure we get the real count before toggling)
-                freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
-                if (freshPost == null) return new { isLiked = false, error = "Post not found" };
+                // [OPTIMIZATION] Avoid GetPostByIdAsync(bypassCache: true) as it triggers heavy EnrichAndFilter sequence (7s+ timeout).
+                // Instead, use a direct DB lookup. If we need a refresh, we'll do it narrowly.
+                var post = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .FirstOrDefaultAsync(p => p.Id == postId);
+
+                if (post == null) return new { isLiked = false, error = "Post not found" };
+                freshPost = MapToDto(post);
+
+                // If CID is still missing or looks like a placeholder, try to resolve it from cache or remote
+                if (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy"))
+                {
+                    // Check local DB for any other post with this URI that might have a CID
+                    var otherCid = await _unitOfWork.Posts.Query()
+                        .Where(p => p.Uri == freshPost.Uri && p.Cid != null && p.Cid.StartsWith("bafy"))
+                        .Select(p => p.Cid)
+                        .FirstOrDefaultAsync();
+                    
+                    if (!string.IsNullOrEmpty(otherCid))
+                    {
+                        freshPost.Cid = otherCid;
+                    }
+                }
             }
             else if (string.IsNullOrEmpty(fallbackUri))
             {
@@ -5352,17 +5379,15 @@ public class PostService : IPostService
             }
             else
             {
-                // Create a temporary stub for processing the proxy interaction
                 freshPost = new PostDto { Id = Guid.Empty, Uri = fallbackUri, Cid = "" };
             }
 
-            // Determine current state: CLIENT is authoritative (they know what they clicked)
-            // Fallback to viewer state only if client didn't provide it
+            // Determine current state
             bool isCurrentlyLiked = clientIsLiked ?? (freshPost.Viewer?.Like != null);
             string? currentLikeUri = clientLikeUri ?? freshPost.Viewer?.Like;
 
-            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, ClientIsLiked={ClientIsLiked}, ViewerLike={ViewerLike}", 
-                userId, postId, freshPost.Uri, clientIsLiked, freshPost.Viewer?.Like);
+            _logger.LogInformation("[ToggleLikeAsync] User {UserId} toggling Post {PostId}. Uri={Uri}, ClientIsLiked={ClientIsLiked}", 
+                userId, postId, freshPost.Uri, clientIsLiked);
             
             bool isLiking = !isCurrentlyLiked;
             bool proxySuccess = false;
@@ -5370,27 +5395,16 @@ public class PostService : IPostService
             string? errorMessage = null;
 
             // 2. AT Protocol Sync
-            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(freshPost.Uri))
             {
                 if (isLiking)
                 {
-                    // [Optimized] Ensure we have a valid CID for the remote post
                     string? targetCid = freshPost.Cid;
                     if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
                     {
-                        // Fallback 1: Try local DB lookup for a cached CID
-                        var localPostCid = await _unitOfWork.Posts.Query().Where(p => p.Uri == freshPost.Uri).Select(p => p.Cid).FirstOrDefaultAsync();
-                        if (!string.IsNullOrEmpty(localPostCid) && localPostCid.StartsWith("bafy"))
-                        {
-                            targetCid = localPostCid;
-                        }
-                        else 
-                        {
-                            // Fallback 2: Remote lookup (Slow but necessary if CID is missing)
-                            var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
-                            targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
-                        }
+                        // Fallback: Remote lookup (only if CID is missing)
+                        var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
+                        targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
                     }
 
                     var likeRecord = new Dictionary<string, object> 
@@ -5614,18 +5628,43 @@ public class PostService : IPostService
 
         try
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            // 1. Fetch User and Token in parallel
+            var userTask = _unitOfWork.Users.GetByIdAsync(userId);
+            var tokenTask = _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            await Task.WhenAll(userTask, tokenTask);
+
+            var user = await userTask;
+            var token = await tokenTask;
+
             if (user == null || string.IsNullOrEmpty(user.Did)) return new { isReposted = false, error = "User not found or missing DID" };
 
             PostDto? freshPost = null;
             if (postId != Guid.Empty)
             {
-                // FORCE bypassCache to ensure we get the real count
-                freshPost = await GetPostByIdAsync(postId, userId, bypassCache: true);
-                if (freshPost == null) 
+                // [OPTIMIZATION] Avoid GetPostByIdAsync(bypassCache: true) as it triggers heavy EnrichAndFilter sequence (7s+ timeout).
+                var post = await _unitOfWork.Posts.Query()
+                    .Include(p => p.Author)
+                    .FirstOrDefaultAsync(p => p.Id == postId);
+
+                if (post == null) 
                 {
-                    _logger.LogWarning("[ToggleRepostAsync] Post {PostId} NOT FOUND in DB after resolution.", postId);
+                    _logger.LogWarning("[ToggleRepostAsync] Post {PostId} NOT FOUND in DB.", postId);
                     return new { isReposted = false, error = "Post not found" };
+                }
+                freshPost = MapToDto(post);
+
+                // Ensure we have a valid CID
+                if (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy"))
+                {
+                    var otherCid = await _unitOfWork.Posts.Query()
+                        .Where(p => p.Uri == freshPost.Uri && p.Cid != null && p.Cid.StartsWith("bafy"))
+                        .Select(p => p.Cid)
+                        .FirstOrDefaultAsync();
+                    
+                    if (!string.IsNullOrEmpty(otherCid))
+                    {
+                        freshPost.Cid = otherCid;
+                    }
                 }
             }
             else if (string.IsNullOrEmpty(fallbackUri))
@@ -5637,7 +5676,7 @@ public class PostService : IPostService
                 freshPost = new PostDto { Id = Guid.Empty, Uri = fallbackUri, Cid = "" };
             }
 
-            // Determine current state: CLIENT is authoritative
+            // Determine current state
             bool isCurrentlyReposted = clientIsReposted ?? (freshPost.Viewer?.Repost != null);
             string? currentRepostUri = clientRepostUri ?? freshPost.Viewer?.Repost;
             bool isReposting = !isCurrentlyReposted;
@@ -5650,27 +5689,16 @@ public class PostService : IPostService
             string? errorMessage = null;
 
             // 2. AT Protocol Sync
-            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
             if (!string.IsNullOrEmpty(token))
             {
                 if (isReposting)
                 {
-                    // [Optimized] Ensure we have a valid CID for the remote post
                     string? targetCid = freshPost.Cid;
                     if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
                     {
-                        // Fallback 1: Try local DB lookup for a cached CID
-                        var localPostCid = await _unitOfWork.Posts.Query().Where(p => p.Uri == freshPost.Uri).Select(p => p.Cid).FirstOrDefaultAsync();
-                        if (!string.IsNullOrEmpty(localPostCid) && localPostCid.StartsWith("bafy"))
-                        {
-                            targetCid = localPostCid;
-                        }
-                        else 
-                        {
-                            // Fallback 2: Remote lookup
-                            var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
-                            targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
-                        }
+                        // Fallback: Remote lookup (only if CID is missing)
+                        var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
+                        targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
                     }
 
                     var repostRecord = new Dictionary<string, object>
