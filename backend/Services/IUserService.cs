@@ -56,6 +56,7 @@ public interface IUserService
     Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, System.Text.Json.JsonElement viewerProp);
     Task<bool> MergeDuplicateUsersAsync(string did);
     Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
-    Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId);
+    Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false);
+    Task<string?> GetResolvedPdsAsync(string did);
     Task<ProxyResponse> GetPreferencesRawAsync(string did, string token);
 }

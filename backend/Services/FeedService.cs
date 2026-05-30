@@ -429,10 +429,17 @@ public class FeedService : IFeedService
             
             if (i == 0) 
             {
-                _logger.LogWarning("[FeedService] GetRemoteFeedsAsync for {UserId}: getPreferences failed (Status: {Status}). Retrying in 1s...", userId, prefResponse.StatusCode);
-                await Task.Delay(1000);
-                // Re-fetch token in case it was refreshed by another request during the delay
-                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId) ?? token;
+                _logger.LogWarning("[FeedService] GetRemoteFeedsAsync for {UserId}: getPreferences failed (Status: {Status}). Retrying with forced refresh...", userId, prefResponse.StatusCode);
+                
+                if (prefResponse.StatusCode == 401)
+                {
+                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true) ?? token;
+                }
+                else
+                {
+                    await Task.Delay(1000);
+                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId) ?? token;
+                }
             }
         }
 

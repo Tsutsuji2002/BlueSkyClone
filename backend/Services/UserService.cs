@@ -3002,7 +3002,7 @@ public class UserService : IUserService
         return anyMerged;
     }
 
-    public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId)
+    public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false)
     {
         // Fast path: token is still cached
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
@@ -3020,8 +3020,15 @@ public class UserService : IUserService
         try
         {
             // Double-check inside the lock — another waiter may have refreshed already
-            token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-            if (!string.IsNullOrEmpty(token)) return token;
+            if (!forceRefresh)
+            {
+                token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(token)) return token;
+            }
+            else
+            {
+                _logger.LogInformation("[GetOrRefreshBlueskyTokenAsync] Forced refresh requested for {UserId}.", userId);
+            }
 
             var refreshToken = await _distributedCache.GetStringAsync($"BlueskyRefreshToken_{userId}");
             if (string.IsNullOrEmpty(refreshToken))
@@ -3041,6 +3048,7 @@ public class UserService : IUserService
                 using var httpClient = _httpClientFactory.CreateClient();
                 httpClient.Timeout = TimeSpan.FromSeconds(10); // Hard cap — don't hang forever
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
 
                 // Resolve PDS dynamically for refresh
                 var userLocal = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -3057,8 +3065,13 @@ public class UserService : IUserService
                     var errorBody = await response.Content.ReadAsStringAsync();
                     _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId}. Status: {Status}. Body: {Body}", userId, response.StatusCode, errorBody);
                     
-                    // If refresh failed with 400/401, the refresh token is likely invalid/expired.
-                    // We should probably clear it from DB to avoid endless retries, but let's be cautious for now.
+                    // If refresh failed with 401, the refresh token is likely invalid/expired.
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    {
+                        _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Refresh token rejected for {UserId}. Clearing cache.", userId);
+                        await _distributedCache.RemoveAsync($"BlueskyRefreshToken_{userId}");
+                        await _distributedCache.RemoveAsync($"BlueskyToken_{userId}");
+                    }
                     return null;
                 }
 
@@ -3277,6 +3290,11 @@ public class UserService : IUserService
     public async Task<ProxyResponse> GetPreferencesRawAsync(string did, string token)
     {
         return await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getPreferences", new Dictionary<string, string?>(), token);
+    }
+
+    public async Task<string?> GetResolvedPdsAsync(string did)
+    {
+        return await _xrpcProxy.ResolvePdsEndpointAsync(did);
     }
 }
 

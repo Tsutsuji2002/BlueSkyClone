@@ -1720,6 +1720,7 @@ namespace BSkyClone.Controllers
                     var prefResponse = await _userService.GetPreferencesRawAsync(user.Did, token);
                     diagnosticInfo["PrefStatus"] = prefResponse.StatusCode;
                     diagnosticInfo["PrefSuccess"] = prefResponse.Success;
+                    diagnosticInfo["ResolvedPds"] = await ((dynamic)_userService).GetResolvedPdsAsync(user.Did);
                     
                     if (prefResponse.Success && !string.IsNullOrEmpty(prefResponse.Content))
                     {
