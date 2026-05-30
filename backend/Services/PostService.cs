@@ -5402,9 +5402,9 @@ public class PostService : IPostService
                     string? targetCid = freshPost.Cid;
                     if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
                     {
-                        // Fallback: Remote lookup (only if CID is missing)
-                        var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
-                        targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
+                        // Optimized fallback: Use faster ingestion path with restricted timeout
+                        var ingestedPost = await IngestRemotePostAsync(freshPost.Uri!);
+                        targetCid = ingestedPost?.Cid ?? freshPost.Cid ?? "";
                     }
 
                     var likeRecord = new Dictionary<string, object> 

@@ -254,6 +254,12 @@ public class AuthService : IAuthService
         await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions, cts.Token);
         await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions, cts.Token);
 
+        // [CACHE INVALIDATION] Clear feeds on login to ensure account switches (or re-logins) 
+        // pull fresh data from the PDS instead of stale cached data.
+        await _cache.RemoveAsync($"Timeline_{user.Id}", cts.Token);
+        await _cache.RemoveAsync($"Following_{user.Id}", cts.Token);
+        await _cache.RemoveAsync($"BlueskyTimeline_{user.Id}", cts.Token); 
+
         return MapToAuthResponse(user, token, refreshToken, request.RememberMe);
     }
 

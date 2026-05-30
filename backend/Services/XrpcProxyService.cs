@@ -138,7 +138,7 @@ namespace BSkyClone.Services
                 
                 // Add a reasonable timeout to prevent hanging the whole backend thread
                 // [OPTIMIZATION] Reduced from 20s to 12s to allow faster fallback/failure
-                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(12));
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8));
                 using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                 
                 var response = await clientReq.SendAsync(request, linkedCts.Token);
@@ -169,7 +169,7 @@ namespace BSkyClone.Services
                             }
                             var retryClient = _httpClientFactory.CreateClient();
                             retryClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-                            using var retryCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(12));
+                            using var retryCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
                             response = await retryClient.SendAsync(retryRequest, retryCts.Token);
                             content = await response.Content.ReadAsStringAsync(retryCts.Token);
                             _logger.LogInformation("[XrpcProxy] Retry result for {Url}: {Status}", finalUrl, response.StatusCode);
