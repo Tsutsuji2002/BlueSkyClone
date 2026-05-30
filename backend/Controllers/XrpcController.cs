@@ -1718,6 +1718,18 @@ namespace BSkyClone.Controllers
                 if (!string.IsNullOrEmpty(token) && user != null && !string.IsNullOrEmpty(user.Did))
                 {
                     var prefResponse = await _userService.GetPreferencesRawAsync(user.Did, token);
+                    
+                    if (prefResponse.StatusCode == 401)
+                    {
+                        // Stale token in cache, force refresh and retry
+                        token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            prefResponse = await _userService.GetPreferencesRawAsync(user.Did, token);
+                            diagnosticInfo["TokenRefreshed"] = true;
+                        }
+                    }
+
                     diagnosticInfo["PrefStatus"] = prefResponse.StatusCode;
                     diagnosticInfo["PrefSuccess"] = prefResponse.Success;
                     diagnosticInfo["ResolvedPds"] = await _userService.GetResolvedPdsAsync(user.Did, forceRefresh: true);
