@@ -21,13 +21,15 @@ namespace BSkyClone.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IDistributedCache _cache;
         private readonly ILogger<XrpcProxyService> _logger;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public XrpcProxyService(IDidResolver didResolver, IHttpClientFactory httpClientFactory, IDistributedCache cache, ILogger<XrpcProxyService> logger)
+        public XrpcProxyService(IDidResolver didResolver, IHttpClientFactory httpClientFactory, IDistributedCache cache, ILogger<XrpcProxyService> logger, IServiceScopeFactory scopeFactory)
         {
             _didResolver = didResolver;
             _httpClientFactory = httpClientFactory;
             _cache = cache;
             _logger = logger;
+            _scopeFactory = scopeFactory;
         }
 
         private static readonly HashSet<string> ContentCacheWhitelist = new()
@@ -141,6 +143,43 @@ namespace BSkyClone.Services
                 
                 var response = await clientReq.SendAsync(request, linkedCts.Token);
                 var content = await response.Content.ReadAsStringAsync(linkedCts.Token);
+
+                // [TOKEN REFRESH] If the PDS returns 401 and we have a userId, force-refresh the token and retry once.
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && userId.HasValue)
+                {
+                    _logger.LogWarning("[XrpcProxy] 401 Unauthorized for {Url}. Attempting token refresh for user {UserId}.", finalUrl, userId.Value);
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        var freshToken = await userService.GetOrRefreshBlueskyTokenAsync(userId.Value, forceRefresh: true);
+                        if (!string.IsNullOrEmpty(freshToken))
+                        {
+                            _logger.LogInformation("[XrpcProxy] Token refreshed for user {UserId}. Retrying request to {Url}.", userId.Value, finalUrl);
+                            var retryRequest = new HttpRequestMessage(new HttpMethod(method), finalUrl);
+                            retryRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", freshToken);
+                            if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && body != null)
+                            {
+                                var retryJson = System.Text.Json.JsonSerializer.Serialize(body);
+                                retryRequest.Content = new StringContent(retryJson, System.Text.Encoding.UTF8, "application/json");
+                            }
+                            var retryClient = _httpClientFactory.CreateClient();
+                            retryClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                            using var retryCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(12));
+                            response = await retryClient.SendAsync(retryRequest, retryCts.Token);
+                            content = await response.Content.ReadAsStringAsync(retryCts.Token);
+                            _logger.LogInformation("[XrpcProxy] Retry result for {Url}: {Status}", finalUrl, response.StatusCode);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[XrpcProxy] Token refresh returned empty for user {UserId}. Cannot retry.", userId.Value);
+                        }
+                    }
+                    catch (Exception refreshEx)
+                    {
+                        _logger.LogError(refreshEx, "[XrpcProxy] Error during token refresh for user {UserId}.", userId.Value);
+                    }
+                }
 
                 if (!response.IsSuccessStatusCode)
                 {
