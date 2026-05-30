@@ -187,6 +187,26 @@ public class FeedsController : ControllerBase
         }
     }
 
+    [Authorize]
+    [HttpGet("pinned")]
+    public async Task<IActionResult> GetPinned()
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var feeds = await _feedService.GetUserFeedsAsync(userId);
+            var pinned = feeds.Where(f => f.IsPinned).OrderBy(f => f.PinnedOrder).ToList();
+            return Ok(pinned);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FeedsController] GetPinned error: {Msg}", ex.Message);
+            return Ok(new List<FeedDto>());
+        }
+    }
+
     [AllowAnonymous]
     [HttpGet("resolve")]
     public async Task<IActionResult> ResolveFeedByUri([FromQuery] string uri)
