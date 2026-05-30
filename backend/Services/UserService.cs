@@ -3292,9 +3292,9 @@ public class UserService : IUserService
         return await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getPreferences", new Dictionary<string, string?>(), token);
     }
 
-    public async Task<string?> GetResolvedPdsAsync(string did)
+    public async Task<string?> GetResolvedPdsAsync(string did, bool forceRefresh = false)
     {
-        return await _xrpcProxy.ResolvePdsEndpointAsync(did);
+        return await _xrpcProxy.ResolvePdsEndpointAsync(did, forceRefresh);
     }
 }
 

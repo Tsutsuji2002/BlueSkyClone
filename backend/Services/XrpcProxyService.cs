@@ -245,14 +245,23 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<string?> ResolvePdsEndpointAsync(string didOrHandle)
+        public async Task<string?> ResolvePdsEndpointAsync(string didOrHandle, bool forceRefresh = false)
         {
             try
             {
                 var cacheKey = $"PdsUrl_{didOrHandle.ToLower()}";
-                using var ctsCache1 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                var cachedUrl = await _cache.GetStringAsync(cacheKey, ctsCache1.Token);
-                if (!string.IsNullOrEmpty(cachedUrl)) return cachedUrl;
+                
+                if (forceRefresh)
+                {
+                    _logger.LogInformation("[XrpcProxy] Forced PDS resolution refresh for {DidOrHandle}", didOrHandle);
+                    await _cache.RemoveAsync(cacheKey);
+                }
+                else
+                {
+                    using var ctsCache1 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    var cachedUrl = await _cache.GetStringAsync(cacheKey, ctsCache1.Token);
+                    if (!string.IsNullOrEmpty(cachedUrl)) return cachedUrl;
+                }
 
                 string did = didOrHandle;
                 if (!didOrHandle.StartsWith("did:"))
