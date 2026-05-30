@@ -245,7 +245,7 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<string?> ResolvePdsUrlAsync(string didOrHandle)
+        public async Task<string?> ResolvePdsEndpointAsync(string didOrHandle)
         {
             try
             {

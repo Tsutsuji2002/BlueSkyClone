@@ -3043,7 +3043,7 @@ public class UserService : IUserService
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
 
                 // Resolve PDS dynamically for refresh
-                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                user = await _unitOfWork.Users.GetByIdAsync(userId);
                 var pdsUrl = "https://bsky.social"; // Default
                 if (user != null && !string.IsNullOrEmpty(user.Did))
                 {
@@ -3085,7 +3085,7 @@ public class UserService : IUserService
                 await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, refreshCacheOptions);
 
                 // Persist to DB for long-term recovery
-                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                user = await _unitOfWork.Users.GetByIdAsync(userId);
                 if (user != null)
                 {
                     user.BlueskyAccessToken = nextAccessJwt;
