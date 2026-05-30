@@ -5329,7 +5329,7 @@ public class PostService : IPostService
     public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null, string? fallbackUri = null)
     {
         var lockKey = $"lock:like:{userId}:{postId}-{fallbackUri}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(10))) // Increase to 10s to allow for remote ingestion
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(4))) 
         {
             return new { isLiked = false, likesCount = 0, error = "Action in progress (resolution or lock contention)" };
         }

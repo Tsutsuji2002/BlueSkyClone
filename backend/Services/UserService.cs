@@ -522,7 +522,7 @@ public class UserService : IUserService
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             }
             
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             HttpResponseMessage response;
             try
             {
@@ -3020,7 +3020,7 @@ public class UserService : IUserService
         // When many requests hit simultaneously (e.g. after token expiry at night),
         // only ONE of them does the refresh; the rest wait and then reuse the result.
         var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(45)))
+        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(8)))
         {
             _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Timeout waiting for refresh lock for {UserId}", userId);
             return await _distributedCache.GetStringAsync($"BlueskyToken_{userId}"); // Try one last fast-path check
@@ -3054,7 +3054,7 @@ public class UserService : IUserService
             try
             {
                 using var httpClient = _httpClientFactory.CreateClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(10); // Hard cap — don't hang forever
+                httpClient.Timeout = TimeSpan.FromSeconds(6); // Hard cap — don't hang forever
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
                 httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
 
