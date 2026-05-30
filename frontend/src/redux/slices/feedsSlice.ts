@@ -1127,11 +1127,13 @@ const feedsSlice = createSlice({
                 }
             )
             .addMatcher(
-                (action) => action.type === 'auth/logout',
+                (action) => action.type === 'auth/logout' || action.type === 'auth/setAuth',
                 (state: FeedsState) => {
                     state.subscribedFeeds = [];
                     state.pinnedFeedIds = [];
                     state.feedPosts = {};
+                    state.feedLastFetch = {};
+                    state.feedCursors = {};
                     state.lastSubscribedFeedsFetch = 0;
                     localStorage.removeItem('feeds_subscribed');
                     localStorage.removeItem('feeds_pinned_ids');

@@ -820,7 +820,7 @@ const listsSlice = createSlice({
                 updateAuthor(state.candidatePosts);
             })
             .addMatcher(
-                (action) => action.type === 'auth/logout',
+                (action) => action.type === 'auth/logout' || action.type === 'auth/setAuth',
                 (state: ListsState) => {
                     state.myLists = [];
                     state.pinnedLists = [];
