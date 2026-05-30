@@ -221,12 +221,14 @@ public class FeedService : IFeedService
                     return resultList;
                 }
             }
-            return new List<FeedDto>();
+
+            // Fallback to direct resolution if proxy fails
+            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[FeedService] Error resolving feeds metadata via proxy");
-            return new List<FeedDto>();
+            _logger.LogWarning(ex, "[FeedService] Error resolving feeds metadata via proxy, falling back to direct.");
+            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris);
         }
     }
 
