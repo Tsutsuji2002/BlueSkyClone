@@ -35,6 +35,7 @@ namespace BSkyClone.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IDistributedCache _cache;
+        private readonly IFeedService _feedService;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
@@ -48,6 +49,7 @@ namespace BSkyClone.Controllers
             IUnitOfWork unitOfWork,
             IHttpClientFactory httpClientFactory,
             IDistributedCache cache,
+            IFeedService feedService,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
@@ -60,6 +62,7 @@ namespace BSkyClone.Controllers
             _unitOfWork = unitOfWork;
             _httpClientFactory = httpClientFactory;
             _cache = cache;
+            _feedService = feedService;
             _logger = logger;
         }
 
@@ -1736,6 +1739,13 @@ namespace BSkyClone.Controllers
                     
                     if (prefResponse.Success && !string.IsNullOrEmpty(prefResponse.Content))
                     {
+                        diagnosticInfo["HasPreferences"] = true;
+                        var feeds = await _feedService.GetUserFeedsAsync(userId, forceRefresh: true);
+                        diagnosticInfo["FeedCount"] = feeds.Count();
+                        diagnosticInfo["PinnedCount"] = feeds.Count(f => f.IsPinned);
+                        diagnosticInfo["SavedUris"] = feeds.Select(f => f.Uri).ToList();
+                        diagnosticInfo["PinnedUris"] = feeds.Where(f => f.IsPinned).Select(f => f.Uri).ToList();
+                        
                         using var doc = JsonDocument.Parse(prefResponse.Content);
                         diagnosticInfo["RawPreferences"] = doc.RootElement.Clone();
                     }

@@ -350,16 +350,23 @@ public class FeedService : IFeedService
 
 
 
-    public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId)
+    public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId, bool forceRefresh = false)
     {
         var cacheKey = $"subscribed_feeds_v1:{userId}";
         try
         {
-            // [OPTIMIZATION] 2-minute cache to prevent hammering Bluesky on every re-access/tab return
-            var cached = await _cache.GetStringAsync(cacheKey);
-            if (!string.IsNullOrEmpty(cached))
+            if (forceRefresh)
             {
-                return JsonSerializer.Deserialize<List<FeedDto>>(cached) ?? new List<FeedDto>();
+                await _cache.RemoveAsync(cacheKey);
+            }
+            else
+            {
+                // [OPTIMIZATION] 2-minute cache to prevent hammering Bluesky on every re-access/tab return
+                var cached = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cached))
+                {
+                    return JsonSerializer.Deserialize<List<FeedDto>>(cached) ?? new List<FeedDto>();
+                }
             }
 
             var remoteFeeds = await GetRemoteFeedsAsync(userId);
