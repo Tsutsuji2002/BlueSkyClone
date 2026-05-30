@@ -359,6 +359,10 @@ public class AuthService : IAuthService
             }
         }
 
+        user.LastLoginAt = DateTime.UtcNow;
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.CompleteAsync();
+
         return MapToAuthResponse(user, newToken, newRefreshToken, rememberMe);
     }
 

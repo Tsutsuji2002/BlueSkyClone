@@ -59,7 +59,7 @@ export const authApi = apiSlice.injectEndpoints({
                 method: 'POST',
                 body,
             }),
-            invalidatesTags: ['Auth'],
+            invalidatesTags: ['Auth', 'Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],
             onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
                 try {
                     const { data } = await queryFulfilled;

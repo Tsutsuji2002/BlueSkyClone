@@ -174,6 +174,7 @@ const authSlice = createSlice({
             AccountManager.saveAccount(action.payload.user, action.payload.token, action.payload.refreshToken);
             AccountManager.setActiveAccount(action.payload.user);
             state.savedAccounts = AccountManager.getAccounts();
+            localStorage.removeItem('home_active_tab');
         },
         logout: (state) => {
             state.user = null;
