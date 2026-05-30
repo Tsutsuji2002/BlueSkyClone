@@ -171,11 +171,12 @@ public class FeedService : IFeedService
     {
         if (!uris.Any()) return new List<FeedDto>();
         
+        var savedUris = new HashSet<string>();
+        var pinnedUris = new HashSet<string>();
+
         try
         {
             var token = userId.HasValue ? await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value) : null;
-            var savedUris = new HashSet<string>();
-            var pinnedUris = new HashSet<string>();
             
             // Try to get user preferences to mark sub/pin status
             try
