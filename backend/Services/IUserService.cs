@@ -57,4 +57,5 @@ public interface IUserService
     Task<bool> MergeDuplicateUsersAsync(string did);
     Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
     Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId);
+    Task<ProxyResponse> GetPreferencesRawAsync(string did, string token);
 }

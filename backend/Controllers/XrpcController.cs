@@ -1692,6 +1692,49 @@ namespace BSkyClone.Controllers
             _logger.LogWarning("Unhandled XRPC GET: {Lexicon}", lexicon);
             return BadRequest(new { error = "MethodNotImplemented", message = $"Lexicon {lexicon} is not yet implemented" });
         }
+
+        [Authorize]
+        [HttpGet("diag/feeds-debug")]
+        public async Task<IActionResult> DiagFeedsDebug()
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (!Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                
+                var diagnosticInfo = new Dictionary<string, object?>
+                {
+                    ["UserId"] = userId,
+                    ["Handle"] = user?.Handle,
+                    ["Did"] = user?.Did,
+                    ["TokenAvailable"] = !string.IsNullOrEmpty(token),
+                    ["TokenLength"] = token?.Length ?? 0,
+                    ["HasRefreshTokenInDb"] = !string.IsNullOrEmpty(user?.BlueskyRefreshToken)
+                };
+
+                if (!string.IsNullOrEmpty(token) && user != null && !string.IsNullOrEmpty(user.Did))
+                {
+                    var prefResponse = await _userService.GetPreferencesRawAsync(user.Did, token);
+                    diagnosticInfo["PrefStatus"] = prefResponse.StatusCode;
+                    diagnosticInfo["PrefSuccess"] = prefResponse.Success;
+                    
+                    if (prefResponse.Success && !string.IsNullOrEmpty(prefResponse.Content))
+                    {
+                        using var doc = JsonDocument.Parse(prefResponse.Content);
+                        diagnosticInfo["RawPreferences"] = doc.RootElement.Clone();
+                    }
+                }
+
+                return Ok(diagnosticInfo);
+            }
+            catch (Exception ex)
+            {
+                return Ok(new { error = ex.Message, stack = ex.StackTrace });
+            }
+        }
     }
 
     public class GetMutesResponse

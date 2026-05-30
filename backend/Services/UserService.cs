@@ -3042,7 +3042,16 @@ public class UserService : IUserService
                 httpClient.Timeout = TimeSpan.FromSeconds(10); // Hard cap — don't hang forever
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
 
-                var response = await httpClient.PostAsync("https://bsky.social/xrpc/com.atproto.server.refreshSession", null);
+                // Resolve PDS dynamically for refresh
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                var pdsUrl = "https://bsky.social"; // Default
+                if (user != null && !string.IsNullOrEmpty(user.Did))
+                {
+                    var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(user.Did);
+                    if (!string.IsNullOrEmpty(resolvedPds)) pdsUrl = resolvedPds;
+                }
+
+                var response = await httpClient.PostAsync($"{pdsUrl.TrimEnd('/')}/xrpc/com.atproto.server.refreshSession", null);
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
@@ -3263,6 +3272,11 @@ public class UserService : IUserService
         {
             _logger.LogError(ex, "Error processing remote follow for {Downstream}", followedDid);
         }
+    }
+
+    public async Task<ProxyResponse> GetPreferencesRawAsync(string did, string token)
+    {
+        return await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getPreferences", new Dictionary<string, string?>(), token);
     }
 }
 
