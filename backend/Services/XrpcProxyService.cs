@@ -144,10 +144,14 @@ namespace BSkyClone.Services
                 var response = await clientReq.SendAsync(request, linkedCts.Token);
                 var content = await response.Content.ReadAsStringAsync(linkedCts.Token);
 
-                // [TOKEN REFRESH] If the PDS returns 401 and we have a userId, force-refresh the token and retry once.
-                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && userId.HasValue)
+                // [TOKEN REFRESH] Bluesky PDS returns 401 OR 400 with {"error":"ExpiredToken"} when a token expires.
+                // In either case, force-refresh the token and retry once.
+                bool isExpiredToken = response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                    (response.StatusCode == System.Net.HttpStatusCode.BadRequest && content.Contains("ExpiredToken"));
+
+                if (isExpiredToken && userId.HasValue)
                 {
-                    _logger.LogWarning("[XrpcProxy] 401 Unauthorized for {Url}. Attempting token refresh for user {UserId}.", finalUrl, userId.Value);
+                    _logger.LogWarning("[XrpcProxy] Expired/Unauthorized response ({Status}) for {Url}. Attempting token refresh for user {UserId}.", response.StatusCode, finalUrl, userId.Value);
                     try
                     {
                         using var scope = _scopeFactory.CreateScope();

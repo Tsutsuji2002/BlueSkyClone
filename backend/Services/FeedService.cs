@@ -441,7 +441,11 @@ public class FeedService : IFeedService
             {
                 _logger.LogWarning("[FeedService] GetRemoteFeedsAsync for {UserId}: getPreferences failed (Status: {Status}). Retrying with forced refresh...", userId, prefResponse.StatusCode);
                 
-                if (prefResponse.StatusCode == 401)
+                // Force refresh on 401 OR on 400 with ExpiredToken body (Bluesky PDS behaviour)
+                bool isExpiredToken = prefResponse.StatusCode == 401 ||
+                    (prefResponse.StatusCode == 400 && prefResponse.Content.Contains("ExpiredToken"));
+                
+                if (isExpiredToken)
                 {
                     token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true) ?? token;
                 }
