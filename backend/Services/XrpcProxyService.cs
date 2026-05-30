@@ -95,7 +95,7 @@ namespace BSkyClone.Services
 
             try
             {
-                var baseUrl = await ResolvePdsUrlAsync(didOrHandle);
+                var baseUrl = await ResolvePdsEndpointAsync(didOrHandle);
                 if (string.IsNullOrEmpty(baseUrl))
                 {
                     return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
@@ -188,7 +188,7 @@ namespace BSkyClone.Services
             string did = didOrHandle;
             try
             {
-                var baseUrl = await ResolvePdsUrlAsync(didOrHandle);
+                var baseUrl = await ResolvePdsEndpointAsync(didOrHandle);
                 if (string.IsNullOrEmpty(baseUrl))
                 {
                     return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };

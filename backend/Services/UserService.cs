@@ -3026,7 +3026,7 @@ public class UserService : IUserService
             var refreshToken = await _distributedCache.GetStringAsync($"BlueskyRefreshToken_{userId}");
             if (string.IsNullOrEmpty(refreshToken))
             {
-                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                User? user = await _unitOfWork.Users.GetByIdAsync(userId);
                 refreshToken = user?.BlueskyRefreshToken;
                 if (!string.IsNullOrEmpty(refreshToken))
                 {
@@ -3043,11 +3043,11 @@ public class UserService : IUserService
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
 
                 // Resolve PDS dynamically for refresh
-                user = await _unitOfWork.Users.GetByIdAsync(userId);
+                var userLocal = await _unitOfWork.Users.GetByIdAsync(userId);
                 var pdsUrl = "https://bsky.social"; // Default
-                if (user != null && !string.IsNullOrEmpty(user.Did))
+                if (userLocal != null && !string.IsNullOrEmpty(userLocal.Did))
                 {
-                    var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(user.Did);
+                    var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(userLocal.Did);
                     if (!string.IsNullOrEmpty(resolvedPds)) pdsUrl = resolvedPds;
                 }
 
@@ -3085,11 +3085,11 @@ public class UserService : IUserService
                 await _distributedCache.SetStringAsync($"BlueskyRefreshToken_{userId}", nextRefreshJwt, refreshCacheOptions);
 
                 // Persist to DB for long-term recovery
-                user = await _unitOfWork.Users.GetByIdAsync(userId);
-                if (user != null)
+                var userUpdate = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (userUpdate != null)
                 {
-                    user.BlueskyAccessToken = nextAccessJwt;
-                    user.BlueskyRefreshToken = nextRefreshJwt;
+                    userUpdate.BlueskyAccessToken = nextAccessJwt;
+                    userUpdate.BlueskyRefreshToken = nextRefreshJwt;
                     await _unitOfWork.CompleteAsync();
                 }
 
