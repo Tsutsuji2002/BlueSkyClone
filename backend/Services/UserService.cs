@@ -3004,9 +3004,17 @@ public class UserService : IUserService
 
     public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false)
     {
-        // Fast path: token is still cached
-        var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-        if (!string.IsNullOrEmpty(token)) return token;
+        // Fast path: token is still cached (skipped if forceRefresh is requested)
+        if (!forceRefresh)
+        {
+            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            if (!string.IsNullOrEmpty(token)) return token;
+        }
+        else
+        {
+            // Clear the stale cached access token so the semaphore block definitely refreshes
+            await _distributedCache.RemoveAsync($"BlueskyToken_{userId}");
+        }
 
         // Slow path: we need to refresh. Use a per-user semaphore to avoid thundering herd.
         // When many requests hit simultaneously (e.g. after token expiry at night),
@@ -3022,8 +3030,8 @@ public class UserService : IUserService
             // Double-check inside the lock — another waiter may have refreshed already
             if (!forceRefresh)
             {
-                token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-                if (!string.IsNullOrEmpty(token)) return token;
+                var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+                if (!string.IsNullOrEmpty(cachedToken)) return cachedToken;
             }
             else
             {
