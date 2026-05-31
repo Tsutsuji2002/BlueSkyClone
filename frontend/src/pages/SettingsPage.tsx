@@ -97,10 +97,10 @@ const SettingsPage: React.FC = () => {
                         size="2xl"
                         className="mb-4"
                     />
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text uppercase tracking-tight">
+                    <h2 className="text-[22px] font-extrabold text-gray-900 dark:text-dark-text tracking-tight">
                         {user?.handle}
                     </h2>
-                    <p className="text-gray-500 dark:text-dark-text-secondary mt-1">
+                    <p className="text-gray-500 dark:text-dark-text-secondary text-[15px] mt-0.5">
                         @{user?.handle}
                     </p>
                 </div>

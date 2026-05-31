@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiChevronDown, FiChevronUp, FiUsers, FiUserPlus, FiCheck, FiMoreHorizontal, FiUserMinus } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiUsers, FiUserPlus, FiMoreHorizontal, FiUserMinus } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useSwitchAccountMutation } from '../../redux/api/authApi';
@@ -61,50 +61,48 @@ const SwitchAccountSection: React.FC = () => {
 
     return (
         <div className="border-b border-gray-100 dark:border-dark-border">
-            {/* Header */}
+            {/* Header - Row Style to match Pic 3 */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
                 disabled={isLoading}
             >
                 <div className="flex items-center gap-4">
-                    <FiUsers size={22} className="text-gray-900 dark:text-dark-text" />
-                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
+                    <FiUsers size={22} className="text-gray-700 dark:text-dark-text" />
+                    <span className="text-[17px] font-normal text-gray-900 dark:text-dark-text">
                         {t('settings.switch_account')}
                     </span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {isLoading && (
                         <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     )}
-                    {isExpanded ? <FiChevronUp size={20} className="text-gray-400" /> : <FiChevronDown size={20} className="text-gray-400" />}
+                    {/* Orange Indicator Icon from Pic 3 */}
+                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-[10px] text-white font-bold">@</span>
+                    </div>
+                    {isExpanded ? <FiChevronUp size={20} className="text-gray-900 dark:text-dark-text" /> : <FiChevronDown size={20} className="text-gray-900 dark:text-dark-text" />}
                 </div>
             </button>
 
-            {/* Collapsible Account List */}
+            {/* Collapsible Account List - White Background like Pic 4 */}
             {isExpanded && (
-                <div className="bg-white dark:bg-dark-bg pb-2 mt-[-1px]">
+                <div className="bg-gray-50/30 dark:bg-dark-bg/30 pb-2 border-t border-gray-100 dark:border-dark-border">
                     {savedAccounts.filter(acc => acc.did !== user?.did).map((account) => (
-                        <div key={account.did} className="relative group">
+                        <div key={account.did} className="relative">
                             <button
                                 onClick={() => handleSwitch(account)}
-                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-left"
                                 disabled={isLoading}
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                    <div className="relative">
-                                        <Avatar
-                                            src={account.avatar}
-                                            alt={account.handle}
-                                            size="md"
-                                        />
-                                        <div className="absolute -top-1 -left-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center border-2 border-white dark:border-dark-bg">
-                                            <span className="text-[8px] text-white font-bold">@</span>
-                                        </div>
+                                    {/* Pure Orange @ Icon for avatar in list like Pic 4 */}
+                                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <span className="text-[14px] text-white font-bold">@</span>
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text truncate">
-                                            {account.handle}
+                                        <span className="text-[15px] font-normal text-gray-900 dark:text-dark-text truncate">
+                                            @{account.handle}
                                         </span>
                                     </div>
                                 </div>
@@ -124,31 +122,31 @@ const SwitchAccountSection: React.FC = () => {
                             {menuOpenFor === account.did && (
                                 <div 
                                     ref={menuRef}
-                                    className="absolute right-4 top-12 z-50 bg-white dark:bg-dark-surface shadow-lg rounded-xl border border-gray-100 dark:border-dark-border py-1 min-w-[160px]"
+                                    className="absolute right-4 top-14 z-50 bg-white dark:bg-dark-surface shadow-2xl rounded-xl border border-gray-100 dark:border-dark-border py-1 min-w-[200px]"
                                 >
                                     <button
                                         onClick={(e) => handleRemove(e, account.did)}
-                                        className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors"
+                                        className="w-full flex items-center gap-3 px-4 py-4 text-red-500 hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors"
                                     >
                                         <FiUserMinus size={18} />
-                                        <span className="text-sm font-medium">{t('settings.remove_account', 'Remove account')}</span>
+                                        <span className="text-[15px] font-medium">{t('settings.remove_account')}</span>
                                     </button>
                                 </div>
                             )}
                         </div>
                     ))}
 
-                    {/* Add Another Account */}
+                    {/* Add Another Account - Styled to match Pic 4 */}
                     <button
                         onClick={() => navigate('/auth/login')}
-                        className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-4 hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
                         disabled={isLoading}
                     >
-                        <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-dark-surface flex items-center justify-center border border-gray-100 dark:border-dark-border">
-                            <FiUserPlus size={20} className="text-gray-600 dark:text-dark-text" />
+                        <div className="w-8 h-8 flex items-center justify-center">
+                            <FiUserPlus size={22} className="text-gray-900 dark:text-dark-text" />
                         </div>
-                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
-                            {t('settings.add_another_account', 'Add another account')}
+                        <span className="text-[15px] font-normal text-gray-900 dark:text-dark-text">
+                            {t('settings.add_another_account')}
                         </span>
                     </button>
                 </div>
