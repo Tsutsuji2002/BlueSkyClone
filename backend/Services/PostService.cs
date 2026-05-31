@@ -2786,6 +2786,13 @@ public class PostService : IPostService
                          string successLog = $"[CreatePostAsync] SUCCESS: {post.Uri}\n";
                          await File.AppendAllTextAsync("C:\\Projects\\BlueSky\\backend\\debug_bsky.txt", successLog);
                         Console.WriteLine(successLog);
+
+                        // [OPTIMIZATION] Index the new post in Elasticsearch for near-instant search
+                        try {
+                            await _searchService.IndexPostAsync(post);
+                        } catch (Exception ex) {
+                            _logger.LogWarning(ex, "[CreatePostAsync] Search indexing failed for post {PostId}", post.Id);
+                        }
                     }
                     else
                     {
@@ -6499,7 +6506,10 @@ public class PostService : IPostService
     {
         try
         {
-            var lowerQuery = query.ToLower();
+            // [OPTIMIZATION] Use Elasticsearch for near-instant full-text search
+            var postIds = await _searchService.SearchPostsAsync(query, offset, limit);
+            if (!postIds.Any()) return new List<PostDto>();
+
             var posts = await _unitOfWork.Posts.Query()
                 .AsNoTracking()
                 .Include(p => p.Author)
@@ -6507,21 +6517,19 @@ public class PostService : IPostService
                 .Include(p => p.LinkPreview)
                 .Include(p => p.Hashtags)
                 .AsSplitQuery()
-                .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
-                            (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
-                             p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip(offset)
-                .Take(limit)
+                .Where(p => postIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
                 .ToListAsync();
 
+            // Order by the results from Elasticsearch to maintain relevance
+            var orderedPosts = postIds.Select(id => posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Cast<Post>().ToList();
+
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            var postDtos = posts.Select(MapToDto).ToList();
+            var postDtos = orderedPosts.Select(MapToDto).ToList();
             return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[SearchPostsDBAsync] Database search failed or timed out for query: {Query}", query);
+            _logger.LogWarning(ex, "[SearchPostsDBAsync] Search service failed or timed out for query: {Query}", query);
             return new List<PostDto>();
         }
     }
@@ -6914,7 +6922,8 @@ public class PostService : IPostService
             }
 
             using var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(15);
+            // [OPTIMIZATION] Strict timeout to avoid blocking the user if remote search is slow
+            client.Timeout = TimeSpan.FromSeconds(8);
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
             if (!string.IsNullOrEmpty(viewerToken))
             {
@@ -6945,18 +6954,21 @@ public class PostService : IPostService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[GetPostsByTagAsync] Exception fetching remote tags for {Tag}", tag);
+            _logger.LogWarning("[GetPostsByTagAsync] Exception (timeout?) fetching remote tags for {Tag}: {Msg}", tag, ex.Message);
         }
 
         if (!resultList.Any())
         {
-            // Fallback to local DB search but heavily constrained to avoid 504 timeout on full table scan
+            // [OPTIMIZATION] Fallback to Elasticsearch search instead of slow DB Contains query
+            var postIds = await _searchService.SearchPostsAsync("#" + tag, offset, limit);
+            if (!postIds.Any()) return new List<PostDto>();
+
             var posts = await _unitOfWork.Posts.Query()
-                .Where(p => p.Content != null && p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
+                .Where(p => postIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
                 .Include(p => p.Author)
+                .Include(p => p.PostMedia)
+                .Include(p => p.LinkPreview)
                 .OrderByDescending(p => p.CreatedAt)
-                .Skip(offset)
-                .Take(Math.Min(limit, 5)) // Constraint
                 .ToListAsync();
 
             var dtos = posts.Select(p => MapToDto(p)).ToList();

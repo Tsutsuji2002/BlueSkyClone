@@ -79,15 +79,31 @@ public class ElasticSearchService : ISearchService
     {
         try
         {
+            var cleanQuery = query.Trim();
+            bool isHashtagSearch = cleanQuery.StartsWith("#");
+            if (isHashtagSearch) 
+            {
+                cleanQuery = cleanQuery.Substring(1);
+            }
+
             var response = await _client.SearchAsync<PostIndex>(s => s
                 .Indices("posts")
                 .From(skip)
                 .Size(take)
                 .Query(q => q
-                    .MultiMatch(mm => mm
-                        .Query(query)
-                        .Fields(new[] { "content", "hashtags" })
-                        .Fuzziness(new Fuzziness("AUTO"))
+                    .Bool(b => b
+                        .Should(
+                            sh => sh.MultiMatch(mm => mm
+                                .Query(query)
+                                .Fields(new[] { "content", "hashtags" })
+                                .Fuzziness(new Fuzziness("AUTO"))
+                            ),
+                            sh => sh.Match(m => m
+                                .Field("hashtags")
+                                .Query(cleanQuery)
+                                .Boost(5.0f)
+                            )
+                        )
                     )
                 )
             );
