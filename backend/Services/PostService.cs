@@ -352,53 +352,66 @@ public class PostService : IPostService
                 else
                 {
                     token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-                    var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
-                    
-                    var queryArgs = new Dictionary<string, string?> { 
-                        { "actor", handleOrDid }, 
-                        { "limit", "100" }, 
-                        { "filter", filter } 
-                    };
-                    if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
-
-                    // [FIX] Use AppView (api.bsky.app) instead of proxying to the Author's PDS for feeds.
-                    // Federated AppViews are much more reliable for feed indexing than individual PDSs.
                     var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
-                    var queryStr = string.Join("&", queryArgs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
-                    
+
                     using var client = _httpClientFactory.CreateClient();
                     client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                     if (!string.IsNullOrEmpty(token))
                     {
                         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                     }
-
-                    _logger.LogInformation("[GetUserPostsAsync] Fetching remote feed from AppView: {BaseUrl}/xrpc/app.bsky.feed.getAuthorFeed for {Actor}", baseUrl, handleOrDid);
-                    
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-                    var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{queryStr}", cts.Token);
-                    
-                    if (!response.IsSuccessStatusCode)
+
+                    List<PostDto> mappedPosts;
+                    string? remoteCursor = null;
+
+                    if (type == "likes")
                     {
-                        var errContent = await response.Content.ReadAsStringAsync(cts.Token);
-                        _logger.LogWarning("[GetUserPostsAsync] Remote feed fetch failed: {Status} for {Actor}. Error: {Error}", response.StatusCode, handleOrDid, errContent);
-                        return new PagedPostDto();
+                        // [FIX] Likes must use getActorLikes, NOT getAuthorFeed
+                        var likesArgs = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", "100" } };
+                        if (!string.IsNullOrEmpty(cursor)) likesArgs["cursor"] = cursor;
+                        var likesQuery = string.Join("&", likesArgs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+
+                        _logger.LogInformation("[GetUserPostsAsync] Fetching likes from getActorLikes for {Actor}", handleOrDid);
+                        var likesResponse = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getActorLikes?{likesQuery}", cts.Token);
+                        if (!likesResponse.IsSuccessStatusCode)
+                        {
+                            _logger.LogWarning("[GetUserPostsAsync] getActorLikes failed: {Status} for {Actor}", likesResponse.StatusCode, handleOrDid);
+                            return new PagedPostDto();
+                        }
+                        var likesJson = await likesResponse.Content.ReadAsStringAsync(cts.Token);
+                        using var likesDoc = JsonDocument.Parse(likesJson);
+                        var likesBody = likesDoc.RootElement;
+                        mappedPosts = likesBody.TryGetProperty("feed", out var likesFeed) ? MapBlueskyFeed(likesFeed) : new List<PostDto>();
+                        remoteCursor = likesBody.TryGetProperty("cursor", out var lc) ? lc.GetString() : null;
+                        // Mark all as liked
+                        foreach (var p in mappedPosts) p.IsLiked = true;
+                    }
+                    else
+                    {
+                        var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
+                        var queryArgs = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", "100" }, { "filter", filter } };
+                        if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
+                        var queryStr = string.Join("&", queryArgs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+
+                        _logger.LogInformation("[GetUserPostsAsync] Fetching remote feed (getAuthorFeed) for {Actor}", handleOrDid);
+                        var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{queryStr}", cts.Token);
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            var errContent = await response.Content.ReadAsStringAsync(cts.Token);
+                            _logger.LogWarning("[GetUserPostsAsync] Remote feed fetch failed: {Status} for {Actor}. Error: {Error}", response.StatusCode, handleOrDid, errContent);
+                            return new PagedPostDto();
+                        }
+                        var jsonContent = await response.Content.ReadAsStringAsync(cts.Token);
+                        using var doc = JsonDocument.Parse(jsonContent);
+                        var responseBody = doc.RootElement;
+                        mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
+                        if (type == "replies")
+                            mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
+                        remoteCursor = responseBody.TryGetProperty("cursor", out var c) ? c.GetString() : null;
                     }
 
-                    var jsonContent = await response.Content.ReadAsStringAsync(cts.Token);
-                    using var doc = JsonDocument.Parse(jsonContent);
-                    var responseBody = doc.RootElement;
-                    var mappedPosts = responseBody.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
-                    
-                    if (type == "replies")
-                        mappedPosts = mappedPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
-
-                    result = new PagedPostDto 
-                    { 
-                        Posts = mappedPosts,
-                        Cursor = responseBody.TryGetProperty("cursor", out var c) ? c.GetString() : null 
-                    };
-
+                    result = new PagedPostDto { Posts = mappedPosts, Cursor = remoteCursor };
                     await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(result), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
                 }
             }
