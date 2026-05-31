@@ -6527,24 +6527,45 @@ public class PostService : IPostService
             }
             else
             {
-                // [EMERGENCY FALLBACK] If Elasticsearch is empty or offline, do a limited DB scan
-                // This is slow but prevents "No results" for existing data.
-                _logger.LogWarning("[SearchPostsDBAsync] Search index empty/offline. Falling back to slow DB scan for query: {Query}", query);
+                // [EMERGENCY FALLBACK] Optimized SQL search via Hashtags junction table or indexed Content startsWith
+                _logger.LogWarning("[SearchPostsDBAsync] Search index empty/offline. Using optimized SQL fallback for query: {Query}", query);
                 var lowerQuery = query.ToLower();
-                posts = await _unitOfWork.Posts.Query()
-                    .AsNoTracking()
-                    .Include(p => p.Author)
-                    .Include(p => p.PostMedia)
-                    .Include(p => p.LinkPreview)
-                    .Include(p => p.Hashtags)
-                    .AsSplitQuery()
-                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
-                                (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
-                                 p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))
-                    .OrderByDescending(p => p.CreatedAt)
-                    .Skip(offset)
-                    .Take(limit)
-                    .ToListAsync();
+                
+                // If query starts with #, try to find by Hashtags relationship first
+                if (lowerQuery.StartsWith("#") && lowerQuery.Length > 1)
+                {
+                    var tag = lowerQuery.Substring(1);
+                    posts = await _unitOfWork.Posts.Query()
+                        .AsNoTracking()
+                        .Include(p => p.Author)
+                        .Include(p => p.PostMedia)
+                        .Include(p => p.LinkPreview)
+                        .Include(p => p.Hashtags)
+                        .AsSplitQuery()
+                        .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                                    p.Hashtags.Any(h => h.Name == tag || h.Slug == tag))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .Skip(offset)
+                        .Take(limit)
+                        .ToListAsync();
+                }
+                else
+                {
+                    // Regular text search fallback - still slow but we can't do much without ES or FTS
+                    posts = await _unitOfWork.Posts.Query()
+                        .AsNoTracking()
+                        .Include(p => p.Author)
+                        .Include(p => p.PostMedia)
+                        .Include(p => p.LinkPreview)
+                        .Include(p => p.Hashtags)
+                        .AsSplitQuery()
+                        .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
+                                    (p.Content != null && p.Content.ToLower().Contains(lowerQuery)))
+                        .OrderByDescending(p => p.CreatedAt)
+                        .Skip(offset)
+                        .Take(limit)
+                        .ToListAsync();
+                }
             }
 
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
@@ -6999,16 +7020,17 @@ public class PostService : IPostService
             }
             else
             {
-                // [EMERGENCY FALLBACK] If Elasticsearch is empty or offline, do a limited DB scan
-                _logger.LogWarning("[GetPostsByTagAsync] Search index empty/offline. Falling back to slow DB scan for tag: {Tag}", tag);
+                // [EMERGENCY FALLBACK] Optimized SQL search via Hashtags junction table
+                _logger.LogWarning("[GetPostsByTagAsync] Search index empty/offline. Using optimized SQL fallback for tag: {Tag}", tag);
                 posts = await _unitOfWork.Posts.Query()
-                    .Where(p => p.Content != null && p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && 
+                                p.Hashtags.Any(h => h.Name == tag || h.Slug == tag))
                     .Include(p => p.Author)
                     .Include(p => p.PostMedia)
                     .Include(p => p.LinkPreview)
                     .OrderByDescending(p => p.CreatedAt)
                     .Skip(offset)
-                    .Take(limit) // Less constraint than original (20 vs 5) but only when Elasticsearch fails
+                    .Take(limit)
                     .ToListAsync();
             }
 
