@@ -227,6 +227,14 @@ const authSlice = createSlice({
             })
             .addMatcher(authApi.endpoints.updateAccount.matchFulfilled, (state, { payload }) => {
                 state.user = payload;
+            })
+            .addMatcher(authApi.endpoints.switchAccount.matchFulfilled, (state, { payload }) => {
+                state.isAuthenticated = true;
+                state.user = payload.user;
+                state.settings = normalizeSettings(payload.settings);
+                AccountManager.saveAccount(payload.user, payload.token, payload.refreshToken);
+                AccountManager.setActiveAccount(payload.user);
+                state.savedAccounts = AccountManager.getAccounts();
             });
     },
 });

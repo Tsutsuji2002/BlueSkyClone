@@ -17,6 +17,7 @@ import {
 import { APP_LANGUAGES } from '../constants/languages';
 import { cn } from '../utils/classNames';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import SwitchAccountSection from '../components/settings/SwitchAccountSection';
 
 const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -88,29 +89,8 @@ const SettingsPage: React.FC = () => {
                     </h1>
                 </div>
 
-                {/* Profile Section */}
-                <div className="flex flex-col items-center py-8 border-b border-gray-100 dark:border-dark-border">
-                    <Avatar
-                        src={user?.avatar}
-                        alt={user?.displayName || ''}
-                        size="2xl"
-                        className="mb-4"
-                    />
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text uppercase tracking-tight">
-                        {user?.handle}
-                    </h2>
-                    <p className="text-gray-500 dark:text-dark-text-secondary mt-1">
-                        @{user?.handle}
-                    </p>
-                </div>
-
-                {/* Add Account Action */}
-                <button className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border">
-                    <FiUserPlus size={22} className="text-gray-900 dark:text-dark-text" />
-                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
-                        {t('settings.add_account')}
-                    </span>
-                </button>
+                {/* Switch Account Section */}
+                <SwitchAccountSection />
 
                 {/* Settings List */}
                 <div className="flex flex-col">
