@@ -89,6 +89,22 @@ const SettingsPage: React.FC = () => {
                     </h1>
                 </div>
 
+                {/* Profile Header */}
+                <div className="flex flex-col items-center py-8 border-b border-gray-100 dark:border-dark-border">
+                    <Avatar
+                        src={user?.avatar}
+                        alt={user?.displayName || ''}
+                        size="2xl"
+                        className="mb-4"
+                    />
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text uppercase tracking-tight">
+                        {user?.handle}
+                    </h2>
+                    <p className="text-gray-500 dark:text-dark-text-secondary mt-1">
+                        @{user?.handle}
+                    </p>
+                </div>
+
                 {/* Switch Account Section */}
                 <SwitchAccountSection />
 

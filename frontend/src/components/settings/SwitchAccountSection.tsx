@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiChevronDown, FiChevronUp, FiUsers, FiUserPlus, FiCheck } from 'react-icons/fi';
+import { FiChevronDown, FiChevronUp, FiUsers, FiUserPlus, FiCheck, FiMoreHorizontal, FiUserMinus } from 'react-icons/fi';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useSwitchAccountMutation } from '../../redux/api/authApi';
-import { setAuth } from '../../redux/slices/authSlice';
+import { setAuth, removeSavedAccount } from '../../redux/slices/authSlice';
 import { RootState } from '../../redux/store';
 import Avatar from '../common/Avatar';
 import { cn } from '../../utils/classNames';
@@ -16,10 +16,22 @@ const SwitchAccountSection: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const [isExpanded, setIsExpanded] = useState(false);
+    const [menuOpenFor, setMenuOpenFor] = useState<string | null>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
     
     const user = useAppSelector((state: RootState) => state.auth.user);
     const savedAccounts = useAppSelector((state: RootState) => state.auth.savedAccounts);
     const [switchAccount, { isLoading }] = useSwitchAccountMutation();
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setMenuOpenFor(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleSwitch = async (account: any) => {
         if (account.did === user?.did) return;
@@ -40,9 +52,16 @@ const SwitchAccountSection: React.FC = () => {
         }
     };
 
+    const handleRemove = (e: React.MouseEvent, did: string) => {
+        e.stopPropagation();
+        dispatch(removeSavedAccount(did));
+        toast.success(t('settings.account_removed', 'Account removed'));
+        setMenuOpenFor(null);
+    };
+
     return (
         <div className="border-b border-gray-100 dark:border-dark-border">
-            {/* Header / Current Account Display */}
+            {/* Header */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
@@ -58,57 +77,74 @@ const SwitchAccountSection: React.FC = () => {
                     {isLoading && (
                         <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     )}
-                    {isExpanded ? <FiChevronUp size={20} /> : <FiChevronDown size={20} />}
+                    {isExpanded ? <FiChevronUp size={20} className="text-gray-400" /> : <FiChevronDown size={20} className="text-gray-400" />}
                 </div>
             </button>
 
             {/* Collapsible Account List */}
             {isExpanded && (
-                <div className="bg-gray-50/50 dark:bg-dark-surface/20 pb-2">
-                    {savedAccounts.map((account) => {
-                        const isActive = account.did === user?.did;
-                        return (
+                <div className="bg-white dark:bg-dark-bg pb-2 mt-[-1px]">
+                    {savedAccounts.filter(acc => acc.did !== user?.did).map((account) => (
+                        <div key={account.did} className="relative group">
                             <button
-                                key={account.did}
                                 onClick={() => handleSwitch(account)}
-                                className={cn(
-                                    "w-full flex items-center justify-between px-6 py-3 hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors text-left",
-                                    isActive && "bg-gray-100/50 dark:bg-dark-surface/50"
-                                )}
+                                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors text-left"
                                 disabled={isLoading}
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                    <Avatar
-                                        src={account.avatar}
-                                        alt={account.displayName || account.handle}
-                                        size="md"
-                                        className={cn(!isActive && "opacity-80")}
-                                    />
+                                    <div className="relative">
+                                        <Avatar
+                                            src={account.avatar}
+                                            alt={account.handle}
+                                            size="md"
+                                        />
+                                        <div className="absolute -top-1 -left-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center border-2 border-white dark:border-dark-bg">
+                                            <span className="text-[8px] text-white font-bold">@</span>
+                                        </div>
+                                    </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-sm font-semibold text-gray-900 dark:text-dark-text truncate">
+                                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text truncate">
                                             {account.handle}
-                                        </span>
-                                        <span className="text-xs text-gray-500 dark:text-dark-text-secondary truncate">
-                                            @{account.handle}
                                         </span>
                                     </div>
                                 </div>
-                                {isActive && (
-                                    <div className="bg-primary-500 rounded-full p-1">
-                                        <FiCheck size={12} className="text-white" />
-                                    </div>
-                                )}
+                                
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setMenuOpenFor(menuOpenFor === account.did ? null : account.did);
+                                    }}
+                                    className="p-2 hover:bg-gray-200 dark:hover:bg-dark-surface-hover rounded-full transition-colors text-gray-500"
+                                >
+                                    <FiMoreHorizontal size={20} />
+                                </button>
                             </button>
-                        );
-                    })}
+
+                            {/* Remove Menu */}
+                            {menuOpenFor === account.did && (
+                                <div 
+                                    ref={menuRef}
+                                    className="absolute right-4 top-12 z-50 bg-white dark:bg-dark-surface shadow-lg rounded-xl border border-gray-100 dark:border-dark-border py-1 min-w-[160px]"
+                                >
+                                    <button
+                                        onClick={(e) => handleRemove(e, account.did)}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-gray-50 dark:hover:bg-dark-bg transition-colors"
+                                    >
+                                        <FiUserMinus size={18} />
+                                        <span className="text-sm font-medium">{t('settings.remove_account', 'Remove account')}</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
 
                     {/* Add Another Account */}
                     <button
                         onClick={() => navigate('/auth/login')}
-                        className="w-full flex items-center gap-4 px-6 py-4 hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors mt-1 border-t border-gray-100 dark:border-dark-border/50"
+                        className="w-full flex items-center gap-4 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
                         disabled={isLoading}
                     >
-                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-dark-surface flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-gray-50 dark:bg-dark-surface flex items-center justify-center border border-gray-100 dark:border-dark-border">
                             <FiUserPlus size={20} className="text-gray-600 dark:text-dark-text" />
                         </div>
                         <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">
