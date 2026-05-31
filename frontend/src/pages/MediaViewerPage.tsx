@@ -4,8 +4,9 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { FiX, FiChevronLeft, FiChevronRight, FiHeart, FiRepeat, FiMessageCircle, FiMoreHorizontal, FiShare2, FiLink, FiSend, FiCode } from 'react-icons/fi';
-import { useGetPostDetailsQuery, useToggleLikeMutation, useRepostMutation } from '../redux/api/postApi';
+import { useGetPostDetailsQuery } from '../redux/api/postApi';
 import { openReply, openAuthWall } from '../redux/slices/modalsSlice';
+import { toggleLike, repostPost } from '../redux/slices/postsSlice';
 import { Post } from '../types';
 import Avatar from '../components/common/Avatar';
 import RichText from '../components/common/RichText';
@@ -39,17 +40,37 @@ const MediaViewerPage: React.FC = () => {
 
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const { data: threadData, isLoading: isThreadLoading, error: threadError } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
-    const [toggleLikeMutation, { isLoading: isLikeLoading }] = useToggleLikeMutation();
-    const [repostMutation, { isLoading: isRepostLoading }] = useRepostMutation();
+    // Thunks are used instead of mutations for optimistic updates
 
-    const currentPost = useMemo(() => {
+    const postData = useMemo(() => {
         if (!threadData) return null;
         return (threadData as Post[]).find((p: Post) => p.id === postId || p.uri?.endsWith('/' + postId)) as Post;
     }, [threadData, postId]);
 
+    const interactionTruth = useAppSelector((state: RootState) => {
+        const uriStr = postData?.uri?.toLowerCase();
+        const idStr = postData?.id?.toLowerCase();
+        const tidStr = postData?.tid?.toLowerCase();
+        return (uriStr && state.posts.interactionTruth[uriStr]) || 
+               (idStr && state.posts.interactionTruth[idStr]) || 
+               (tidStr && state.posts.interactionTruth[tidStr]) || null;
+    });
+
+    const currentPost = useMemo(() => {
+        if (!postData) return null;
+        if (!interactionTruth) return postData;
+        return {
+            ...postData,
+            ...interactionTruth
+        };
+    }, [postData, interactionTruth]) as Post;
+
     const isPostsLoading = isThreadLoading;
     const postsError = threadError ? 'Failed to load post' : null;
     const allPosts = useAppSelector((state: RootState) => state.posts.posts);
+    const actionLoading = useAppSelector((state: RootState) => state.posts.actionLoading);
+    const isLikeLoading = !!(currentPost?.uri && actionLoading[currentPost.uri]);
+    const isRepostLoading = !!(currentPost?.uri && actionLoading[currentPost.uri]);
 
     // Media posts for swiping across feed
     const mediaPosts = useMemo(() => 
@@ -189,35 +210,31 @@ const MediaViewerPage: React.FC = () => {
     // Features
     const handleLike = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        ensureAuth(async () => {
+        if (!currentPost?.uri) return;
+        ensureAuth(() => {
             console.log('MediaViewerPage handleLike clicked for:', currentPost.id);
-            try {
-                await toggleLikeMutation({
-                    uri: currentPost.uri!,
-                    cid: currentPost.cid!,
-                    isLiked: !!currentPost.isLiked,
-                    likeUri: currentPost.viewer?.like ?? currentPost.likeUri
-                }).unwrap();
-            } catch (err) {
-                console.error('Like failed:', err);
-            }
+            dispatch(toggleLike({ 
+                uri: currentPost.uri!, 
+                cid: currentPost.cid!, 
+                isLiked: !!currentPost.isLiked, 
+                likeUri: currentPost.viewer?.like ?? currentPost.likeUri,
+                currentLikesCount: currentPost.likesCount
+            }));
         });
     };
 
     const handleRepost = (e: React.MouseEvent | React.TouchEvent) => {
         e.stopPropagation();
-        ensureAuth(async () => {
+        if (!currentPost?.uri) return;
+        ensureAuth(() => {
             console.log('MediaViewerPage handleRepost clicked for:', currentPost.id);
-            try {
-                await repostMutation({
-                    uri: currentPost.uri!,
-                    cid: currentPost.cid!,
-                    isReposted: !!currentPost.isReposted,
-                    repostUri: currentPost.viewer?.repost
-                }).unwrap();
-            } catch (err) {
-                console.error('Repost failed:', err);
-            }
+            dispatch(repostPost({
+                uri: currentPost.uri!,
+                cid: currentPost.cid!,
+                isReposted: !!currentPost.isReposted,
+                repostUri: currentPost.viewer?.repost,
+                currentRepostsCount: currentPost.repostsCount
+            }));
         });
     };
 
