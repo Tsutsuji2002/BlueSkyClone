@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 
 const SCROLL_TTL_MS = 10 * 60 * 1000; // 10 minutes
-const STORAGE_PREFIX = 'scroll_pos_';
+export const SCROLL_STORAGE_PREFIX = 'scroll_pos_';
 
 interface ScrollEntry {
     y: number;
@@ -20,7 +20,7 @@ export function useScrollRestoration(subKey?: string) {
     const navigationType = useNavigationType();
     
     // The definitive key for this scroll position
-    const storageKey = STORAGE_PREFIX + pathname + (subKey ? `_${subKey}` : '');
+    const storageKey = SCROLL_STORAGE_PREFIX + pathname + (subKey ? `_${subKey}` : '');
 
     useEffect(() => {
         const isPop = navigationType === 'POP' || (subKey !== undefined); // Treat tab switches like POP if they have a saved pos
@@ -111,7 +111,7 @@ export function useScrollRestoration(subKey?: string) {
         const now = Date.now();
         try {
             Object.keys(sessionStorage).forEach(key => {
-                if (key.startsWith(STORAGE_PREFIX)) {
+                if (key.startsWith(SCROLL_STORAGE_PREFIX)) {
                     const val = sessionStorage.getItem(key);
                     if (val) {
                         const data = JSON.parse(val);
