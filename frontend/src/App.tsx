@@ -277,8 +277,8 @@ const AppContent: React.FC = () => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         const now = Date.now();
-        // 10s cooldown to prevent thundering herd on rapid tab switching
-        if (now - lastVisibilityCheckRef.current < 10000) {
+        // 30s cooldown to prevent thundering herd on rapid tab switching
+        if (now - lastVisibilityCheckRef.current < 30000) {
             console.log('[App] Visibility change ignored (cooldown)');
             return;
         }
@@ -288,36 +288,36 @@ const AppContent: React.FC = () => {
             console.log('[App] Tab visible: Re-syncing session...');
             dispatch(resetSessionStatus());
             
-            try {
-                // SEQUENTIAL RE-SYNC: 
-                // Await the refetch to ensure the session is valid (and refreshed if needed)
-                // before firing any secondary data requests. This prevents connection storms.
-                await refetch().unwrap();
-                console.log('[App] Session re-verified background check OK.');
-                dispatch(completeReverification());
+            // Background verification (non-blocking)
+            refetch().unwrap()
+                .then(() => {
+                    console.log('[App] Session re-verified background check OK.');
+                })
+                .catch(err => {
+                    console.warn('[App] Session re-verification failed or timed out:', err);
+                })
+                .finally(() => {
+                    dispatch(completeReverification());
+                });
 
-                console.log('[App] Resuming sync after verification...');
-                
-                // Priority 1: Real-time
-                signalrService.startConnection();
-                postSignalrService.startConnection();
-                
-                // Priority 2: Core Data
-                setTimeout(() => {
-                    dispatch(fetchPinnedLists() as any);
-                }, 50);
+            console.log('[App] Resuming sync in parallel with verification...');
+            
+            // Priority 1: Real-time (Resume immediately)
+            signalrService.startConnection();
+            postSignalrService.startConnection();
+            
+            // Priority 2: Core Data
+            setTimeout(() => {
+                dispatch(fetchPinnedLists() as any);
+            }, 50);
 
-                // Priority 3: Notifications & Background (Staggered)
-                setTimeout(() => {
-                    dispatch(fetchUnreadCount() as any);
-                }, 400);
-                setTimeout(() => {
-                    dispatch(fetchNotifications({ limit: 40 }) as any);
-                }, 800);
-            } catch (err) {
-                console.warn('[App] Session re-verification failed or timed out:', err);
-                dispatch(completeReverification()); 
-            }
+            // Priority 3: Notifications & Background (Staggered)
+            setTimeout(() => {
+                dispatch(fetchUnreadCount() as any);
+            }, 400);
+            setTimeout(() => {
+                dispatch(fetchNotifications({ limit: 40 }) as any);
+            }, 800);
         }
       } else {
         // Tab hidden: Kill SignalR noise to protect connection slots/battery
@@ -348,9 +348,9 @@ const AppContent: React.FC = () => {
       <AuthWallModal />
       <AddToListModal />
       <MutedWordsModal />
-      {/* Re-verification Overlay */}
+      {/* Re-verification Overlay (Non-blocking) */}
       {isReverifying && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-white/10 dark:bg-black/10 backdrop-blur-[2px] animate-in fade-in duration-300 pointer-events-auto">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-white/5 dark:bg-black/5 backdrop-blur-[1px] animate-in fade-in duration-300 pointer-events-none">
             <div className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md px-4 py-2 rounded-full border border-gray-200 dark:border-dark-border shadow-xl flex items-center gap-3">
                 <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                 <span className="text-sm font-bold text-gray-700 dark:text-dark-text">Re-syncing session...</span>
