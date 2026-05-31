@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BSkyClone.Controllers;
@@ -559,18 +560,15 @@ public class PostsController : ControllerBase
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
                 var resolvedUri = uri ?? id;
-                _logger.LogInformation("[PostsController] LikePost: Resolving remote URI={Uri}", resolvedUri);
-                var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
-                if (post == null)
-                {
-                    _logger.LogWarning("[PostsController] LikePost: Post missing locally. Passing null GUID to ToggleLikeAsync, which will handle the direct proxying for {Uri}", resolvedUri);
-                    // Use Empty Guid to signal "missing/dropped post"
-                    postId = Guid.Empty;
-                }
-                else
-                {
-                    postId = post.Id;
-                }
+                _logger.LogInformation("[PostsController] LikePost: Using URI fast-path for {Uri}", resolvedUri);
+
+                // [FAST PATH] For remote posts, skip GetPostByUriAsync (slow ingestion) entirely.
+                // ToggleLikeAsync handles the CID fetch internally with a fast targeted call.
+                // Only do a local DB check (no network) to get the local GUID if it exists.
+                var localPost = await _unitOfWork.Posts.Query()
+                    .Select(p => new { p.Id, p.Uri })
+                    .FirstOrDefaultAsync(p => p.Uri == resolvedUri);
+                postId = localPost?.Id ?? Guid.Empty;
             }
             else if (!Guid.TryParse(id, out postId))
             {

@@ -434,7 +434,7 @@ public class PostService : IPostService
 
             return new PagedPostDto 
             { 
-                Posts = enriched,
+                Posts = paginated,
                 Cursor = result.Cursor 
             };
         }
@@ -591,12 +591,13 @@ public class PostService : IPostService
                     {
                         foreach (var feature in features.EnumerateArray())
                         {
+                            var type = feature.GetProperty("$type").GetString()!;
+                            var tagVal = feature.TryGetProperty("tag", out var ftag) ? ftag.GetString() : null;
                             fDto.Features.Add(new FacetFeatureDto
                             {
-                                Type = feature.GetProperty("$type").GetString()!,
+                                Type = type,
                                 Did = feature.TryGetProperty("did", out var did) ? did.GetString() : null,
-                                Uri = feature.TryGetProperty("uri", out var furi) ? furi.GetString() : null,
-                                Tag = feature.TryGetProperty("tag", out var ftag) ? ftag.GetString() : null
+                                Tag = tagVal
                             });
                         }
                     }
@@ -608,6 +609,9 @@ public class PostService : IPostService
             var cid = postObj.TryGetProperty("cid", out var cProp) ? cProp.GetString() : null;
             var tid = uri?.Split('/').Last() ?? Guid.NewGuid().ToString();
 
+            // Extract tags from facets into flat list
+            var tags = facets.SelectMany(f => f.Features).Where(feat => feat.Type.EndsWith("#tag") && !string.IsNullOrEmpty(feat.Tag)).Select(feat => feat.Tag!).Distinct().ToList();
+
             var postDto = new PostDto
             {
                 Id = Guid.NewGuid(),
@@ -616,6 +620,7 @@ public class PostService : IPostService
                 Cid = cid,
                 Content = text,
                 Facets = facets,
+                Tags = tags,
                 CreatedAt = createdAt,
                 Author = authorDto,
                 LikesCount = likeCount,
@@ -5422,9 +5427,32 @@ public class PostService : IPostService
                     string? targetCid = freshPost.Cid;
                     if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
                     {
-                        // Optimized fallback: Use faster ingestion path with restricted timeout
-                        var ingestedPost = await IngestRemotePostAsync(freshPost.Uri!);
-                        targetCid = ingestedPost?.Cid ?? freshPost.Cid ?? "";
+                        // [FAST PATH] Fetch only the CID via getPostThread?depth=0 - much faster than full ingestion
+                        try
+                        {
+                            using var cidClient = _httpClientFactory.CreateClient();
+                            cidClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                            using var cidCts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                            var cidResp = await cidClient.GetAsync(
+                                $"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(freshPost.Uri!)}&depth=0",
+                                cidCts.Token);
+                            if (cidResp.IsSuccessStatusCode)
+                            {
+                                var cidJson = await cidResp.Content.ReadAsStringAsync(cidCts.Token);
+                                using var cidDoc = JsonDocument.Parse(cidJson);
+                                if (cidDoc.RootElement.TryGetProperty("thread", out var threadEl) &&
+                                    threadEl.TryGetProperty("post", out var postEl) &&
+                                    postEl.TryGetProperty("cid", out var cidEl))
+                                {
+                                    targetCid = cidEl.GetString() ?? "";
+                                }
+                            }
+                        }
+                        catch (Exception cidEx)
+                        {
+                            _logger.LogWarning("[ToggleLikeAsync] Fast CID fetch failed for {Uri}: {Msg}", freshPost.Uri, cidEx.Message);
+                        }
+                        targetCid = string.IsNullOrEmpty(targetCid) ? (freshPost.Cid ?? "") : targetCid;
                     }
 
                     var likeRecord = new Dictionary<string, object> 
@@ -6517,12 +6545,13 @@ public class PostService : IPostService
 
     public async Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0)
     {
+        List<Post> posts = new List<Post>();
         try
         {
-            // [OPTIMIZATION] Use Elasticsearch for near-instant full-text search
+            var lowerQuery = query.ToLower();
+
+            // 1. Try Primary Elasticsearch Search
             var postIds = await _searchService.SearchPostsAsync(query, offset, limit);
-            
-            List<Post> posts;
             if (postIds.Any())
             {
                 posts = await _unitOfWork.Posts.Query()
@@ -6536,15 +6565,42 @@ public class PostService : IPostService
                     .ToListAsync();
                 
                 // Maintain relevance order
-                posts = postIds.Select(id => posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Cast<Post>().ToList();
+                posts = postIds.Select(id => posts.FirstOrDefault(p => p.Id == id))
+                               .Where(p => p != null)
+                               .Cast<Post>()
+                               .ToList();
             }
-            else
+
+            // 2. If hashtag, and no ES results yet, try ES specifically for the tag
+            if (!posts.Any() && lowerQuery.StartsWith("#") && lowerQuery.Length > 1)
             {
-                // [EMERGENCY FALLBACK] Optimized SQL search via Hashtags junction table or indexed Content startsWith
-                _logger.LogWarning("[SearchPostsDBAsync] Search index empty/offline. Using optimized SQL fallback for query: {Query}", query);
-                var lowerQuery = query.ToLower();
-                
-                // If query starts with #, try to find by Hashtags relationship first
+                try
+                {
+                    var esIds = await _searchService.SearchPostsAsync(lowerQuery, offset, limit);
+                    if (esIds.Any())
+                    {
+                        posts = await _unitOfWork.Posts.Query()
+                            .AsNoTracking()
+                            .Include(p => p.Author)
+                            .Include(p => p.PostMedia)
+                            .Include(p => p.LinkPreview)
+                            .Include(p => p.Hashtags)
+                            .AsSplitQuery()
+                            .Where(p => (p.IsDeleted == false || p.IsDeleted == null) && esIds.Contains(p.Id))
+                            .OrderByDescending(p => p.CreatedAt)
+                            .ToListAsync();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[SearchPostsDBAsync] Secondary ES search failed for {Query}", lowerQuery);
+                }
+            }
+
+            // 3. EMERGENCY FALLBACK to SQL
+            if (!posts.Any())
+            {
+                _logger.LogWarning("[SearchPostsDBAsync] Search index empty/offline. Using SQL fallback for: {Query}", query);
                 if (lowerQuery.StartsWith("#") && lowerQuery.Length > 1)
                 {
                     var tag = lowerQuery.Substring(1);
@@ -6564,7 +6620,6 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    // Regular text search fallback - still slow but we can't do much without ES or FTS
                     posts = await _unitOfWork.Posts.Query()
                         .AsNoTracking()
                         .Include(p => p.Author)
@@ -6587,7 +6642,7 @@ public class PostService : IPostService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[SearchPostsDBAsync] Search service failed with error: {Msg}", ex.Message);
+            _logger.LogWarning(ex, "[SearchPostsDBAsync] Search service failed: {Msg}", ex.Message);
             return new List<PostDto>();
         }
     }
@@ -6971,16 +7026,23 @@ public class PostService : IPostService
 
         try
         {
-            var hostname = "public.api.bsky.app";
+            // [FIX] searchPosts requires authentication - public.api.bsky.app returns 403
+            // Always attempt to get a viewer token; fall back to any available system token
             string? viewerToken = null;
             if (viewerId.HasValue && viewerId.Value != Guid.Empty)
             {
-                viewerToken = await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}");
-                if (!string.IsNullOrEmpty(viewerToken)) hostname = "api.bsky.app";
+                viewerToken = await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value);
             }
 
+            // If still no token, try to get one from cache for any logged-in user
+            if (string.IsNullOrEmpty(viewerToken))
+            {
+                viewerToken = await _distributedCache.GetStringAsync("BlueskySystemToken");
+            }
+
+            var hostname = string.IsNullOrEmpty(viewerToken) ? "public.api.bsky.app" : "api.bsky.app";
+
             using var client = _httpClientFactory.CreateClient();
-            // [OPTIMIZATION] Strict timeout to avoid blocking the user if remote search is slow
             client.Timeout = TimeSpan.FromSeconds(8);
             client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
             if (!string.IsNullOrEmpty(viewerToken))
@@ -6988,9 +7050,11 @@ public class PostService : IPostService
                 client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
             }
 
-            // Using AppView API for Search
-            string searchUrl = $"https://{hostname}/xrpc/app.bsky.feed.searchPosts?tag={Uri.EscapeDataString(tag)}&limit={limit}";
+            // Use q=#tag format (standard Bluesky search syntax)
+            var encodedQ = Uri.EscapeDataString("#" + tag);
+            string searchUrl = $"https://{hostname}/xrpc/app.bsky.feed.searchPosts?q={encodedQ}&limit={limit}";
             
+            _logger.LogInformation("[GetPostsByTagAsync] Searching for #{Tag} via {Url}", tag, searchUrl);
             var response = await client.GetAsync(searchUrl);
             if (response.IsSuccessStatusCode)
             {
@@ -7004,15 +7068,45 @@ public class PostService : IPostService
                         if (mapped != null) resultList.Add(mapped);
                     }
                 }
+                _logger.LogInformation("[GetPostsByTagAsync] Found {Count} posts for #{Tag} via remote search", resultList.Count, tag);
             }
             else
             {
-                _logger.LogWarning("[GetPostsByTagAsync] Search API failed: {StatusCode} for tag {Tag}", response.StatusCode, tag);
+                var errBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("[GetPostsByTagAsync] Search API failed: {StatusCode} for tag {Tag}. Body: {Body}", response.StatusCode, tag, errBody[..Math.Min(200, errBody.Length)]);
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning("[GetPostsByTagAsync] Exception (timeout?) fetching remote tags for {Tag}: {Msg}", tag, ex.Message);
+        }
+
+        // [OPTIMIZATION] Merge with local results from Elasticsearch
+        try
+        {
+            var localPostIds = await _searchService.SearchPostsAsync("#" + tag, 0, limit);
+            if (localPostIds.Any())
+            {
+                var localPosts = await _unitOfWork.Posts.Query()
+                    .Where(p => localPostIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToListAsync();
+
+                foreach (var lp in localPosts)
+                {
+                    if (!resultList.Any(r => r.Uri == lp.Uri))
+                    {
+                        resultList.Add(MapToDto(lp));
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[GetPostsByTagAsync] Local ES search failed for tag {Tag}", tag);
         }
 
         if (!resultList.Any())
