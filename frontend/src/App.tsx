@@ -42,6 +42,18 @@ import { SessionKeeper } from './SessionKeeper';
 const VERSION = '1.1.2';
 const BUILD_TIME = '19:15:00 22/5/2026';
 
+// [FIX] Reset scroll positions on hard refresh/reload/initial entry
+// This MUST happen at module scope to run before any component mounts/effects.
+try {
+  Object.keys(sessionStorage).forEach(key => {
+    if (key.startsWith(SCROLL_STORAGE_PREFIX)) {
+      sessionStorage.removeItem(key);
+    }
+  });
+} catch (e) {
+  console.warn('[App] Failed to clear scroll positions in module scope:', e);
+}
+
 const AppContent: React.FC = () => {
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
@@ -101,18 +113,6 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     sessionStorage.removeItem('chunk_reload_count');
-    
-    // [FIX] Reset scroll positions on hard refresh/reload/initial entry
-    // This ensures stale scroll positions from previous sessions aren't restored.
-    try {
-      Object.keys(sessionStorage).forEach(key => {
-        if (key.startsWith(SCROLL_STORAGE_PREFIX)) {
-          sessionStorage.removeItem(key);
-        }
-      });
-    } catch (e) {
-      console.warn('[App] Failed to clear scroll positions:', e);
-    }
   }, []);
 
   // Unified SignalR Lifecycle with Debouncing
