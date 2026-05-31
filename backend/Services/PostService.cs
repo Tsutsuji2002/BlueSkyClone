@@ -6508,28 +6508,52 @@ public class PostService : IPostService
         {
             // [OPTIMIZATION] Use Elasticsearch for near-instant full-text search
             var postIds = await _searchService.SearchPostsAsync(query, offset, limit);
-            if (!postIds.Any()) return new List<PostDto>();
-
-            var posts = await _unitOfWork.Posts.Query()
-                .AsNoTracking()
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .Include(p => p.Hashtags)
-                .AsSplitQuery()
-                .Where(p => postIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
-                .ToListAsync();
-
-            // Order by the results from Elasticsearch to maintain relevance
-            var orderedPosts = postIds.Select(id => posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Cast<Post>().ToList();
+            
+            List<Post> posts;
+            if (postIds.Any())
+            {
+                posts = await _unitOfWork.Posts.Query()
+                    .AsNoTracking()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Include(p => p.Hashtags)
+                    .AsSplitQuery()
+                    .Where(p => postIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
+                    .ToListAsync();
+                
+                // Maintain relevance order
+                posts = postIds.Select(id => posts.FirstOrDefault(p => p.Id == id)).Where(p => p != null).Cast<Post>().ToList();
+            }
+            else
+            {
+                // [EMERGENCY FALLBACK] If Elasticsearch is empty or offline, do a limited DB scan
+                // This is slow but prevents "No results" for existing data.
+                _logger.LogWarning("[SearchPostsDBAsync] Search index empty/offline. Falling back to slow DB scan for query: {Query}", query);
+                var lowerQuery = query.ToLower();
+                posts = await _unitOfWork.Posts.Query()
+                    .AsNoTracking()
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .Include(p => p.Hashtags)
+                    .AsSplitQuery()
+                    .Where(p => (p.IsDeleted == false || p.IsDeleted == null) &&
+                                (p.Content != null && p.Content.ToLower().Contains(lowerQuery) || 
+                                 p.Hashtags.Any(h => h.Name != null && h.Name.ToLower().Contains(lowerQuery))))
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip(offset)
+                    .Take(limit)
+                    .ToListAsync();
+            }
 
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            var postDtos = orderedPosts.Select(MapToDto).ToList();
+            var postDtos = posts.Select(MapToDto).ToList();
             return await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[SearchPostsDBAsync] Search service failed or timed out for query: {Query}", query);
+            _logger.LogWarning(ex, "[SearchPostsDBAsync] Search service failed with error: {Msg}", ex.Message);
             return new List<PostDto>();
         }
     }
@@ -6959,17 +6983,34 @@ public class PostService : IPostService
 
         if (!resultList.Any())
         {
-            // [OPTIMIZATION] Fallback to Elasticsearch search instead of slow DB Contains query
+            // [OPTIMIZATION] Fallback to Elasticsearch search
             var postIds = await _searchService.SearchPostsAsync("#" + tag, offset, limit);
-            if (!postIds.Any()) return new List<PostDto>();
-
-            var posts = await _unitOfWork.Posts.Query()
-                .Where(p => postIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
-                .Include(p => p.Author)
-                .Include(p => p.PostMedia)
-                .Include(p => p.LinkPreview)
-                .OrderByDescending(p => p.CreatedAt)
-                .ToListAsync();
+            
+            List<Post> posts;
+            if (postIds.Any())
+            {
+                posts = await _unitOfWork.Posts.Query()
+                    .Where(p => postIds.Contains(p.Id) && (p.IsDeleted == false || p.IsDeleted == null))
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .ToListAsync();
+            }
+            else
+            {
+                // [EMERGENCY FALLBACK] If Elasticsearch is empty or offline, do a limited DB scan
+                _logger.LogWarning("[GetPostsByTagAsync] Search index empty/offline. Falling back to slow DB scan for tag: {Tag}", tag);
+                posts = await _unitOfWork.Posts.Query()
+                    .Where(p => p.Content != null && p.Content.Contains("#" + tag) && (p.IsDeleted == false || p.IsDeleted == null))
+                    .Include(p => p.Author)
+                    .Include(p => p.PostMedia)
+                    .Include(p => p.LinkPreview)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .Skip(offset)
+                    .Take(limit) // Less constraint than original (20 vs 5) but only when Elasticsearch fails
+                    .ToListAsync();
+            }
 
             var dtos = posts.Select(p => MapToDto(p)).ToList();
             return await EnrichAndFilterPostsAsync(dtos, viewerId ?? Guid.Empty);
