@@ -69,9 +69,9 @@ const AboutPage: React.FC = () => {
                     <div className="w-full flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-dark-border/50">
                         <div className="flex items-center gap-4 text-gray-900 dark:text-dark-text">
                             <span className="opacity-80"><FiTool size={20} /></span>
-                            <span className="text-[15px] font-medium">{t('about.version')} 1.112.0</span>
+                            <span className="text-[15px] font-medium">{t('about.version')} {process.env.REACT_APP_VERSION}</span>
                         </div>
-                        <span className="text-sm text-gray-400 dark:text-gray-500 font-mono">f43f3c6 (prod)</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-500 font-mono">{process.env.REACT_APP_COMMIT_HASH} (prod)</span>
                     </div>
 
                 </div>
