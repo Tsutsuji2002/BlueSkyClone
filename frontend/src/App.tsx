@@ -52,7 +52,7 @@ try {
   window.scrollTo(0, 0);
 
   Object.keys(sessionStorage).forEach(key => {
-    if (key.startsWith(SCROLL_STORAGE_PREFIX)) {
+    if (key.startsWith(SCROLL_STORAGE_PREFIX) || key.startsWith('virtuoso_state_full_')) {
       sessionStorage.removeItem(key);
     }
   });
