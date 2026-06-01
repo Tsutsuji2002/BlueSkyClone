@@ -45,6 +45,12 @@ const BUILD_TIME = '19:15:00 22/5/2026';
 // [FIX] Reset scroll positions on hard refresh/reload/initial entry
 // This MUST happen at module scope to run before any component mounts/effects.
 try {
+  if ('scrollRestoration' in window.history) {
+    window.history.scrollRestoration = 'manual';
+  }
+  // Force scroll to top immediately in case the browser natively restored it already
+  window.scrollTo(0, 0);
+
   Object.keys(sessionStorage).forEach(key => {
     if (key.startsWith(SCROLL_STORAGE_PREFIX)) {
       sessionStorage.removeItem(key);
@@ -76,10 +82,6 @@ const AppContent: React.FC = () => {
   React.useLayoutEffect(() => {
     console.log(`%c[BlueSky-Deploy] Version: ${VERSION} (Stability + Interaction Sync)`, 'color: #00acee; font-weight: bold; font-size: 14px;');
     console.log(`[BlueSky-Deploy] Build Time: ${BUILD_TIME}`);
-    
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
-    }
   }, []);
 
   // Sync RTK Query result to authSlice for backward compatibility
