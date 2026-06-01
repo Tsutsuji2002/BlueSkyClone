@@ -5744,9 +5744,38 @@ public class PostService : IPostService
                     string? targetCid = freshPost.Cid;
                     if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
                     {
-                        // Fallback: Remote lookup (only if CID is missing)
-                        var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
-                        targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
+                        // [FAST PATH] Fetch only the CID via getPostThread?depth=0 - much faster than full ingestion
+                        try
+                        {
+                            using var cidClient = _httpClientFactory.CreateClient();
+                            cidClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                            using var cidCts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                            var cidResp = await cidClient.GetAsync(
+                                $"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(freshPost.Uri!)}&depth=0",
+                                cidCts.Token);
+                            if (cidResp.IsSuccessStatusCode)
+                            {
+                                var cidJson = await cidResp.Content.ReadAsStringAsync(cidCts.Token);
+                                using var cidDoc = System.Text.Json.JsonDocument.Parse(cidJson);
+                                if (cidDoc.RootElement.TryGetProperty("thread", out var threadEl) &&
+                                    threadEl.TryGetProperty("post", out var postEl) &&
+                                    postEl.TryGetProperty("cid", out var cidEl))
+                                {
+                                    targetCid = cidEl.GetString() ?? "";
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "[ToggleRepostAsync] CID-only fast path failed for remote URI {Uri}", freshPost.Uri);
+                        }
+
+                        // Last resort fallback if fast-path failed
+                        if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
+                        {
+                            var viewerState = (await GetViewerStateFromAppViewAsync(userId, new[] { freshPost.Uri! })).FirstOrDefault();
+                            targetCid = viewerState?.Cid ?? freshPost.Cid ?? "";
+                        }
                     }
 
                     var repostRecord = new Dictionary<string, object>

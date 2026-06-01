@@ -644,16 +644,15 @@ public class PostsController : ControllerBase
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
                 var resolvedUri = uri ?? id;
-                var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
-                if (post == null) 
-                {
-                    _logger.LogWarning("[PostsController] RepostPost: Post missing locally at {Uri}", resolvedUri);
-                    postId = Guid.Empty;
-                }
-                else
-                {
-                    postId = post.Id;
-                }
+                _logger.LogInformation("[PostsController] RepostPost: Using URI fast-path for {Uri}", resolvedUri);
+
+                // [FAST PATH] For remote posts, skip GetPostByUriAsync (slow ingestion) entirely.
+                // ToggleRepostAsync handles the CID fetch internally with a fast targeted call.
+                // Only do a local DB check (no network) to get the local GUID if it exists.
+                var localPost = await _unitOfWork.Posts.Query()
+                    .Select(p => new { p.Id, p.Uri })
+                    .FirstOrDefaultAsync(p => p.Uri == resolvedUri);
+                postId = localPost?.Id ?? Guid.Empty;
             }
             else if (!Guid.TryParse(id, out postId))
             {
