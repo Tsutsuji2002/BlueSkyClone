@@ -5612,53 +5612,68 @@ public class PostService : IPostService
 
     public async Task<object> ToggleBookmarkAsync(Guid userId, Guid postId, string? uri = null)
     {
-        var lockKey = $"lock:bookmark:{userId}:{postId}-{uri}";
+        var resolvedUri = uri ?? (postId == Guid.Empty ? null : await _unitOfWork.Posts.Query().Where(p => p.Id == postId).Select(p => p.Uri).FirstOrDefaultAsync());
+        var lockKey = $"lock:interaction:{userId}:{postId}-{(string.IsNullOrEmpty(resolvedUri) ? "" : resolvedUri)}";
+        
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(5)))
         {
-            return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress (lock conflict)" };
+            return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress" };
         }
 
         try
         {
-            // If postId is empty but URI is provided, try to find local post first
-            if (postId == Guid.Empty && !string.IsNullOrEmpty(uri))
+            // 1. Resolve Post (with creation if missing and URI provided)
+            Post? post = null;
+            if (postId != Guid.Empty)
             {
-                var localPost = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri);
-                if (localPost != null) postId = localPost.Id;
+                post = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Id == postId);
             }
-
-            var post = (postId != Guid.Empty)
-                ? await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Id == postId)
-                : null;
-
-            // [STUB LOGIC] Create minimal stub if post is missing locally
-            if (post == null && !string.IsNullOrEmpty(uri))
+            
+            if (post == null && !string.IsNullOrEmpty(resolvedUri))
             {
-                _logger.LogInformation("[ToggleBookmarkAsync] Creating standalone stub for {Uri}", uri);
-                post = new Post 
-                { 
-                    Id = Guid.NewGuid(), 
-                    Uri = uri, 
-                    Tid = uri.Split('/').Last(),
-                    CreatedAt = DateTime.UtcNow,
-                    Content = "[Remote interaction...]",
-                    IsDeleted = false
-                };
-                await _unitOfWork.Posts.AddAsync(post);
+                // Second check after lock (or if resolution by URI is needed)
+                post = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == resolvedUri);
+                
+                if (post == null)
+                {
+                    _logger.LogInformation("[ToggleBookmarkAsync] Creating standalone stub for {Uri}", resolvedUri);
+                    post = new Post 
+                    { 
+                        Id = Guid.NewGuid(), 
+                        Uri = resolvedUri, 
+                        Tid = resolvedUri.Split('/').Last(),
+                        CreatedAt = DateTime.UtcNow,
+                        Content = "[Remote interaction...]",
+                        IsDeleted = false
+                    };
+                    await _unitOfWork.Posts.AddAsync(post);
+                    
+                    // We must commit the post stub immediately or in the same transaction as the bookmark
+                    // but we also need to handle potential race conditions if another server node created it
+                    try {
+                        await _unitOfWork.CompleteAsync();
+                    } catch (Exception ex) {
+                        _logger.LogWarning("[ToggleBookmarkAsync] Post stub creation race for {Uri}: {Msg}", resolvedUri, ex.Message);
+                        // Re-fetch to get the ID created by the other thread/node
+                        post = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == resolvedUri);
+                        if (post == null) throw; // Something else is wrong
+                    }
+                }
                 postId = post.Id;
                 
-                // Trigger background refresh (shallow)
+                // Trigger background refresh 
                 _ = Task.Run(async () => {
                     try {
                         using var scope = _scopeFactory.CreateScope();
                         var bgPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
-                        await bgPostService.GetPostByUriAsync(uri, userId, bypassCache: true);
+                        await bgPostService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
                     } catch {}
                 });
             }
 
             if (post == null) return new { isBookmarked = false, bookmarksCount = 0, error = "Post target not found" };
 
+            // 2. Toggle Bookmark
             var existing = await _unitOfWork.Bookmarks.Query().FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
             bool isBookmarked;
 
