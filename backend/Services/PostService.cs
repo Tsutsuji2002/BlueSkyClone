@@ -5647,11 +5647,48 @@ public class PostService : IPostService
                 if (post == null)
                 {
                     _logger.LogInformation("[ToggleBookmarkAsync] Creating standalone stub for {Uri}", resolvedUri);
+                    
+                    // [IMPORTANT] Post.AuthorId is a REQUIRED non-nullable Foreign Key.
+                    // We must resolve the author DID from the URI and find/create a local user placeholder.
+                    Guid authorId = Guid.Empty;
+                    try {
+                        var parts = resolvedUri.Split('/');
+                        var did = parts.Length > 2 ? parts[2] : null;
+                        if (!string.IsNullOrEmpty(did))
+                        {
+                            var author = await _unitOfWork.Users.Query()
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(u => u.Did == did);
+                            
+                            if (author == null)
+                            {
+                                // Create minimal placeholder user to satisfy FK
+                                author = new User { 
+                                    Id = Guid.NewGuid(), 
+                                    Did = did, 
+                                    Handle = did.Replace(":", "-").Replace(".", "-"), // Ensure unique handle-like string
+                                    CreatedAt = DateTime.UtcNow,
+                                    IsDeleted = false
+                                };
+                                await _unitOfWork.Users.AddAsync(author);
+                                // Commit user immediately so it's available for the post
+                                await _unitOfWork.CompleteAsync();
+                            }
+                            authorId = author.Id;
+                        }
+                    } catch (Exception ex) {
+                        _logger.LogWarning("[ToggleBookmarkAsync] Failed to resolve author for stub {Uri}: {Msg}", resolvedUri, ex.Message);
+                    }
+
+                    // Fallback to current user if all else fails (rarely happens with valid at:// URIs)
+                    if (authorId == Guid.Empty) authorId = userId;
+
                     post = new Post 
                     { 
                         Id = Guid.NewGuid(), 
                         Uri = resolvedUri, 
                         Tid = resolvedUri.Split('/').Last(),
+                        AuthorId = authorId,
                         CreatedAt = DateTime.UtcNow,
                         Content = "[Remote interaction...]",
                         IsDeleted = false
@@ -5659,7 +5696,6 @@ public class PostService : IPostService
                     await _unitOfWork.Posts.AddAsync(post);
                     
                     // We must commit the post stub immediately or in the same transaction as the bookmark
-                    // but we also need to handle potential race conditions if another server node created it
                     try {
                         await _unitOfWork.CompleteAsync();
                     } catch (Exception ex) {
