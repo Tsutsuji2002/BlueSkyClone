@@ -699,7 +699,7 @@ public class PostService : IPostService
     {
         try
         {
-            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
             
             if (!string.IsNullOrEmpty(token))

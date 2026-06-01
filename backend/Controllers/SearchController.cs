@@ -32,48 +32,56 @@ public class SearchController : ControllerBase
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         Guid? userId = null;
-        if (Guid.TryParse(userIdStr, out var parsedUserId))
-        {
-            userId = parsedUserId;
-        }
+        if (Guid.TryParse(userIdStr, out var parsedUserId)) userId = parsedUserId;
 
+        string? bskyToken = null;
         if (userId.HasValue)
+            bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
+
+        // [PERFORMANCE] Run remote AppView search and local ES/DB search in PARALLEL.
+        // Return whichever has results first within 5 seconds; avoids a 20-30s sequential wait.
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var remoteTask = Task.Run(async () =>
         {
-            // 1. Check for Bluesky token
-            var bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
-            if (!string.IsNullOrEmpty(bskyToken))
+            try { return await _postService.SearchPostsRemoteAsync(q, bskyToken, skip, take); }
+            catch { return Enumerable.Empty<BSkyClone.DTOs.PostDto>(); }
+        }, cts.Token);
+
+        var localTask = Task.Run(async () =>
+        {
+            try
             {
-                var remotePosts = await _postService.SearchPostsRemoteAsync(q, bskyToken, skip, take);
-                if (remotePosts.Any())
+                var postIds = (await _searchService.SearchPostsAsync(q, skip, take)).ToList();
+                if (postIds.Count > 0)
                 {
-                    return Ok(remotePosts);
+                    var posts = await _postService.GetPostsByIdsAsync(postIds, userId ?? Guid.Empty);
+                    return (IEnumerable<BSkyClone.DTOs.PostDto>)posts;
                 }
+                // ES returned nothing — try DB
+                var dbPosts = await _postService.SearchPostsDBAsync(q, userId ?? Guid.Empty, take, skip);
+                return (IEnumerable<BSkyClone.DTOs.PostDto>)dbPosts;
             }
-        }
-        else
-        {
-            // NEW: Guests can also search remote via Public API
-            var remotePosts = await _postService.SearchPostsRemoteAsync(q, null, skip, take);
-            if (remotePosts.Any())
-            {
-                return Ok(remotePosts);
-            }
-        }
+            catch { return Enumerable.Empty<BSkyClone.DTOs.PostDto>(); }
+        }, cts.Token);
 
-        // 2. Local ElasticSearch
-        var postIds = (await _searchService.SearchPostsAsync(q, skip, take)).ToList();
-        
-        // 3. Fallback to DB search
-        if (postIds.Count == 0)
-        {
-            // DB search can work without user authentication if we just skip subscription checking
-            var dbPosts = await _postService.SearchPostsDBAsync(q, userId ?? Guid.Empty, take, skip);
-            return Ok(dbPosts);
-        }
+        // Wait for first task with results, or both to finish (within 5s)
+        IEnumerable<BSkyClone.DTOs.PostDto> remoteResults = [];
+        IEnumerable<BSkyClone.DTOs.PostDto> localResults = [];
 
-        // Hydrate posts from DB
-        var posts = await _postService.GetPostsByIdsAsync(postIds, userId ?? Guid.Empty);
-        return Ok(posts);
+        try
+        {
+            await Task.WhenAll(remoteTask, localTask).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (TimeoutException) { /* partial results below */ }
+        catch (OperationCanceledException) { /* partial results below */ }
+
+        if (remoteTask.IsCompletedSuccessfully) remoteResults = remoteTask.Result;
+        if (localTask.IsCompletedSuccessfully) localResults = localTask.Result;
+
+        // Prefer remote results; fall back to local
+        var finalResults = remoteResults.Any() ? remoteResults : localResults;
+        return Ok(finalResults);
     }
 
     [AllowAnonymous]
