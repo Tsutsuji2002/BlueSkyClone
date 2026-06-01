@@ -612,9 +612,14 @@ public class PostsController : ControllerBase
             if (id.StartsWith("at://") || !string.IsNullOrEmpty(uri))
             {
                 var resolvedUri = uri ?? id;
-                var post = await _postService.GetPostByUriAsync(resolvedUri, userId, bypassCache: true);
-                if (post == null) return NotFound("Remote post could not be resolved or ingested.");
-                postId = post.Id;
+                _logger.LogInformation("[PostsController] BookmarkPost: Using URI fast-path for {Uri}", resolvedUri);
+
+                // [FAST PATH] For remote posts, skip GetPostByUriAsync (slow ingestion) entirely.
+                // ToggleBookmarkAsync handles stubs/background ingestion internally.
+                var localPost = await _unitOfWork.Posts.Query()
+                    .Select(p => new { p.Id, p.Uri })
+                    .FirstOrDefaultAsync(p => p.Uri == resolvedUri);
+                postId = localPost?.Id ?? Guid.Empty;
             }
             else if (!Guid.TryParse(id, out postId))
             {
@@ -622,7 +627,8 @@ public class PostsController : ControllerBase
                 if (post == null) return NotFound();
                 postId = post.Id;
             }
-            var result = await _postService.ToggleBookmarkAsync(userId, postId);
+            
+            var result = await _postService.ToggleBookmarkAsync(userId, postId, uri ?? (id.StartsWith("at://") ? id : null));
             return Ok(result);
         }
         catch (Exception ex)

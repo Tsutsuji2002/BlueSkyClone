@@ -231,7 +231,7 @@ public class PostService : IPostService
             var perActor = Math.Max(1, desiredPosts / distinctActors.Count);
 
             // Process actors in parallel with a strict aggregate timeout
-            using var ctsAggregate = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            using var ctsAggregate = new CancellationTokenSource(TimeSpan.FromSeconds(8));
             var actorTasks = distinctActors.Select(async actor =>
             {
                 try
@@ -918,19 +918,25 @@ public class PostService : IPostService
                 var cachedInteractions = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
                 var missingUris = new List<string>();
 
-                // 1. Individual Cache Check
-                foreach (var uri in remoteUrisList)
+                // 1. Parallel Cache Check (Individual)
+                var cacheCheckTasks = remoteUrisList.Select(async uri =>
                 {
                     var individualCacheKey = $"appview:v2:{uri}";
                     var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(individualCacheKey) : null;
-                    if (!string.IsNullOrEmpty(cachedJson))
+                    return new { uri, cachedJson };
+                });
+                
+                var cacheResults = await Task.WhenAll(cacheCheckTasks);
+                foreach (var res in cacheResults)
+                {
+                    if (!string.IsNullOrEmpty(res.cachedJson))
                     {
                         try {
-                            var doc = JsonDocument.Parse(cachedJson);
-                            cachedInteractions[uri] = doc.RootElement.Clone();
-                        } catch { missingUris.Add(uri); }
+                            var doc = JsonDocument.Parse(res.cachedJson);
+                            cachedInteractions[res.uri] = doc.RootElement.Clone();
+                        } catch { missingUris.Add(res.uri); }
                     }
-                    else { missingUris.Add(uri); }
+                    else { missingUris.Add(res.uri); }
                 }
 
                 if (missingUris.Any())
