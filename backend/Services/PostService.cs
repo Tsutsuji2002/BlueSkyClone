@@ -5604,67 +5604,61 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<object> ToggleBookmarkAsync(Guid userId, Guid postId, string? fallbackUri = null)
+    public async Task<object> ToggleBookmarkAsync(Guid userId, Guid postId, string? uri = null)
     {
-        var lockKey = $"lock:bookmark:{userId}:{postId}-{fallbackUri}";
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(4)))
+        var lockKey = $"lock:bookmark:{userId}:{postId}-{uri}";
+        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(5)))
         {
-            return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress" };
+            return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress (lock conflict)" };
         }
 
         try
         {
-            // If postId is Guid.Empty, try to resolve by fallbackUri locally first
-            if (postId == Guid.Empty && !string.IsNullOrEmpty(fallbackUri))
+            // If postId is empty but URI is provided, try to find local post first
+            if (postId == Guid.Empty && !string.IsNullOrEmpty(uri))
             {
-                var localPost = await _unitOfWork.Posts.Query()
-                    .FirstOrDefaultAsync(p => p.Uri == fallbackUri);
+                var localPost = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == uri);
                 if (localPost != null) postId = localPost.Id;
             }
 
-            var existingBookmark = (postId != Guid.Empty) 
-                ? await _unitOfWork.Bookmarks.Query().FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId)
-                : null;
-
             var post = (postId != Guid.Empty)
-                ? await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Id == postId && (p.IsDeleted == false || p.IsDeleted == null))
+                ? await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Id == postId)
                 : null;
 
-            // [STUB LOGIC] If post not found locally, create a stub so bookmarking doesn't fail
-            if (post == null && !string.IsNullOrEmpty(fallbackUri))
+            // [STUB LOGIC] Create minimal stub if post is missing locally
+            if (post == null && !string.IsNullOrEmpty(uri))
             {
-                _logger.LogInformation("[ToggleBookmarkAsync] Creating stub post for remote URI {Uri}", fallbackUri);
+                _logger.LogInformation("[ToggleBookmarkAsync] Creating standalone stub for {Uri}", uri);
                 post = new Post 
                 { 
                     Id = Guid.NewGuid(), 
-                    Uri = fallbackUri, 
-                    Tid = fallbackUri.Split('/').Last(),
+                    Uri = uri, 
+                    Tid = uri.Split('/').Last(),
                     CreatedAt = DateTime.UtcNow,
-                    Content = "[Remote post loading...]", // Temporary placeholder
+                    Content = "[Remote interaction...]",
                     IsDeleted = false
                 };
                 await _unitOfWork.Posts.AddAsync(post);
                 postId = post.Id;
                 
-                // Trigger background ingestion so it eventually looks right in any "Bookmarks" feed
+                // Trigger background refresh (shallow)
                 _ = Task.Run(async () => {
                     try {
                         using var scope = _scopeFactory.CreateScope();
-                        var backgroundPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
-                        await backgroundPostService.GetPostByUriAsync(fallbackUri, userId, bypassCache: true);
-                        _logger.LogInformation("[ToggleBookmarkAsync] Background ingestion completed for {Uri}", fallbackUri);
-                    } catch (Exception ex) {
-                        _logger.LogWarning(ex, "[ToggleBookmarkAsync] Background ingestion failed for {Uri}", fallbackUri);
-                    }
+                        var bgPostService = scope.ServiceProvider.GetRequiredService<IPostService>();
+                        await bgPostService.GetPostByUriAsync(uri, userId, bypassCache: true);
+                    } catch {}
                 });
             }
 
-            if (post == null) return new { isBookmarked = false, bookmarksCount = 0, error = "Post not found" };
+            if (post == null) return new { isBookmarked = false, bookmarksCount = 0, error = "Post target not found" };
 
+            var existing = await _unitOfWork.Bookmarks.Query().FirstOrDefaultAsync(b => b.PostId == postId && b.UserId == userId);
             bool isBookmarked;
-            if (existingBookmark != null)
+
+            if (existing != null)
             {
-                _unitOfWork.Bookmarks.Remove(existingBookmark);
+                _unitOfWork.Bookmarks.Remove(existing);
                 isBookmarked = false;
                 post.BookmarksCount = Math.Max(0, (post.BookmarksCount ?? 0) - 1);
             }
@@ -5697,7 +5691,12 @@ public class PostService : IPostService
                 timestamp
             });
 
-            return new { isBookmarked };
+            return new { isBookmarked, bookmarksCount = post.BookmarksCount ?? 0 };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[ToggleBookmarkAsync] Error saving bookmark for Post {PostId}", postId);
+            throw;
         }
         finally
         {
