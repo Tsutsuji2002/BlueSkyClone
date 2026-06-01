@@ -5613,17 +5613,27 @@ public class PostService : IPostService
     public async Task<object> ToggleBookmarkAsync(Guid userId, Guid postId, string? uri = null)
     {
         var resolvedUri = uri ?? (postId == Guid.Empty ? null : await _unitOfWork.Posts.Query().Where(p => p.Id == postId).Select(p => p.Uri).FirstOrDefaultAsync());
-        var lockKey = $"lock:interaction:{userId}:{postId}-{(string.IsNullOrEmpty(resolvedUri) ? "" : resolvedUri)}";
         
-        if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(5)))
+        // GLOBAL LOCK: Use URI-based lock to prevent concurrent STUB creation across different users
+        var globalLockKey = string.IsNullOrEmpty(resolvedUri) ? null : $"lock:interaction-global:{resolvedUri}";
+        var userLockKey = $"lock:bookmark-user:{userId}:{postId}";
+
+        if (globalLockKey != null && !await _cacheService.TryLockAsync(globalLockKey, TimeSpan.FromSeconds(10)))
         {
-            return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress" };
+            return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress (global lock)" };
         }
 
         try
         {
-            // 1. Resolve Post (with creation if missing and URI provided)
-            Post? post = null;
+            if (!await _cacheService.TryLockAsync(userLockKey, TimeSpan.FromSeconds(5)))
+            {
+                return new { isBookmarked = false, bookmarksCount = 0, error = "Action in progress (user lock)" };
+            }
+
+            try
+            {
+                // 1. Resolve Post (with creation if missing and URI provided)
+                Post? post = null;
             if (postId != Guid.Empty)
             {
                 post = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Id == postId);
@@ -5689,7 +5699,7 @@ public class PostService : IPostService
                 {
                     PostId = postId,
                     UserId = userId,
-                    Tid = !string.IsNullOrEmpty(post.Tid) ? post.Tid : GenerateTid(),
+                    Tid = ProtocolUtils.GenerateTid(),
                     CreatedAt = DateTime.UtcNow
                 });
                 isBookmarked = true;
@@ -5714,16 +5724,21 @@ public class PostService : IPostService
 
             return new { isBookmarked, bookmarksCount = post.BookmarksCount ?? 0 };
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[ToggleBookmarkAsync] Error saving bookmark for Post {PostId}", postId);
-            throw;
-        }
         finally
         {
-            await _cacheService.ReleaseLockAsync(lockKey);
+            await _cacheService.ReleaseLockAsync(userLockKey);
         }
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "[ToggleBookmarkAsync] Error saving bookmark for user {UserId}, Post {PostId}, URI {Uri}", userId, postId, resolvedUri);
+        throw;
+    }
+    finally
+    {
+        if (globalLockKey != null) await _cacheService.ReleaseLockAsync(globalLockKey);
+    }
+}
 
     public async Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null, string? fallbackUri = null)
     {

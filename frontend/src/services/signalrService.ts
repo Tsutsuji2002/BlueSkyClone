@@ -129,6 +129,13 @@ class SignalRService {
                 .build();
 
             this.setupHandlers();
+            
+            if (this.stopRequested) {
+                console.log('[SignalR] Stop requested during setup, aborting start');
+                this.isConnecting = false;
+                return;
+            }
+
             await this.connection.start();
             this.updateStatus(HubStatus.Connected);
             this.retryCount = 0;

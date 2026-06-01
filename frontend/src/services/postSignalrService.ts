@@ -94,6 +94,13 @@ class PostSignalRService {
                 .build();
 
             this.setupHandlers();
+            
+            if (this.stopRequested) {
+                console.log('[PostSignalR] Stop requested during setup, aborting start');
+                this.isConnecting = false;
+                return;
+            }
+
             await this.connection.start();
             console.log('[PostSignalR] Connected successfully');
             this.retryCount = 0;
