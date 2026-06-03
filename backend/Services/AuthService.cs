@@ -482,7 +482,7 @@ public class AuthService : IAuthService
         // Extract results safely (using default values if they timed out)
         var allFeeds = feedsTask.IsCompletedSuccessfully ? await feedsTask : new List<FeedDto>();
         var unreadCount = countTask.IsCompletedSuccessfully ? await countTask : 0;
-        var trending = trendingTask.IsCompletedSuccessfully ? await trendingTask : new List<string>();
+        var trending = trendingTask.IsCompletedSuccessfully ? await trendingTask : new TrendingData();
         var mutedWordsList = mutedWordsTask.IsCompletedSuccessfully ? await mutedWordsTask : new List<MutedWord>();
 
 
