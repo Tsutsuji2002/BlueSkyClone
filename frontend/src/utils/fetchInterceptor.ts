@@ -138,11 +138,14 @@ export const setupFetchInterceptor = () => {
         const isRefreshRequest = url.endsWith('/auth/refresh');
         const isLoginRequest = url.endsWith('/auth/login') || url.endsWith('/auth/register');
 
+        const isHandshakeRequest = url.includes('/auth/handshake');
+        const isVerifyDomainRequest = url.includes('/auth/verify-domain');
+
         const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || 
                             url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
                             url.includes('/app.bsky.feed.getFeed') || url.includes('/app.bsky.feed.getActorFeeds') ||
                             url.includes('/feeds/subscribed') || url.includes('/lists/pinned') ||
-                            url.includes('/auth/me') || isLoginRequest || isRefreshRequest;
+                            url.includes('/auth/me') || isLoginRequest || isRefreshRequest || isHandshakeRequest || isVerifyDomainRequest;
 
         // INITIALIZATION FLOODGATE (First Load Protection):
         // Hold all requests until the first session verification (isInitializing) is complete.
@@ -150,7 +153,9 @@ export const setupFetchInterceptor = () => {
         const state = store.getState();
         const authState = state.auth as any;
 
-        if (authState.isInitializing && !isRefreshRequest && !url.includes('/auth/me') && !isLoginRequest) {
+        const isInitExempt = isRefreshRequest || url.includes('/auth/me') || isLoginRequest || isHandshakeRequest || isVerifyDomainRequest;
+
+        if (authState.isInitializing && !isInitExempt) {
             console.log(`[FetchInterceptor] INITIALIZING: Buffering request until session is verified: ${url}`);
             
             await new Promise<void>(resolve => {
@@ -162,7 +167,7 @@ export const setupFetchInterceptor = () => {
                     }
                 });
                 // Safety timeout: don't hang requests forever if init fails silently
-                setTimeout(() => { unsubscribe(); resolve(); }, 25000);
+                setTimeout(() => { unsubscribe(); resolve(); }, 15000);
             });
 
             // Re-check state after floodgate opens

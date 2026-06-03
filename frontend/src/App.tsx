@@ -134,10 +134,7 @@ const AppContent: React.FC = () => {
     }
 
     if (isAuthenticated && isAppReady) {
-        console.log('[App] Authenticated & Ready: Starting background services in 1s...');
-        
-        // Metadata is now handled immediately in the meData effect for performance.
-
+        const signalrGracePeriod = 3000;
         signalrTimerRef.current = setTimeout(() => {
             console.log('[App] Starting connections after grace period.');
             signalrService.startConnection();
@@ -164,7 +161,7 @@ const AppContent: React.FC = () => {
             // fetchUnreadCount is now handled by Handshake on startup
             dispatch(fetchConversations());
             signalrTimerRef.current = null;
-        }, 2000);
+        }, signalrGracePeriod);
     } else {
         console.log('[App] Unauthenticated: Stopping SignalR in 1s grace period...');
         signalrTimerRef.current = setTimeout(() => {
