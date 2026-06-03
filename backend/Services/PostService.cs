@@ -107,7 +107,7 @@ public class PostService : IPostService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false)
+    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false)
     {
         try
         {
@@ -190,7 +190,7 @@ public class PostService : IPostService
             }
             
             token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
-            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts.ToList(), userId, token, true) : resultDto.Posts.ToList();
+            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts.ToList(), userId, token, true, skipDeepResolution: skipDeepResolution) : resultDto.Posts.ToList();
             
             // If we have a cursor, we assume the server handled "skip" (though getTimeline doesn't use skip, it uses cursors)
             // If we ARE using skip, we skip/take.
@@ -772,7 +772,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false, bool skipDeepResolution = false)
     {
         try
         {
@@ -1329,46 +1329,54 @@ public class PostService : IPostService
         
         var resolveTasks = new List<Task>();
 
-        // 1. Resolve Authors
-        foreach (var did in stubAuthors)
+        if (!skipDeepResolution)
         {
-            resolveTasks.Add(Task.Run(async () => {
-                await _resolutionSemaphore.WaitAsync();
-                try {
-                    using var scope = _scopeFactory.CreateScope();
-                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                    var (user, _) = await userService.ResolveRemoteProfileAsync(did, viewerId: viewerId);
-                    if (user != null) resolvedAuthors[did] = user;
-                } catch (Exception ex) {
-                    _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to resolve stub author {Did}", did);
-                } finally {
-                    _resolutionSemaphore.Release();
-                }
-            }));
+            // 1. Resolve Authors
+            foreach (var did in stubAuthors)
+            {
+                resolveTasks.Add(Task.Run(async () => {
+                    await _resolutionSemaphore.WaitAsync();
+                    try {
+                        using var scope = _scopeFactory.CreateScope();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        var (user, _) = await userService.ResolveRemoteProfileAsync(did, viewerId: viewerId);
+                        if (user != null) resolvedAuthors[did] = user;
+                    } catch (Exception ex) {
+                        _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to resolve stub author {Did}", did);
+                    } finally {
+                        _resolutionSemaphore.Release();
+                    }
+                }));
+            }
+
+            // 2. Resolve Posts (which will also resolve their authors)
+            foreach (var uri in stubPosts)
+            {
+                resolveTasks.Add(Task.Run(async () => {
+                    await _resolutionSemaphore.WaitAsync();
+                    try {
+                        // [FIX] Use a fresh scope for post ingestion to avoid thread-safety issues with the shared request-scoped UnitOfWork
+                        using var scope = _scopeFactory.CreateScope();
+                        var scopedPostService = (PostService)scope.ServiceProvider.GetRequiredService<IPostService>();
+                        var ingestedPost = await scopedPostService.IngestRemotePostAsync(uri);
+                        if (ingestedPost != null)
+                        {
+                            var ingestedDto = MapToDto(ingestedPost);
+                            resolvedPosts[uri] = ingestedDto;
+                        }
+                    } catch (Exception ex) {
+                        _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to ingest stub post {Uri}", uri);
+                    } finally {
+                        _resolutionSemaphore.Release();
+                    }
+                }));
+            }
+        }
+        else
+        {
+            _logger.LogInformation("[EnrichAndFilterPostsAsync] Skipping deep stub resolution for timeline speedup. StubAuthors={ACount}, StubPosts={PCount}", stubAuthors.Count, stubPosts.Count);
         }
 
-        // 2. Resolve Posts (which will also resolve their authors)
-        foreach (var uri in stubPosts)
-        {
-            resolveTasks.Add(Task.Run(async () => {
-                await _resolutionSemaphore.WaitAsync();
-                try {
-                    // [FIX] Use a fresh scope for post ingestion to avoid thread-safety issues with the shared request-scoped UnitOfWork
-                    using var scope = _scopeFactory.CreateScope();
-                    var scopedPostService = (PostService)scope.ServiceProvider.GetRequiredService<IPostService>();
-                    var ingestedPost = await scopedPostService.IngestRemotePostAsync(uri);
-                    if (ingestedPost != null)
-                    {
-                        var ingestedDto = MapToDto(ingestedPost);
-                        resolvedPosts[uri] = ingestedDto;
-                    }
-                } catch (Exception ex) {
-                    _logger.LogWarning(ex, "[EnrichAndFilterPostsAsync] Failed to ingest stub post {Uri}", uri);
-                } finally {
-                    _resolutionSemaphore.Release();
-                }
-            }));
-        }
 
         if (resolveTasks.Any())
         {
@@ -6177,7 +6185,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false)
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false, bool skipDeepResolution = false)
     {
         var cacheKey = $"posts:trending:v3";
         var now = DateTime.UtcNow;
@@ -6301,13 +6309,13 @@ public class PostService : IPostService
         if (resultDtos.Any())
         {
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
-            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
+            var enriched = await EnrichAndFilterPostsAsync(resultDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token), skipDeepResolution: skipDeepResolution);
             return enriched.ToList();
         }
 
         return resultDtos;
     }
-    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false)
+    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false, bool skipDeepResolution = false)
     {
         try
         {
@@ -6322,7 +6330,7 @@ public class PostService : IPostService
             var token = viewerId.HasValue && viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value) : null;
             var postDtos = posts.Select(MapToDto).ToList();
 
-            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token));
+            postDtos = await EnrichAndFilterPostsAsync(postDtos, viewerId ?? Guid.Empty, token, false, true, !string.IsNullOrEmpty(token), skipDeepResolution: skipDeepResolution);
 
             if (postDtos.Any())
             {

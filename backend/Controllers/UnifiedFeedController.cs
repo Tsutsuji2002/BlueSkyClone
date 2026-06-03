@@ -56,11 +56,11 @@ public class UnifiedFeedController : ControllerBase
                 case "following":
                     if (viewerId == null)
                     {
-                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh);
+                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh, skipDeepResolution: true);
                     }
                     else
                     {
-                        var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh);
+                        var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true);
                         posts = paged.Posts;
                         outCursor = paged.Cursor;
                     }
@@ -76,7 +76,7 @@ public class UnifiedFeedController : ControllerBase
                     else
                     {
                         var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
-                        var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh);
+                        var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh, skipDeepResolution: true);
                         posts = trendingPosts.ToList();
 
                         // [NEW] Resilient Fallback: If local trending is empty (due to query timeout or no local data),
@@ -111,11 +111,11 @@ public class UnifiedFeedController : ControllerBase
                     {
                         if (viewerId == null)
                         {
-                            posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh);
+                            posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh, skipDeepResolution: true);
                         }
                         else
                         {
-                            var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh);
+                            var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true);
                             posts = paged.Posts;
                             outCursor = paged.Cursor;
                         }

@@ -606,7 +606,7 @@ public class ProfileController : ControllerBase
             {
                 var remoteActor = targetUser?.Did ?? targetUser?.Handle ?? userId;
                 _logger.LogInformation("[GetFollowers] Fetching remote for actor: {RemoteActor}", remoteActor);
-                var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId);
+                var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowersDtosAsync(remoteActor, limit, cursor, currentUserId, shallow: true);
                 _logger.LogInformation("[GetFollowers] Remote fetch returned {Count} followers.", remoteDtos.Count);
                 return Ok(new { followers = remoteDtos, cursor = remoteNextCursor });
             }
@@ -671,7 +671,7 @@ public class ProfileController : ControllerBase
             if (isRemoteAtProto)
             {
                 var remoteActor = targetUser?.Did ?? targetUser?.Handle ?? userId;
-                var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowingDtosAsync(remoteActor, limit, cursor, currentUserId);
+                var (remoteDtos, remoteNextCursor) = await _userService.GetRemoteFollowingDtosAsync(remoteActor, limit, cursor, currentUserId, shallow: true);
                 if (isOwnProfile)
                 {
                     remoteDtos = remoteDtos.Select(dto => dto with { IsFollowing = true }).ToList();

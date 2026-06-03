@@ -101,7 +101,9 @@ const OnboardingCard: React.FC = () => {
     }, [user]);
 
     useEffect(() => {
-        if (user && !isHidden) {
+        // [OPTIMIZATION] Only fetch if the user hasn't reached the goal AND the card isn't hidden.
+        // This prevents a redundant 10s API call for mature accounts.
+        if (user && !isHidden && user.followingCount < 10) {
             loadAvatars();
         }
     }, [user, isHidden, loadAvatars]);

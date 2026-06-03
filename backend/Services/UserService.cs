@@ -816,14 +816,14 @@ public class UserService : IUserService
         return (page.Select(f => f.Follower).ToList(), nextCursor);
     }
 
-    public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
+    public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowingDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null, bool shallow = false)
     {
-        return await GetRemoteGraphDtosAsync(actor, limit, cursor, viewerId, "app.bsky.graph.getFollows", "follows");
+        return await GetRemoteGraphDtosAsync(actor, limit, cursor, viewerId, "app.bsky.graph.getFollows", "follows", shallow);
     }
 
-    public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null)
+    public async Task<(List<UserDto> Users, string? Cursor)> GetRemoteFollowersDtosAsync(string actor, int limit = 50, string? cursor = null, Guid? viewerId = null, bool shallow = false)
     {
-        return await GetRemoteGraphDtosAsync(actor, limit, cursor, viewerId, "app.bsky.graph.getFollowers", "followers");
+        return await GetRemoteGraphDtosAsync(actor, limit, cursor, viewerId, "app.bsky.graph.getFollowers", "followers", shallow);
     }
 
     private async Task<List<UserDto>> MapUsersToDtosAsync(List<User> users, Guid? viewerId)
@@ -874,7 +874,8 @@ public class UserService : IUserService
         string? cursor,
         Guid? viewerId,
         string endpoint,
-        string arrayProperty)
+        string arrayProperty,
+        bool shallow = false)
     {
         var (targetUser, _) = await ResolveRemoteProfileAsync(actor, viewerId: viewerId);
         if (targetUser == null) targetUser = await GetUserByHandleAsync(actor);
@@ -1020,14 +1021,18 @@ public class UserService : IUserService
                 }
 
                 User? user = null;
-                try
+                if (!shallow)
                 {
-                    user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                    try
+                    {
+                        user = await ResolveStubRemoteProfileAsync(actorEntry, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Database error during ResolveStubRemoteProfileAsync for {Did}. Falling back to DTO-only mode.", actorDid);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[GetRemoteGraphDtosAsync] Database error during ResolveStubRemoteProfileAsync for {Did}. Falling back to DTO-only mode.", actorDid);
-                }
+
                 if (user == null)
                 {
                     dtos.Add(BuildRemoteGraphUserDto(actorEntry, status));

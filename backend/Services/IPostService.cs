@@ -5,7 +5,7 @@ namespace BSkyClone.Services;
 
 public interface IPostService
 {
-    Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false);
+    Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false);
     Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null, bool bypassCache = false);
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
@@ -22,8 +22,8 @@ public interface IPostService
     Task<object> ToggleBookmarkAsync(Guid userId, Guid postId, string? uri = null);
     Task<object> ToggleRepostAsync(Guid userId, Guid postId, bool? clientIsReposted = null, string? clientRepostUri = null, string? fallbackUri = null);
     Task<IEnumerable<PostDto>> GetPostRepliesAsync(Guid postId, Guid? viewerId = null, int skip = 0, int take = 20);
-    Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false);
-    Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false);
+    Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false, bool skipDeepResolution = false);
+    Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false, bool skipDeepResolution = false);
     Task<IEnumerable<PostDto>> GetGuestDiscoverPostsAsync(int take = 20, int skip = 0);
     Task<PagedPostDto> GetBookmarkedPostsAsync(Guid userId, int skip = 0, int take = 20);
 
@@ -41,7 +41,7 @@ public interface IPostService
     PostDto MapToDto(Post post);
     List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray);
     PostDto? MapBlueskyPost(System.Text.Json.JsonElement postObj);
-    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false);
+    Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false, bool skipDeepResolution = false);
     Task<(string path, string cid, string? thumbnail)> SaveBlobAsync(Stream stream, string contentType, string folder);
     public string GenerateTid();
     /// <summary>
