@@ -100,13 +100,14 @@ const OnboardingCard: React.FC = () => {
         }
     }, [user]);
 
+    const handshakeSettled = useAppSelector((state: RootState) => state.user.handshakeSettled);
     useEffect(() => {
         // [OPTIMIZATION] Only fetch if the user hasn't reached the goal AND the card isn't hidden.
-        // This prevents a redundant 10s API call for mature accounts.
-        if (user && !isHidden && user.followingCount < 10) {
+        // Also wait for the handshake to settle to avoid a redundant API call for mature accounts.
+        if (user && !isHidden && user.followingCount < 10 && handshakeSettled) {
             loadAvatars();
         }
-    }, [user, isHidden, loadAvatars]);
+    }, [user, isHidden, loadAvatars, handshakeSettled]);
 
     // Memoized event handlers
     const handleDismiss = useCallback(() => {

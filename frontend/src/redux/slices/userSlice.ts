@@ -41,6 +41,7 @@ const initialState: UserState = {
     searchHasMoreByTab: {},
     searchFetchedByTab: {},
     mutedWordsInitialized: false,
+    handshakeSettled: false,
 };
 
 export const normalizeIdentifier = (value?: string | null): string => {
@@ -772,9 +773,12 @@ const userSlice = createSlice({
         setMutedWords: (state: UserState, action: PayloadAction<MutedWord[]>) => {
             state.mutedWords = action.payload;
         },
-        setMutedWordsInitialized: (state: UserState, action: PayloadAction<boolean>) => {
+        setMutedWordsInitialized: (state, action: PayloadAction<boolean>) => {
             state.mutedWordsInitialized = action.payload;
-        }
+        },
+        setHandshakeSettled: (state, action: PayloadAction<boolean>) => {
+            state.handshakeSettled = action.payload;
+        },
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
         builder
@@ -1337,6 +1341,7 @@ export const {
     clearSearchResults,
     clearUser,
     setMutedWords,
-    setMutedWordsInitialized
+    setMutedWordsInitialized,
+    setHandshakeSettled
 } = userSlice.actions;
 export default userSlice.reducer;

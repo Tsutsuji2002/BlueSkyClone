@@ -511,6 +511,7 @@ export interface UserState {
     searchHasMoreByTab: Record<string, boolean>;
     searchFetchedByTab: Record<string, boolean>;
     mutedWordsInitialized: boolean;
+    handshakeSettled: boolean;
 }
 
 export interface NotificationsState {

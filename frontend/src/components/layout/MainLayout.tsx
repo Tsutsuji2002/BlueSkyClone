@@ -30,12 +30,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
 
     // [OPTIMIZATION] Muted words are now hydrated via Handshake on startup.
     // We only fetch here as a fallback if the list hasn't been initialized yet.
-    const { mutedWordsInitialized } = useAppSelector((state: RootState) => state.user);
+    const { mutedWordsInitialized, handshakeSettled } = useAppSelector((state: RootState) => state.user);
     useEffect(() => {
-        if (isAuthenticated && !mutedWordsInitialized) {
+        if (isAuthenticated && !mutedWordsInitialized && handshakeSettled) {
             dispatch(fetchMutedWords());
         }
-    }, [isAuthenticated, dispatch, mutedWordsInitialized]);
+    }, [isAuthenticated, dispatch, mutedWordsInitialized, handshakeSettled]);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-bg/50">
