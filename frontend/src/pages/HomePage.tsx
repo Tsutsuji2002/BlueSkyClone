@@ -219,23 +219,36 @@ const HomePage: React.FC = () => {
             ];
         }
 
-        return [
-            ...visibleHomeFeeds.map((f: FeedType) => {
-                const key = feedActionKey(f);
-                return {
+        const uniqueTabs: Array<{ id: string; label: string }> = [];
+        const seenIds = new Set<string>();
+
+        visibleHomeFeeds.forEach((f: FeedType) => {
+            const key = feedActionKey(f);
+            if (!seenIds.has(key)) {
+                seenIds.add(key);
+                uniqueTabs.push({
                     id: key,
                     label: key === 'discover'
                         ? 'Discover'
                         : key === 'following'
                             ? 'Following'
                             : f.name
-                };
-            }),
-            ...pinnedLists.map((l: ListDto) => ({
-                id: `list:${l.id}`,
-                label: l.name
-            }))
-        ];
+                });
+            }
+        });
+
+        pinnedLists.forEach((l: ListDto) => {
+            const id = `list:${l.id}`;
+            if (!seenIds.has(id)) {
+                seenIds.add(id);
+                uniqueTabs.push({
+                    id,
+                    label: l.name
+                });
+            }
+        });
+
+        return uniqueTabs;
     }, [visibleHomeFeeds, pinnedLists, t, isAuthenticated, subscribedFeeds.length]);
 
     // Ensure a valid tab is always selected

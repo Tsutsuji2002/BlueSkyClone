@@ -1325,7 +1325,20 @@ const userSlice = createSlice({
             .addCase(syncMutedWords.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
-            });
+            })
+            // Reset handshake status when account switches or logout occurs
+            .addCase('auth/setAuth', (state) => {
+                state.handshakeSettled = false;
+            })
+            .addCase('auth/logout', (state) => {
+                state.handshakeSettled = false;
+            })
+            .addMatcher(
+                (action) => action.type === 'auth/switchAccount/fulfilled',
+                (state) => {
+                    state.handshakeSettled = false;
+                }
+            );
     }
 });
 

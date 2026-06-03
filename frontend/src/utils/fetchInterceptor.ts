@@ -318,12 +318,12 @@ export const setupFetchInterceptor = () => {
                     const state = store.getState();
                     const activeDid = state.auth.user?.did;
                     
-                    if (state.auth.isAuthenticated) {
+                    if (state.auth.isAuthenticated && !isSwitchRequest) {
                         console.error('[FetchInterceptor] Session definitively dead. Logging out.');
                         store.dispatch(logout());
                     }
 
-                    if (activeDid) {
+                    if (activeDid && !isSwitchRequest) {
                         const { setSessionExpired } = require('../redux/slices/authSlice');
                         store.dispatch(setSessionExpired(activeDid));
                     }

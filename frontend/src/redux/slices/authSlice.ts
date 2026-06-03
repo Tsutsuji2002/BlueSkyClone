@@ -3,6 +3,7 @@ import { AuthState, User, UserSettings, LoginFormData, SignUpFormData } from '..
 import agent from '../../services/atpAgent';
 import { authApi } from '../api/authApi';
 import { AccountManager, StoredAccount } from '../../utils/accountManager';
+import { setHandshakeSettled } from './userSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 

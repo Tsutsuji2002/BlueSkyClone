@@ -95,18 +95,6 @@ const AppContent: React.FC = () => {
         refreshToken: handshakeData.refreshToken || ''
       }));
       
-      // Hydrate local state for this specific account
-        // Handshake already includes pinned lists and unread count.
-        // We sync them here to avoid redundant network requests.
-        if (handshakeData.pinnedLists) {
-          dispatch({ type: 'lists/setPinnedLists', payload: handshakeData.pinnedLists });
-        }
-        if (handshakeData.unreadCount !== undefined) {
-          dispatch({ type: 'notifications/setUnreadCount', payload: handshakeData.unreadCount });
-        }
-        if (handshakeData.trendingTopics) {
-          dispatch({ type: 'trending/setTrendingTopics', payload: handshakeData.trendingTopics });
-        }
         if (handshakeData.mutedWords) {
           dispatch(setMutedWords(handshakeData.mutedWords));
           dispatch(setMutedWordsInitialized(true));
