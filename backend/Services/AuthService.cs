@@ -466,22 +466,24 @@ public class AuthService : IAuthService
             return await s.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId);
         });
 
-        // [OPTIMIZATION] Apply strict timeouts (3-5s) to remote-heavy metadata tasks so they don't block the whole handshake.
-        await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+        // [OPTIMIZATION] Core Handshake Timing:
+        // We prioritize returning basic profile data quickly. 
+        // We give secondary metadata exactly 2.5s to resolve; if they take longer, 
+        // we return partial data and let the frontend catch up later.
+        var secondaryTasks = Task.WhenAll(feedsTask, countTask, trendingTask, mutedWordsTask);
+        var timeoutTask = Task.Delay(TimeSpan.FromMilliseconds(2500));
 
-        // Best effort Profile (essential, but still timeout-guarded inside)
+        await Task.WhenAny(secondaryTasks, timeoutTask);
+
+        // Profile is essential for the UI to be "ready"
         var profile = await profileTask;
         if (profile == null) return null;
 
-        // Remote feeds (often the slowest part) - already timeout-guarded within the service, 
-        // but we ensure we don't hang here if the task itself somehow sticks.
-        var feedsDelay = Task.Delay(TimeSpan.FromSeconds(5)); 
-        var completedFeed = await Task.WhenAny(feedsTask, feedsDelay);
-        var allFeeds = completedFeed == feedsTask ? await feedsTask : new List<FeedDto>();
-
-        var unreadCount = await countTask;
-        var trending = await trendingTask;
-        var mutedWordsList = await mutedWordsTask;
+        // Extract results safely (using default values if they timed out)
+        var allFeeds = feedsTask.IsCompletedSuccessfully ? await feedsTask : new List<FeedDto>();
+        var unreadCount = countTask.IsCompletedSuccessfully ? await countTask : 0;
+        var trending = trendingTask.IsCompletedSuccessfully ? await trendingTask : new List<string>();
+        var mutedWordsList = mutedWordsTask.IsCompletedSuccessfully ? await mutedWordsTask : new List<MutedWord>();
 
 
         if (profile == null) return null;

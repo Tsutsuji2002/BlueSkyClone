@@ -934,10 +934,10 @@ public class PostService : IPostService
             var remoteUrisList = remoteUris.ToList();
 
             var remoteInteractionCache = new Dictionary<string, JsonElement>();
-                        // PERFORMANCE: Refresh remote interaction counts from AppView.
-            // We previously skipped this for timelines, but that resulted in missing status for remote posts.
-            // Skip only if there's nothing to fetch.
-            if (remoteUrisList.Any())
+            // PERFORMANCE: Refresh remote interaction counts from AppView.
+            // [OPTIMIZATION] Strictly skip this during startup or if skipDeepResolution is true.
+            // This is the major bottleneck (~8s) during initial timeline hydration.
+            if (remoteUrisList.Any() && !skipDeepResolution)
             {
                 var cachedInteractions = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
                 var missingUris = new List<string>();

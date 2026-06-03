@@ -18,12 +18,13 @@ export const SessionKeeper: React.FC = () => {
 
     const isInitialized = React.useRef(false);
     const prevDid = React.useRef(activeUser?.did);
+    const handshakeSettled = useAppSelector((state) => (state.user as any).handshakeSettled);
     
     useEffect(() => {
         // Only refresh on mount if we haven't already.
-        // Also skip if we just switched (did changed).
-        if (isAuthenticated && !isInitialized.current) {
-            console.log('[SessionKeeper] Initial mount refresh...');
+        // [OPTIMIZATION] Skip the initial redundant refresh if the "Consolidated Handshake" is already handling it.
+        if (isAuthenticated && !isInitialized.current && handshakeSettled) {
+            console.log('[SessionKeeper] Running deferred mount refresh (Handshake already settled).');
             refreshActive();
             isInitialized.current = true;
         }
