@@ -19,11 +19,15 @@ const TrendingSection: React.FC = () => {
     const settings = useAppSelector((state: RootState) => state.auth.settings);
     const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
+    // [OPTIMIZATION] The trending topics are now hydrated via the consolidated handshake 
+    // in App.tsx. We don't need a separate fetch here unless topics are empty.
     useEffect(() => {
-        if (settings?.openTrendingTopics !== false) {
-            dispatch(fetchTrending());
+        if (!topics || topics.length === 0) {
+            if (settings?.openTrendingTopics !== false) {
+                dispatch(fetchTrending());
+            }
         }
-    }, [dispatch, settings?.openTrendingTopics]);
+    }, [dispatch, topics, settings?.openTrendingTopics]);
 
     if (settings?.openTrendingTopics === false) {
         return null;

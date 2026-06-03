@@ -14,7 +14,7 @@ const OnboardingCard: React.FC = () => {
     const [suggestionData, setSuggestionData] = useState<{avatar: string, displayName: string}[]>([]);
     const [isHidden, setIsHidden] = useState(false);
 
-    const isGoalReached = user && user.followingCount >= 10;
+    const isGoalReached = (user && user.followingCount >= 10) || suggestionData.length >= 10;
 
     // Move all hooks to the top before any early returns
     // Memoize the avatar display to avoid unnecessary re-renders
@@ -118,7 +118,7 @@ const OnboardingCard: React.FC = () => {
     }, [navigate]);
 
     // Early return after all hooks are defined
-    if (isHidden || !user || user.followingCount >= 10) {
+    if (isHidden || !user || user.followingCount >= 10 || suggestionData.length >= 10) {
         return null;
     }
 

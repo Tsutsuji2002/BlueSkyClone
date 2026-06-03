@@ -29,11 +29,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
     const { isAuthenticated, isLoading } = useAppSelector((state: RootState) => state.auth);
 
     // Load muted words on startup so client-side PostCard filtering works everywhere
+    // [OPTIMIZATION] Muted words are now hydrated via Handshake on startup.
+    // We only fetch here as a fallback if they are missing from state.
+    const { mutedWords } = useAppSelector((state: RootState) => state.user);
     useEffect(() => {
-        if (isAuthenticated) {
+        if (isAuthenticated && (!mutedWords || mutedWords.length === 0)) {
             dispatch(fetchMutedWords());
         }
-    }, [isAuthenticated, dispatch]);
+    }, [isAuthenticated, dispatch, mutedWords]);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-dark-bg/50">

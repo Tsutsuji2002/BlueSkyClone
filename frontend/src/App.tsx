@@ -155,7 +155,7 @@ const AppContent: React.FC = () => {
             signalrService.onStatusChange(statusCallback);
             
             // Initial fetch of background data
-            dispatch(fetchUnreadCount());
+            // fetchUnreadCount is now handled by Handshake on startup
             dispatch(fetchConversations());
             signalrTimerRef.current = null;
         }, 2000);

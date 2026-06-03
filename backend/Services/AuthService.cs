@@ -440,18 +440,31 @@ public class AuthService : IAuthService
         if (user == null) return null;
 
         // Parallel execution of all metadata initialization tasks
-        using var scope = _scopeFactory.CreateScope();
-        var feedService = scope.ServiceProvider.GetRequiredService<IFeedService>();
-        var listService = scope.ServiceProvider.GetRequiredService<IListService>();
-        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
-        var trendingService = scope.ServiceProvider.GetRequiredService<ITrendingService>();
-        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+        var profileTask = Task.Run(async () => {
+            using var s = _scopeFactory.CreateScope();
+            return await s.ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId);
+        });
 
-        var profileTask = GetUserProfileAsync(userId);
-        var feedsTask = feedService.GetUserFeedsAsync(userId);
-        var countTask = notificationService.GetUnreadCountAsync(userId);
-        var trendingTask = Task.FromResult(trendingService.GetTrendingData());
-        var mutedWordsTask = userService.GetMutedWordsAsync(userId);
+        
+        var feedsTask = Task.Run(async () => {
+            using var s = _scopeFactory.CreateScope();
+            return await s.ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId);
+        });
+
+        var countTask = Task.Run(async () => {
+            using var s = _scopeFactory.CreateScope();
+            return await s.ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId);
+        });
+
+        var trendingTask = Task.Run(() => {
+            using var s = _scopeFactory.CreateScope();
+            return s.ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
+        });
+
+        var mutedWordsTask = Task.Run(async () => {
+            using var s = _scopeFactory.CreateScope();
+            return await s.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId);
+        });
 
         await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
 
@@ -460,6 +473,7 @@ public class AuthService : IAuthService
         var unreadCount = await countTask;
         var trending = await trendingTask;
         var mutedWordsList = await mutedWordsTask;
+
 
         if (profile == null) return null;
 
