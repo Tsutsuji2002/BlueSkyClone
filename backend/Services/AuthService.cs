@@ -467,7 +467,7 @@ public class AuthService : IAuthService
         });
 
         // [OPTIMIZATION] Apply strict timeouts (3-5s) to remote-heavy metadata tasks so they don't block the whole handshake.
-        var handshakeResult = await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+        await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
 
         // Best effort Profile (essential, but still timeout-guarded inside)
         var profile = await profileTask;

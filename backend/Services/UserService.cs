@@ -3024,6 +3024,8 @@ public class UserService : IUserService
         // Slow path: we need to refresh. Use a per-user semaphore to avoid thundering herd.
         // When many requests hit simultaneously (e.g. after token expiry at night),
         // only ONE of them does the refresh; the rest wait and then reuse the result.
+        var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+        
         // [OPTIMIZATION] Short wait for lock (2s) to avoid blocking cold-starts during peak thundering herds.
         if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(2)))
         {
