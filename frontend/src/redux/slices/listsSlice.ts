@@ -451,6 +451,11 @@ const listsSlice = createSlice({
             state.activeListFeed = [];
             state.lastFetchDid = '';
             localStorage.removeItem('lists_last_did');
+        },
+        setPinnedLists: (state, action) => {
+            state.pinnedLists = action.payload;
+            state.isLoading = false;
+            state.isFetchingPinned = false;
         }
     },
     extraReducers: (builder) => {
@@ -832,5 +837,5 @@ const listsSlice = createSlice({
     }
 });
 
-export const { clearActiveList, clearCandidates, clearCandidatePosts, clearUserLists, clearLists, hydrateForAccount } = listsSlice.actions;
+export const { setPinnedLists, clearActiveList, clearCandidates, clearCandidatePosts, clearUserLists, clearLists, hydrateForAccount } = listsSlice.actions;
 export default listsSlice.reducer;

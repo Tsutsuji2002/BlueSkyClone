@@ -203,6 +203,11 @@ const authSlice = createSlice({
             state.isReverifying = true;
             state.isInitializing = true;
         },
+        startBackgroundSync: (state) => {
+            state.isReverifying = true;
+            // Deliberately does NOT set isInitializing = true
+            // so existing content remains visible and feeds continue loading
+        },
         completeReverification: (state) => {
             state.isReverifying = false;
             state.isSessionSettled = true;
@@ -239,5 +244,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus, completeReverification } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus, startBackgroundSync, completeReverification } = authSlice.actions;
 export default authSlice.reducer;

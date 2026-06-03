@@ -82,7 +82,10 @@ const HomePage: React.FC = () => {
     useEffect(() => {
         // Strict guard: ensure we don't start pulling feed content until the session is settled.
         // This prevents race conditions where feed requests block metadata (subscribed/pinned) from loading.
-        if (!activeTab || !isSessionSettled || isReverifying || isInitializing) return;
+        // [PERF] Allow feed fetch even if isReverifying is true.
+        // This ensures that when returning to the app, the feed starts loading 
+        // immediately in parallel with the session handshake.
+        if (!user?.did || !isSessionSettled) return;
         const now = Date.now();
 
         if (activeTab.startsWith('list:')) {

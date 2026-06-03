@@ -125,6 +125,9 @@ const notificationsSlice = createSlice({
         clearNotifications: (state) => {
             state.notifications = [];
             state.unreadCount = 0;
+        },
+        setUnreadCount: (state, action) => {
+            state.unreadCount = action.payload;
         }
     },
     extraReducers: (builder) => {
@@ -159,5 +162,5 @@ const notificationsSlice = createSlice({
     },
 });
 
-export const { addNotification, clearNotifications } = notificationsSlice.actions;
+export const { addNotification, clearNotifications, setUnreadCount } = notificationsSlice.actions;
 export default notificationsSlice.reducer;

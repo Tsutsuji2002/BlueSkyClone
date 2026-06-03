@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using BSkyClone.Services;
 
 namespace BSkyClone.DTOs;
 
@@ -164,6 +165,17 @@ public record MutedWordDto(
     string? Targets = null,
     DateTime? ExpiresAt = null,
     bool ExcludeFollowing = false
+);
+
+public record HandshakeResponse(
+    UserDto User,
+    UserSettingDto Settings,
+    List<FeedDto> PinnedLists,
+    int UnreadCount,
+    List<TrendingTopicDto> TrendingTopics,
+    List<MutedWordDto> MutedWords,
+    string? Token = null,
+    string? RefreshToken = null
 );
 
 public record FollowUserResultDto(

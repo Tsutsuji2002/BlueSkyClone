@@ -2,9 +2,27 @@ import { apiSlice } from './apiSlice';
 import { User, UserSettings, LoginFormData, SignUpFormData } from '../../types';
 import { AccountManager } from '../../utils/accountManager';
 
+export interface AuthResponse {
+    user: User;
+    settings: any;
+    token: string;
+    refreshToken: string;
+}
+
+export interface HandshakeResponse {
+    user: any;
+    settings: any;
+    pinnedLists: any[];
+    unreadCount: number;
+    trendingTopics: any[];
+    mutedWords: any[];
+    token?: string;
+    refreshToken?: string;
+}
+
 export const authApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
-        login: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, LoginFormData>({
+        login: builder.mutation<AuthResponse, LoginFormData>({
             query: (credentials) => ({
                 url: '/auth/login',
                 method: 'POST',
@@ -20,7 +38,7 @@ export const authApi = apiSlice.injectEndpoints({
                 } catch { /* login error is handled in the component */ }
             },
         }),
-        signUp: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, SignUpFormData>({
+        signUp: builder.mutation<AuthResponse, SignUpFormData>({
             query: (userData) => ({
                 url: '/auth/register',
                 method: 'POST',
@@ -34,11 +52,15 @@ export const authApi = apiSlice.injectEndpoints({
                 } catch { }
             },
         }),
-        getMe: builder.query<{ user: User; settings: any; token: string; refreshToken: string }, void>({
+        getMe: builder.query<AuthResponse, void>({
             query: () => '/auth/me',
             providesTags: ['Auth'],
         }),
-        refreshSession: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, void>({
+        getHandshake: builder.query<HandshakeResponse, void>({
+            query: () => '/auth/handshake',
+            providesTags: ['Auth'],
+        }),
+        refreshSession: builder.mutation<AuthResponse, void>({
             query: () => ({
                 url: '/auth/refresh',
                 method: 'POST',
@@ -53,7 +75,7 @@ export const authApi = apiSlice.injectEndpoints({
                 } catch { }
             },
         }),
-        switchAccount: builder.mutation<{ user: User; settings: any; token: string; refreshToken: string }, { refreshToken: string }>({
+        switchAccount: builder.mutation<AuthResponse, { refreshToken: string }>({
             query: (body) => ({
                 url: '/auth/switch',
                 method: 'POST',
@@ -105,6 +127,7 @@ export const {
     useLoginMutation,
     useSignUpMutation,
     useGetMeQuery,
+    useGetHandshakeQuery,
     useRefreshSessionMutation,
     useSwitchAccountMutation,
     useLogoutMutation,

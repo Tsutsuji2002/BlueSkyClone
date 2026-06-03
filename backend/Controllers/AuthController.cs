@@ -35,6 +35,23 @@ public class AuthController : ControllerBase
         }
     }
 
+    [Authorize]
+    [HttpGet("handshake")]
+    public async Task<IActionResult> GetHandshake()
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _authService.GetUserHandshakeAsync(userId);
+            if (result == null) return NotFound(new { message = "User not found" });
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("register")]
     [EnableRateLimiting("login")]
     public async Task<IActionResult> Register(RegisterRequest request)

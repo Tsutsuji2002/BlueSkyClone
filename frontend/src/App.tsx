@@ -23,9 +23,9 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { stopLoading, setAuth, logout, resetSessionStatus, completeReverification } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout, resetSessionStatus, startBackgroundSync, completeReverification } from './redux/slices/authSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
-import { useGetMeQuery, authApi } from './redux/api/authApi';
+import { useGetHandshakeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount, fetchNotifications } from './redux/slices/notificationsSlice';
 import { fetchConversations } from './redux/slices/messagesSlice';
 import { hydrateForAccount as hydrateFeedsForAccount, fetchSubscribedFeeds } from './redux/slices/feedsSlice';
@@ -69,10 +69,10 @@ const AppContent: React.FC = () => {
   const theme = useAppSelector((state: RootState) => state.theme);
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { data: meData, error: meError, isFetching: isMeFetching, refetch } = useGetMeQuery();
+  const { data: handshakeData, error: handshakeError, isFetching: isHandshakeFetching, refetch } = useGetHandshakeQuery();
   
   // App Ready is true only when the session check has settled (success or failure)
-  const isAppReady = !isMeFetching && (meData !== undefined || meError !== undefined);
+  const isAppReady = !isHandshakeFetching && (handshakeData !== undefined || handshakeError !== undefined);
 
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -84,34 +84,37 @@ const AppContent: React.FC = () => {
     console.log(`[BlueSky-Deploy] Build Time: ${BUILD_TIME}`);
   }, []);
 
-  // Sync RTK Query result to authSlice for backward compatibility
+  // Sync Handshake result to authSlice and other feature slices
   useEffect(() => {
-    if (meData) {
+    if (handshakeData) {
       dispatch(setAuth({
-        user: meData.user,
-        settings: meData.settings,
-        token: meData.token || '',
-        refreshToken: meData.refreshToken || ''
+        user: handshakeData.user,
+        settings: handshakeData.settings,
+        token: handshakeData.token || '',
+        refreshToken: handshakeData.refreshToken || ''
       }));
       
       // Hydrate local state for this specific account
-      if (meData.user?.did) {
-        dispatch(hydrateFeedsForAccount(meData.user.did));
-        dispatch(hydrateListsForAccount(meData.user.did));
-        
-        // Initiate metadata recovery immediately after session verification
-        // This makes discovery of tabs and pins much faster than waiting for SignalR.
-        dispatch(fetchSubscribedFeeds());
-        dispatch(fetchPinnedLists());
-      }
-    } else if (meError) {
-      // If error occurs, we stop loading once the fetch is complete.
-      // This is critical for guest users where meData will be a 401.
-      if (!isMeFetching) {
+        // Handshake already includes pinned lists and unread count.
+        // We sync them here to avoid redundant network requests.
+        if (handshakeData.pinnedLists) {
+          dispatch({ type: 'lists/setPinnedLists', payload: handshakeData.pinnedLists });
+        }
+        if (handshakeData.unreadCount !== undefined) {
+          dispatch({ type: 'notifications/setUnreadCount', payload: handshakeData.unreadCount });
+        }
+        if (handshakeData.trendingTopics) {
+          dispatch({ type: 'trending/setTrendingTopics', payload: handshakeData.trendingTopics });
+        }
+        if (handshakeData.mutedWords) {
+          dispatch({ type: 'user/setMutedWords', payload: handshakeData.mutedWords });
+        }
+    } else if (handshakeError) {
+      if (!isHandshakeFetching) {
         dispatch(stopLoading());
       }
     }
-  }, [meData, meError, dispatch]);
+  }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
 
   useEffect(() => {
     sessionStorage.removeItem('chunk_reload_count');
@@ -300,39 +303,26 @@ const AppContent: React.FC = () => {
         lastVisibilityCheckRef.current = now;
 
         if (isAuthenticated) {
-            console.log('[App] Tab visible: Re-syncing session...');
-            dispatch(resetSessionStatus());
+            console.log('[App] Tab visible: Re-syncing session (PARALLEL)...');
+            dispatch(startBackgroundSync());
             
-            // Background verification (non-blocking)
-            refetch().unwrap()
+            // Fire re-verification and data refreshes in parallel!
+            // Handshake will fetch profile, settings, and pins in one go.
+            const handshakePromise = refetch().unwrap();
+            const unreadPromise = dispatch(fetchUnreadCount() as any);
+            const notifyPromise = dispatch(fetchNotifications({ limit: 40 }) as any);
+
+            Promise.allSettled([handshakePromise, unreadPromise, notifyPromise])
                 .then(() => {
-                    console.log('[App] Session re-verified background check OK.');
-                })
-                .catch(err => {
-                    console.warn('[App] Session re-verification failed or timed out:', err);
+                    console.log('[App] Parallel background sync complete.');
                 })
                 .finally(() => {
                     dispatch(completeReverification());
                 });
 
-            console.log('[App] Resuming sync in parallel with verification...');
-            
-            // Priority 1: Real-time (Resume immediately)
+            // Resume real-time connections immediately
             signalrService.startConnection();
             postSignalrService.startConnection();
-            
-            // Priority 2: Core Data
-            setTimeout(() => {
-                dispatch(fetchPinnedLists() as any);
-            }, 50);
-
-            // Priority 3: Notifications & Background (Staggered)
-            setTimeout(() => {
-                dispatch(fetchUnreadCount() as any);
-            }, 400);
-            setTimeout(() => {
-                dispatch(fetchNotifications({ limit: 40 }) as any);
-            }, 800);
         }
       } else {
         // Tab hidden: Kill SignalR noise to protect connection slots/battery

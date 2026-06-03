@@ -24,6 +24,7 @@ public interface IAuthService
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
     Task<AuthResponse?> GetUserProfileAsync(Guid userId);
+    Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId);
     Task LogoutAsync(string refreshToken);
 }
 
@@ -428,6 +429,59 @@ public class AuthService : IAuthService
         }
 
         return MapToAuthResponse(user, "", ""); // No new tokens needed for a profile sync
+    }
+
+    public async Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId)
+    {
+        var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        
+        if (user == null) return null;
+
+        // Parallel execution of all metadata initialization tasks
+        using var scope = _scopeFactory.CreateScope();
+        var feedService = scope.ServiceProvider.GetRequiredService<IFeedService>();
+        var listService = scope.ServiceProvider.GetRequiredService<IListService>();
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
+        var trendingService = scope.ServiceProvider.GetRequiredService<ITrendingService>();
+        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+
+        var profileTask = GetUserProfileAsync(userId);
+        var feedsTask = feedService.GetUserFeedsAsync(userId);
+        var countTask = notificationService.GetUnreadCountAsync(userId);
+        var trendingTask = Task.FromResult(trendingService.GetTrendingData());
+        var mutedWordsTask = userService.GetMutedWordsAsync(userId);
+
+        await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+
+        var profile = await profileTask;
+        var allFeeds = await feedsTask;
+        var unreadCount = await countTask;
+        var trending = await trendingTask;
+        var mutedWordsList = await mutedWordsTask;
+
+        if (profile == null) return null;
+
+        var pinnedFeeds = allFeeds.Where(f => f.IsPinned).ToList();
+        var mutedWordDtos = mutedWordsList.Select(m => new MutedWordDto(
+            m.Id, 
+            m.Word, 
+            m.MuteBehavior, 
+            m.CreatedAt, 
+            m.Targets, 
+            m.ExpiresAt, 
+            m.ExcludeFollowing
+        )).ToList();
+
+        return new HandshakeResponse(
+            profile.User,
+            profile.Settings,
+            pinnedFeeds,
+            unreadCount,
+            trending.Topics,
+            mutedWordDtos
+        );
     }
 
     private async Task SeedDefaultFeedsAsync(Guid userId)

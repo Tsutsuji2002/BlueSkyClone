@@ -176,16 +176,8 @@ export const setupFetchInterceptor = () => {
             }
 
             // Stagger released requests to prevent connection pool exhaustion.
-            // [OPTIMIZATION] Skip jitter for user-initiated interactions (Like, Repost, etc.) 
-            // these should feel instantaneous once the floodgate opens.
-            const isInteraction = (init?.method === 'POST' || init?.method === 'DELETE') && 
-                                 (url.includes('/like') || url.includes('/repost') || url.includes('/blocks') || url.includes('/follows'));
-            
-            if (!isInteraction) {
-                await new Promise(resolve => setTimeout(resolve, Math.random() * 700 + 100));
-            } else {
-                console.log(`[FetchInterceptor] FAST-PATH: Releasing interaction immediately: ${url}`);
-            }
+            // [OPTIMIZATION] Skip jitter completely to ensure rapid startup.
+            console.log(`[FetchInterceptor] Releasing initialized request immediately: ${url}`);
         }
 
         // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:
@@ -196,15 +188,11 @@ export const setupFetchInterceptor = () => {
             // - If it's a re-verification (background check), highly prioritize /me and /refresh.
             // - Other essential requests (like feed hydration) are allowed but with caution.
             if (isReverifying) {
-                const isCoreRecovery = url.includes('/auth/me') || isRefreshRequest;
+                const isCoreRecovery = url.includes('/auth/me') || url.includes('/auth/handshake') || isRefreshRequest;
                 
-                if (isCoreRecovery) {
-                    console.log(`[FetchInterceptor] CRITICAL: Allowing core recovery request during re-verification: ${url}`);
+                if (isCoreRecovery || isEssential) {
+                    console.log(`[FetchInterceptor] CRITICAL: Allowing essential request during re-verification: ${url}`);
                     // Proceed to nativeFetch
-                } else if (isEssential) {
-                    // Stagger essential data requests during re-verification to allow /me and /refresh to win connection slots
-                    console.log(`[FetchInterceptor] Staggering essential data request during re-verification: ${url}`);
-                    await new Promise(resolve => setTimeout(resolve, Math.random() * 500 + 200));
                 } else {
                     // Strictly skip non-essential requests during re-verification to save connections
                     console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
