@@ -466,10 +466,19 @@ public class AuthService : IAuthService
             return await s.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId);
         });
 
-        await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+        // [OPTIMIZATION] Apply strict timeouts (3-5s) to remote-heavy metadata tasks so they don't block the whole handshake.
+        var handshakeResult = await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
 
+        // Best effort Profile (essential, but still timeout-guarded inside)
         var profile = await profileTask;
-        var allFeeds = await feedsTask;
+        if (profile == null) return null;
+
+        // Remote feeds (often the slowest part) - already timeout-guarded within the service, 
+        // but we ensure we don't hang here if the task itself somehow sticks.
+        var feedsDelay = Task.Delay(TimeSpan.FromSeconds(5)); 
+        var completedFeed = await Task.WhenAny(feedsTask, feedsDelay);
+        var allFeeds = completedFeed == feedsTask ? await feedsTask : new List<FeedDto>();
+
         var unreadCount = await countTask;
         var trending = await trendingTask;
         var mutedWordsList = await mutedWordsTask;

@@ -59,4 +59,5 @@ public interface IUserService
     Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false);
     Task<string?> GetResolvedPdsAsync(string did, bool forceRefresh = false);
     Task<ProxyResponse> GetPreferencesRawAsync(string did, string token);
+    void BackgroundRefreshIfNeeded(Guid userId, string currentToken);
 }

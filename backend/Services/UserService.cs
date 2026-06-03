@@ -3024,11 +3024,17 @@ public class UserService : IUserService
         // Slow path: we need to refresh. Use a per-user semaphore to avoid thundering herd.
         // When many requests hit simultaneously (e.g. after token expiry at night),
         // only ONE of them does the refresh; the rest wait and then reuse the result.
-        var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(8)))
+        // [OPTIMIZATION] Short wait for lock (2s) to avoid blocking cold-starts during peak thundering herds.
+        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(2)))
         {
-            _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Timeout waiting for refresh lock for {UserId}", userId);
-            return await _distributedCache.GetStringAsync($"BlueskyToken_{userId}"); // Try one last fast-path check
+            _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Lock wait timeout for {UserId}. Serving cached token while refresh happens in background.", userId);
+            
+            // Proactively trigger a background refresh since we clearly need one but couldn't get the lock
+            _ = Task.Run(async () => {
+                try { await GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true); } catch { }
+            });
+
+            return await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         }
         try
         {
@@ -3130,7 +3136,34 @@ public class UserService : IUserService
         finally
         {
             semaphore.Release();
+            // Optional: periodically clean up the locks dictionary if it grows too large
         }
+    }
+
+    /// <summary>
+    /// Proactively refreshes the token if it's nearing expiry, without blocking the caller.
+    /// </summary>
+    public void BackgroundRefreshIfNeeded(Guid userId, string currentToken)
+    {
+        // Simple heuristic: if we retrieved a token, let's ensure it's fresh in the background
+        // but only if a refresh isn't already flying.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var cacheKey = $"BlueskyToken_LastBackgroundRefresh_{userId}";
+                if (!string.IsNullOrEmpty(await _distributedCache.GetStringAsync(cacheKey))) return;
+
+                await GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                
+                // Don't spam background refreshes; once every hour is plenty for proactive sync
+                await _distributedCache.SetStringAsync(cacheKey, "synced", new DistributedCacheEntryOptions 
+                { 
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) 
+                });
+            }
+            catch { /* Silent */ }
+        });
     }
 
     private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
