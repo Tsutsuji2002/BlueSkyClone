@@ -40,6 +40,7 @@ const initialState: UserState = {
     searchResultsByTab: {},
     searchHasMoreByTab: {},
     searchFetchedByTab: {},
+    mutedWordsInitialized: false,
 };
 
 export const normalizeIdentifier = (value?: string | null): string => {
@@ -740,6 +741,7 @@ const userSlice = createSlice({
             state.users = [];
             state.suggestedUsers = [];
             state.mutedWords = [];
+            state.mutedWordsInitialized = false;
             state.mutedUsers = [];
             state.mutedCursor = null;
             state.mutedHasMore = true;
@@ -763,6 +765,15 @@ const userSlice = createSlice({
             state.searchResults = [];
             state.isLoading = false;
             state.error = null;
+            state.isLoading = false;
+            state.error = null;
+            state.mutedWordsInitialized = false;
+        },
+        setMutedWords: (state: UserState, action: PayloadAction<MutedWord[]>) => {
+            state.mutedWords = action.payload;
+        },
+        setMutedWordsInitialized: (state: UserState, action: PayloadAction<boolean>) => {
+            state.mutedWordsInitialized = action.payload;
         }
     },
     extraReducers: (builder: ActionReducerMapBuilder<UserState>) => {
@@ -1288,10 +1299,12 @@ const userSlice = createSlice({
             .addCase(fetchMutedWords.fulfilled, (state: UserState, action: PayloadAction<any[]>) => {
                 state.isLoading = false;
                 state.mutedWords = action.payload;
+                state.mutedWordsInitialized = true;
             })
             .addCase(fetchMutedWords.rejected, (state: UserState, action) => {
                 state.isLoading = false;
                 state.error = action.payload as string;
+                state.mutedWordsInitialized = true; // Mark as settled even if failed to prevent loop
             })
             .addCase(addMutedWordAsync.fulfilled, (state: UserState, action: PayloadAction<MutedWord>) => {
                 state.mutedWords.push(action.payload);
@@ -1322,6 +1335,8 @@ export const {
     clearFollowers,
     clearFollowing,
     clearSearchResults,
-    clearUser
+    clearUser,
+    setMutedWords,
+    setMutedWordsInitialized
 } = userSlice.actions;
 export default userSlice.reducer;

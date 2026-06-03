@@ -24,6 +24,7 @@ import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
 import { stopLoading, setAuth, logout, resetSessionStatus, startBackgroundSync, completeReverification } from './redux/slices/authSlice';
+import { setMutedWords, setMutedWordsInitialized } from './redux/slices/userSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetHandshakeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount, fetchNotifications } from './redux/slices/notificationsSlice';
@@ -107,7 +108,8 @@ const AppContent: React.FC = () => {
           dispatch({ type: 'trending/setTrendingTopics', payload: handshakeData.trendingTopics });
         }
         if (handshakeData.mutedWords) {
-          dispatch({ type: 'user/setMutedWords', payload: handshakeData.mutedWords });
+          dispatch(setMutedWords(handshakeData.mutedWords));
+          dispatch(setMutedWordsInitialized(true));
         }
     } else if (handshakeError) {
       if (!isHandshakeFetching) {

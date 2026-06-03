@@ -296,8 +296,15 @@ export const setupFetchInterceptor = () => {
                         // If this succeeds, it means the session is actually alive (fixed by another tab).
                         const meCheck = await nativeFetch('/api/auth/me', { credentials: 'include' });
                         if (meCheck.ok) {
-                            console.log('[FetchInterceptor] Local session verification SUCCEEDED despite refresh failure. Retrying original request.');
-                            return interceptedFetch(input, init); // Recursive retry once
+                            console.log('[FetchInterceptor] Local session verification SUCCEEDED despite refresh failure. Retrying original request (FINAL).');
+                            
+                            // Clone init to add retry header
+                            const retryInit: RequestInit = { ...init };
+                            const retryHeaders = new Headers(retryInit.headers || {});
+                            retryHeaders.set('X-Retry-Attempt', '1');
+                            retryInit.headers = retryHeaders;
+                            
+                            return interceptedFetch(input, retryInit); // Recursive retry once
                         }
                     } catch (checkErr) {
                         console.warn('[FetchInterceptor] Final session verification check failed:', checkErr);
