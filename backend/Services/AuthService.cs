@@ -270,8 +270,13 @@ public class AuthService : IAuthService
         var userIdString = await _cache.GetStringAsync($"RefreshToken_{refreshToken}", cts.Token);
         if (string.IsNullOrEmpty(userIdString)) return null;
 
-        // Invalidate the old token immediately (refresh token rotation)
-        await _cache.RemoveAsync($"RefreshToken_{refreshToken}", cts.Token);
+        // [SECURITY/STABILITY] Refresh Token Rotation Grace Period:
+        // Instead of immediate removal, we give the old token a 30s "grace period".
+        // This prevents race conditions when multiple requests (or tabs) attempt a refresh 
+        // or switch simultaneously, ensuring the user isn't logged out by a stale token.
+        await _cache.SetStringAsync($"RefreshToken_{refreshToken}", userIdString, new DistributedCacheEntryOptions {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30)
+        }, cts.Token);
 
         var userId = Guid.Parse(userIdString.Split('|')[0]);
         var user = await _unitOfWork.Users.GetByIdAsync(userId);

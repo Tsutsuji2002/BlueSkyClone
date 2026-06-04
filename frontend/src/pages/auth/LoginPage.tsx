@@ -106,11 +106,9 @@ const LoginPage: React.FC = () => {
                 return;
             } catch (err: any) {
                 console.warn('Instant switch failed, falling back to login form', err);
-                const status = err?.status || err?.data?.status;
-                if (status === 401) {
-                    dispatch(setSessionExpired(account.did));
-                }
-                // Fallback to manual login form if token is invalid
+                // [STABILITY] Don't clear tokens immediately on a single failed switch attempt.
+                // The interceptor handles global session safety, and providing the login form 
+                // is a sufficient fallback without permanently marking the account as 'Logged out'.
             }
         }
 
