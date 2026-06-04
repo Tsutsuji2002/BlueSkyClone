@@ -78,6 +78,7 @@ const AppContent: React.FC = () => {
   const isFirstRender = React.useRef(true);
   const signalrTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const lastVisibilityCheckRef = React.useRef<number>(0);
+  const lastHiddenTimeRef = React.useRef<number>(0);
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
 
   React.useLayoutEffect(() => {
@@ -286,7 +287,24 @@ const AppContent: React.FC = () => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         const now = Date.now();
-        // 30s cooldown to prevent thundering herd on rapid tab switching
+        
+        // 1. Calculate how long the tab was hidden
+        const hiddenDuration = lastHiddenTimeRef.current > 0 ? now - lastHiddenTimeRef.current : 0;
+        
+        // 2. Threshold check: 3 minutes (180,000ms)
+        // If the user was away for less than 3 minutes, we don't need a full re-sync.
+        const RE_SYNC_THRESHOLD = 180000; 
+        
+        if (hiddenDuration < RE_SYNC_THRESHOLD && lastHiddenTimeRef.current > 0) {
+            console.log(`[App] Visibility change: Short absence (${Math.round(hiddenDuration/1000)}s). Skipping re-sync.`);
+            // Still resume SignalR though (it's cheap)
+            signalrService.startConnection();
+            postSignalrService.startConnection();
+            return;
+        }
+
+        // 3. Cooldown check: 30s 
+        // (Ensures we don't spam if they rapidly toggle visibility after a long absence)
         if (now - lastVisibilityCheckRef.current < 30000) {
             console.log('[App] Visibility change ignored (cooldown)');
             return;
@@ -325,7 +343,8 @@ const AppContent: React.FC = () => {
         }
       } else {
         // Tab hidden: Kill SignalR noise to protect connection slots/battery
-        console.log('[App] Tab hidden: Stopping SignalR...');
+        console.log('[App] Tab hidden: Saving hidden time and stopping SignalR...');
+        lastHiddenTimeRef.current = Date.now();
         signalrService.stopConnection();
         postSignalrService.stopConnection();
       }
