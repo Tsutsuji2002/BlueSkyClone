@@ -107,7 +107,7 @@ public class PostService : IPostService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false)
+    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
         try
         {
@@ -134,12 +134,11 @@ public class PostService : IPostService
                     _logger.LogWarning("[GetTimelineAsync] User or DID not found for {UserId}.", userId);
                     return new PagedPostDto();
                 }
-
-                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogWarning("[GetTimelineAsync] Failed to refresh/get token for user {UserId}.", userId);
-                    var fallbackPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                    var fallbackPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take, ct);
                     resultDto = new PagedPostDto { Posts = fallbackPosts };
                 }
                 else
@@ -154,13 +153,14 @@ public class PostService : IPostService
                         token,
                         "GET",
                         null,
-                        userId
+                        userId,
+                        ct
                     );
 
                     if (!result.Success)
                     {
                         _logger.LogError("[GetTimelineAsync] Bluesky proxy failed: {Res}", result.Content);
-                        var fallbackPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                        var fallbackPosts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take, ct);
                         resultDto = new PagedPostDto { Posts = fallbackPosts };
                     }
                     else
@@ -172,7 +172,7 @@ public class PostService : IPostService
                         if (posts.Count == 0)
                         {
                             _logger.LogInformation("[GetTimelineAsync] Proxy timeline returned no posts for {UserId}; trying fallback feed reconstruction.", userId);
-                            posts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take);
+                            posts = await BuildTimelineFallbackFromFollowingAsync(user, skip, take, ct);
                         }
                         
                         resultDto = new PagedPostDto { Posts = posts, Cursor = nextCursor };
@@ -185,12 +185,13 @@ public class PostService : IPostService
                     await _distributedCache.SetStringAsync(cacheKey,
                         System.Text.Json.JsonSerializer.Serialize(resultDto),
                         new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
-                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                        { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) },
+                        ct);
                 }
             }
             
-            token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
-            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts.ToList(), userId, token, true, skipDeepResolution: skipDeepResolution) : resultDto.Posts.ToList();
+            token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct) : null;
+            var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts.ToList(), userId, token, true, true, false, skipDeepResolution, ct) : resultDto.Posts.ToList();
             
             // If we have a cursor, we assume the server handled "skip" (though getTimeline doesn't use skip, it uses cursors)
             // If we ARE using skip, we skip/take.
@@ -209,7 +210,7 @@ public class PostService : IPostService
         }
     }
 
-    private async Task<List<PostDto>> BuildTimelineFallbackFromFollowingAsync(User user, int skip, int take)
+    private async Task<List<PostDto>> BuildTimelineFallbackFromFollowingAsync(User user, int skip, int take, CancellationToken ct = default)
     {
         try
         {
@@ -226,7 +227,10 @@ public class PostService : IPostService
                 var url = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getFollows?actor={Uri.EscapeDataString(user.Did)}&limit=25";
                 if (!string.IsNullOrWhiteSpace(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
-                var response = await httpClient.GetAsync(url);
+                using var fetchCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(fetchCts.Token, ct);
+
+                var response = await httpClient.GetAsync(url, linkedCts.Token);
                 if (!response.IsSuccessStatusCode) break;
 
                 using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -772,7 +776,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false, bool skipDeepResolution = false)
+    public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
         try
         {

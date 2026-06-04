@@ -23,8 +23,8 @@ public interface IAuthService
     Task<AuthResponse?> RegisterAsync(RegisterRequest request);
     Task<AuthResponse?> LoginAsync(LoginRequest request);
     Task<AuthResponse?> RefreshTokenAsync(string refreshToken);
-    Task<AuthResponse?> GetUserProfileAsync(Guid userId);
-    Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId);
+    Task<AuthResponse?> GetUserProfileAsync(Guid userId, System.Threading.CancellationToken ct = default);
+    Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId, System.Threading.CancellationToken ct = default);
     Task LogoutAsync(string refreshToken);
 }
 
@@ -403,99 +403,63 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Your account has been banned.");
         }
 
-        // Auto-sync DisplayName/Avatar if missing and it's a proxy account
-        if (string.IsNullOrEmpty(user.DisplayName) || string.IsNullOrEmpty(user.AvatarUrl))
+    public async Task<AuthResponse?> GetUserProfileAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return null;
+
+        var token = await _xrpcProxy.ResolvePdsEndpointAsync(user.Did ?? "", false); // Basic check
+        var profileResponse = await _xrpcProxy.ProxyRequestAsync(
+            user.Did ?? "",
+            "app.bsky.actor.getProfile",
+            new Dictionary<string, string?> { { "actor", user.Did } },
+            user.BlueskyAccessToken,
+            "GET",
+            null,
+            userId,
+            ct
+        );
+        if (profileResponse.Success)
         {
-            try
-            {
-                using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                var token = await _cache.GetStringAsync($"BlueskyToken_{user.Id}", cts2.Token);
-                if (!string.IsNullOrEmpty(token))
-                {
-                    var profileResponse = await _xrpcProxy.ProxyRequestAsync(user.Did!, "app.bsky.actor.getProfile", new Dictionary<string, string?> { { "actor", user.Did } }, token);
-                    if (profileResponse.Success)
-                    {
-                        var profileJson = profileResponse.Content;
-                        using var profileDoc = JsonDocument.Parse(profileJson);
-                        var profileRoot = profileDoc.RootElement;
+            var profileJson = profileResponse.Content;
+            using var profileDoc = JsonDocument.Parse(profileJson);
+            var profileRoot = profileDoc.RootElement;
 
-                        if (profileRoot.TryGetProperty("displayName", out var dn)) user.DisplayName = dn.GetString();
-                        if (profileRoot.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
-                        
-                        await _unitOfWork.CompleteAsync();
+            if (profileRoot.TryGetProperty("displayName", out var dn)) user.DisplayName = dn.GetString();
+            if (profileRoot.TryGetProperty("avatar", out var av)) user.AvatarUrl = av.GetString();
+            
+            await _unitOfWork.CompleteAsync();
 
-                        // Broadcast Real-time Profile Sync
-                        var userDtoSync = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
-                        await _postHubContext.Clients.All.SendAsync("UserUpdated", userDtoSync);
-                    }
-                }
-            }
-            catch { /* Best effort */ }
+            // Broadcast Real-time Profile Sync
+            var userDtoSync = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);
+            await _postHubContext.Clients.All.SendAsync("UserUpdated", userDtoSync, ct);
         }
 
         return MapToAuthResponse(user, "", ""); // No new tokens needed for a profile sync
     }
 
-    public async Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId)
+    public async Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId, CancellationToken ct = default)
     {
-        var user = await _unitOfWork.Users.Query()
-            .Include(u => u.UserSetting)
-            .FirstOrDefaultAsync(u => u.Id == userId);
-        
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
-        // [OPTIMIZATION] Core Handshake Timing:
-        // We prioritize returning basic profile data quickly. 
-        // We give ALL metadata tasks exactly 5.0s to resolve globally.
+        // Ensure we have a fresh token first (3s timeout)
+        using var tokenCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        using var linkedTokenCts = CancellationTokenSource.CreateLinkedTokenSource(tokenCts.Token, ct);
+        await _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, linkedTokenCts.Token);
+
+        // Global handshake cap: 5 seconds. 
         // If they take longer, we return partial/stale data and let the frontend catch up.
         using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var globalToken = globalCts.Token;
+        using var finalLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(globalCts.Token, ct);
+        var globalToken = finalLinkedCts.Token;
 
-        // Parallel execution of all metadata initialization tasks
-        var profileTask = Task.Run(async () => {
-            using var s = _scopeFactory.CreateScope();
-            try {
-                return await s.ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId);
-            } catch {
-                return null;
-            }
-        }, globalToken);
-
-        var feedsTask = Task.Run(async () => {
-            using var s = _scopeFactory.CreateScope();
-            try {
-                return await s.ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId);
-            } catch {
-                return new List<FeedDto>();
-            }
-        }, globalToken);
-
-        var countTask = Task.Run(async () => {
-            using var s = _scopeFactory.CreateScope();
-            try {
-                return await s.ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId);
-            } catch {
-                return 0;
-            }
-        }, globalToken);
-
-        var trendingTask = Task.Run(() => {
-            using var s = _scopeFactory.CreateScope();
-            try {
-                return s.ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
-            } catch {
-                return new TrendingData();
-            }
-        }, globalToken);
-
-        var mutedWordsTask = Task.Run(async () => {
-            using var s = _scopeFactory.CreateScope();
-            try {
-                return await s.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId);
-            } catch {
-                return new List<MutedWord>();
-            }
-        }, globalToken);
+        // Execution of all metadata initialization tasks (Propagating token)
+        var profileTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId, globalToken);
+        var feedsTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId, false, globalToken);
+        var countTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId, globalToken);
+        var trendingTask = Task.Run(() => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData(), globalToken);
+        var mutedWordsTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId, globalToken);
 
         try {
             await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);

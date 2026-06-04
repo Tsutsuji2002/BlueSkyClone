@@ -152,21 +152,21 @@ public class NotificationService : INotificationService
         return new PagedNotificationsDto(sorted, nextCursor);
     }
 
-    public async Task<int> GetUnreadCountAsync(Guid userId)
+    public async Task<int> GetUnreadCountAsync(Guid userId, System.Threading.CancellationToken ct = default)
     {
-        int localCount = await _unitOfWork.Notifications.GetUnreadCountAsync(userId);
+        int localCount = await _unitOfWork.Notifications.GetUnreadCountAsync(userId, ct);
         
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
         {
             using var scope = _scopeFactory.CreateScope();
             var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-            var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
+            var token = await userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
             if (!string.IsNullOrEmpty(token))
             {
                 try
                 {
-                    var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.getUnreadCount", new Dictionary<string, string?>(), token);
+                    var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.getUnreadCount", new Dictionary<string, string?>(), token, userId: userId, ct: ct);
                     if (response.Success)
                     {
                         var unreadResponse = JsonSerializer.Deserialize<GetUnreadCountResponse>(response.Content);

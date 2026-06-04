@@ -136,9 +136,9 @@ namespace BSkyClone.Services
                 var clientReq = _httpClientFactory.CreateClient();
                 clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
-                // Add a reasonable timeout to prevent hanging the whole backend thread
-                // [OPTIMIZATION] Reduced from 20s to 12s to allow faster fallback/failure
-                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8));
+                // Add a strict timeout to prevent hanging the whole backend thread
+                // [OPTIMIZATION] Reduced from 12s to 5s to allow faster fallback/failure
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                 
                 var response = await clientReq.SendAsync(request, linkedCts.Token);

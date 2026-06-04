@@ -34,7 +34,7 @@ public interface IUserService
     Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);
     Task<IEnumerable<User>> SearchActorsRemoteAsync(string query, string token, int skip = 0, int take = 20, Guid? viewerId = null);
-    Task<List<MutedWord>> GetMutedWordsAsync(Guid userId);
+    Task<List<MutedWord>> GetMutedWordsAsync(Guid userId, System.Threading.CancellationToken ct = default);
     Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content", DateTime? expiresAt = null, bool excludeFollowing = false);
     Task<bool> DeleteMutedWordAsync(Guid userId, int mutedWordId);
     Task<List<string>> GetSelectedInterestsAsync(Guid userId);
@@ -56,7 +56,7 @@ public interface IUserService
     Task SyncRelationshipStatusWithAtProtoAsync(Guid viewerId, User targetUser, System.Text.Json.JsonElement viewerProp);
     Task<bool> MergeDuplicateUsersAsync(string did);
     Task<bool> MergeDuplicateUsersBatchAsync(IEnumerable<string> dids);
-    Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false);
+    Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false, System.Threading.CancellationToken ct = default);
     Task<string?> GetResolvedPdsAsync(string did, bool forceRefresh = false);
     Task<ProxyResponse> GetPreferencesRawAsync(string did, string token);
     void BackgroundRefreshIfNeeded(Guid userId, string currentToken);

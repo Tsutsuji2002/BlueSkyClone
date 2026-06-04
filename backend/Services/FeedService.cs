@@ -353,7 +353,7 @@ public class FeedService : IFeedService
 
 
 
-    public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId, bool forceRefresh = false)
+    public async Task<IEnumerable<FeedDto>> GetUserFeedsAsync(Guid userId, bool forceRefresh = false, System.Threading.CancellationToken ct = default)
     {
         var cacheKey = $"subscribed_feeds_v1:{userId}";
         try
@@ -365,14 +365,14 @@ public class FeedService : IFeedService
             else
             {
                 // [OPTIMIZATION] 2-minute cache to prevent hammering Bluesky on every re-access/tab return
-                var cached = await _cache.GetStringAsync(cacheKey);
+                var cached = await _cache.GetStringAsync(cacheKey, ct);
                 if (!string.IsNullOrEmpty(cached))
                 {
                     return JsonSerializer.Deserialize<List<FeedDto>>(cached) ?? new List<FeedDto>();
                 }
             }
 
-            var remoteFeeds = await GetRemoteFeedsAsync(userId);
+            var remoteFeeds = await GetRemoteFeedsAsync(userId, ct);
             if (remoteFeeds.Any())
             {
                 _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Found {Count} remote feeds.", userId, remoteFeeds.Count);
@@ -382,7 +382,7 @@ public class FeedService : IFeedService
                 await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
                 {
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
-                });
+                }, ct);
                 // Also store a longer-lived 'stale' version for disaster recovery (1 hour)
                 await _cache.SetStringAsync($"{cacheKey}:stale", json, new DistributedCacheEntryOptions
                 {
@@ -405,7 +405,7 @@ public class FeedService : IFeedService
             _logger.LogError(ex, "[FeedService] Failed to fetch or cache remote feeds for {UserId}", userId);
             
             // Disaster recovery fallback to stale cache
-            var stale = await _cache.GetStringAsync($"{cacheKey}:stale");
+            var stale = await _cache.GetStringAsync($"{cacheKey}:stale", ct);
             if (!string.IsNullOrEmpty(stale)) return JsonSerializer.Deserialize<List<FeedDto>>(stale) ?? new List<FeedDto>();
         }
 
@@ -416,15 +416,15 @@ public class FeedService : IFeedService
             .ThenInclude(f => f.Creator)
             .OrderByDescending(s => s.IsPinned)
             .ThenBy(s => s.PinnedOrder)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Falling back to {Count} local subscriptions.", userId, subscriptions.Count);
         return subscriptions.Select(s => MapToDto(s.Feed, s.IsPinned ?? false, s.PinnedOrder ?? 0));
     }
 
-    private async Task<List<FeedDto>> GetRemoteFeedsAsync(Guid userId)
+    private async Task<List<FeedDto>> GetRemoteFeedsAsync(Guid userId, System.Threading.CancellationToken ct = default)
     {
-        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
         if (string.IsNullOrEmpty(token)) return new List<FeedDto>();
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -434,7 +434,7 @@ public class FeedService : IFeedService
         BSkyClone.Services.ProxyResponse prefResponse = null!;
         for (int i = 0; i < 2; i++)
         {
-            prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+            prefResponse = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token, userId: userId, ct: ct);
             if (prefResponse.Success) break;
             
             if (i == 0) 

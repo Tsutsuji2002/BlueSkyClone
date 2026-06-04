@@ -1647,11 +1647,11 @@ public class UserService : IUserService
             Email = $"{did}@remote.bsky.social"
         };
     }
-    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId) => await _unitOfWork.MutedWords.Query()
+    public async Task<List<MutedWord>> GetMutedWordsAsync(Guid userId, CancellationToken ct = default) => await _unitOfWork.MutedWords.Query()
         .Where(m => m.UserId == userId)
         .OrderByDescending(m => m.CreatedAt)
         .ThenByDescending(m => m.Id)
-        .ToListAsync();
+        .ToListAsync(ct);
     
     public async Task<MutedWord> AddMutedWordAsync(Guid userId, string word, string behavior, string targets = "content", DateTime? expiresAt = null, bool excludeFollowing = false) {
         var normalizedWord = word.Trim();
@@ -3007,12 +3007,12 @@ public class UserService : IUserService
         return anyMerged;
     }
 
-    public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false)
+    public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false, CancellationToken ct = default)
     {
         // Fast path: token is still cached (skipped if forceRefresh is requested)
         if (!forceRefresh)
         {
-            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}", ct);
             if (!string.IsNullOrEmpty(token)) return token;
         }
         else
@@ -3080,10 +3080,14 @@ public class UserService : IUserService
                 }
 
                 var pdsUrl = "https://bsky.social"; // Default
-                var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(userLocal.Did);
+                var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(userLocal.Did, forceRefresh, ct);
                 if (!string.IsNullOrEmpty(resolvedPds)) pdsUrl = resolvedPds;
 
-                var response = await httpClient.PostAsync($"{pdsUrl.TrimEnd('/')}/xrpc/com.atproto.server.refreshSession", null);
+                // 3s limit for token refresh to avoid blocking the whole app/handshake
+                using var refreshCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(refreshCts.Token, ct);
+
+                var response = await httpClient.PostAsync($"{pdsUrl.TrimEnd('/')}/xrpc/com.atproto.server.refreshSession", null, linkedCts.Token);
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();

@@ -36,7 +36,7 @@ public class UnifiedFeedController : ControllerBase
                 (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
                  feedId.Equals("following", StringComparison.OrdinalIgnoreCase)))
             {
-                var pagedResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor);
+                var pagedResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor, HttpContext.RequestAborted);
                 return Ok(new
                 {
                     feedId = feedId,
@@ -60,7 +60,7 @@ public class UnifiedFeedController : ControllerBase
                     }
                     else
                     {
-                        var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true);
+                        var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
                         posts = paged.Posts;
                         outCursor = paged.Cursor;
                     }
@@ -76,7 +76,7 @@ public class UnifiedFeedController : ControllerBase
                     else
                     {
                         var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
-                        var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh, skipDeepResolution: true);
+                        var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
                         posts = trendingPosts.ToList();
 
                         // [NEW] Resilient Fallback: If local trending is empty (due to query timeout or no local data),
@@ -84,7 +84,7 @@ public class UnifiedFeedController : ControllerBase
                         if (!posts.Any() && skip == 0)
                         {
                             _logger.LogInformation("[UnifiedFeed] Local trending empty for {UserId}. Falling back to Bluesky What's Hot.", viewerId);
-                            var remoteResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor);
+                            var remoteResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
                             posts = remoteResult.Posts;
                             outCursor = remoteResult.Cursor;
                         }
@@ -115,7 +115,7 @@ public class UnifiedFeedController : ControllerBase
                         }
                         else
                         {
-                            var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true);
+                            var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
                             posts = paged.Posts;
                             outCursor = paged.Cursor;
                         }

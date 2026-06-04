@@ -42,7 +42,7 @@ public class AuthController : ControllerBase
         try
         {
             var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-            var result = await _authService.GetUserHandshakeAsync(userId);
+            var result = await _authService.GetUserHandshakeAsync(userId, HttpContext.RequestAborted);
             if (result == null) return NotFound(new { message = "User not found" });
             return Ok(result);
         }
