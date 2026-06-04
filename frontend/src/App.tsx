@@ -299,11 +299,19 @@ const AppContent: React.FC = () => {
             
             // Fire re-verification and data refreshes in parallel!
             // Handshake will fetch profile, settings, and pins in one go.
-            const handshakePromise = refetch().unwrap();
+            try {
+                // unwrap() can throw for cancellations/errors
+                await refetch().unwrap();
+                console.log('[App] Re-sync successful.');
+            } catch (err) {
+                console.warn('[App] Re-sync handshake failed or timed out:', err);
+                // We don't force a logout here, as the user might still have a partially valid local state.
+                // The interceptor will handle subsequent 401s if the session is truly dead.
+            }
             const unreadPromise = dispatch(fetchUnreadCount() as any);
             const notifyPromise = dispatch(fetchNotifications({ limit: 40 }) as any);
 
-            Promise.allSettled([handshakePromise, unreadPromise, notifyPromise])
+            Promise.allSettled([unreadPromise, notifyPromise])
                 .then(() => {
                     console.log('[App] Parallel background sync complete.');
                 })

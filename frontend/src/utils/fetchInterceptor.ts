@@ -36,7 +36,7 @@ const getNativeFetch = (): typeof window.fetch => {
 async function fetchWithTimeout(
     input: RequestInfo | URL, 
     init: RequestInit = {}, 
-    timeoutMs: number = 30000,
+    timeoutMs: number = 15000,
     retryCount: number = 0
 ): Promise<Response> {
     const nativeFetch = getNativeFetch();
@@ -167,7 +167,7 @@ export const setupFetchInterceptor = () => {
                     }
                 });
                 // Safety timeout: don't hang requests forever if init fails silently
-                setTimeout(() => { unsubscribe(); resolve(); }, 15000);
+                setTimeout(() => { unsubscribe(); resolve(); }, 12000);
             });
 
             // Re-check state after floodgate opens
@@ -257,7 +257,9 @@ export const setupFetchInterceptor = () => {
             retryArgs = [input.clone(), fetchOptions];
         }
 
-        const response = await fetchWithTimeout(input, fetchOptions, 30000);
+        // Use a shorter timeout for handshake specifically
+        const finalTimeout = isHandshakeRequest ? 10000 : 15000;
+        const response = await fetchWithTimeout(input, fetchOptions, finalTimeout);
 
         // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.
         const isRetry = input instanceof Request ? input.headers.has('X-Retry-Attempt') : (init?.headers as any)?.['X-Retry-Attempt'];

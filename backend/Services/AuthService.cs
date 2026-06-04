@@ -439,45 +439,72 @@ public class AuthService : IAuthService
         
         if (user == null) return null;
 
+        // [OPTIMIZATION] Core Handshake Timing:
+        // We prioritize returning basic profile data quickly. 
+        // We give ALL metadata tasks exactly 5.0s to resolve globally.
+        // If they take longer, we return partial/stale data and let the frontend catch up.
+        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var globalToken = globalCts.Token;
+
         // Parallel execution of all metadata initialization tasks
         var profileTask = Task.Run(async () => {
             using var s = _scopeFactory.CreateScope();
-            return await s.ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId);
-        });
+            try {
+                return await s.ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId);
+            } catch {
+                return null;
+            }
+        }, globalToken);
 
-        
         var feedsTask = Task.Run(async () => {
             using var s = _scopeFactory.CreateScope();
-            return await s.ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId);
-        });
+            try {
+                return await s.ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId);
+            } catch {
+                return new List<FeedDto>();
+            }
+        }, globalToken);
 
         var countTask = Task.Run(async () => {
             using var s = _scopeFactory.CreateScope();
-            return await s.ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId);
-        });
+            try {
+                return await s.ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId);
+            } catch {
+                return 0;
+            }
+        }, globalToken);
 
         var trendingTask = Task.Run(() => {
             using var s = _scopeFactory.CreateScope();
-            return s.ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
-        });
+            try {
+                return s.ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
+            } catch {
+                return new TrendingData();
+            }
+        }, globalToken);
 
         var mutedWordsTask = Task.Run(async () => {
             using var s = _scopeFactory.CreateScope();
-            return await s.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId);
-        });
+            try {
+                return await s.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId);
+            } catch {
+                return new List<MutedWord>();
+            }
+        }, globalToken);
 
-        // [OPTIMIZATION] Core Handshake Timing:
-        // We prioritize returning basic profile data quickly. 
-        // We give secondary metadata exactly 2.5s to resolve; if they take longer, 
-        // we return partial data and let the frontend catch up later.
-        var secondaryTasks = Task.WhenAll(feedsTask, countTask, trendingTask, mutedWordsTask);
-        var timeoutTask = Task.Delay(TimeSpan.FromMilliseconds(2500));
-
-        await Task.WhenAny(secondaryTasks, timeoutTask);
+        try {
+            await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+        } catch (OperationCanceledException) {
+            _logger.LogWarning("Handshake partially timed out for user {UserId}. Returning available data.", userId);
+        }
 
         // Profile is essential for the UI to be "ready"
-        var profile = await profileTask;
-        if (profile == null) return null;
+        var profile = profileTask.IsCompletedSuccessfully ? await profileTask : null;
+        
+        // Final fallback for profile from DB if task timed out or failed
+        if (profile == null) {
+            profile = MapToAuthResponse(user, "", "");
+        }
 
         // Extract results safely (using default values if they timed out)
         var allFeeds = feedsTask.IsCompletedSuccessfully ? await feedsTask : new List<FeedDto>();
