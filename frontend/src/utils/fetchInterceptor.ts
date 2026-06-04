@@ -265,7 +265,7 @@ export const setupFetchInterceptor = () => {
         const isRetry = input instanceof Request ? input.headers.has('X-Retry-Attempt') : (init?.headers as any)?.['X-Retry-Attempt'];
 
         // Handle 401 Unauthorized
-        const isSwitchRequest = url.endsWith('/auth/switch');
+        const isSwitchRequest = url.includes('/auth/switch');
         if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest && !isRetry && !isSwitchRequest) {
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
@@ -320,12 +320,12 @@ export const setupFetchInterceptor = () => {
                     const state = store.getState();
                     const activeDid = state.auth.user?.did;
                     
-                    if (state.auth.isAuthenticated && !isSwitchRequest) {
+                    if (state.auth.isAuthenticated && !isSwitchRequest && !isLoginRequest) {
                         console.error('[FetchInterceptor] Session definitively dead. Logging out.');
                         store.dispatch(logout());
                     }
 
-                    if (activeDid && !isSwitchRequest) {
+                    if (activeDid && !isSwitchRequest && !isLoginRequest) {
                         const { setSessionExpired } = require('../redux/slices/authSlice');
                         store.dispatch(setSessionExpired(activeDid));
                     }
