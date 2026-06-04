@@ -331,11 +331,6 @@ export const setupFetchInterceptor = () => {
                         store.dispatch(logout());
                     }
 
-                    if (activeDid && !isSwitchRequest && !isLoginRequest && !isWithinSafetyWindow) {
-                        const { setSessionExpired } = require('../redux/slices/authSlice');
-                        store.dispatch(setSessionExpired(activeDid));
-                    }
-
                     // If we are within segments of a switch failure, mark the current failed attempt as handled 
                     // so it doesn't trigger logout.
                     if (isSwitchRequest) {

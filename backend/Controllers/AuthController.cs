@@ -64,7 +64,7 @@ public class AuthController : ControllerBase
                 return BadRequest(new { message = "User with this email or handle already exists." });
             }
             SetTokenCookies(result.Token, result.RefreshToken, false);
-            return Ok(new { user = result.User, settings = result.Settings });
+            return Ok(new { user = result.User, settings = result.Settings, token = result.Token, refreshToken = result.RefreshToken });
         }
         catch (Exception ex)
         {
@@ -100,7 +100,7 @@ public class AuthController : ControllerBase
                 return Unauthorized(new { message = "Invalid email/handle or password." });
             }
             SetTokenCookies(result.Token, result.RefreshToken, request.RememberMe);
-            return Ok(new { user = result.User, settings = result.Settings });
+            return Ok(new { user = result.User, settings = result.Settings, token = result.Token, refreshToken = result.RefreshToken });
         }
         catch (UnauthorizedAccessException ex)
         {
