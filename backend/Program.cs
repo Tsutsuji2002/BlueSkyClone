@@ -174,7 +174,9 @@ else
 {
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+        var redisConn = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
+        // [STABILITY] Prevent app from crashing or losing all session context if Redis is temporarily unreachable
+        options.Configuration = $"{redisConn},abortOnConnectFail=false";
         options.InstanceName = "BSky_";
     });
 }
