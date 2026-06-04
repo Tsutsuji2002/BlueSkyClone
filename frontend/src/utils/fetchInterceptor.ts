@@ -3,6 +3,10 @@ import { logout } from '../redux/slices/authSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
+// Global safety flags
+let lastSwitchFailureTime = 0;
+const SWITCH_FAILURE_SAFETY_MS = 3000; // 3s window to block cascading logouts on switch fail
+
 // Mutex to prevent multiple concurrent refresh attempts
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
@@ -266,6 +270,8 @@ export const setupFetchInterceptor = () => {
 
         // Handle 401 Unauthorized
         const isSwitchRequest = url.includes('/auth/switch');
+        const isWithinSafetyWindow = (Date.now() - lastSwitchFailureTime) < SWITCH_FAILURE_SAFETY_MS;
+
         if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest && !isRetry && !isSwitchRequest) {
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
             
@@ -320,14 +326,20 @@ export const setupFetchInterceptor = () => {
                     const state = store.getState();
                     const activeDid = state.auth.user?.did;
                     
-                    if (state.auth.isAuthenticated && !isSwitchRequest && !isLoginRequest) {
+                    if (state.auth.isAuthenticated && !isSwitchRequest && !isLoginRequest && !isWithinSafetyWindow) {
                         console.error('[FetchInterceptor] Session definitively dead. Logging out.');
                         store.dispatch(logout());
                     }
 
-                    if (activeDid && !isSwitchRequest && !isLoginRequest) {
+                    if (activeDid && !isSwitchRequest && !isLoginRequest && !isWithinSafetyWindow) {
                         const { setSessionExpired } = require('../redux/slices/authSlice');
                         store.dispatch(setSessionExpired(activeDid));
+                    }
+
+                    // If we are within segments of a switch failure, mark the current failed attempt as handled 
+                    // so it doesn't trigger logout.
+                    if (isSwitchRequest) {
+                        lastSwitchFailureTime = Date.now();
                     }
                 }
             }
