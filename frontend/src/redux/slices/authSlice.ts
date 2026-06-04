@@ -178,6 +178,11 @@ const authSlice = createSlice({
             localStorage.removeItem('home_active_tab');
         },
         logout: (state) => {
+            // [MULTI-ACCOUNT] Mark the logged-out account as expired (clears its tokens)
+            // so it shows as "Logged Out" in the selector. Other saved accounts are untouched.
+            if (state.user?.did) {
+                AccountManager.clearTokens(state.user.did);
+            }
             state.user = null;
             state.settings = null;
             state.isAuthenticated = false;

@@ -11,7 +11,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useTheme } from '../../hooks/useTheme';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
-import { logout } from '../../redux/slices/authSlice';
+import { logout, setSessionExpired } from '../../redux/slices/authSlice';
 import { useLogoutMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import Avatar from '../common/Avatar';
 import Dropdown from '../common/Dropdown';
@@ -74,7 +74,6 @@ const Sidebar: React.FC = () => {
                 const data = await switchMutation({ refreshToken: account.refreshToken }).unwrap();
                 dispatch({ type: 'auth/setAuth', payload: data });
                 
-                // Show notification like pic 2
                 dispatch({
                     type: 'toast/showToast',
                     payload: { 
@@ -83,11 +82,17 @@ const Sidebar: React.FC = () => {
                     }
                 });
                 return;
-            } catch (err) {
-                console.warn('Instant switch failed, falling back to login form', err);
+            } catch (err: any) {
+                const status = err?.status || err?.originalStatus;
+                if (status === 401) {
+                    // Token has expired (7-day grace period) → clear it, go to re-login
+                    dispatch(setSessionExpired(account.did));
+                } else {
+                    console.warn('Switch failed with non-auth error, falling back to login form', err);
+                }
             }
         }
-        // Navigate to login with the account pre-filled — current session stays alive
+        // No token or token expired → navigate to login with handle pre-filled
         navigate('/login', { state: { prefillHandle: account.handle } });
     };
 

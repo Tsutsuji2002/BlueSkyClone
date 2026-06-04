@@ -5,7 +5,7 @@ import { FiChevronDown, FiChevronUp, FiUsers, FiUserPlus, FiMoreHorizontal, FiUs
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useSwitchAccountMutation } from '../../redux/api/authApi';
-import { setAuth, removeSavedAccount } from '../../redux/slices/authSlice';
+import { setAuth, removeSavedAccount, setSessionExpired } from '../../redux/slices/authSlice';
 import { RootState } from '../../redux/store';
 import Avatar from '../common/Avatar';
 import { cn } from '../../utils/classNames';
@@ -36,8 +36,8 @@ const SwitchAccountSection: React.FC = () => {
     const handleSwitch = async (account: any) => {
         if (account.did === user?.did) return;
         if (!account.refreshToken) {
-            toast.error(t('auth.session_expired_login_again', 'Session expired. Please log in again.'));
-            navigate('/auth/login');
+            // Account has no token (manually logged out) → go to login
+            navigate('/login', { state: { prefillHandle: account.handle } });
             return;
         }
 
@@ -47,8 +47,14 @@ const SwitchAccountSection: React.FC = () => {
             toast.success(t('settings.switched_to', 'Switched to @{{handle}}', { handle: account.handle }));
             setIsExpanded(false);
         } catch (err: any) {
-            console.error('Failed to switch account:', err);
-            toast.error(err.data?.message || t('settings.switch_failed', 'Failed to switch account'));
+            const status = err?.status || err?.originalStatus;
+            if (status === 401) {
+                // Token expired (7-day grace) → clear it and navigate to re-login
+                dispatch(setSessionExpired(account.did));
+                navigate('/login', { state: { prefillHandle: account.handle } });
+            } else {
+                toast.error(err.data?.message || t('settings.switch_failed', 'Failed to switch account'));
+            }
         }
     };
 
