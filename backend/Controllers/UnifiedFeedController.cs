@@ -69,7 +69,7 @@ public class UnifiedFeedController : ControllerBase
                     if (viewerId == null)
                     {
                         // Guests get the official "What's Hot" Discover feed
-                        var guestResult = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor);
+                        var guestResult = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
                         posts = guestResult.Posts;
                         outCursor = guestResult.Cursor;
                     }
@@ -97,7 +97,7 @@ public class UnifiedFeedController : ControllerBase
                     _logger.LogInformation("[UnifiedFeed] Default case for FeedId: {FeedId}", feedId);
                     if (Guid.TryParse(feedId, out var fGuid))
                     {
-                        var guidResult = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take, null, cursor);
+                        var guidResult = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take, null, cursor, HttpContext.RequestAborted);
                         posts = guidResult.Posts;
                         outCursor = guidResult.Cursor;
                         _logger.LogInformation("[UnifiedFeed] Custom GUID feed returned {Count} posts", posts?.Count() ?? 0);

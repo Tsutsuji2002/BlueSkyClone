@@ -154,7 +154,7 @@ public class NotificationService : INotificationService
 
     public async Task<int> GetUnreadCountAsync(Guid userId, System.Threading.CancellationToken ct = default)
     {
-        int localCount = await _unitOfWork.Notifications.GetUnreadCountAsync(userId, ct);
+        int localCount = await _unitOfWork.Notifications.GetUnreadCountAsync(userId);
         
         var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
         if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))

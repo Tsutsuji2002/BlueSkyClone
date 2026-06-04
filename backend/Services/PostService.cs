@@ -699,7 +699,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20)
+    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20, CancellationToken ct = default)
     {
         try
         {
@@ -6189,7 +6189,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false, bool skipDeepResolution = false)
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
         var cacheKey = $"posts:trending:v3";
         var now = DateTime.UtcNow;
@@ -6319,7 +6319,7 @@ public class PostService : IPostService
 
         return resultDtos;
     }
-    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false, bool skipDeepResolution = false)
+    public async Task<IEnumerable<PostDto>> GetTrendingPosts24hAsync(Guid? viewerId = null, int limit = 50, int skip = 0, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
         try
         {
@@ -7247,7 +7247,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0)
+    public async Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0, CancellationToken ct = default)
     {
         var resultList = new List<PostDto>();
 

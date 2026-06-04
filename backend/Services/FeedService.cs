@@ -55,11 +55,11 @@ public class FeedService : IFeedService
         _userService = userService;
     }
 
-    public async Task<PagedFeedsDto> GetTrendingFeedsAsync(Guid? userId, string? cursor = null, int limit = 10)
+    public async Task<PagedFeedsDto> GetTrendingFeedsAsync(Guid? userId, string? cursor = null, int limit = 10, CancellationToken ct = default)
     {
         try
         {
-            var pagedFeeds = await GetPopularRemoteFeedsAsync(userId, cursor, limit);
+            var pagedFeeds = await GetPopularRemoteFeedsAsync(userId, cursor, limit, ct);
             if (pagedFeeds.Feeds.Any())
             {
                 _logger.LogInformation("[FeedService] GetTrendingFeedsAsync: Returning {Count} popular remote feeds. Cursor: {Cursor}", pagedFeeds.Feeds.Count(), pagedFeeds.Cursor);
@@ -80,7 +80,7 @@ public class FeedService : IFeedService
         return new PagedFeedsDto { Feeds = new List<FeedDto>(), Cursor = null };
     }
 
-    private async Task<PagedFeedsDto> GetPopularRemoteFeedsAsync(Guid? userId, string? cursor = null, int limit = 10)
+    private async Task<PagedFeedsDto> GetPopularRemoteFeedsAsync(Guid? userId, string? cursor = null, int limit = 10, CancellationToken ct = default)
     {
         try
         {
@@ -89,7 +89,7 @@ public class FeedService : IFeedService
 
             if (userId.HasValue)
             {
-                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value);
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value, false, ct);
                 var user = await _unitOfWork.Users.GetByIdAsync(userId.Value);
                 if (user != null) actorDid = user.Did;
             }
@@ -167,7 +167,7 @@ public class FeedService : IFeedService
         return await ResolveFeedsMetadataAsync(officialUris, userId);
     }
 
-    private async Task<List<FeedDto>> ResolveFeedsMetadataAsync(List<string> uris, Guid? userId)
+    private async Task<List<FeedDto>> ResolveFeedsMetadataAsync(List<string> uris, Guid? userId, CancellationToken ct = default)
     {
         if (!uris.Any()) return new List<FeedDto>();
         
@@ -176,7 +176,7 @@ public class FeedService : IFeedService
 
         try
         {
-            var token = userId.HasValue ? await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value) : null;
+            var token = userId.HasValue ? await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value, false, ct) : null;
             
             // Try to get user preferences to mark sub/pin status
             try
@@ -186,7 +186,7 @@ public class FeedService : IFeedService
                     var userObj = await _unitOfWork.Users.GetByIdAsync(userId.Value);
                     if (userObj != null && !string.IsNullOrEmpty(userObj.Did) && !string.IsNullOrEmpty(token))
                     {
-                        var pref = await GetUserPreferencesAsync(userObj.Did, token);
+                        var pref = await GetUserPreferencesAsync(userObj.Did, token, ct);
                         if (pref != null)
                         {
                             savedUris = pref.SavedUris;
@@ -298,9 +298,9 @@ public class FeedService : IFeedService
 
     private class UserPrefs { public HashSet<string> SavedUris { get; set; } = new(); public HashSet<string> PinnedUris { get; set; } = new(); }
 
-    private async Task<UserPrefs?> GetUserPreferencesAsync(string did, string token)
+    private async Task<UserPrefs?> GetUserPreferencesAsync(string did, string token, CancellationToken ct = default)
     {
-        var response = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token);
+        var response = await _xrpcProxy.ProxyRequestAsync(did, "app.bsky.actor.getPreferences", queryParams: new Dictionary<string, string?>(), token: token, ct: ct);
         if (!response.Success) return null;
 
         var prefs = new UserPrefs();
@@ -447,12 +447,12 @@ public class FeedService : IFeedService
                 
                 if (isExpiredToken)
                 {
-                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true) ?? token;
+                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true, ct: ct) ?? token;
                 }
                 else
                 {
                     await Task.Delay(1000);
-                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId) ?? token;
+                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct) ?? token;
                 }
             }
         }
@@ -611,7 +611,7 @@ public class FeedService : IFeedService
         return MergeFeedsByKey(feeds);
     }
 
-    public async Task<FeedDto?> GetFeedByTidAsync(string tid)
+    public async Task<FeedDto?> GetFeedByTidAsync(string tid, CancellationToken ct = default)
     {
         var feed = await _unitOfWork.Feeds.Query()
             .Include(f => f.Creator)
@@ -620,7 +620,7 @@ public class FeedService : IFeedService
         return feed != null ? MapToDto(feed, false, 0, false) : null;
     }
 
-    public async Task<bool> SaveFeedAsync(Guid userId, Guid feedId, string? uri = null)
+    public async Task<bool> SaveFeedAsync(Guid userId, Guid feedId, string? uri = null, CancellationToken ct = default)
     {
         if (!string.IsNullOrEmpty(uri))
         {
@@ -652,7 +652,7 @@ public class FeedService : IFeedService
         return success;
     }
 
-    public async Task<bool> UnsaveFeedAsync(Guid userId, Guid feedId, string? uri = null)
+    public async Task<bool> UnsaveFeedAsync(Guid userId, Guid feedId, string? uri = null, CancellationToken ct = default)
     {
         if (!string.IsNullOrEmpty(uri))
         {
@@ -672,11 +672,11 @@ public class FeedService : IFeedService
         return success;
     }
 
-    public async Task<bool> PinFeedAsync(Guid userId, Guid feedId, string? uri = null)
+    public async Task<bool> PinFeedAsync(Guid userId, Guid feedId, string? uri = null, CancellationToken ct = default)
     {
         if (!string.IsNullOrEmpty(uri))
         {
-            return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, true);
+            return await UpdateRemoteFeedPreferenceAsync(userId, uri, true, true, ct);
         }
 
         if (feedId == Guid.Empty)
@@ -716,7 +716,7 @@ public class FeedService : IFeedService
         return success;
     }
 
-    public async Task<bool> UnpinFeedAsync(Guid userId, Guid feedId, string? uri = null)
+    public async Task<bool> UnpinFeedAsync(Guid userId, Guid feedId, string? uri = null, CancellationToken ct = default)
     {
         if (!string.IsNullOrEmpty(uri))
         {
@@ -738,11 +738,11 @@ public class FeedService : IFeedService
         return success;
     }
 
-    private async Task<bool> UpdateRemoteFeedPreferenceAsync(Guid userId, string feedUri, bool save, bool? pinAction = null)
+    private async Task<bool> UpdateRemoteFeedPreferenceAsync(Guid userId, string feedUri, bool save, bool? pinAction = null, CancellationToken ct = default)
     {
         try
         {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
             if (string.IsNullOrEmpty(token)) return false;
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -846,7 +846,7 @@ public class FeedService : IFeedService
         }
     }
 
-    public async Task<bool> ReorderFeedsAsync(Guid userId, List<Guid> feedIds)
+    public async Task<bool> ReorderFeedsAsync(Guid userId, List<Guid> feedIds, CancellationToken ct = default)
     {
         var subs = await _unitOfWork.UserFeedSubscriptions.Query()
             .Where(s => s.UserId == userId && s.IsPinned == true)
@@ -866,7 +866,7 @@ public class FeedService : IFeedService
         return success;
     }
 
-    public async Task<bool> ReorderRemotePinnedFeedsAsync(Guid userId, List<string> orderedPinnedKeys)
+    public async Task<bool> ReorderRemotePinnedFeedsAsync(Guid userId, List<string> orderedPinnedKeys, CancellationToken ct = default)
     {
         if (orderedPinnedKeys == null || orderedPinnedKeys.Count == 0)
             return true;
@@ -882,7 +882,7 @@ public class FeedService : IFeedService
 
         try
         {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
             if (string.IsNullOrEmpty(token)) return false;
 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -926,7 +926,7 @@ public class FeedService : IFeedService
                         var remainingVal = remainingPinned[i]?["value"]?.GetValue<string>();
                         if (!string.IsNullOrWhiteSpace(remainingVal) && remainingVal.StartsWith("at://") && !remainingVal.StartsWith("at://did:"))
                         {
-                            var resolvedRemaining = await ResolveAtUriAsync(remainingVal);
+                            var resolvedRemaining = await ResolveAtUriAsync(remainingVal, ct);
                             if (MatchesFeedValue(CanonicalizeFeedValue(resolvedRemaining), k))
                             {
                                 idx = i;
@@ -976,7 +976,7 @@ public class FeedService : IFeedService
         }
     }
 
-    public async Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid? userId, string query, int skip, int take)
+    public async Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid? userId, string query, int skip, int take, CancellationToken ct = default)
     {
         var result = new List<FeedDto>();
         var queryLower = query.ToLowerInvariant();
@@ -1027,7 +1027,7 @@ public class FeedService : IFeedService
             try
             {
                 // Fetch a large page of popular feeds from Bluesky
-                var popularPage = await GetPopularRemoteFeedsAsync(userId, null, 100);
+                var popularPage = await GetPopularRemoteFeedsAsync(userId, null, 100, ct);
                 if (popularPage?.Feeds != null)
                 {
                     var remoteMatches = popularPage.Feeds
@@ -1073,17 +1073,17 @@ public class FeedService : IFeedService
         };
     }
 
-    public async Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null)
+    public async Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null, CancellationToken ct = default)
     {
         try
         {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
                 return new { error = "Not authenticated" };
 
             // 1. Get current state to ensure we have CID
-            var feedMetadata = await GetFeedMetadataByUriAsync(feedUri);
+            var feedMetadata = await GetFeedMetadataByUriAsync(feedUri, ct);
             if (feedMetadata == null) return new { error = "Feed not found" };
 
             bool isLiking = clientIsLiked ?? !feedMetadata.IsLiked;
@@ -1158,9 +1158,9 @@ public class FeedService : IFeedService
         }
     }
 
-    public async Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId)
+    public async Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId, CancellationToken ct = default)
     {
-        await PreSeedFeedsAsync();
+        await PreSeedFeedsAsync(ct);
         var feed = await _unitOfWork.Feeds.Query()
             .Include(f => f.Creator)
             .FirstOrDefaultAsync(f => f.Id == feedId && (f.IsDeleted == false || f.IsDeleted == null));
@@ -1318,7 +1318,7 @@ public class FeedService : IFeedService
             .ToList();
     }
 
-    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri)
+    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(uri)) return null;
 
@@ -1330,7 +1330,7 @@ public class FeedService : IFeedService
         if (!uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase)) return null;
 
         // Resolve handles in ATURI to DIDs if possible (e.g. at://trending.bsky.app -> at://did:plc:...)
-        var resolvedUri = await ResolveAtUriAsync(uri);
+        var resolvedUri = await ResolveAtUriAsync(uri, ct);
 
         var noPrefs = new HashSet<string>();
         try
@@ -1423,7 +1423,7 @@ public class FeedService : IFeedService
     }
 
 
-    public async Task<PagedPostDto> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null, string? cursor = null)
+    public async Task<PagedPostDto> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null, string? cursor = null, System.Threading.CancellationToken ct = default)
     {
         try
         {
@@ -1448,7 +1448,7 @@ public class FeedService : IFeedService
                     return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", null, skip, take, cursor);
                 }
 
-                return await GetRemoteFeedPostsAsync(uri, userId, skip, take, cursor);
+                return await GetRemoteFeedPostsAsync(uri, userId, skip, take, cursor, ct);
             }
             
             // 2. Legacy/Local feed resolution
@@ -1456,7 +1456,7 @@ public class FeedService : IFeedService
 
             // Redirect all local/official legacy feeds to "What's Hot" in Bluesky
             _logger.LogInformation("[FeedService] Redirecting legacy/local feed '{Name}' to remote 'What's Hot' discovering.", feed?.Name ?? "Unknown");
-            return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", userId, skip, take, cursor);
+            return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", userId, skip, take, cursor, ct);
         }
         catch (Exception ex)
         {
@@ -1465,12 +1465,12 @@ public class FeedService : IFeedService
         }
     }
 
-    private async Task<PagedPostDto> GetRemoteFeedPostsAsync(string uri, Guid? userId, int skip, int take, string? cursor = null)
+    private async Task<PagedPostDto> GetRemoteFeedPostsAsync(string uri, Guid? userId, int skip, int take, string? cursor = null, System.Threading.CancellationToken ct = default)
     {
         try
         {
             // Resolve handles in ATURI to DIDs if possible
-            var resolvedUri = await ResolveAtUriAsync(uri);
+            var resolvedUri = await ResolveAtUriAsync(uri, ct);
 
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
@@ -1478,7 +1478,7 @@ public class FeedService : IFeedService
             string? token = null;
             if (userId.HasValue)
             {
-                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value);
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value, false, ct);
                 if (!string.IsNullOrEmpty(token))
                     httpClient.DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -1496,7 +1496,8 @@ public class FeedService : IFeedService
                     if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-                    var response = await httpClient.GetAsync(url, cts.Token);
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
+                    var response = await httpClient.GetAsync(url, linkedCts.Token);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -1547,7 +1548,7 @@ public class FeedService : IFeedService
     }
 
 
-    public async Task<IEnumerable<FeedDto>> GetActorFeedsAsync(string actor, Guid? viewerId = null)
+    public async Task<IEnumerable<FeedDto>> GetActorFeedsAsync(string actor, Guid? viewerId = null, CancellationToken ct = default)
     {
         try
         {
@@ -1589,7 +1590,7 @@ public class FeedService : IFeedService
             var pinnedUris = new HashSet<string>();
             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(viewerDid))
             {
-                var prefs = await GetUserPreferencesAsync(viewerDid, token);
+                var prefs = await GetUserPreferencesAsync(viewerDid, token, ct);
                 if (prefs != null)
                 {
                     savedUris = prefs.SavedUris;
@@ -1611,7 +1612,7 @@ public class FeedService : IFeedService
         }
     }
 
-    public async Task PreSeedFeedsAsync()
+    public async Task PreSeedFeedsAsync(CancellationToken ct = default)
     {
         try
         {
@@ -1645,7 +1646,7 @@ public class FeedService : IFeedService
         }
     }
 
-    private async Task<string> ResolveAtUriAsync(string uri)
+    private async Task<string> ResolveAtUriAsync(string uri, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(uri) || !uri.StartsWith("at://", StringComparison.OrdinalIgnoreCase))
             return uri;

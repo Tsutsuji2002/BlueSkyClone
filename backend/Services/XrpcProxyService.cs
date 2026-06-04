@@ -288,7 +288,7 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<string?> ResolvePdsEndpointAsync(string didOrHandle, bool forceRefresh = false)
+        public async Task<string?> ResolvePdsEndpointAsync(string didOrHandle, bool forceRefresh = false, CancellationToken ct = default)
         {
             try
             {
@@ -302,7 +302,8 @@ namespace BSkyClone.Services
                 else
                 {
                     using var ctsCache1 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    var cachedUrl = await _cache.GetStringAsync(cacheKey, ctsCache1.Token);
+                    using var linkedCts1 = CancellationTokenSource.CreateLinkedTokenSource(ctsCache1.Token, ct);
+                    var cachedUrl = await _cache.GetStringAsync(cacheKey, linkedCts1.Token);
                     if (!string.IsNullOrEmpty(cachedUrl)) return cachedUrl;
                 }
 
@@ -311,7 +312,8 @@ namespace BSkyClone.Services
                 {
                     var handleCacheKey = $"ResolvedHandle_{didOrHandle.ToLower()}";
                     using var ctsCache2 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    var cachedDid = await _cache.GetStringAsync(handleCacheKey, ctsCache2.Token);
+                    using var linkedCts2 = CancellationTokenSource.CreateLinkedTokenSource(ctsCache2.Token, ct);
+                    var cachedDid = await _cache.GetStringAsync(handleCacheKey, linkedCts2.Token);
                     
                     if (!string.IsNullOrEmpty(cachedDid))
                     {

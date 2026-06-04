@@ -378,30 +378,6 @@ public class AuthService : IAuthService
         return MapToAuthResponse(user, newToken, newRefreshToken, rememberMe);
     }
 
-    public async Task<AuthResponse?> GetUserProfileAsync(Guid userId)
-    {
-        User? user = null;
-        try 
-        {
-            user = await _unitOfWork.Users.Query()
-                .Include(u => u.UserSetting)
-                .FirstOrDefaultAsync(u => u.Id == userId);
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"[AuthService] Error fetching user with settings: {ex.Message}. Falling back to basic fetch.");
-            user = await _unitOfWork.Users.GetByIdAsync(userId);
-        }
-
-        if (user == null) return null;
-
-        user.PostsCount = await _unitOfWork.Posts.Query().CountAsync(p => p.AuthorId == user.Id && p.IsDeleted != true);
-
-        // Banned user logic: Instantly invalidate session if banned
-        if (user.IsBanned)
-        {
-            throw new UnauthorizedAccessException("Your account has been banned.");
-        }
 
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId, CancellationToken ct = default)
     {
