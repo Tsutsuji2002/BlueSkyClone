@@ -3073,12 +3073,15 @@ public class UserService : IUserService
 
                 // Resolve PDS dynamically for refresh
                 var userLocal = await _unitOfWork.Users.GetByIdAsync(userId);
-                var pdsUrl = "https://bsky.social"; // Default
-                if (userLocal != null && !string.IsNullOrEmpty(userLocal.Did))
+                if (userLocal == null || string.IsNullOrEmpty(userLocal.Did)) 
                 {
-                    var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(userLocal.Did);
-                    if (!string.IsNullOrEmpty(resolvedPds)) pdsUrl = resolvedPds;
+                    _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] User {UserId} has no DID, cannot refresh.", userId);
+                    return null;
                 }
+
+                var pdsUrl = "https://bsky.social"; // Default
+                var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(userLocal.Did);
+                if (!string.IsNullOrEmpty(resolvedPds)) pdsUrl = resolvedPds;
 
                 var response = await httpClient.PostAsync($"{pdsUrl.TrimEnd('/')}/xrpc/com.atproto.server.refreshSession", null);
                 if (!response.IsSuccessStatusCode)
@@ -3098,11 +3101,18 @@ public class UserService : IUserService
 
                 await using var stream = await response.Content.ReadAsStreamAsync();
                 var session = await JsonSerializer.DeserializeAsync<JsonElement>(stream);
-                var nextAccessJwt = session.GetProperty("accessJwt").GetString();
-                var nextRefreshJwt = session.GetProperty("refreshJwt").GetString();
+                if (session.ValueKind == JsonValueKind.Undefined || session.ValueKind == JsonValueKind.Null)
+                {
+                    _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Received invalid JSON from PDS for {UserId}", userId);
+                    return null;
+                }
+
+                string? nextAccessJwt = session.TryGetProperty("accessJwt", out var aj) ? aj.GetString() : null;
+                string? nextRefreshJwt = session.TryGetProperty("refreshJwt", out var rj) ? rj.GetString() : null;
 
                 if (string.IsNullOrEmpty(nextAccessJwt) || string.IsNullOrEmpty(nextRefreshJwt))
                 {
+                    _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] PDS response missing tokens for {UserId}. Response: {Content}", userId, session.GetRawText());
                     return null;
                 }
 

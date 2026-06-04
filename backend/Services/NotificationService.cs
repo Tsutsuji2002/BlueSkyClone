@@ -233,7 +233,12 @@ public class NotificationService : INotificationService
         var post = notification.PostId.HasValue ? await _unitOfWork.Posts.GetByIdAsync(notification.PostId.Value) : null;
         
         // Temporarily assign for mapping (will be cleared after scope)
-        notification.Sender = sender!;
+        if (sender == null)
+        {
+            _logger.LogWarning("Sender {SenderId} not found for notification {NotificationId}. Abandoning broadcast.", notification.SenderId, notification.Id);
+            return;
+        }
+        notification.Sender = sender;
         notification.Post = post;
 
         var dto = MapToDto(notification);
