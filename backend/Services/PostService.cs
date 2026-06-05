@@ -1420,53 +1420,10 @@ public class PostService : IPostService
                     }
                     else if (bypassRemoteCache && remoteInteractionCache.TryGetValue(target.Uri ?? "", out var ri))
                     {
-                        // [FIX] Even if the post exists in DB, if we are bypassing cache (e.g. during a Like),
-                        // we MUST update counts from the freshly fetched AppView state.
+                        // [FIX] Even if the post exists in DB, if we are bypassing cache, update counts.
                         target.LikesCount = ri.TryGetProperty("likeCount", out var lhc) ? lhc.GetInt32() : target.LikesCount;
                         target.RepostsCount = ri.TryGetProperty("repostCount", out var rhc) ? rhc.GetInt32() : target.RepostsCount;
                         target.RepliesCount = ri.TryGetProperty("replyCount", out var rlhc) ? rlhc.GetInt32() : target.RepliesCount;
-
-                        // [HYDRATION FIX] If this is a stub post ([Remote interaction...] placeholder),
-                        // hydrate its content and media from the freshly fetched AppView data.
-                        bool isStubContent = string.IsNullOrEmpty(target.Content) || target.Content == "[Remote interaction...]";
-                        bool hasNoMedia = target.Media == null || target.Media.Count == 0;
-                        
-                        if (isStubContent || hasNoMedia)
-                        {
-                            var mapped = MapBlueskyPost(ri);
-                            if (mapped != null)
-                            {
-                                if (isStubContent && !string.IsNullOrEmpty(mapped.Content) && mapped.Content != "[Remote interaction...]")
-                                {
-                                    target.Content = mapped.Content;
-                                    target.Facets = mapped.Facets;
-                                }
-
-                                if (hasNoMedia && mapped.Media != null && mapped.Media.Count > 0)
-                                {
-                                    target.Media = mapped.Media;
-                                    target.ImageUrls = mapped.ImageUrls;
-                                    target.VideoUrl = mapped.VideoUrl;
-                                    target.LinkPreview = mapped.LinkPreview;
-                                }
-
-                                target.Tags = mapped.Tags;
-                                target.Language = mapped.Language;
-                                
-                                // Refresh author info if it's currently a placeholder or has a numeric-looking/DID-based username
-                                if (target.Author != null && (string.IsNullOrEmpty(target.Author.Handle) || target.Author.Handle.StartsWith("did:")))
-                                {
-                                    target.Author.Username = mapped.Author?.Username ?? target.Author.Username;
-                                    target.Author.Handle = mapped.Author?.Handle ?? target.Author.Handle;
-                                    target.Author.DisplayName = mapped.Author?.DisplayName ?? target.Author.DisplayName;
-                                    target.Author.AvatarUrl = mapped.Author?.AvatarUrl ?? target.Author.AvatarUrl;
-                                }
-                                else if (target.Author == null)
-                                {
-                                    target.Author = mapped.Author;
-                                }
-                            }
-                        }
                     }
 
                     if (target.Author != null && resolvedAuthors.TryGetValue(target.Author.Did ?? "", out var ra))
@@ -1822,9 +1779,42 @@ public class PostService : IPostService
                          post.IsReposted = false;
                     }
                     
-                    // Always refresh media/embed from AppView for remote posts — local DB may have
-                    // stale or incomplete PostMedia records, so AppView is the authoritative source.
-                    if (remotePost.TryGetProperty("embed", out var embed))
+                    // Always refresh content and media/embed from AppView for remote posts — local DB may have
+                    // stub or incomplete records, so AppView is the authoritative source for display.
+                    bool isStubContentRoot = string.IsNullOrEmpty(post.Content) || post.Content == "[Remote interaction...]";
+                    bool hasNoMediaRoot = post.Media == null || post.Media.Count == 0;
+                    
+                    if (isStubContentRoot || hasNoMediaRoot)
+                    {
+                        var mappedRoot = MapBlueskyPost(remotePost);
+                        if (mappedRoot != null)
+                        {
+                            if (isStubContentRoot && !string.IsNullOrEmpty(mappedRoot.Content) && mappedRoot.Content != "[Remote interaction...]")
+                            {
+                                post.Content = mappedRoot.Content;
+                                post.Facets = mappedRoot.Facets;
+                            }
+
+                            if (hasNoMediaRoot && mappedRoot.Media != null && mappedRoot.Media.Count > 0)
+                            {
+                                post.Media = mappedRoot.Media;
+                                post.ImageUrls = mappedRoot.ImageUrls;
+                                post.VideoUrl = mappedRoot.VideoUrl;
+                                post.LinkPreview = mappedRoot.LinkPreview;
+                            }
+                            
+                            post.Tags = mappedRoot.Tags;
+                            post.Language = mappedRoot.Language;
+                            
+                            if (post.Author != null && (string.IsNullOrEmpty(post.Author.DisplayName) || post.Author.Handle == post.Author.Did))
+                            {
+                                post.Author.DisplayName = mappedRoot.Author?.DisplayName ?? post.Author.DisplayName;
+                                post.Author.AvatarUrl = mappedRoot.Author?.AvatarUrl ?? post.Author.AvatarUrl;
+                                post.Author.Handle = mappedRoot.Author?.Handle ?? post.Author.Handle;
+                            }
+                        }
+                    }
+                    else if (remotePost.TryGetProperty("embed", out var embed))
                     {
                         MapEmbedToDto(post, embed);
                     }
