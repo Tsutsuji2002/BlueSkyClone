@@ -1302,7 +1302,7 @@ public class PostService : IPostService
 
             // Post is a stub if it has no content, no media, and no quote, but has a URI
             bool isPostStub = !string.IsNullOrEmpty(p.Uri) && p.Uri.StartsWith("at://") && 
-                             string.IsNullOrEmpty(p.Content) && 
+                             (string.IsNullOrEmpty(p.Content) || p.Content == "[Remote interaction...]") && 
                              (p.Media == null || p.Media.Count == 0) && 
                              (p.ImageUrls == null || p.ImageUrls.Count == 0) &&
                              p.QuotePost == null;
