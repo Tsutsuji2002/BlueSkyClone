@@ -146,8 +146,24 @@ public record UserSettingDto(
     bool? ShowReposts,
     bool? ShowQuotePosts,
     bool? ShowSampleSavedFeeds,
-    string? EnabledMediaProviders
-);
+    [property: JsonPropertyName("enabledMediaProviders")] System.Text.Json.JsonElement? EnabledMediaProviders,
+    [property: JsonPropertyName("selectedInterests")] System.Text.Json.JsonElement? SelectedInterests
+)
+{
+    public static System.Text.Json.JsonElement? ParseJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.Clone();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}
 
 public record AuthResponse(
     UserDto User,

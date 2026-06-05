@@ -589,7 +589,8 @@ public class AuthService : IAuthService
             user.UserSetting.ShowReposts,
             user.UserSetting.ShowQuotePosts,
             user.UserSetting.ShowSampleSavedFeeds,
-            user.UserSetting.EnabledMediaProviders
+            UserSettingDto.ParseJson(user.UserSetting.EnabledMediaProviders),
+            UserSettingDto.ParseJson(user.UserSetting.SelectedInterests)
         ) : new UserSettingDto(
             null, null, null, null, null, null, null, null, "en", "system",
             true, true, true, true, true, true,  // Notify* (6)
@@ -602,7 +603,8 @@ public class AuthService : IAuthService
             "anyone", true, 15,                  // ReplyRestriction, AllowQuotes, FontSize
             true, true, false, false, false,     // Trending, Video, TreeView, Logout, AltBadge
             true, true, true, false,             // ShowReplies, ShowReposts, ShowQuotes, ShowSampleFeeds
-            null                                 // EnabledMediaProviders
+            null,                                // EnabledMediaProviders
+            null                                 // SelectedInterests
         );
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken, rememberMe);

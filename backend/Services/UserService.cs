@@ -394,7 +394,15 @@ public class UserService : IUserService
                 var modelProp = modelType.GetProperty(prop.Name);
                 if (modelProp != null && modelProp.CanWrite)
                 {
-                    modelProp.SetValue(settings, val);
+                    // If DTO is JsonElement but model is string, serialize it
+                    if (val is System.Text.Json.JsonElement jsonElem && modelProp.PropertyType == typeof(string))
+                    {
+                        modelProp.SetValue(settings, System.Text.Json.JsonSerializer.Serialize(jsonElem));
+                    }
+                    else
+                    {
+                        modelProp.SetValue(settings, val);
+                    }
                 }
             }
         }

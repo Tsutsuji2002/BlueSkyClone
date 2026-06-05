@@ -40,8 +40,7 @@ import { SCROLL_STORAGE_PREFIX } from './hooks/useScrollRestoration';
 import LoadingScreen from './components/common/LoadingScreen';
 import { SessionKeeper } from './SessionKeeper';
 
-const VERSION = '1.1.2';
-const BUILD_TIME = '19:15:00 22/5/2026';
+
 
 // [FIX] Reset scroll positions on hard refresh/reload/initial entry
 // This MUST happen at module scope to run before any component mounts/effects.
@@ -82,8 +81,7 @@ const AppContent: React.FC = () => {
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
 
   React.useLayoutEffect(() => {
-    console.log(`%c[BlueSky-Deploy] Version: ${VERSION} (Stability + Interaction Sync)`, 'color: #00acee; font-weight: bold; font-size: 14px;');
-    console.log(`[BlueSky-Deploy] Build Time: ${BUILD_TIME}`);
+
   }, []);
 
   // Sync Handshake result to authSlice and other feature slices

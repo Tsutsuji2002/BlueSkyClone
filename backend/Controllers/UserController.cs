@@ -179,7 +179,8 @@ public class UserController : ControllerBase
                 settings.ShowReposts,
                 settings.ShowQuotePosts,
                 settings.ShowSampleSavedFeeds,
-                settings.EnabledMediaProviders
+                UserSettingDto.ParseJson(settings.EnabledMediaProviders),
+                UserSettingDto.ParseJson(settings.SelectedInterests)
             );
 
             return Ok(settingsDto);
