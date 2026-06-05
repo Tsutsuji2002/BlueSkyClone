@@ -25,11 +25,21 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
 
     // If it's already mapped (has content and createdAt at top level), return it
     if (atPost.content !== undefined && atPost.createdAt && atPost.author?.id) {
+        // If it's the backend DTO, ensured we have standardized property names for the UI
+        const images = atPost.images || (atPost.media ? atPost.media.filter((m: any) => m.type === 'image' || !m.type).map((m: any) => ({
+            url: m.url,
+            alt: m.altText || m.alt
+        })) : []);
+
+        const video = atPost.video || (atPost.media ? atPost.media.find((m: any) => m.type === 'video') : undefined);
+        const videoUrl = atPost.videoUrl || video?.url;
+
         return {
             ...atPost,
             author: atPost.author
                 ? {
                     ...atPost.author,
+                    id: atPost.author.did || atPost.author.id, // Ensure id is the DID if available
                     isFollowedBy: atPost.author.isFollowedBy ?? false,
                     labels: normalizeLabelValues(atPost.author.labels),
                 }
@@ -37,6 +47,10 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
             quotePost: atPost.quotePost ? mapAtProtoPostToPost(atPost.quotePost) : atPost.quotePost,
             parentPost: atPost.parentPost ? mapAtProtoPostToPost(atPost.parentPost) : atPost.parentPost,
             labels: normalizeLabelValues(atPost.labels),
+            images: images,
+            imageUrls: atPost.imageUrls || images.map((img: any) => img.url),
+            video: video,
+            videoUrl: videoUrl,
         } as Post;
     }
 

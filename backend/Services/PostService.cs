@@ -937,7 +937,7 @@ public class PostService : IPostService
             }
             var remoteUrisList = remoteUris.ToList();
 
-            var remoteInteractionCache = new Dictionary<string, JsonElement>();
+            var remoteInteractionCache = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
             // PERFORMANCE: Refresh remote interaction counts from AppView.
             // [OPTIMIZATION] Strictly skip this during startup or if skipDeepResolution is true.
             // This is the major bottleneck (~8s) during initial timeline hydration.
@@ -1428,23 +1428,43 @@ public class PostService : IPostService
 
                         // [HYDRATION FIX] If this is a stub post ([Remote interaction...] placeholder),
                         // hydrate its content and media from the freshly fetched AppView data.
-                        bool isStub = (string.IsNullOrEmpty(target.Content) || target.Content == "[Remote interaction...]") && 
-                                     (target.Media == null || target.Media.Count == 0);
+                        bool isStubContent = string.IsNullOrEmpty(target.Content) || target.Content == "[Remote interaction...]";
+                        bool hasNoMedia = target.Media == null || target.Media.Count == 0;
                         
-                        if (isStub)
+                        if (isStubContent || hasNoMedia)
                         {
                             var mapped = MapBlueskyPost(ri);
                             if (mapped != null)
                             {
-                                target.Content = mapped.Content;
-                                target.Media = mapped.Media;
-                                target.ImageUrls = mapped.ImageUrls;
-                                target.VideoUrl = mapped.VideoUrl;
-                                target.LinkPreview = mapped.LinkPreview;
-                                target.Facets = mapped.Facets;
+                                if (isStubContent && !string.IsNullOrEmpty(mapped.Content) && mapped.Content != "[Remote interaction...]")
+                                {
+                                    target.Content = mapped.Content;
+                                    target.Facets = mapped.Facets;
+                                }
+
+                                if (hasNoMedia && mapped.Media != null && mapped.Media.Count > 0)
+                                {
+                                    target.Media = mapped.Media;
+                                    target.ImageUrls = mapped.ImageUrls;
+                                    target.VideoUrl = mapped.VideoUrl;
+                                    target.LinkPreview = mapped.LinkPreview;
+                                }
+
                                 target.Tags = mapped.Tags;
-                                if (target.Author == null || string.IsNullOrEmpty(target.Author.Handle) || target.Author.Handle == "unknown")
+                                target.Language = mapped.Language;
+                                
+                                // Refresh author info if it's currently a placeholder or has a numeric-looking/DID-based username
+                                if (target.Author != null && (string.IsNullOrEmpty(target.Author.Handle) || target.Author.Handle.StartsWith("did:")))
+                                {
+                                    target.Author.Username = mapped.Author?.Username ?? target.Author.Username;
+                                    target.Author.Handle = mapped.Author?.Handle ?? target.Author.Handle;
+                                    target.Author.DisplayName = mapped.Author?.DisplayName ?? target.Author.DisplayName;
+                                    target.Author.AvatarUrl = mapped.Author?.AvatarUrl ?? target.Author.AvatarUrl;
+                                }
+                                else if (target.Author == null)
+                                {
                                     target.Author = mapped.Author;
+                                }
                             }
                         }
                     }
