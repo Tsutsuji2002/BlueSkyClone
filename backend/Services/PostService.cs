@@ -1425,6 +1425,28 @@ public class PostService : IPostService
                         target.LikesCount = ri.TryGetProperty("likeCount", out var lhc) ? lhc.GetInt32() : target.LikesCount;
                         target.RepostsCount = ri.TryGetProperty("repostCount", out var rhc) ? rhc.GetInt32() : target.RepostsCount;
                         target.RepliesCount = ri.TryGetProperty("replyCount", out var rlhc) ? rlhc.GetInt32() : target.RepliesCount;
+
+                        // [HYDRATION FIX] If this is a stub post ([Remote interaction...] placeholder),
+                        // hydrate its content and media from the freshly fetched AppView data.
+                        bool isStub = (string.IsNullOrEmpty(target.Content) || target.Content == "[Remote interaction...]") && 
+                                     (target.Media == null || target.Media.Count == 0);
+                        
+                        if (isStub)
+                        {
+                            var mapped = MapBlueskyPost(ri);
+                            if (mapped != null)
+                            {
+                                target.Content = mapped.Content;
+                                target.Media = mapped.Media;
+                                target.ImageUrls = mapped.ImageUrls;
+                                target.VideoUrl = mapped.VideoUrl;
+                                target.LinkPreview = mapped.LinkPreview;
+                                target.Facets = mapped.Facets;
+                                target.Tags = mapped.Tags;
+                                if (target.Author == null || string.IsNullOrEmpty(target.Author.Handle) || target.Author.Handle == "unknown")
+                                    target.Author = mapped.Author;
+                            }
+                        }
                     }
 
                     if (target.Author != null && resolvedAuthors.TryGetValue(target.Author.Did ?? "", out var ra))
