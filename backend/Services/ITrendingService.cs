@@ -6,7 +6,7 @@ namespace BSkyClone.Services
     public interface ITrendingService
     {
         TrendingData GetTrendingData();
-        Task RefreshTrendingAsync();
+        Task RefreshTrendingAsync(System.Threading.CancellationToken ct = default);
     }
 
     public class TrendingData

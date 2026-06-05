@@ -42,14 +42,14 @@ namespace BSkyClone.Services
             _logger.LogInformation("Trending background service is starting.");
 
             // Initial refresh
-            await RefreshTrendingInternalAsync();
+            await RefreshTrendingInternalAsync(stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     await Task.Delay(_refreshInterval, stoppingToken);
-                    await RefreshTrendingInternalAsync();
+                    await RefreshTrendingInternalAsync(stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -62,14 +62,14 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task RefreshTrendingAsync()
+        public async Task RefreshTrendingAsync(CancellationToken ct = default)
         {
-            await RefreshTrendingInternalAsync();
+            await RefreshTrendingInternalAsync(ct);
         }
 
-        private async Task RefreshTrendingInternalAsync()
+        private async Task RefreshTrendingInternalAsync(CancellationToken ct = default)
         {
-            if (!await _refreshLock.WaitAsync(0))
+            if (!await _refreshLock.WaitAsync(0, ct))
             {
                 _logger.LogInformation("Trending refresh already in progress, skipping.");
                 return;
@@ -81,7 +81,7 @@ namespace BSkyClone.Services
                 var newData = new TrendingData();
 
                 // 1. Try ATProto Trending
-                var atprotoTopics = await TryGetTrendingFromBlueskyAsync();
+                var atprotoTopics = await TryGetTrendingFromBlueskyAsync(ct);
                 if (atprotoTopics != null && atprotoTopics.Any())
                 {
                     newData.Topics = atprotoTopics;
@@ -107,7 +107,7 @@ namespace BSkyClone.Services
                 }
 
                 // 4. Fetch Popular Accounts
-                newData.Accounts = await FetchPopularAccountsAsync();
+                newData.Accounts = await FetchPopularAccountsAsync(ct);
 
                 if (newData.Topics.Any())
                 {
@@ -130,7 +130,7 @@ namespace BSkyClone.Services
             }
         }
 
-        private async Task<List<TrendingTopicDto>> TryGetTrendingFromBlueskyAsync()
+        private async Task<List<TrendingTopicDto>> TryGetTrendingFromBlueskyAsync(CancellationToken ct = default)
         {
             try
             {
@@ -138,7 +138,7 @@ namespace BSkyClone.Services
                 client.Timeout = TimeSpan.FromSeconds(3); // Fast timeout for responsiveness
                 
                 var url = "https://public.api.bsky.app/xrpc/app.bsky.unspecced.getTrendingTopics";
-                var response = await client.GetAsync(url);
+                var response = await client.GetAsync(url, ct);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -177,7 +177,7 @@ namespace BSkyClone.Services
             return null;
         }
 
-        private async Task<List<TrendingTopicDto>> ComputeTrendingFromLocalAsync()
+        private async Task<List<TrendingTopicDto>> ComputeTrendingFromLocalAsync(CancellationToken ct = default)
         {
             try
             {
@@ -207,7 +207,7 @@ namespace BSkyClone.Services
             }
         }
 
-        private async Task<List<object>> FetchPopularAccountsAsync()
+        private async Task<List<object>> FetchPopularAccountsAsync(CancellationToken ct = default)
         {
             try
             {

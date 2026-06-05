@@ -156,7 +156,7 @@ namespace BSkyClone.Services
                     {
                         using var scope = _scopeFactory.CreateScope();
                         var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                        var freshToken = await userService.GetOrRefreshBlueskyTokenAsync(userId.Value, forceRefresh: true);
+                        var freshToken = await userService.GetOrRefreshBlueskyTokenAsync(userId.Value, forceRefresh: true, ct: linkedCts.Token);
                         if (!string.IsNullOrEmpty(freshToken))
                         {
                             _logger.LogInformation("[XrpcProxy] Token refreshed for user {UserId}. Retrying request to {Url}.", userId.Value, finalUrl);
@@ -226,7 +226,7 @@ namespace BSkyClone.Services
             return await ProxyRequestAsync(did, nsid, collection, token, method, body, userId, ct);
         }
 
-        public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token, string method, System.IO.Stream bodyStream, Guid? userId, string mimeType)
+        public async Task<ProxyResponse> ProxyRequestAsync(string didOrHandle, string nsid, Dictionary<string, string?> queryParams, string? token, string method, System.IO.Stream bodyStream, Guid? userId, string mimeType, System.Threading.CancellationToken ct = default)
         {
             string did = didOrHandle;
             try
@@ -263,10 +263,12 @@ namespace BSkyClone.Services
                 var clientReq = _httpClientFactory.CreateClient();
                 clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
-                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30)); // Slightly longer for streams
+                // [OPTIMIZATION] Linked safety deadline to the provided CancellationToken
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5)); 
+                using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                 
-                var response = await clientReq.SendAsync(request, cts.Token);
-                var content = await response.Content.ReadAsStringAsync(cts.Token);
+                var response = await clientReq.SendAsync(request, linkedCts.Token);
+                var content = await response.Content.ReadAsStringAsync(linkedCts.Token);
 
                 if (!response.IsSuccessStatusCode)
                 {

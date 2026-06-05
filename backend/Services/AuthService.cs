@@ -419,16 +419,14 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
-        // Ensure we have a fresh token first (3s timeout)
-        using var tokenCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-        using var linkedTokenCts = CancellationTokenSource.CreateLinkedTokenSource(tokenCts.Token, ct);
-        await _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, linkedTokenCts.Token);
-
         // Global handshake cap: 5 seconds. 
         // If they take longer, we return partial/stale data and let the frontend catch up.
         using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         using var finalLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(globalCts.Token, ct);
         var globalToken = finalLinkedCts.Token;
+
+        // Ensure we have a fresh token first (Honoring the global 5s budget)
+        await _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, globalToken);
 
         // Execution of all metadata initialization tasks (Propagating token)
         var profileTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId, globalToken);

@@ -261,8 +261,7 @@ export const setupFetchInterceptor = () => {
             retryArgs = [input.clone(), fetchOptions];
         }
 
-        // Use a shorter timeout for handshake specifically
-        const finalTimeout = isHandshakeRequest ? 10000 : 15000;
+        const finalTimeout = 15000; // Standardize on 15s to allow for cold starts
         const response = await fetchWithTimeout(input, fetchOptions, finalTimeout);
 
         // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.

@@ -111,7 +111,7 @@ namespace BSkyClone.Services
                     _ = Task.Run(async () => {
                         await _throttler.WaitAsync(stoppingToken); // Limit concurrency to prevent SQL pool exhaustion
                         try {
-                            await ProcessMessageAsync(messageData);
+                            await ProcessMessageAsync(messageData, stoppingToken);
                         } catch (Exception ex) {
                             _logger.LogError(ex, "Error processing firehose message");
                         } finally {
@@ -122,7 +122,7 @@ namespace BSkyClone.Services
             }
         }
 
-        private async Task ProcessMessageAsync(byte[] data)
+        private async Task ProcessMessageAsync(byte[] data, CancellationToken ct = default)
         {
             using var ms = new MemoryStream(data);
             
@@ -140,7 +140,7 @@ namespace BSkyClone.Services
 
             if (header.TryGetValue("t", out var t) && t?.ToString() == "#commit")
             {
-                await HandleCommitEventAsync(body);
+                await HandleCommitEventAsync(body, ct);
             }
             else if (header.TryGetValue("t", out var type))
             {
@@ -153,7 +153,7 @@ namespace BSkyClone.Services
         }
 
 
-        private async Task HandleCommitEventAsync(Dictionary<string, object> body)
+        private async Task HandleCommitEventAsync(Dictionary<string, object> body, CancellationToken ct = default)
         {
             // body["blocks"] is a byte[] containing a CAR file
             // body["ops"] is a list of operations (create/update/delete)
@@ -168,7 +168,7 @@ namespace BSkyClone.Services
             if (did != null && blocks != null && ops != null)
             {
                 // [RELIABILITY] Use Cache-First check instead of hits DB every time
-                await UpdateLocalUserCacheAsync(CancellationToken.None);
+                await UpdateLocalUserCacheAsync(ct);
                 bool isLocalUser = _localUserDids.Contains(did);
 
                 if (!isLocalUser && new Random().Next(0, 100) > _samplingRate)
