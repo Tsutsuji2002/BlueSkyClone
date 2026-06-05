@@ -49,4 +49,11 @@ public class UserRepository : Repository<User>, IUserRepository
             .Include(u => u.UserSetting)
             .FirstOrDefaultAsync(u => u.Did.ToLower() == normalized);
     }
+
+    public override async Task<User?> GetByIdAsync(Guid id)
+    {
+        return await _dbSet
+            .Include(u => u.UserSetting)
+            .FirstOrDefaultAsync(u => u.Id == id);
+    }
 }
