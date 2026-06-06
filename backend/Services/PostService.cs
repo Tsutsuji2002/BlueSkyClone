@@ -1781,7 +1781,7 @@ public class PostService : IPostService
                     
                     // Always refresh content and media/embed from AppView for remote posts — local DB may have
                     // stub or incomplete records, so AppView is the authoritative source for display.
-                    bool isStubContentRoot = string.IsNullOrEmpty(post.Content) || post.Content == "[Remote interaction...]";
+                    bool isStubContentRoot = string.IsNullOrEmpty(post.Content) || post.Content.Contains("[Remote interaction");
                     bool hasNoMediaRoot = post.Media == null || post.Media.Count == 0;
                     
                     if (isStubContentRoot || hasNoMediaRoot)
@@ -1789,7 +1789,7 @@ public class PostService : IPostService
                         var mappedRoot = MapBlueskyPost(remotePost);
                         if (mappedRoot != null)
                         {
-                            if (isStubContentRoot && !string.IsNullOrEmpty(mappedRoot.Content) && mappedRoot.Content != "[Remote interaction...]")
+                            if (isStubContentRoot && !string.IsNullOrEmpty(mappedRoot.Content) && !mappedRoot.Content.Contains("[Remote interaction"))
                             {
                                 post.Content = mappedRoot.Content;
                                 post.Facets = mappedRoot.Facets;
@@ -1806,11 +1806,16 @@ public class PostService : IPostService
                             post.Tags = mappedRoot.Tags;
                             post.Language = mappedRoot.Language;
                             
-                            if (post.Author != null && (string.IsNullOrEmpty(post.Author.DisplayName) || post.Author.Handle == post.Author.Did))
+                            if (post.Author != null && mappedRoot.Author != null)
                             {
-                                post.Author.DisplayName = mappedRoot.Author?.DisplayName ?? post.Author.DisplayName;
-                                post.Author.AvatarUrl = mappedRoot.Author?.AvatarUrl ?? post.Author.AvatarUrl;
-                                post.Author.Handle = mappedRoot.Author?.Handle ?? post.Author.Handle;
+                                bool isAuthorPlaceholder = string.IsNullOrEmpty(post.Author.DisplayName) || post.Author.Handle == post.Author.Did || post.Author.Handle == "unknown";
+                                if (isAuthorPlaceholder)
+                                {
+                                    post.Author.DisplayName = mappedRoot.Author.DisplayName ?? post.Author.DisplayName;
+                                    post.Author.AvatarUrl = mappedRoot.Author.AvatarUrl ?? post.Author.AvatarUrl;
+                                    post.Author.Handle = mappedRoot.Author.Handle ?? post.Author.Handle;
+                                    post.Author.Username = mappedRoot.Author.Username ?? post.Author.Username;
+                                }
                             }
                         }
                     }
