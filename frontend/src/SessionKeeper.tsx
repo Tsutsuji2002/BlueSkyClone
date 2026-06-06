@@ -21,20 +21,9 @@ export const SessionKeeper: React.FC = () => {
     const handshakeSettled = useAppSelector((state) => (state.user as any).handshakeSettled);
     
     useEffect(() => {
-        // Only refresh on mount if we haven't already.
-        // [OPTIMIZATION] Skip the initial redundant refresh if the "Consolidated Handshake" is already handling it.
-        if (isAuthenticated && !isInitialized.current && handshakeSettled) {
-            console.log('[SessionKeeper] Running deferred mount refresh (Handshake already settled).');
-            refreshActive();
-            isInitialized.current = true;
-        }
-
-        // If the DID changed, it means we just performed a Switch.
-        // The switch mutation already provided fresh tokens, so we skip the extra refresh.
-        if (activeUser?.did !== prevDid.current) {
-            console.log('[SessionKeeper] Account switched, skipping redundant refresh.');
-            prevDid.current = activeUser?.did;
-        }
+        // [CLEANUP] Removed redundant refreshActive() on mount.
+        // Handshake already handles session verification and hydration.
+        isInitialized.current = true;
 
         // Background keeper interval (every 4 hours)
         const interval = setInterval(async () => {

@@ -74,13 +74,9 @@ const Sidebar: React.FC = () => {
                 const data = await switchMutation({ refreshToken: account.refreshToken }).unwrap();
                 dispatch({ type: 'auth/setAuth', payload: data });
                 
-                dispatch({
-                    type: 'toast/showToast',
-                    payload: { 
-                        message: `Signed in as @${account.handle}`, 
-                        type: 'success'
-                    }
-                });
+                // [CRITICAL] Force a full page reload to ensure the "Entire UI" is cleared 
+                // of any ghost data and every component re-fetches with the new session.
+                window.location.reload();
                 return;
             } catch (err: any) {
                 const status = err?.status || err?.originalStatus;
