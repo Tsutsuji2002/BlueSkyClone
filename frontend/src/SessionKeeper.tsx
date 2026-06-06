@@ -30,6 +30,23 @@ export const SessionKeeper: React.FC = () => {
             const accounts = AccountManager.getAccounts();
             
             for (const account of accounts) {
+                // [CROSS-TAB SAFETY] Use a localStorage lock to prevent multiple tabs from 
+                // refreshing the same account simultaneously and causing 401 race conditions.
+                const lockKey = `refresh_lock_${account.did}`;
+                const now = Date.now();
+                const lockValue = localStorage.getItem(lockKey);
+                
+                if (lockValue) {
+                    const lockTime = parseInt(lockValue, 10);
+                    if (now - lockTime < 60000) { // 60s lock
+                        console.log(`[SessionKeeper] Refresh for ${account.handle} is locked by another tab. Skipping.`);
+                        continue;
+                    }
+                }
+                
+                // Acquire lock
+                localStorage.setItem(lockKey, now.toString());
+
                 // If it's the active account, use regular refresh
                 if (isAuthenticated && activeUser?.did === account.did) {
                     try {
@@ -51,6 +68,9 @@ export const SessionKeeper: React.FC = () => {
                         console.warn(`Background refresh failed for ${account.handle}:`, err);
                     }
                 }
+
+                // Release lock immediately or let it expire
+                localStorage.removeItem(lockKey);
             }
         }, 4 * 60 * 60 * 1000); // 4 hours
 
