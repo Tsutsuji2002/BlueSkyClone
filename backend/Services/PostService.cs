@@ -787,8 +787,9 @@ public class PostService : IPostService
 
             token ??= viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
             
-            Console.WriteLine($"[!!!ENRICH-GOD-LOG!!!] Start: PostsCount={posts.Count}, ViewerId={viewerId}");
             using var ctsTotal = new CancellationTokenSource(TimeSpan.FromSeconds(8)); // Reduced to 8s for snappier response
+            _logger.LogInformation("[EnrichAndFilterPostsAsync] Start: PostsCount={Count}, ViewerId={ViewerId}, HasToken={HasToken}", 
+                posts.Count, viewerId, !string.IsNullOrEmpty(token));
             var postIds = new HashSet<Guid>();
             var postUris = new HashSet<string>();
             var postRkeys = new HashSet<string>();
@@ -935,7 +936,6 @@ public class PostService : IPostService
                 if (p.QuotePost != null) RegisterUri(p.QuotePost.Uri ?? "", p.QuotePost.Author?.Did, p.QuotePost.Tid);
             }
             var remoteUrisList = remoteUris.ToList();
-            Console.WriteLine($"[!!!URI-AUDIT!!!] RemoteUrisCount={remoteUrisList.Count}. Samples: {string.Join(", ", remoteUrisList.Take(3))}");
 
             var remoteInteractionCache = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
             // PERFORMANCE: Refresh remote interaction counts from AppView.
@@ -1095,15 +1095,17 @@ public class PostService : IPostService
 
             // [PERFORMANCE] Parallelize ALL DB interaction and moderation lookups (approx 20 queries)
             // Use concrete intermediate types to avoid anonymous type / dynamic mismatches
-            var usersFollowingViewerTask = viewerId != Guid.Empty
-                ? _unitOfWork.Follows.Query()
+            // [FIX] EF Core DbContext is NOT thread-safe. We cannot run multiple queries in parallel on the same context.
+            // We must await these sequentially or use separate scopes. Sequential is safer here.
+            var usersFollowingViewerIds = viewerId != Guid.Empty
+                ? await _unitOfWork.Follows.Query()
                     .Where(f => f.FollowingId == viewerId)
                     .Select(f => f.FollowerId)
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<Guid>());
+                : new List<Guid>();
 
-            var likedItemsTask = viewerId != Guid.Empty
-                ? _unitOfWork.Likes.Query()
+            var likedItems = viewerId != Guid.Empty
+                ? await _unitOfWork.Likes.Query()
                     .Where(l => l.UserId == viewerId && (
                         postIdsList.Contains(l.PostId) ||
                         (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri)) ||
@@ -1111,10 +1113,10 @@ public class PostService : IPostService
                     ))
                     .Select(l => new PostInteractionItem { PostId = l.PostId, Uri = l.Post!.Uri, SubjectTid = l.Post!.Tid, InteractionUri = l.Uri ?? "" })
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<PostInteractionItem>());
+                : new List<PostInteractionItem>();
 
-            var repostItemsTask = viewerId != Guid.Empty
-                ? _unitOfWork.Reposts.Query()
+            var repostItems = viewerId != Guid.Empty
+                ? await _unitOfWork.Reposts.Query()
                     .Where(r => r.UserId == viewerId && (
                         postIdsList.Contains(r.PostId) ||
                         (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri)) ||
@@ -1122,140 +1124,111 @@ public class PostService : IPostService
                     ))
                     .Select(r => new PostInteractionItem { PostId = r.PostId, Uri = r.Post!.Uri, SubjectTid = r.Post!.Tid, InteractionUri = r.Uri ?? "" })
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<PostInteractionItem>());
+                : new List<PostInteractionItem>();
 
-            var followingUrisTask = viewerId != Guid.Empty
-                ? _unitOfWork.Follows.Query()
+            var followingUris = viewerId != Guid.Empty
+                ? await _unitOfWork.Follows.Query()
                     .Where(f => f.FollowerId == viewerId)
                     .ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "", ctsTotal.Token)
-                : Task.FromResult(new Dictionary<Guid, string>());
+                : new Dictionary<Guid, string>();
 
-            var followListTask = viewerId != Guid.Empty
-                ? _unitOfWork.Follows.Query()
+            var followList = viewerId != Guid.Empty
+                ? await _unitOfWork.Follows.Query()
                     .Where(f => f.FollowerId == viewerId)
                     .Join(_unitOfWork.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => new DidUriItem { Did = u.Did, Uri = f.Uri })
                     .Where(x => !string.IsNullOrEmpty(x.Did))
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<DidUriItem>());
+                : new List<DidUriItem>();
 
-            var mutedWordsTask = viewerId != Guid.Empty
-                ? _unitOfWork.MutedWords.Query()
+            var mutedWords = viewerId != Guid.Empty
+                ? await _unitOfWork.MutedWords.Query()
                     .Where(w => w.UserId == viewerId)
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<MutedWord>());
+                : new List<MutedWord>();
 
-            var mutedAccountsTask = viewerId != Guid.Empty
-                ? _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId)
-                : Task.FromResult(new List<MutedAccount>());
+            var mutedAccounts = viewerId != Guid.Empty
+                ? await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId)
+                : new List<MutedAccount>();
 
-            var blockedUserIdsTask = viewerId != Guid.Empty
-                ? _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId)
-                : Task.FromResult(new List<Guid>());
+            var blockedUserIds = viewerId != Guid.Empty
+                ? await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId)
+                : new List<Guid>();
 
-            var blockedByUserIdsTask = viewerId != Guid.Empty
-                ? _unitOfWork.Blocks.Query()
+            var blockedByUserIds = viewerId != Guid.Empty
+                ? await _unitOfWork.Blocks.Query()
                     .Where(b => b.BlockedUserId == viewerId)
                     .Select(b => b.UserId)
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<Guid>());
+                : new List<Guid>();
 
-            var subscribedModListIdRowsTask = viewerId != Guid.Empty
-                ? _unitOfWork.UserListSubscriptions.Query()
+            var subscribedModListIdRows = viewerId != Guid.Empty
+                ? await _unitOfWork.UserListSubscriptions.Query()
                     .Where(uls => uls.UserId == viewerId)
                     .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
                     .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
                     .Select(x => x.Id)
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<Guid>());
+                : new List<Guid>();
 
-            var queryResultBookmarksTask = viewerId != Guid.Empty
-                ? _unitOfWork.Bookmarks.Query()
+            var queryResultBookmarks = viewerId != Guid.Empty
+                ? await _unitOfWork.Bookmarks.Query()
                     .Where(b => b.UserId == viewerId)
                     .Select(b => new BookmarkItem { PostId = b.PostId, Tid = b.Tid, Uri = b.Post!.Uri })
                     .ToListAsync(ctsTotal.Token)
-                : Task.FromResult(new List<BookmarkItem>());
+                : new List<BookmarkItem>();
 
-            var blockingUrisTask = viewerId != Guid.Empty
-                ? _unitOfWork.Blocks.Query()
+            var blockingUris = viewerId != Guid.Empty
+                ? await _unitOfWork.Blocks.Query()
                     .Where(b => b.UserId == viewerId)
                     .ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}", ctsTotal.Token)
-                : Task.FromResult(new Dictionary<Guid, string>());
+                : new Dictionary<Guid, string>();
 
-            var viewerUserTask = viewerId != Guid.Empty 
-                ? _unitOfWork.Users.GetByIdAsync(viewerId) 
-                : Task.FromResult<User?>(null);
+            var viewerUser = viewerId != Guid.Empty 
+                ? await _unitOfWork.Users.GetByIdAsync(viewerId) 
+                : (User?)null;
 
-            var localLikesCountsTask = _unitOfWork.Likes.Query()
+            var localLikesCounts = await _unitOfWork.Likes.Query()
                 .Where(l => postIdsList.Contains(l.PostId))
                 .GroupBy(l => l.PostId)
                 .Select(g => new { g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Key, x => x.Count, ctsTotal.Token);
 
-            var localRepostsCountsTask = _unitOfWork.Reposts.Query()
+            var localRepostsCounts = await _unitOfWork.Reposts.Query()
                 .Where(r => postIdsList.Contains(r.PostId))
                 .GroupBy(r => r.PostId)
                 .Select(g => new { g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Key, x => x.Count, ctsTotal.Token);
 
-            var localBookmarksCountsTask = _unitOfWork.Bookmarks.Query()
+            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query()
                 .Where(b => postIdsList.Contains(b.PostId))
                 .GroupBy(b => b.PostId)
                 .Select(g => new { g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Key, x => x.Count, ctsTotal.Token);
 
-            var localRepliesCountsTask = _unitOfWork.Posts.Query()
+            var localRepliesCounts = await _unitOfWork.Posts.Query()
                 .Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value))
                 .GroupBy(p => p.ReplyToPostId)
                 .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Id, x => x.Count, ctsTotal.Token);
 
-            var localQuotesCountsTask = _unitOfWork.Posts.Query()
+            var localQuotesCounts = await _unitOfWork.Posts.Query()
                 .Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value))
                 .GroupBy(p => p.QuotePostId)
                 .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Id, x => x.Count, ctsTotal.Token);
 
-            var localBookmarksCountsByUriTask = _unitOfWork.Bookmarks.Query()
+            var localBookmarksCountsByUriResult = await _unitOfWork.Bookmarks.Query()
                 .Where(b => b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri))
                 .GroupBy(b => b.Post.Uri!)
                 .Select(g => new { Uri = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Uri, x => x.Count, ctsTotal.Token);
 
-            var userSettingsTask = viewerId != Guid.Empty
-                ? _unitOfWork.UserSettings.Query()
+            var userSettings = viewerId != Guid.Empty
+                ? await _unitOfWork.UserSettings.Query()
                     .FirstOrDefaultAsync(s => s.UserId == viewerId, ctsTotal.Token)
-                : Task.FromResult<UserSetting?>(null);
+                : (UserSetting?)null;
 
-            // Await ALL tasks in parallel
-            await Task.WhenAll(
-                usersFollowingViewerTask, likedItemsTask, repostItemsTask, followingUrisTask, 
-                followListTask, mutedWordsTask, mutedAccountsTask, blockedUserIdsTask, 
-                blockedByUserIdsTask, subscribedModListIdRowsTask, queryResultBookmarksTask, 
-                blockingUrisTask, viewerUserTask, localLikesCountsTask, localRepostsCountsTask, 
-                localBookmarksCountsTask, localRepliesCountsTask, localQuotesCountsTask, 
-                localBookmarksCountsByUriTask, userSettingsTask);
-
-            // Harvest results
-            var usersFollowingViewerIds = await usersFollowingViewerTask;
-            var likedItems = await likedItemsTask;
-            var repostItems = await repostItemsTask;
-            var followingUris = await followingUrisTask;
-            var followList = await followListTask;
-            var mutedWords = await mutedWordsTask;
-            var mutedAccounts = await mutedAccountsTask;
-            var blockedUserIds = await blockedUserIdsTask;
-            var blockedByUserIds = await blockedByUserIdsTask;
-            var subscribedModListIdRows = await subscribedModListIdRowsTask;
-            var queryResultBookmarks = await queryResultBookmarksTask;
-            var blockingUris = await blockingUrisTask;
-            var viewerUser = await viewerUserTask;
-            var localLikesCounts = await localLikesCountsTask;
-            var localRepostsCounts = await localRepostsCountsTask;
-            var localBookmarksCounts = await localBookmarksCountsTask;
-            var localRepliesCounts = await localRepliesCountsTask;
-            var localQuotesCounts = await localQuotesCountsTask;
-            var localBookmarksCountsByUri = (await localBookmarksCountsByUriTask).ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
-            var userSettings = await userSettingsTask;
+            var localBookmarksCountsByUri = localBookmarksCountsByUriResult.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
 
             // Map followed DIDs
             var followedDidToUri = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1397,7 +1370,6 @@ public class PostService : IPostService
             foreach (var post in posts)
             {
                 string? pUriKey = post.Uri?.ToLower();
-                Console.WriteLine($"[!!!LOOKUP-GOD-LOG!!!] Uri={post.Uri}, pUriKey={pUriKey}, inCache={pUriKey != null && remoteInteractionCache.ContainsKey(pUriKey)}");
                 string? rkey = pUriKey?.Split('/').LastOrDefault()?.ToLower();
 
                 // Sync metadata helper (Recursive for parent/quote)
@@ -2072,7 +2044,6 @@ public class PostService : IPostService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[!!!ENRICH-GOD-LOG!!!] CRITICAL FAILURE: {ex.Message}\n{ex.StackTrace}");
             _logger.LogError(ex, "[PostService] EnrichAndFilterPostsAsync Error: {Message}", ex.Message);
             return posts; // Return unenriched posts as fallback to prevent 500
         }
@@ -6513,13 +6484,15 @@ public class PostService : IPostService
 
         _logger.LogWarning("[BOOKMARK-TRACE] Step 4: Successfully fetched {Count} posts from DB. About to map.", bookmarkedPosts.Count);
 
-        Console.WriteLine($"[!!!BOOKMARK-GOD-LOG!!!] User={userId}, PostsCount={bookmarkedPosts.Count}");
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
         
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Mapped to DTOs. About to refresh token.");
         var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
         
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 6: Token refreshed. Calling EnrichAndFilterPostsAsync.");
         var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, !string.IsNullOrEmpty(token));
-        Console.WriteLine($"[!!!BOOKMARK-GOD-LOG!!!] Enrichment Complete for User={userId}");
+        
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 7: Enrichment complete. Emitting result.");
 
         // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
         // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
