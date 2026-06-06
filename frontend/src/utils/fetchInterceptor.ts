@@ -158,6 +158,7 @@ export const setupFetchInterceptor = () => {
 
         const isHandshakeRequest = url.includes('/auth/handshake');
         const isVerifyDomainRequest = url.includes('/auth/verify-domain');
+        const isSignalRRequest = url.includes('/negotiate');
 
         const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || 
                             url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
@@ -171,7 +172,7 @@ export const setupFetchInterceptor = () => {
         const state = store.getState();
         const authState = state.auth as any;
 
-        const isInitExempt = isRefreshRequest || url.includes('/auth/me') || isLoginRequest || isHandshakeRequest || isVerifyDomainRequest;
+        const isInitExempt = isRefreshRequest || url.includes('/auth/me') || isLoginRequest || isHandshakeRequest || isVerifyDomainRequest || isSignalRRequest;
 
         if (authState.isInitializing && !isInitExempt) {
             console.log(`[FetchInterceptor] INITIALIZING: Buffering request until session is verified: ${url}`);
@@ -198,9 +199,11 @@ export const setupFetchInterceptor = () => {
                 });
             }
 
-            // Stagger released requests to prevent connection pool exhaustion.
-            // [OPTIMIZATION] Skip jitter completely to ensure rapid startup.
-            console.log(`[FetchInterceptor] Releasing initialized request immediately: ${url}`);
+            // Stagger released requests to prevent connection pool exhaustion and "thundering herd" congestion.
+            // Small random jitter (50-200ms) ensures requests hit the server in waves rather than a single spike.
+            const floodgateStagger = Math.floor(Math.random() * 150) + 50; 
+            await new Promise(resolve => setTimeout(resolve, floodgateStagger));
+            console.log(`[FetchInterceptor] Releasing initialized request with ${floodgateStagger}ms stagger: ${url}`);
         }
 
         // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:
@@ -275,7 +278,7 @@ export const setupFetchInterceptor = () => {
             retryArgs = [input.clone(), fetchOptions];
         }
 
-        const finalTimeout = 15000; // Standardize on 15s to allow for cold starts
+        const finalTimeout = 25000; // Standardize on 25s to allow for cold starts on VPS
         const response = await fetchWithTimeout(input, fetchOptions, finalTimeout);
 
         // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.
