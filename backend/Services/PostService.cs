@@ -787,9 +787,8 @@ public class PostService : IPostService
 
             token ??= viewerId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId) : null;
             
+            Console.WriteLine($"[!!!ENRICH-GOD-LOG!!!] Start: PostsCount={posts.Count}, ViewerId={viewerId}");
             using var ctsTotal = new CancellationTokenSource(TimeSpan.FromSeconds(8)); // Reduced to 8s for snappier response
-            _logger.LogInformation("[EnrichAndFilterPostsAsync] Start: PostsCount={Count}, ViewerId={ViewerId}, HasToken={HasToken}", 
-                posts.Count, viewerId, !string.IsNullOrEmpty(token));
             var postIds = new HashSet<Guid>();
             var postUris = new HashSet<string>();
             var postRkeys = new HashSet<string>();
@@ -6511,15 +6510,13 @@ public class PostService : IPostService
 
         _logger.LogWarning("[BOOKMARK-TRACE] Step 4: Successfully fetched {Count} posts from DB. About to map.", bookmarkedPosts.Count);
 
+        Console.WriteLine($"[!!!BOOKMARK-GOD-LOG!!!] User={userId}, PostsCount={bookmarkedPosts.Count}");
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
         
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Mapped to DTOs. About to refresh token.");
         var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
         
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 6: Token refreshed. Calling EnrichAndFilterPostsAsync.");
         var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, !string.IsNullOrEmpty(token));
-        
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 7: Enrichment complete. Emitting result.");
+        Console.WriteLine($"[!!!BOOKMARK-GOD-LOG!!!] Enrichment Complete for User={userId}");
 
         // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
         // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
