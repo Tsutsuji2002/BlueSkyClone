@@ -1792,12 +1792,18 @@ public class PostService : IPostService
                             // Take content if it's not a placeholder (even if it's empty, e.g. media-only post)
                             if (isStubContentRoot && (mappedRoot.Content == null || !mappedRoot.Content.Contains("[Remote interaction")))
                             {
+                                _logger.LogInformation("[HYDRATION-DEBUG] Hydrating Content for {Uri}: '{Old}' -> '{New}'", post.Uri, post.Content, mappedRoot.Content ?? "");
                                 post.Content = mappedRoot.Content ?? "";
                                 post.Facets = mappedRoot.Facets;
+                            }
+                            else
+                            {
+                                _logger.LogInformation("[HYDRATION-DEBUG] Skipping Content for {Uri}: isStub={IsStub}, mappedHasStub={MappedStub}", post.Uri, isStubContentRoot, mappedRoot.Content?.Contains("[Remote interaction") ?? false);
                             }
 
                             if (hasNoMediaRoot && mappedRoot.Media != null && mappedRoot.Media.Count > 0)
                             {
+                                _logger.LogInformation("[HYDRATION-DEBUG] Hydrating Media for {Uri}: Count={Count}", post.Uri, mappedRoot.Media.Count);
                                 post.Media = mappedRoot.Media;
                                 post.ImageUrls = mappedRoot.ImageUrls;
                                 post.VideoUrl = mappedRoot.VideoUrl;
@@ -1812,12 +1818,17 @@ public class PostService : IPostService
                                 bool isAuthorPlaceholder = string.IsNullOrEmpty(post.Author.DisplayName) || post.Author.Handle == post.Author.Did || post.Author.Handle == "unknown";
                                 if (isAuthorPlaceholder)
                                 {
+                                    _logger.LogInformation("[HYDRATION-DEBUG] Hydrating Author for {Uri}: handle='{Handle}'", post.Uri, mappedRoot.Author.Handle);
                                     post.Author.DisplayName = mappedRoot.Author.DisplayName ?? post.Author.DisplayName;
                                     post.Author.AvatarUrl = mappedRoot.Author.AvatarUrl ?? post.Author.AvatarUrl;
                                     post.Author.Handle = mappedRoot.Author.Handle ?? post.Author.Handle;
                                     post.Author.Username = mappedRoot.Author.Username ?? post.Author.Username;
                                 }
                             }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[HYDRATION-DEBUG] MapBlueskyPost returned NULL for {Uri}", post.Uri);
                         }
                     }
                     else if (remotePost.TryGetProperty("embed", out var embed))
