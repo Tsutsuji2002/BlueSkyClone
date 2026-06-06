@@ -1,5 +1,6 @@
 import { store } from '../redux/store';
 import { logout } from '../redux/slices/authSlice';
+import { AccountManager } from './accountManager';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
@@ -67,7 +68,6 @@ async function fetchWithTimeout(
         clearTimeout(timeoutId);
     }
 }
-import { AccountManager } from './accountManager';
 
 /**
  * Silent session refresh attempt with a safety timeout.
