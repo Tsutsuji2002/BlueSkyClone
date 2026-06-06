@@ -1789,9 +1789,10 @@ public class PostService : IPostService
                         var mappedRoot = MapBlueskyPost(remotePost);
                         if (mappedRoot != null)
                         {
-                            if (isStubContentRoot && !string.IsNullOrEmpty(mappedRoot.Content) && !mappedRoot.Content.Contains("[Remote interaction"))
+                            // Take content if it's not a placeholder (even if it's empty, e.g. media-only post)
+                            if (isStubContentRoot && (mappedRoot.Content == null || !mappedRoot.Content.Contains("[Remote interaction")))
                             {
-                                post.Content = mappedRoot.Content;
+                                post.Content = mappedRoot.Content ?? "";
                                 post.Facets = mappedRoot.Facets;
                             }
 
