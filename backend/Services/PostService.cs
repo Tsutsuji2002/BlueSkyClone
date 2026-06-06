@@ -2072,6 +2072,7 @@ public class PostService : IPostService
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[!!!ENRICH-GOD-LOG!!!] CRITICAL FAILURE: {ex.Message}\n{ex.StackTrace}");
             _logger.LogError(ex, "[PostService] EnrichAndFilterPostsAsync Error: {Message}", ex.Message);
             return posts; // Return unenriched posts as fallback to prevent 500
         }
