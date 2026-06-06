@@ -935,6 +935,7 @@ public class PostService : IPostService
                 if (p.QuotePost != null) RegisterUri(p.QuotePost.Uri ?? "", p.QuotePost.Author?.Did, p.QuotePost.Tid);
             }
             var remoteUrisList = remoteUris.ToList();
+            Console.WriteLine($"[!!!URI-AUDIT!!!] RemoteUrisCount={remoteUrisList.Count}. Samples: {string.Join(", ", remoteUrisList.Take(3))}");
 
             var remoteInteractionCache = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
             // PERFORMANCE: Refresh remote interaction counts from AppView.
@@ -1396,6 +1397,7 @@ public class PostService : IPostService
             foreach (var post in posts)
             {
                 string? pUriKey = post.Uri?.ToLower();
+                Console.WriteLine($"[!!!LOOKUP-GOD-LOG!!!] Uri={post.Uri}, pUriKey={pUriKey}, inCache={pUriKey != null && remoteInteractionCache.ContainsKey(pUriKey)}");
                 string? rkey = pUriKey?.Split('/').LastOrDefault()?.ToLower();
 
                 // Sync metadata helper (Recursive for parent/quote)
