@@ -825,13 +825,32 @@ const listsSlice = createSlice({
                 updateAuthor(state.candidatePosts);
             })
             .addMatcher(
-                (action) => action.type === 'auth/logout' || action.type === 'auth/setAuth',
-                (state: ListsState) => {
+                (action) => action.type === 'auth/logout' || action.type === 'auth/setAuth' || 
+                           (action.type === 'auth/api/executeMutation/fulfilled' && action.meta?.arg?.endpointName === 'switchAccount'),
+                (state: ListsState, action: any) => {
+                    const type = action.type;
+                    const payload = action.payload;
+                    const isLogout = type === 'auth/logout';
+
+                    // Reset current state
                     state.myLists = [];
                     state.pinnedLists = [];
                     state.activeListFeed = [];
-                    state.lastFetchDid = '';
-                    localStorage.removeItem('lists_last_did');
+
+                    if (isLogout) {
+                        state.lastFetchDid = '';
+                        localStorage.removeItem('lists_last_did');
+                        return;
+                    }
+
+                    // For login/switch, perform immediate hydration if we have a DID
+                    const did = payload?.user?.did;
+                    if (did) {
+                        state.lastFetchDid = did;
+                        state.myLists = JSON.parse(localStorage.getItem(getAccountKey('lists_my', did)) || '[]');
+                        state.pinnedLists = JSON.parse(localStorage.getItem(getAccountKey('lists_pinned', did)) || '[]');
+                        localStorage.setItem('lists_last_did', did);
+                    }
                 }
             );
     }

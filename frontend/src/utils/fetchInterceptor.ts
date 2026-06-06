@@ -67,6 +67,7 @@ async function fetchWithTimeout(
         clearTimeout(timeoutId);
     }
 }
+import { AccountManager } from './accountManager';
 
 /**
  * Silent session refresh attempt with a safety timeout.
@@ -99,16 +100,29 @@ async function tryRefreshToken(): Promise<boolean> {
                 setTimeout(() => reject(new Error('REFRESH_HARD_TIMEOUT')), 15000)
             );
 
-            const refreshPromise = fetchWithTimeout(`${API_URL}/auth/refresh`, {
+            const refreshReqPromise = fetchWithTimeout(`${API_URL}/auth/refresh`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' }
             }, 14000);
 
-            const res = await Promise.race([refreshPromise, timeoutPromise]) as Response;
+            const res = await Promise.race([refreshReqPromise, timeoutPromise]) as Response;
             
             console.log(`[FetchInterceptor] Refresh result: ${res.status}`);
-            return res.ok;
+            
+            if (res.ok) {
+                try {
+                    const data = await res.json();
+                    if (data.user?.did && data.token && data.refreshToken) {
+                        console.log(`[FetchInterceptor] Syncing updated tokens to AccountManager for DID: ${data.user.did}`);
+                        AccountManager.updateTokens(data.user.did, data.token, data.refreshToken);
+                    }
+                } catch (e) {
+                    console.warn('[FetchInterceptor] Successfully refreshed but failed to parse response for AccountManager sync', e);
+                }
+                return true;
+            }
+            return false;
         } catch (err) {
             console.error('[FetchInterceptor] Refresh attempt failed:', err);
             return false;

@@ -1127,17 +1127,36 @@ const feedsSlice = createSlice({
                 }
             )
             .addMatcher(
-                (action) => action.type === 'auth/logout' || action.type === 'auth/setAuth',
-                (state: FeedsState) => {
+                (action) => action.type === 'auth/logout' || action.type === 'auth/setAuth' || 
+                           (action.type === 'auth/api/executeMutation/fulfilled' && action.meta?.arg?.endpointName === 'switchAccount'),
+                (state: FeedsState, action: any) => {
+                    const type = action.type;
+                    const payload = action.payload;
+                    const isLogout = type === 'auth/logout';
+
+                    // Reset current state
                     state.subscribedFeeds = [];
                     state.pinnedFeedIds = [];
                     state.feedPosts = {};
                     state.feedLastFetch = {};
                     state.feedCursors = {};
                     state.lastSubscribedFeedsFetch = 0;
-                    localStorage.removeItem('feeds_subscribed');
-                    localStorage.removeItem('feeds_pinned_ids');
-                    localStorage.removeItem('feeds_last_fetch');
+
+                    if (isLogout) {
+                        state.lastFetchDid = '';
+                        localStorage.removeItem('feeds_last_did');
+                        return;
+                    }
+
+                    // For login/switch, perform immediate hydration if we have a DID
+                    const did = payload?.user?.did;
+                    if (did) {
+                        state.lastFetchDid = did;
+                        state.subscribedFeeds = JSON.parse(localStorage.getItem(getAccountKey('feeds_subscribed', did)) || '[]');
+                        state.pinnedFeedIds = JSON.parse(localStorage.getItem(getAccountKey('feeds_pinned_ids', did)) || '[]');
+                        state.lastSubscribedFeedsFetch = Number(localStorage.getItem(getAccountKey('feeds_last_fetch', did)) || '0');
+                        localStorage.setItem('feeds_last_did', did);
+                    }
                 }
             );
     }

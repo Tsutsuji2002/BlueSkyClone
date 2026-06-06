@@ -271,11 +271,11 @@ public class AuthService : IAuthService
         if (string.IsNullOrEmpty(userIdString)) return null;
 
         // [SECURITY/STABILITY] Refresh Token Rotation Grace Period:
-        // Instead of immediate removal, we give the old token a 30s "grace period".
-        // This prevents race conditions when multiple requests (or tabs) attempt a refresh 
-        // or switch simultaneously, ensuring the user isn't logged out by a stale token.
+        // [MULTI-ACCOUNT SAFETY] Set a grace period for the OLD token so concurrent 
+        // requests (or another device/tab) don't immediately fail.
+        // Increased to 60s to allow frontend AccountManager more time to sync updated tokens.
         await _cache.SetStringAsync($"RefreshToken_{refreshToken}", userIdString, new DistributedCacheEntryOptions {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30)
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60)
         }, cts.Token);
 
         var userId = Guid.Parse(userIdString.Split('|')[0]);
