@@ -419,16 +419,18 @@ public class AuthService : IAuthService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return null;
 
-        // Global handshake cap: 5 seconds. 
-        // If they take longer, we return partial/stale data and let the frontend catch up.
-        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        // Global handshake cap: 8 seconds.
+        // If tasks take longer, return partial/stale data and let the frontend catch up.
+        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
         using var finalLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(globalCts.Token, ct);
         var globalToken = finalLinkedCts.Token;
 
-        // Ensure we have a fresh token first (Honoring the global 5s budget)
-        await _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, globalToken);
+        // [PERF] Fire the Bluesky token refresh in the background — don't await it before launching
+        // parallel tasks. Each sub-task calls GetOrRefreshBlueskyTokenAsync itself and will get
+        // the cached token (fast path) or wait a short time for the background refresh to complete.
+        _ = Task.Run(() => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false), globalToken);
 
-        // Execution of all metadata initialization tasks (Propagating token)
+        // Launch all metadata tasks in parallel immediately
         var profileTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId, globalToken);
         var feedsTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId, false, globalToken);
         var countTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId, globalToken);

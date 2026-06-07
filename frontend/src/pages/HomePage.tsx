@@ -70,9 +70,14 @@ const HomePage: React.FC = () => {
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
 
     const hasAnyData = subscribedFeeds.length > 0 || pinnedLists.length > 0 || (activeTab && feedPosts[activeTab]?.length > 0);
-    // Stay in loading state if auth is still working, or if we are authenticated but haven't even started fetching feeds/lists yet.
-    // We check lastSubscribedFeedsFetch === 0 to know if we've ever tried (even in past session).
-    const isInitialLoading = (feedsLoading || authLoading || isInitializing || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData;
+    // Show skeleton when:
+    // 1. Auth/feeds state is initializing for the first time (no prior data), OR
+    // 2. The active tab is currently loading with no posts (prevents "No posts" flash during handshake)
+    const isActiveTabLoading = !!feedLoading[activeTab] && (feedPosts[activeTab]?.length ?? 0) === 0;
+    const isInitialLoading = ((feedsLoading || authLoading || isInitializing || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData)
+        || (isInitializing && isActiveTabLoading)
+        || (!isSessionSettled && !hasAnyData && isAuthenticated);
+
 
     const isInitializingRef = React.useRef(false);
 
