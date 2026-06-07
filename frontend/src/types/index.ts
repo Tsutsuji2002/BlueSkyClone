@@ -427,6 +427,7 @@ export interface AuthState {
     isSessionSettled: boolean;
     isInitializing: boolean;
     isReverifying: boolean;
+    showSyncOverlay: boolean; // Controls the visible "Re-syncing session" overlay (silent syncs skip this)
     error: string | null;
     savedAccounts: any[]; // Using any[] to avoid circular dependency if StoredAccount was imported, but we'll use a local type in authSlice
 }

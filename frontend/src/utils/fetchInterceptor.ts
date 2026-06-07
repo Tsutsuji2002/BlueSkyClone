@@ -208,46 +208,30 @@ export const setupFetchInterceptor = () => {
         }
 
         // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:
-        if (isRefreshing && refreshPromise && !isRefreshRequest) {
-            const isReverifying = authState.isReverifying;
+        // Only queue requests when a real token refresh is in progress (not just a background re-sync check).
+        // Previously, we would skip non-essential requests during re-verification (returning 409), which caused
+        // feed pages to show "No posts yet" when navigating back. Now all requests proceed normally.
+        if (isRefreshing && refreshPromise && !isRefreshRequest && !authState.isReverifying) {
+            console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
+            try {
+                // Increased wait timeout to 40s to ensure we don't cancel before the refresh itself finishes
+                const refreshedResult = await Promise.race([
+                    refreshPromise,
+                    new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 40000))
+                ]);
 
-            // OPTIMISTIC RE-SYNC: 
-            if (isReverifying) {
-                const isCoreRecovery = url.includes('/auth/me') || url.includes('/auth/handshake') || isRefreshRequest;
-                
-                if (isCoreRecovery || isEssential || isMetadataRequest) {
-                    // Allow critical data during re-verification
-                } else {
-                    console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
-                    return new Response(JSON.stringify({ error: 'Skipped during re-verification' }), { 
-                        status: 409, 
+                if (!refreshedResult) {
+                    return new Response(JSON.stringify({ error: 'Auth refresh failed' }), { 
+                        status: 401, 
                         headers: { 'Content-Type': 'application/json' } 
                     });
                 }
-            } else {
-                console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
-                try {
-                    // Increased wait timeout to 40s to ensure we don't cancel before the refresh itself finishes
-                    const refreshedResult = await Promise.race([
-                        refreshPromise,
-                        new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 40000))
-                    ]);
-
-                    if (!refreshedResult) {
-                        return new Response(JSON.stringify({ error: 'Auth refresh failed' }), { 
-                            status: 401, 
-                            headers: { 'Content-Type': 'application/json' } 
-                        });
-                    }
-                    
-                    // Removed extra jittered staggers for non-essential requests as they caused "pending too long"
-                } catch (err) {
-                    console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
-                    return new Response(JSON.stringify({ error: 'Auth wait timeout' }), { 
-                        status: 408, 
-                        headers: { 'Content-Type': 'application/json' } 
-                    });
-                }
+            } catch (err) {
+                console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
+                return new Response(JSON.stringify({ error: 'Auth wait timeout' }), { 
+                    status: 408, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
             }
         }
 

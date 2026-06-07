@@ -112,6 +112,7 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
         isSessionSettled: false, 
         isInitializing: true, // [NEW] Blocking flag for first load
         isReverifying: false, // New flag for background re-verification
+        showSyncOverlay: false, // Controls whether the visible overlay appears
         error: null,
         savedAccounts,
     };
@@ -211,11 +212,19 @@ const authSlice = createSlice({
         },
         startBackgroundSync: (state) => {
             state.isReverifying = true;
+            state.showSyncOverlay = true;
             // Deliberately does NOT set isInitializing = true
             // so existing content remains visible and feeds continue loading
         },
+        startSilentBackgroundSync: (state) => {
+            // Like startBackgroundSync but WITHOUT showing the overlay.
+            // Used for tab-focus re-verification so feeds don't get blocked or wiped.
+            state.isReverifying = true;
+            state.showSyncOverlay = false;
+        },
         completeReverification: (state) => {
             state.isReverifying = false;
+            state.showSyncOverlay = false;
             state.isSessionSettled = true;
             state.isLoading = false;
             state.isInitializing = false;
@@ -250,5 +259,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus, startBackgroundSync, completeReverification } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } = authSlice.actions;
 export default authSlice.reducer;

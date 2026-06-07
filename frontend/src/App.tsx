@@ -23,7 +23,7 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { stopLoading, setAuth, logout, resetSessionStatus, startBackgroundSync, completeReverification } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } from './redux/slices/authSlice';
 import { setMutedWords, setMutedWordsInitialized, setHandshakeSettled } from './redux/slices/userSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetHandshakeQuery, authApi } from './redux/api/authApi';
@@ -79,6 +79,8 @@ const AppContent: React.FC = () => {
   const lastVisibilityCheckRef = React.useRef<number>(0);
   const lastHiddenTimeRef = React.useRef<number>(0);
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
+  const showSyncOverlay = useAppSelector((state: RootState) => state.auth.showSyncOverlay);
+
 
   React.useLayoutEffect(() => {
 
@@ -310,8 +312,8 @@ const AppContent: React.FC = () => {
         lastVisibilityCheckRef.current = now;
 
         if (isAuthenticated) {
-            console.log('[App] Tab visible: Re-syncing session (PARALLEL)...');
-            dispatch(startBackgroundSync());
+            console.log('[App] Tab visible: Re-syncing session (silent)...');
+            dispatch(startSilentBackgroundSync());
             
             // Fire re-verification and data refreshes in parallel!
             // Handshake will fetch profile, settings, and pins in one go.
@@ -370,7 +372,7 @@ const AppContent: React.FC = () => {
       <AddToListModal />
       <MutedWordsModal />
       {/* Re-verification Overlay (Non-blocking) */}
-      {isReverifying && (
+      {isReverifying && showSyncOverlay && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center pt-16 bg-white/5 dark:bg-black/5 backdrop-blur-[1px] animate-in fade-in duration-300 pointer-events-none">
             <div className="bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md px-4 py-2 rounded-full border border-gray-200 dark:border-dark-border shadow-xl flex items-center gap-3">
                 <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
