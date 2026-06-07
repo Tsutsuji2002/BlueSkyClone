@@ -159,6 +159,8 @@ export const setupFetchInterceptor = () => {
         const isHandshakeRequest = url.includes('/auth/handshake');
         const isVerifyDomainRequest = url.includes('/auth/verify-domain');
         const isSignalRRequest = url.includes('/negotiate');
+        // Metadata requests are cheap and help the UI feel alive during init
+        const isMetadataRequest = url.includes('/status') || url.includes('/viewer-state') || url.includes('/presence');
 
         const isEssential = url.includes('/posts/') || url.includes('/profile/') || url.includes('/timeline') || 
                             url.includes('/unified-feed') || url.includes('/notification.listNotifications') ||
@@ -168,11 +170,11 @@ export const setupFetchInterceptor = () => {
 
         // INITIALIZATION FLOODGATE (First Load Protection):
         // Hold all requests until the first session verification (isInitializing) is complete.
-        // This prevents parallel "me" and "refresh" calls from clogging the backend during startup.
         const state = store.getState();
         const authState = state.auth as any;
 
-        const isInitExempt = isRefreshRequest || url.includes('/auth/me') || isLoginRequest || isHandshakeRequest || isVerifyDomainRequest || isSignalRRequest;
+        const isInitExempt = isRefreshRequest || url.includes('/auth/me') || isLoginRequest || isHandshakeRequest || 
+                             isVerifyDomainRequest || isSignalRRequest || isMetadataRequest;
 
         if (authState.isInitializing && !isInitExempt) {
             console.log(`[FetchInterceptor] INITIALIZING: Buffering request until session is verified: ${url}`);
@@ -199,11 +201,10 @@ export const setupFetchInterceptor = () => {
                 });
             }
 
-            // Stagger released requests to prevent connection pool exhaustion and "thundering herd" congestion.
-            // Small random jitter (50-200ms) ensures requests hit the server in waves rather than a single spike.
-            const floodgateStagger = Math.floor(Math.random() * 150) + 50; 
+            // Stagger released requests to prevent connection pool exhaustion.
+            // Reduced stagger for better perceived performance.
+            const floodgateStagger = Math.floor(Math.random() * 50) + 10; 
             await new Promise(resolve => setTimeout(resolve, floodgateStagger));
-            console.log(`[FetchInterceptor] Releasing initialized request with ${floodgateStagger}ms stagger: ${url}`);
         }
 
         // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:
@@ -211,16 +212,12 @@ export const setupFetchInterceptor = () => {
             const isReverifying = authState.isReverifying;
 
             // OPTIMISTIC RE-SYNC: 
-            // - If it's a re-verification (background check), highly prioritize /me and /refresh.
-            // - Other essential requests (like feed hydration) are allowed but with caution.
             if (isReverifying) {
                 const isCoreRecovery = url.includes('/auth/me') || url.includes('/auth/handshake') || isRefreshRequest;
                 
-                if (isCoreRecovery || isEssential) {
-                    console.log(`[FetchInterceptor] CRITICAL: Allowing essential request during re-verification: ${url}`);
-                    // Proceed to nativeFetch
+                if (isCoreRecovery || isEssential || isMetadataRequest) {
+                    // Allow critical data during re-verification
                 } else {
-                    // Strictly skip non-essential requests during re-verification to save connections
                     console.log(`[FetchInterceptor] Skipping background request during re-verification: ${url}`);
                     return new Response(JSON.stringify({ error: 'Skipped during re-verification' }), { 
                         status: 409, 
@@ -228,27 +225,22 @@ export const setupFetchInterceptor = () => {
                     });
                 }
             } else {
-
                 console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
                 try {
+                    // Increased wait timeout to 40s to ensure we don't cancel before the refresh itself finishes
                     const refreshedResult = await Promise.race([
                         refreshPromise,
-                        new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 25000))
+                        new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('Refresh wait timeout')), 40000))
                     ]);
 
                     if (!refreshedResult) {
-                        console.warn(`[FetchInterceptor] Refresh failed for queued request: ${url}`);
                         return new Response(JSON.stringify({ error: 'Auth refresh failed' }), { 
                             status: 401, 
                             headers: { 'Content-Type': 'application/json' } 
                         });
                     }
                     
-                    // Add a small jittered stagger for background requests to prevent a "thundering herd"
-                    if (!isEssential) {
-                        const staggerDelay = Math.floor(Math.random() * 1500) + 500; // 500ms-2000ms
-                        await new Promise(resolve => setTimeout(resolve, staggerDelay));
-                    }
+                    // Removed extra jittered staggers for non-essential requests as they caused "pending too long"
                 } catch (err) {
                     console.warn(`[FetchInterceptor] Request wait for refresh failed or timed out: ${url}`);
                     return new Response(JSON.stringify({ error: 'Auth wait timeout' }), { 
