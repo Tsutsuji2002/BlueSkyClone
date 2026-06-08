@@ -428,14 +428,37 @@ public class AuthService : IAuthService
         // [PERF] Fire the Bluesky token refresh in the background — don't await it before launching
         // parallel tasks. Each sub-task calls GetOrRefreshBlueskyTokenAsync itself and will get
         // the cached token (fast path) or wait a short time for the background refresh to complete.
-        _ = Task.Run(() => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false), globalToken);
+        _ = Task.Run(async () => {
+            using var scope = _scopeFactory.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false);
+        }, globalToken);
 
         // Launch all metadata tasks in parallel immediately
-        var profileTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId, globalToken);
-        var feedsTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId, false, globalToken);
-        var countTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId, globalToken);
-        var trendingTask = Task.Run(() => _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData(), globalToken);
-        var mutedWordsTask = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId, globalToken);
+        // Each sub-task gets its own disposed scope to prevent DB connection pool exhaustion.
+        var profileTask = Task.Run(async () => {
+             using var scope = _scopeFactory.CreateScope();
+             return await scope.ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId, globalToken);
+        }, globalToken);
+
+        var feedsTask = Task.Run(async () => {
+             using var scope = _scopeFactory.CreateScope();
+             return await scope.ServiceProvider.GetRequiredService<IFeedService>().GetUserFeedsAsync(userId, false, globalToken);
+        }, globalToken);
+
+        var countTask = Task.Run(async () => {
+             using var scope = _scopeFactory.CreateScope();
+             return await scope.ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId, globalToken);
+        }, globalToken);
+
+        var trendingTask = Task.Run(() => {
+             using var scope = _scopeFactory.CreateScope();
+             return scope.ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
+        }, globalToken);
+
+        var mutedWordsTask = Task.Run(async () => {
+             using var scope = _scopeFactory.CreateScope();
+             return await scope.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId, globalToken);
+        }, globalToken);
 
         try {
             await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);

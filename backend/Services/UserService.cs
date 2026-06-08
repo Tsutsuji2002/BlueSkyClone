@@ -3175,13 +3175,17 @@ public class UserService : IUserService
         {
             try
             {
-                var cacheKey = $"BlueskyToken_LastBackgroundRefresh_{userId}";
-                if (!string.IsNullOrEmpty(await _distributedCache.GetStringAsync(cacheKey))) return;
+                using var scope = _scopeFactory.CreateScope();
+                var distributedCache = scope.ServiceProvider.GetRequiredService<IDistributedCache>();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
 
-                await GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                var cacheKey = $"BlueskyToken_LastBackgroundRefresh_{userId}";
+                if (!string.IsNullOrEmpty(await distributedCache.GetStringAsync(cacheKey))) return;
+
+                await userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
                 
                 // Don't spam background refreshes; once every hour is plenty for proactive sync
-                await _distributedCache.SetStringAsync(cacheKey, "synced", new DistributedCacheEntryOptions 
+                await distributedCache.SetStringAsync(cacheKey, "synced", new DistributedCacheEntryOptions 
                 { 
                     AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) 
                 });
@@ -3322,8 +3326,14 @@ public class UserService : IUserService
                 await _unitOfWork.Users.AddAsync(sender);
                 await _unitOfWork.CompleteAsync();
                 
-                // Proactively resolve profile
-                _ = Task.Run(async () => await ResolveRemoteProfileAsync(followerDid));
+                // Proactively resolve profile with its own scope
+                _ = Task.Run(async () => {
+                    try {
+                        using var scope = _scopeFactory.CreateScope();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        await userService.ResolveRemoteProfileAsync(followerDid);
+                    } catch { }
+                });
             }
 
             if (sender.Id == recipient.Id) return;
