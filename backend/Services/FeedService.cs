@@ -1542,9 +1542,13 @@ public class FeedService : IFeedService
 
             if (rawResult == null) return new PagedPostDto();
 
-            // Enrich and Paginate
-            var enriched = await _postService.EnrichAndFilterPostsAsync(rawResult.Posts.ToList(), userId ?? Guid.Empty, token);
-            var paginatedPosts = string.IsNullOrEmpty(cursor) ? enriched.Skip(skip).Take(take).ToList() : enriched.Take(take).ToList();
+            // [OPTIMIZATION] Greedy Windowed Enrichment: only enrich what we are likely to return
+            var windowStart = string.IsNullOrEmpty(cursor) ? skip : 0;
+            var windowSize = take + 6; // buffer for filtering
+            var postsToEnrich = rawResult.Posts.Skip(windowStart).Take(windowSize).ToList();
+
+            var enriched = await _postService.EnrichAndFilterPostsAsync(postsToEnrich, userId ?? Guid.Empty, token);
+            var paginatedPosts = enriched.Take(take).ToList();
             var finalResult = new PagedPostDto { Posts = paginatedPosts, Cursor = rawResult.Cursor };
 
             // Cache the final enriched result for 90s (initial page)
