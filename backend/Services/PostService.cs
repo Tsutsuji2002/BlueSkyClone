@@ -1379,7 +1379,8 @@ public class PostService : IPostService
                         // We already have batch fetch in phase 1 (remoteInteractionCache), 
                         // so here we just trigger the ingestion for each stub
                         // but we do it more efficiently by passing the cached interaction if available.
-                        foreach (var uri in stubPosts)
+                        // [FIX] Parallelize post stub resolution. Previously sequential 'foreach' was causing 10s+ latency.
+                        var stubIngestionTasks = stubPosts.Select(async uri =>
                         {
                             try {
                                 var ingestedPost = await scopedPostService.IngestRemotePostAsync(uri);
@@ -1387,7 +1388,8 @@ public class PostService : IPostService
                                     resolvedPosts[uri] = MapToDto(ingestedPost);
                                 }
                             } catch {}
-                        }
+                        });
+                        await Task.WhenAll(stubIngestionTasks);
                     } finally {
                         _resolutionSemaphore.Release();
                     }
