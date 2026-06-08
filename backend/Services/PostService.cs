@@ -1113,139 +1113,121 @@ public class PostService : IPostService
             }
 
             // [PERFORMANCE] Parallelize ALL DB interaction and moderation lookups (approx 20 queries)
-            // Use concrete intermediate types to avoid anonymous type / dynamic mismatches
-            // [FIX] EF Core DbContext is NOT thread-safe. We cannot run multiple queries in parallel on the same context.
-            // We must await these sequentially or use separate scopes. Sequential is safer here.
-            var usersFollowingViewerIds = viewerId != Guid.Empty
-                ? await _unitOfWork.Follows.Query()
-                    .Where(f => f.FollowingId == viewerId)
-                    .Select(f => f.FollowerId)
-                    .ToListAsync(ctsTotal.Token)
-                : new List<Guid>();
+            // We use separate scopes because EF Core DbContext is not thread-safe.
+            
+            async Task<T> RunInParallel<T>(Func<IUnitOfWork, CancellationToken, Task<T>> queryFunc)
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                return await queryFunc(uow, ctsTotal.Token);
+            }
 
-            var likedItems = viewerId != Guid.Empty
-                ? await _unitOfWork.Likes.Query()
-                    .Where(l => l.UserId == viewerId && (
-                        postIdsList.Contains(l.PostId) ||
-                        (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri)) ||
-                        (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid))
-                    ))
+            var followersTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Follows.Query().Where(f => f.FollowingId == viewerId).Select(f => f.FollowerId).ToListAsync(ct))
+                : Task.FromResult(new List<Guid>());
+
+            var likedItemsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Likes.Query()
+                    .Where(l => l.UserId == viewerId && (postIdsList.Contains(l.PostId) || (l.Post != null && l.Post.Uri != null && postUrisList.Contains(l.Post.Uri)) || (l.Post != null && l.Post.Tid != null && postRkeysList.Contains(l.Post.Tid))))
                     .Select(l => new PostInteractionItem { PostId = l.PostId, Uri = l.Post!.Uri, SubjectTid = l.Post!.Tid, InteractionUri = l.Uri ?? "" })
-                    .ToListAsync(ctsTotal.Token)
-                : new List<PostInteractionItem>();
+                    .ToListAsync(ct))
+                : Task.FromResult(new List<PostInteractionItem>());
 
-            var repostItems = viewerId != Guid.Empty
-                ? await _unitOfWork.Reposts.Query()
-                    .Where(r => r.UserId == viewerId && (
-                        postIdsList.Contains(r.PostId) ||
-                        (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri)) ||
-                        (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid))
-                    ))
+            var repostItemsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Reposts.Query()
+                    .Where(r => r.UserId == viewerId && (postIdsList.Contains(r.PostId) || (r.Post != null && r.Post.Uri != null && postUrisList.Contains(r.Post.Uri)) || (r.Post != null && r.Post.Tid != null && postRkeysList.Contains(r.Post.Tid))))
                     .Select(r => new PostInteractionItem { PostId = r.PostId, Uri = r.Post!.Uri, SubjectTid = r.Post!.Tid, InteractionUri = r.Uri ?? "" })
-                    .ToListAsync(ctsTotal.Token)
-                : new List<PostInteractionItem>();
+                    .ToListAsync(ct))
+                : Task.FromResult(new List<PostInteractionItem>());
 
-            var followingUris = viewerId != Guid.Empty
-                ? await _unitOfWork.Follows.Query()
-                    .Where(f => f.FollowerId == viewerId)
-                    .ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "", ctsTotal.Token)
-                : new Dictionary<Guid, string>();
+            var followingUrisTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Follows.Query().Where(f => f.FollowerId == viewerId).ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? "", ct))
+                : Task.FromResult(new Dictionary<Guid, string>());
 
-            var followList = viewerId != Guid.Empty
-                ? await _unitOfWork.Follows.Query()
+            var followListTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Follows.Query()
                     .Where(f => f.FollowerId == viewerId)
-                    .Join(_unitOfWork.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => new DidUriItem { Did = u.Did, Uri = f.Uri })
+                    .Join(uow.Users.Query(), f => f.FollowingId, u => u.Id, (f, u) => new DidUriItem { Did = u.Did, Uri = f.Uri })
                     .Where(x => !string.IsNullOrEmpty(x.Did))
-                    .ToListAsync(ctsTotal.Token)
-                : new List<DidUriItem>();
+                    .ToListAsync(ct))
+                : Task.FromResult(new List<DidUriItem>());
 
-            var mutedWords = viewerId != Guid.Empty
-                ? await _unitOfWork.MutedWords.Query()
-                    .Where(w => w.UserId == viewerId)
-                    .ToListAsync(ctsTotal.Token)
-                : new List<MutedWord>();
+            var mutedWordsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.MutedWords.Query().Where(w => w.UserId == viewerId).ToListAsync(ct))
+                : Task.FromResult(new List<MutedWord>());
 
-            var mutedAccounts = viewerId != Guid.Empty
-                ? await _unitOfWork.Mutes.GetMutedAccountsAsync(viewerId)
-                : new List<MutedAccount>();
+            var mutedAccountsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Mutes.GetMutedAccountsAsync(viewerId))
+                : Task.FromResult(new List<MutedAccount>());
 
-            var blockedUserIds = viewerId != Guid.Empty
-                ? await _unitOfWork.Blocks.GetBlockedUserIdsAsync(viewerId)
-                : new List<Guid>();
+            var blockedUserIdsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Blocks.GetBlockedUserIdsAsync(viewerId))
+                : Task.FromResult(new List<Guid>());
 
-            var blockedByUserIds = viewerId != Guid.Empty
-                ? await _unitOfWork.Blocks.Query()
-                    .Where(b => b.BlockedUserId == viewerId)
-                    .Select(b => b.UserId)
-                    .ToListAsync(ctsTotal.Token)
-                : new List<Guid>();
+            var blockedByUserIdsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync(ct))
+                : Task.FromResult(new List<Guid>());
 
-            var subscribedModListIdRows = viewerId != Guid.Empty
-                ? await _unitOfWork.UserListSubscriptions.Query()
+            var subModListsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.UserListSubscriptions.Query()
                     .Where(uls => uls.UserId == viewerId)
-                    .Join(_unitOfWork.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
+                    .Join(uow.Lists.Query(), uls => uls.ListId, l => l.Id, (uls, l) => new { l.Id, l.Purpose })
                     .Where(x => x.Purpose == "app.bsky.graph.defs#modlist" || x.Purpose == "mod")
                     .Select(x => x.Id)
-                    .ToListAsync(ctsTotal.Token)
-                : new List<Guid>();
+                    .ToListAsync(ct))
+                : Task.FromResult(new List<Guid>());
 
-            var queryResultBookmarks = viewerId != Guid.Empty
-                ? await _unitOfWork.Bookmarks.Query()
-                    .Where(b => b.UserId == viewerId)
-                    .Select(b => new BookmarkItem { PostId = b.PostId, Tid = b.Tid, Uri = b.Post!.Uri })
-                    .ToListAsync(ctsTotal.Token)
-                : new List<BookmarkItem>();
+            var bookmarksTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Bookmarks.Query().Where(b => b.UserId == viewerId).Select(b => new BookmarkItem { PostId = b.PostId, Tid = b.Tid, Uri = b.Post!.Uri }).ToListAsync(ct))
+                : Task.FromResult(new List<BookmarkItem>());
 
-            var blockingUris = viewerId != Guid.Empty
-                ? await _unitOfWork.Blocks.Query()
-                    .Where(b => b.UserId == viewerId)
-                    .ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}", ctsTotal.Token)
-                : new Dictionary<Guid, string>();
+            var blockingUrisTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.Blocks.Query().Where(b => b.UserId == viewerId).ToDictionaryAsync(b => b.BlockedUserId, b => $"at://local/app.bsky.graph.block/{b.BlockedUserId}", ct))
+                : Task.FromResult(new Dictionary<Guid, string>());
 
-            var viewerUser = viewerId != Guid.Empty 
-                ? await _unitOfWork.Users.GetByIdAsync(viewerId) 
-                : (User?)null;
+            var viewerUserTask = viewerId != Guid.Empty 
+                ? RunInParallel((uow, ct) => uow.Users.GetByIdAsync(viewerId)) 
+                : Task.FromResult((User?)null);
 
-            var localLikesCounts = await _unitOfWork.Likes.Query()
-                .Where(l => postIdsList.Contains(l.PostId))
-                .GroupBy(l => l.PostId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count, ctsTotal.Token);
+            var localLikesCountsTask = RunInParallel((uow, ct) => uow.Likes.Query().Where(l => postIdsList.Contains(l.PostId)).GroupBy(l => l.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct));
+            var localRepostsCountsTask = RunInParallel((uow, ct) => uow.Reposts.Query().Where(r => postIdsList.Contains(r.PostId)).GroupBy(r => r.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct));
+            var localBookmarksCountsTask = RunInParallel((uow, ct) => uow.Bookmarks.Query().Where(b => postIdsList.Contains(b.PostId)).GroupBy(b => b.PostId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count, ct));
+            var localRepliesCountsTask = RunInParallel((uow, ct) => uow.Posts.Query().Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value)).GroupBy(p => p.ReplyToPostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct));
+            var localQuotesCountsTask = RunInParallel((uow, ct) => uow.Posts.Query().Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value)).GroupBy(p => p.QuotePostId).Select(g => new { Id = g.Key!.Value, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct));
+            var localBookmarksCountsByUriTask = RunInParallel((uow, ct) => uow.Bookmarks.Query().Where(b => b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri)).GroupBy(b => b.Post.Uri!).Select(g => new { Uri = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Uri, x => x.Count, ct));
 
-            var localRepostsCounts = await _unitOfWork.Reposts.Query()
-                .Where(r => postIdsList.Contains(r.PostId))
-                .GroupBy(r => r.PostId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count, ctsTotal.Token);
+            var userSettingsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.UserSettings.Query().FirstOrDefaultAsync(s => s.UserId == viewerId, ct))
+                : Task.FromResult((UserSetting?)null);
 
-            var localBookmarksCounts = await _unitOfWork.Bookmarks.Query()
-                .Where(b => postIdsList.Contains(b.PostId))
-                .GroupBy(b => b.PostId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count, ctsTotal.Token);
+            await Task.WhenAll(
+                followersTask, likedItemsTask, repostItemsTask, followingUrisTask, followListTask, 
+                mutedWordsTask, mutedAccountsTask, blockedUserIdsTask, blockedByUserIdsTask, 
+                subModListsTask, bookmarksTask, blockingUrisTask, viewerUserTask,
+                localLikesCountsTask, localRepostsCountsTask, localBookmarksCountsTask, 
+                localRepliesCountsTask, localQuotesCountsTask, localBookmarksCountsByUriTask, userSettingsTask
+            );
 
-            var localRepliesCounts = await _unitOfWork.Posts.Query()
-                .Where(p => p.ReplyToPostId != null && postIdsList.Contains(p.ReplyToPostId.Value))
-                .GroupBy(p => p.ReplyToPostId)
-                .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Id, x => x.Count, ctsTotal.Token);
-
-            var localQuotesCounts = await _unitOfWork.Posts.Query()
-                .Where(p => p.QuotePostId != null && postIdsList.Contains(p.QuotePostId.Value))
-                .GroupBy(p => p.QuotePostId)
-                .Select(g => new { Id = g.Key!.Value, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Id, x => x.Count, ctsTotal.Token);
-
-            var localBookmarksCountsByUriResult = await _unitOfWork.Bookmarks.Query()
-                .Where(b => b.Post != null && b.Post.Uri != null && postUrisList.Contains(b.Post.Uri))
-                .GroupBy(b => b.Post.Uri!)
-                .Select(g => new { Uri = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Uri, x => x.Count, ctsTotal.Token);
-
-            var userSettings = viewerId != Guid.Empty
-                ? await _unitOfWork.UserSettings.Query()
-                    .FirstOrDefaultAsync(s => s.UserId == viewerId, ctsTotal.Token)
-                : (UserSetting?)null;
+            var usersFollowingViewerIds = await followersTask;
+            var likedItems = await likedItemsTask;
+            var repostItems = await repostItemsTask;
+            var followingUris = await followingUrisTask;
+            var followList = await followListTask;
+            var mutedWords = await mutedWordsTask;
+            var mutedAccounts = await mutedAccountsTask;
+            var blockedUserIds = await blockedUserIdsTask;
+            var blockedByUserIds = await blockedByUserIdsTask;
+            var subscribedModListIdRows = await subModListsTask;
+            var queryResultBookmarks = await bookmarksTask;
+            var blockingUris = await blockingUrisTask;
+            var viewerUser = await viewerUserTask;
+            var localLikesCounts = await localLikesCountsTask;
+            var localRepostsCounts = await localRepostsCountsTask;
+            var localBookmarksCounts = await localBookmarksCountsTask;
+            var localRepliesCounts = await localRepliesCountsTask;
+            var localQuotesCounts = await localQuotesCountsTask;
+            var localBookmarksCountsByUriResult = await localBookmarksCountsByUriTask;
+            var userSettings = await userSettingsTask;
 
             var localBookmarksCountsByUri = localBookmarksCountsByUriResult.ToDictionary(x => x.Key.ToLowerInvariant(), x => x.Value);
 
@@ -3865,32 +3847,40 @@ public class PostService : IPostService
             bool success = false;
             string contentData = "";
 
-            // Try Public AppView first for global stats
-            try
+            // [OPTIMIZATION] Parallelize Public vs Private AppView fetch to avoid sequential timeouts
+            // We race them but prioritize the result from whoever finishes first with success.
+            async Task<(bool, string)> FetchPublicAsync()
             {
-                using var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(canonicalUri)}&depth=0", cts.Token);
-                if (response.IsSuccessStatusCode)
-                {
-                    contentData = await response.Content.ReadAsStringAsync();
-                    success = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogInformation("[IngestRemotePostAsync] Public API Exception for {Uri}: {Msg}", canonicalUri, ex.Message);
+                try {
+                    using var client = _httpClientFactory.CreateClient();
+                    client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3)); // Aggressive 3s timeout
+                    var resp = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(canonicalUri)}&depth=0", cts.Token);
+                    if (resp.IsSuccessStatusCode) return (true, await resp.Content.ReadAsStringAsync());
+                } catch {}
+                return (false, "");
             }
 
-            if (!success)
+            async Task<(bool, string)> FetchProxyAsync()
             {
-                var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { { "uri", canonicalUri }, { "depth", "0" } };
-                var proxyResult = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", new QueryCollection(qDict));
-                if (proxyResult.Success)
-                {
-                    contentData = proxyResult.Content;
+                try {
+                    var qDict = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues> { { "uri", canonicalUri }, { "depth", "0" } };
+                    var res = await _xrpcProxy.ProxyRequestAsync(author.Did, "app.bsky.feed.getPostThread", new QueryCollection(qDict));
+                    if (res.Success) return (true, res.Content);
+                } catch {}
+                return (false, "");
+            }
+
+            var fetchTasks = new List<Task<(bool, string)>> { FetchPublicAsync(), FetchProxyAsync() };
+            while (fetchTasks.Any())
+            {
+                var finished = await Task.WhenAny(fetchTasks);
+                fetchTasks.Remove(finished);
+                var (ok, data) = await finished;
+                if (ok) {
+                    contentData = data;
                     success = true;
+                    break;
                 }
             }
 
@@ -3937,20 +3927,17 @@ public class PostService : IPostService
                 return existing;
             }
 
-            // 4.1 Ensure author is persisted to DB before inserting post to avoid race condition with UserService background persist
+            // 4.1 Check Author Existence (Non-blocking)
+            // [OPTIMIZATION] Avoid the 5s loop. We have the transient author object from ResolveRemoteProfileAsync.
+            // If it's not in the DB yet, we skip the loop and proceed—EF will handle the transient insert if needed,
+            // or we can rely on deterministic GUID logic.
             var dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
-            int retries = 0;
-            while (dbAuthor == null && retries < 50) // Wait up to 5 seconds
-            {
-                await Task.Delay(100);
-                dbAuthor = await _unitOfWork.Users.GetByIdAsync(author.Id);
-                retries++;
-            }
-            
             if (dbAuthor == null)
             {
-                _logger.LogWarning("[IngestRemotePostAsync] Author {Did} not persisted in time by UserService. Aborting ingestion.", author.Did);
-                return null;
+                // [CRITICAL] If author is missing from DB but we have the transient info, 
+                // it means Task.Run in ResolveRemoteProfile hasn't finished.
+                // We don't wait 5s. We just use the 'author' object we have.
+                _logger.LogInformation("[IngestRemotePostAsync] Author {Did} pending DB persistence. Proceeding with transient object.", author.Did);
             }
 
             // 5. Create new entry
