@@ -156,7 +156,8 @@ public class PostService : IPostService
                 }
                 else
                 {
-                    var queryArgs = new Dictionary<string, string?> { { "limit", "50" } };
+                    var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(skip + take + 10, 30, 100) : Math.Max(take + 10, 30);
+                    var queryArgs = new Dictionary<string, string?> { { "limit", fetchLimit.ToString() } };
                     if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
 
                     var result = await _xrpcProxy.ProxyRequestAsync(
@@ -208,7 +209,7 @@ public class PostService : IPostService
             // [OPTIMIZATION] Greedy Windowed Enrichment: only enrich what we are likely to return 
             // We take a larger buffer (Take + 4) to account for potential mutes/filters.
             var windowStart = string.IsNullOrEmpty(cursor) ? skip : 0;
-            var windowSize = take + 6; // buffer for filtering
+            var windowSize = take + 30; // [FIX] Larger buffer to ensure we don't return fewer than 'take' unless truly at end.
             var postsToEnrich = resultDto.Posts.Skip(windowStart).Take(windowSize).ToList();
 
             var enriched = userId != Guid.Empty 

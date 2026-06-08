@@ -1503,7 +1503,7 @@ public class FeedService : IFeedService
                     httpClient.DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-                var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip, Math.Max(take, 1), 100) : take;
+                var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip + 10, 30, 100) : Math.Max(take + 10, 30);
                 
                 foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
                 {
@@ -1544,7 +1544,7 @@ public class FeedService : IFeedService
 
             // [OPTIMIZATION] Greedy Windowed Enrichment: only enrich what we are likely to return
             var windowStart = string.IsNullOrEmpty(cursor) ? skip : 0;
-            var windowSize = take + 6; // buffer for filtering
+            var windowSize = take + 30; // [FIX] Larger buffer for filtering
             var postsToEnrich = rawResult.Posts.Skip(windowStart).Take(windowSize).ToList();
 
             var enriched = await _postService.EnrichAndFilterPostsAsync(postsToEnrich, userId ?? Guid.Empty, token);

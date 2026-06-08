@@ -27,7 +27,7 @@ const HomePage: React.FC = () => {
     const navType = useNavigationType();
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedLastFetch, lastSubscribedFeedsFetch } = useAppSelector((state: RootState) => state.feeds);
+    const { subscribedFeeds, activeTab, feedPosts, isLoading: feedsLoading, feedLoading, feedHasMore, feedCursors, feedLastFetch, lastSubscribedFeedsFetch } = useAppSelector((state: RootState) => state.feeds);
     const { isAuthenticated, user, isLoading: authLoading, isSessionSettled, isReverifying, isInitializing } = useAppSelector((state: RootState) => state.auth);
 
     const [visitedTabs, setVisitedTabs] = React.useState<Set<string>>(new Set([activeTab]));
@@ -166,7 +166,8 @@ const HomePage: React.FC = () => {
         } else {
             const currentFeedPosts = feedPosts[activeTab] || [];
             const dynamicTake = getDynamicBatchSize(250);
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake }));
+            const cursor = feedCursors[activeTab];
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor }));
         }
     };
 
