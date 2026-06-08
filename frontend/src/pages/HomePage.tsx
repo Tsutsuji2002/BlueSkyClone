@@ -69,14 +69,16 @@ const HomePage: React.FC = () => {
     // Lists state
     const { pinnedLists, activeListFeed, isLoading: listsLoading } = useAppSelector((state: RootState) => state.lists);
 
-    const hasAnyData = subscribedFeeds.length > 0 || pinnedLists.length > 0 || (activeTab && feedPosts[activeTab]?.length > 0);
+    const hasMetadata = subscribedFeeds.length > 0 || pinnedLists.length > 0;
+    const hasActivePosts = (activeTab && feedPosts[activeTab]?.length > 0);
+    const hasAnyData = hasMetadata || hasActivePosts;
+    
     // Show skeleton when:
-    // 1. Auth/feeds state is initializing for the first time (no prior data), OR
-    // 2. The active tab is currently loading with no posts (prevents "No posts" flash during handshake)
-    const isActiveTabLoading = !!feedLoading[activeTab] && (feedPosts[activeTab]?.length ?? 0) === 0;
-    const isInitialLoading = ((feedsLoading || authLoading || isInitializing || (isAuthenticated && subscribedFeeds.length === 0 && lastSubscribedFeedsFetch === 0)) && !hasAnyData)
-        || (isInitializing && isActiveTabLoading)
-        || (!isSessionSettled && !hasAnyData && isAuthenticated);
+    // 1. Initial auth/feeds fetch is flying (no prior data)
+    // 2. Active tab content is missing AND either we're not settled (handshake pending) OR actively loading
+    const isActiveTabLoading = !!feedLoading[activeTab] || !isSessionSettled;
+    const isInitialLoading = ((feedsLoading || authLoading || isInitializing) && !hasAnyData)
+        || (isAuthenticated && !hasActivePosts && isActiveTabLoading);
 
 
     const isInitializingRef = React.useRef(false);

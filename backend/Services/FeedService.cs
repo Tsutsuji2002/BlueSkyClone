@@ -1469,76 +1469,93 @@ public class FeedService : IFeedService
     {
         try
         {
-            // Resolve handles in ATURI to DIDs if possible
-            var resolvedUri = await ResolveAtUriAsync(uri, ct);
+            // [PERF] Cache the fully enriched result for 90s to avoid DB hits and network calls.
+            var cacheKeyEnriched = $"RemoteFeedPostsEnriched_{uri}_{userId}_{skip}_{take}_{cursor ?? "root"}";
+            var cachedEnriched = await _cache.GetStringAsync(cacheKeyEnriched, ct);
+            if (!string.IsNullOrEmpty(cachedEnriched))
+            {
+                try { return JsonSerializer.Deserialize<PagedPostDto>(cachedEnriched)!; } catch { }
+            }
 
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+            // [PERF] Cache the raw fetch result for 2 minutes to avoid hammering Bluesky AppView.
+            var cacheKeyRaw = $"RemoteFeedPostsRaw_{uri}_{cursor ?? "root"}";
+            PagedPostDto? rawResult = null;
+            var cachedRaw = await _cache.GetStringAsync(cacheKeyRaw, ct);
+            if (!string.IsNullOrEmpty(cachedRaw))
+            {
+                try { rawResult = JsonSerializer.Deserialize<PagedPostDto>(cachedRaw); } catch { }
+            }
 
             string? token = null;
             if (userId.HasValue)
             {
                 token = await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value, false, ct);
+            }
+
+            if (rawResult == null)
+            {
+                // Resolve handles in ATURI to DIDs if possible
+                var resolvedUri = await ResolveAtUriAsync(uri, ct);
+
+                using var httpClient = _httpClientFactory.CreateClient();
+                httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
                 if (!string.IsNullOrEmpty(token))
                     httpClient.DefaultRequestHeaders.Authorization =
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip, Math.Max(take, 1), 100) : take;
+                
+                foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
+                {
+                    try
+                    {
+                        var url = $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
+                        if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
+                        var response = await httpClient.GetAsync(url, linkedCts.Token);
+
+                        if (!response.IsSuccessStatusCode) continue;
+
+                        var content = await response.Content.ReadAsStringAsync(cts.Token);
+                        using var doc = JsonDocument.Parse(content);
+                        if (!doc.RootElement.TryGetProperty("feed", out var feedArray))
+                            continue;
+
+                        var posts = _postService.MapBlueskyFeed(feedArray);
+                        var outCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+
+                        if (posts.Count > 0)
+                        {
+                            rawResult = new PagedPostDto { Posts = posts, Cursor = outCursor };
+                            
+                            // Cache raw result for 2 minutes
+                            await _cache.SetStringAsync(cacheKeyRaw, JsonSerializer.Serialize(rawResult), 
+                                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, ct);
+                            break;
+                        }
+                    }
+                    catch { /* Try next host */ }
+                }
             }
 
-            var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip, Math.Max(take, 1), 100) : take;
-            List<PostDto>? fallback = null;
-            string? fallbackCursor = null;
+            if (rawResult == null) return new PagedPostDto();
 
-            foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
+            // Enrich and Paginate
+            var enriched = await _postService.EnrichAndFilterPostsAsync(rawResult.Posts.ToList(), userId ?? Guid.Empty, token);
+            var paginatedPosts = string.IsNullOrEmpty(cursor) ? enriched.Skip(skip).Take(take).ToList() : enriched.Take(take).ToList();
+            var finalResult = new PagedPostDto { Posts = paginatedPosts, Cursor = rawResult.Cursor };
+
+            // Cache the final enriched result for 90s (initial page)
+            if (paginatedPosts.Any())
             {
-                try
-                {
-                    var url = $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
-                    if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
-
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
-                    var response = await httpClient.GetAsync(url, linkedCts.Token);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        _logger.LogWarning("[FeedService] getFeed {Status} on {Host} for {Uri}", response.StatusCode, host, uri);
-                        continue;
-                    }
-
-                    var content = await response.Content.ReadAsStringAsync(cts.Token);
-                    using var doc = JsonDocument.Parse(content);
-                    if (!doc.RootElement.TryGetProperty("feed", out var feedArray))
-                        continue;
-
-                    var posts = _postService.MapBlueskyFeed(feedArray);
-                    var outCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
-
-                    if (posts.Count > 0)
-                    {
-                        _logger.LogInformation("[FeedService] getFeed returned {Count} posts from {Host} for {Uri}", posts.Count, host, uri);
-                        
-                        // If we have a cursor, we don't skip (cursor handles pagination)
-                        // If we don't have a cursor, we skip for offset-based pagination
-                        var enriched = await _postService.EnrichAndFilterPostsAsync(posts, userId ?? Guid.Empty, token);
-                        var paginatedPosts = string.IsNullOrEmpty(cursor) ? enriched.Skip(skip).Take(take).ToList() : enriched.Take(take).ToList();
-                        return new PagedPostDto { Posts = paginatedPosts, Cursor = outCursor };
-                    }
-                    else
-                    {
-                        fallbackCursor = outCursor;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "[FeedService] getFeed error on {Host} for {Uri}", host, uri);
-                }
+                var ttl = (skip == 0 && string.IsNullOrEmpty(cursor)) ? TimeSpan.FromSeconds(90) : TimeSpan.FromSeconds(60);
+                await _cache.SetStringAsync(cacheKeyEnriched, JsonSerializer.Serialize(finalResult),
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = ttl }, ct);
             }
 
-            _logger.LogInformation("[FeedService] getFeed returned no posts for {Uri} (both app views).", uri);
-            var fallbackPosts = (fallback ?? new List<PostDto>());
-            var fallbackPaginated = string.IsNullOrEmpty(cursor) ? fallbackPosts.Skip(skip).Take(take).ToList() : fallbackPosts.Take(take).ToList();
-            var enrichedFallback = await _postService.EnrichAndFilterPostsAsync(fallbackPaginated, userId ?? Guid.Empty, token);
-            return new PagedPostDto { Posts = enrichedFallback, Cursor = fallbackCursor };
+            return finalResult;
         }
         catch (Exception ex)
         {

@@ -111,15 +111,28 @@ public class PostService : IPostService
     {
         try
         {
-            // Include skip and take in cache key for proper pagination support
-            var cacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}_{cursor ?? "root"}";
+            // [PERF] Cache the fully enriched result to avoid re-running EnrichAndFilterPostsAsync (DB queries) on every request.
+            // Raw post cache key (from Bluesky PDS): 2 min TTL
+            var rawCacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}_{cursor ?? "root"}";
+            // Enriched result cache key (includes viewer state): 90s TTL (initial page), 60s for pages
+            var enrichedCacheKey = $"BlueskyTimelineEnriched_{userId}_{skip}_{take}_{cursor ?? "root"}";
             PagedPostDto? resultDto = null;
+
+            if (!bypassCache)
+            {
+                var enrichedJson = await _distributedCache.GetStringAsync(enrichedCacheKey, ct);
+                if (!string.IsNullOrEmpty(enrichedJson))
+                {
+                    try { return System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(enrichedJson) ?? new PagedPostDto(); } catch { }
+                }
+            }
+
             string? token = null;
             User? user = null;
 
             if (!bypassCache)
             {
-                var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+                var cachedJson = await _distributedCache.GetStringAsync(rawCacheKey, ct);
                 if (!string.IsNullOrEmpty(cachedJson))
                 {
                     try { resultDto = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch { }
@@ -179,10 +192,10 @@ public class PostService : IPostService
                     }
                 }
 
-                // Only cache non-empty results to avoid serving stale empty responses
+                // Only cache non-empty raw results
                 if (resultDto.Posts.Any())
                 {
-                    await _distributedCache.SetStringAsync(cacheKey,
+                    await _distributedCache.SetStringAsync(rawCacheKey,
                         System.Text.Json.JsonSerializer.Serialize(resultDto),
                         new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
                         { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) },
@@ -190,18 +203,24 @@ public class PostService : IPostService
                 }
             }
             
-            token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct) : null;
+            token ??= userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct) : null;
             var enriched = userId != Guid.Empty ? await EnrichAndFilterPostsAsync(resultDto.Posts.ToList(), userId, token, true, true, false, skipDeepResolution, ct) : resultDto.Posts.ToList();
             
-            // If we have a cursor, we assume the server handled "skip" (though getTimeline doesn't use skip, it uses cursors)
-            // If we ARE using skip, we skip/take.
             var paginated = string.IsNullOrEmpty(cursor) ? enriched.Skip(skip).Take(take).ToList() : enriched.Take(take).ToList();
             
-            return new PagedPostDto 
-            { 
-                Posts = paginated, 
-                Cursor = resultDto.Cursor 
-            };
+            var finalDto = new PagedPostDto { Posts = paginated, Cursor = resultDto.Cursor };
+
+            // Cache the enriched result for 90s (initial page) so the next call is instant
+            if (paginated.Any())
+            {
+                var ttl = (skip == 0 && string.IsNullOrEmpty(cursor)) ? TimeSpan.FromSeconds(90) : TimeSpan.FromSeconds(60);
+                _ = _distributedCache.SetStringAsync(enrichedCacheKey,
+                    System.Text.Json.JsonSerializer.Serialize(finalDto),
+                    new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
+                    { AbsoluteExpirationRelativeToNow = ttl });
+            }
+            
+            return finalDto;
         }
         catch (Exception ex)
         {
