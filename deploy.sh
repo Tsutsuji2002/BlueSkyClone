@@ -4,10 +4,7 @@
 
 echo "Starting deployment process..."
 
-# 1. Pull latest changes
-git pull origin main || echo "Warning: Pull failed, proceeding with current files..."
-
-# Fix DNS resolution issues for Docker build
+# 1. Check for .env file
 echo "Configuring Docker DNS if needed..."
 if [ ! -f /etc/docker/daemon.json ] || ! grep -q "8.8.8.8" /etc/docker/daemon.json; then
     echo '{"dns": ["8.8.8.8", "8.8.4.4"]}' | sudo tee /etc/docker/daemon.json
