@@ -8310,4 +8310,42 @@ public class PostService : IPostService
             await _xrpcProxy.ProxyRequestAsync(user.Did!, nsid, new Dictionary<string, string?>(), token, "POST", body, user.Id);
         }
     }
+
+    private User MapBlueskyActor(JsonElement root)
+    {
+        var did = root.GetProperty("did").GetString() ?? "";
+        var profileHandle = root.TryGetProperty("handle", out var hp) ? hp.GetString() : null;
+        var deterministicId = CreateDeterministicGuid(did);
+
+        return new User
+        {
+            Id = deterministicId,
+            Did = did,
+            Handle = profileHandle,
+            Username = profileHandle?.Split('.')[0] ?? did,
+            DisplayName = root.TryGetProperty("displayName", out var dn0) ? dn0.GetString() : null,
+            AvatarUrl = root.TryGetProperty("avatar", out var av0) ? av0.GetString() : null,
+            CoverImageUrl = root.TryGetProperty("banner", out var bn0) ? bn0.GetString() : null,
+            Bio = root.TryGetProperty("description", out var ds0) ? ds0.GetString() : null,
+            FollowersCount = root.TryGetProperty("followersCount", out var fc0) && fc0.TryGetInt32(out var fct0) ? fct0 : 0,
+            FollowingCount = root.TryGetProperty("followsCount", out var fw0) && fw0.TryGetInt32(out var fwt0) ? fwt0 : 0,
+            PostsCount = root.TryGetProperty("postsCount", out var pc0) && pc0.TryGetInt32(out var pct0) ? pct0 : 0,
+            IsVerified = true,
+            CreatedAt = DateTime.UtcNow,
+            PasswordHash = "REMOTE_USER",
+            Salt = "REMOTE_USER",
+            Email = $"{did}@remote.bsky.social"
+        };
+    }
+
+    private Guid CreateDeterministicGuid(string input)
+    {
+        using (var sha256 = System.Security.Cryptography.SHA256.Create())
+        {
+            var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
+            var guidBytes = new byte[16];
+            Array.Copy(hash, guidBytes, 16);
+            return new Guid(guidBytes);
+        }
+    }
 }
