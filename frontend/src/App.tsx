@@ -199,6 +199,26 @@ const AppContent: React.FC = () => {
         pollInterval = setInterval(fetchCounts, 300000);
     }
 
+    // [KEYBOARD ACCESSIBILITY] Global Space/Shift+Space Scrolling
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.code === 'Space') {
+            const activeElement = document.activeElement as HTMLElement | null;
+            const isInput = activeElement?.tagName === 'INPUT' || 
+                            activeElement?.tagName === 'TEXTAREA' || 
+                            activeElement?.isContentEditable ||
+                            activeElement?.closest('[role="textbox"]');
+
+            if (isInput) return;
+
+            e.preventDefault(); // Stop default browser jump, use smooth animation
+            const scrollAmount = window.innerHeight * 0.8;
+            window.scrollBy({
+                top: e.shiftKey ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     // Fetch on tab/window return — debounced to avoid storms on rapid focus changes
     const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
@@ -208,12 +228,14 @@ const AppContent: React.FC = () => {
 
     window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', fetchCountsDebounced);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
         if (pollInterval) clearInterval(pollInterval);
         if (debounceTimer) clearTimeout(debounceTimer);
         window.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('focus', fetchCountsDebounced);
+        window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isAuthenticated, dispatch]);
 
