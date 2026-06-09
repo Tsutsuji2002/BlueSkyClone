@@ -1445,7 +1445,17 @@ public class FeedService : IFeedService
 
                     // For guests, use official Bluesky "What's Hot" instead of local trending
                     _logger.LogInformation("[FeedService] Guest Discover: Fetching remote 'What's Hot' feed for unauthenticated user.");
-                    return await GetRemoteFeedPostsAsync("at://did:plc:z72i7hdynmk606gofuc7fs6p/app.bsky.feed.generator/whats-hot", null, skip, take, cursor);
+                    var guestResult = await GetRemoteFeedPostsAsync(DiscoverFeedUri, null, skip, take, cursor, ct);
+                    
+                    // Fallback: If remote fails, use local trending
+                    if (!guestResult.Posts.Any())
+                    {
+                        _logger.LogWarning("[FeedService] Guest Discover: Remote 'What's Hot' returned no posts. Falling back to local trending.");
+                        var localTrending = await _postService.GetTrendingPosts24hAsync(null, take, skip, false, false, ct);
+                        return new PagedPostDto { Posts = localTrending };
+                    }
+                    
+                    return guestResult;
                 }
 
                 return await GetRemoteFeedPostsAsync(uri, userId, skip, take, cursor, ct);
@@ -1512,19 +1522,30 @@ public class FeedService : IFeedService
                         var url = $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
                         if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
+                        _logger.LogInformation("[FeedService] Fetching remote feed from {Host} with URI: {Uri}", host, resolvedUri);
+
                         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
                         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                         var response = await httpClient.GetAsync(url, linkedCts.Token);
 
-                        if (!response.IsSuccessStatusCode) continue;
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            _logger.LogWarning("[FeedService] Remote feed request failed: {Status} from {Host}", response.StatusCode, host);
+                            continue;
+                        }
 
                         var content = await response.Content.ReadAsStringAsync(cts.Token);
                         using var doc = JsonDocument.Parse(content);
                         if (!doc.RootElement.TryGetProperty("feed", out var feedArray))
+                        {
+                            _logger.LogWarning("[FeedService] Remote feed response missing 'feed' property from {Host}", host);
                             continue;
+                        }
 
                         var posts = _postService.MapBlueskyFeed(feedArray);
                         var outCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+
+                        _logger.LogInformation("[FeedService] Successfully fetched {Count} posts from {Host}", posts.Count, host);
 
                         if (posts.Count > 0)
                         {
@@ -1536,11 +1557,18 @@ public class FeedService : IFeedService
                             break;
                         }
                     }
-                    catch { /* Try next host */ }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[FeedService] Error fetching from {Host}: {Message}", host, ex.Message);
+                    }
                 }
             }
 
-            if (rawResult == null) return new PagedPostDto();
+            if (rawResult == null)
+            {
+                _logger.LogWarning("[FeedService] GetRemoteFeedPostsAsync: No posts fetched from any host for URI: {Uri}", uri);
+                return new PagedPostDto();
+            }
 
             // [OPTIMIZATION] Greedy Windowed Enrichment: only enrich what we are likely to return
             var windowStart = string.IsNullOrEmpty(cursor) ? skip : 0;
