@@ -16,6 +16,9 @@ services:
     restart: always
 
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=sql-server;Database=BlueSkyClone;User Id=sa;Password=${DB_PASSWORD:-YourStrongPassword123!};TrustServerCertificate=True;MultipleActiveResultSets=True;Max Pool Size=200;
@@ -56,9 +59,30 @@ services:
     restart: always
 
   elasticsearch:
+    image: elasticsearch:8.12.0
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
     restart: always
 
   kibana:
+    image: kibana:8.12.0
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
     restart: always
 
   certbot:
@@ -72,3 +96,7 @@ services:
 
 volumes:
   mssql_data:
+  elasticsearch_data:
+    driver: local
+  redis_data:
+    driver: local
