@@ -504,36 +504,9 @@ END
 -- CREATE PERFORMANCE INDEXES
 -- ============================================
 PRINT 'Creating performance indexes...';
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Posts_Uri' AND object_id = OBJECT_ID('Posts'))
-BEGIN
-    CREATE INDEX [IX_Posts_Uri] ON [Posts] ([Uri]);
-    PRINT '  Created IX_Posts_Uri index';
-END
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Likes_Uri' AND object_id = OBJECT_ID('Likes'))
-BEGIN
-    CREATE INDEX [IX_Likes_Uri] ON [Likes] ([Uri]);
-    PRINT '  Created IX_Likes_Uri index';
-END
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_UserFollows_Uri' AND object_id = OBJECT_ID('UserFollows'))
-BEGIN
-    CREATE INDEX [IX_UserFollows_Uri] ON [UserFollows] ([Uri]);
-    PRINT '  Created IX_UserFollows_Uri index';
-END
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Reposts_Uri' AND object_id = OBJECT_ID('Reposts'))
-BEGIN
-    CREATE INDEX [IX_Reposts_Uri] ON [Reposts] ([Uri]);
-    PRINT '  Created IX_Reposts_Uri index';
-END
-
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BlockedAccounts_Uri' AND object_id = OBJECT_ID('BlockedAccounts'))
-BEGIN
-    CREATE INDEX [IX_BlockedAccounts_Uri] ON [BlockedAccounts] ([Uri]);
-    PRINT '  Created IX_BlockedAccounts_Uri index';
-END
+PRINT '  Note: Skipping Uri indexes (nvarchar(max) cannot be indexed)';
+-- Uri columns are nvarchar(max) which cannot be indexed directly
+-- If performance is needed, consider changing to nvarchar(450) or using computed columns
 
 PRINT '';
 PRINT '====================================';
