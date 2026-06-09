@@ -5901,7 +5901,7 @@ public class PostService : IPostService
                     CreatedAt = DateTime.UtcNow
                 });
                 isBookmarked = true;
-                post.BookmarksCount = (post.BookmarksCount ?? 0) + 1;
+                post.BookmarksCount = post.BookmarksCount + 1;
             }
 
             await _unitOfWork.CompleteAsync();
@@ -5916,11 +5916,11 @@ public class PostService : IPostService
                 tid = post.Tid,
                 likesCount = post.LikesCount ?? 0,
                 repostsCount = post.RepostsCount ?? 0,
-                bookmarksCount = post.BookmarksCount ?? 0,
+                bookmarksCount = post.BookmarksCount,
                 timestamp
             });
 
-            return new { isBookmarked, bookmarksCount = post.BookmarksCount ?? 0 };
+            return new { isBookmarked, bookmarksCount = post.BookmarksCount };
         }
         finally
         {
@@ -7004,7 +7004,7 @@ public class PostService : IPostService
             RepostsCount = post.RepostsCount ?? 0,
             RepliesCount = post.RepliesCount ?? 0,
             QuotesCount = post.QuotesCount ?? 0,
-            BookmarksCount = post.BookmarksCount ?? 0,
+            BookmarksCount = post.BookmarksCount,
             ReplyToPostId = post.ReplyToPost?.Tid ?? post.ReplyToPost?.Uri ?? post.ReplyToPostId?.ToString(),
             ReplyToHandle = post.ReplyToPost?.Author?.Handle,
             RootPostId = post.RootPost?.Tid ?? post.RootPost?.Uri ?? post.RootPostId?.ToString(),
