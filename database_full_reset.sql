@@ -264,13 +264,18 @@ GO
 -- ============================================================
 PRINT 'Fixing Posts.BookmarksCount...';
 
-IF COL_LENGTH('Posts', 'BookmarksCount') IS NOT NULL
+IF COL_LENGTH('Posts', 'BookmarksCount') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD BookmarksCount int NOT NULL DEFAULT 0;
+    PRINT '  Added BookmarksCount column';
+END
+ELSE
 BEGIN
     -- Update any NULL values
     UPDATE Posts SET BookmarksCount = 0 WHERE BookmarksCount IS NULL;
     
     -- Ensure default constraint exists
-    IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE name = 'DF_Posts_BookmarksCount')
+    IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE name = 'DF_Posts_BookmarksCount' AND parent_object_id = OBJECT_ID('Posts'))
     BEGIN
         ALTER TABLE Posts ADD CONSTRAINT DF_Posts_BookmarksCount DEFAULT 0 FOR BookmarksCount;
         PRINT '  Added BookmarksCount default constraint';
@@ -286,15 +291,191 @@ BEGIN
         PRINT '  Made BookmarksCount NOT NULL';
     END
 END
+
+-- Ensure other Posts columns exist
+IF COL_LENGTH('Posts', 'Uri') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [Uri] nvarchar(max) NULL;
+    PRINT '  Added Uri column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'Cid') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [Cid] nvarchar(max) NULL;
+    PRINT '  Added Cid column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'Labels') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [Labels] nvarchar(max) NULL;
+    PRINT '  Added Labels column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'FacetsJson') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [FacetsJson] nvarchar(max) NULL;
+    PRINT '  Added FacetsJson column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'QuotePostId') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [QuotePostId] uniqueidentifier NULL;
+    PRINT '  Added QuotePostId column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'QuotesCount') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [QuotesCount] int NULL DEFAULT 0;
+    PRINT '  Added QuotesCount column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'ReplyRestriction') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [ReplyRestriction] nvarchar(50) NULL;
+    PRINT '  Added ReplyRestriction column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'AllowQuotes') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [AllowQuotes] bit NULL DEFAULT 1;
+    PRINT '  Added AllowQuotes column to Posts';
+END
+
+IF COL_LENGTH('Posts', 'Language') IS NULL
+BEGIN
+    ALTER TABLE Posts ADD [Language] nvarchar(10) NULL;
+    PRINT '  Added Language column to Posts';
+END
 GO
 
 -- ============================================================
--- Ensure PdsHost column exists in Users
+-- Ensure missing columns exist in Users
 -- ============================================================
 IF COL_LENGTH('Users', 'PdsHost') IS NULL
 BEGIN
     ALTER TABLE [Users] ADD [PdsHost] nvarchar(max) NULL;
     PRINT 'Added PdsHost column to Users';
+END
+
+IF COL_LENGTH('Users', 'PasswordHash') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [PasswordHash] nvarchar(max) NOT NULL DEFAULT '';
+    PRINT 'Added PasswordHash column to Users';
+END
+
+IF COL_LENGTH('Users', 'Salt') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [Salt] nvarchar(max) NOT NULL DEFAULT '';
+    PRINT 'Added Salt column to Users';
+END
+
+IF COL_LENGTH('Users', 'Role') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [Role] nvarchar(50) NOT NULL DEFAULT 'user';
+    PRINT 'Added Role column to Users';
+END
+
+IF COL_LENGTH('Users', 'Labels') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [Labels] nvarchar(max) NULL;
+    PRINT 'Added Labels column to Users';
+END
+
+IF COL_LENGTH('Users', 'PinnedPostUri') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [PinnedPostUri] nvarchar(max) NULL;
+    PRINT 'Added PinnedPostUri column to Users';
+END
+
+IF COL_LENGTH('Users', 'SigningPublicKey') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [SigningPublicKey] nvarchar(max) NULL;
+    PRINT 'Added SigningPublicKey column to Users';
+END
+
+IF COL_LENGTH('Users', 'EncryptedSigningPrivateKey') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [EncryptedSigningPrivateKey] nvarchar(max) NULL;
+    PRINT 'Added EncryptedSigningPrivateKey column to Users';
+END
+
+IF COL_LENGTH('Users', 'RepoRev') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [RepoRev] nvarchar(max) NULL;
+    PRINT 'Added RepoRev column to Users';
+END
+
+IF COL_LENGTH('Users', 'RepoRoot') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [RepoRoot] nvarchar(max) NULL;
+    PRINT 'Added RepoRoot column to Users';
+END
+
+IF COL_LENGTH('Users', 'RepoCommit') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [RepoCommit] nvarchar(max) NULL;
+    PRINT 'Added RepoCommit column to Users';
+END
+
+IF COL_LENGTH('Users', 'RepoCommitSignature') IS NULL
+BEGIN
+    ALTER TABLE [Users] ADD [RepoCommitSignature] nvarchar(max) NULL;
+    PRINT 'Added RepoCommitSignature column to Users';
+END
+GO
+
+-- ============================================================
+-- Ensure missing columns exist in UserSettings
+-- ============================================================
+IF EXISTS (SELECT * FROM sys.tables WHERE name = 'UserSettings')
+BEGIN
+    IF COL_LENGTH('UserSettings', 'NotifyOnFollow') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [NotifyOnFollow] bit NULL DEFAULT 1;
+        PRINT 'Added NotifyOnFollow column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'NotifyOnLike') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [NotifyOnLike] bit NULL DEFAULT 1;
+        PRINT 'Added NotifyOnLike column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'NotifyOnRepost') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [NotifyOnRepost] bit NULL DEFAULT 1;
+        PRINT 'Added NotifyOnRepost column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'NotifyOnReply') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [NotifyOnReply] bit NULL DEFAULT 1;
+        PRINT 'Added NotifyOnReply column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'NotifyOnMention') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [NotifyOnMention] bit NULL DEFAULT 1;
+        PRINT 'Added NotifyOnMention column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'NotifyOnQuote') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [NotifyOnQuote] bit NULL DEFAULT 1;
+        PRINT 'Added NotifyOnQuote column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'EmailNotifications') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [EmailNotifications] bit NULL DEFAULT 0;
+        PRINT 'Added EmailNotifications column to UserSettings';
+    END
+
+    IF COL_LENGTH('UserSettings', 'ShowAdultContent') IS NULL
+    BEGIN
+        ALTER TABLE [UserSettings] ADD [ShowAdultContent] bit NULL DEFAULT 0;
+        PRINT 'Added ShowAdultContent column to UserSettings';
+    END
 END
 GO
 
