@@ -381,7 +381,8 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId, CancellationToken ct = default)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var user = await _unitOfWork.Users.Query()
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
         var token = await _xrpcProxy.ResolvePdsEndpointAsync(user.Did ?? "", false); // Basic check
@@ -416,7 +417,9 @@ public class AuthService : IAuthService
 
     public async Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId, CancellationToken ct = default)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        var user = await _unitOfWork.Users.Query()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
         // Global handshake cap: 8 seconds.

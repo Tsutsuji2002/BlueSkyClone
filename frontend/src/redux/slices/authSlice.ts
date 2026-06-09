@@ -160,6 +160,11 @@ const authSlice = createSlice({
             state.error = null;
         },
         stopLoading: (state) => {
+            // A failed startup handshake means the cookie/session could not be verified.
+            // Keep saved account records, but stop treating the local snapshot as authenticated.
+            state.user = null;
+            state.settings = null;
+            state.isAuthenticated = false;
             state.isLoading = false;
             state.isSessionSettled = true;
             state.isInitializing = false;

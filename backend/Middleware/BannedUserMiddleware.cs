@@ -10,12 +10,14 @@ namespace BSkyClone.Middleware
     public class BannedUserMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly ILogger<BannedUserMiddleware> _logger;
         private static readonly ConcurrentDictionary<Guid, (bool IsBanned, DateTime Expiry)> _cache = new();
         private static readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(5);
 
-        public BannedUserMiddleware(RequestDelegate next)
+        public BannedUserMiddleware(RequestDelegate next, ILogger<BannedUserMiddleware> logger)
         {
             _next = next;
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context, BSkyDbContext dbContext)
@@ -34,10 +36,14 @@ namespace BSkyClone.Middleware
                         }
                         else
                         {
+                            using var checkCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+                            checkCts.CancelAfter(TimeSpan.FromSeconds(2));
+
                             isBanned = await dbContext.Users
+                                .AsNoTracking()
                                 .Where(u => u.Id == userId)
                                 .Select(u => u.IsBanned)
-                                .FirstOrDefaultAsync();
+                                .FirstOrDefaultAsync(checkCts.Token);
                             
                             _cache[userId] = (isBanned, DateTime.UtcNow.Add(_cacheDuration));
                         }
@@ -51,11 +57,17 @@ namespace BSkyClone.Middleware
                     }
                 }
             }
+            catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested)
+            {
+                // Do not let a slow SQL pool/lock in the ban check block all authenticated APIs.
+                // Ban state is cached for normal traffic and will be checked again on the next request.
+                _logger.LogWarning("Banned user check timed out; allowing request to continue.");
+            }
             catch (Exception ex)
             {
                 // Log error but allow request to proceed to avoid complete service blackout
                 // if there's a temporary DB issue or schema mismatch
-                System.Console.WriteLine($"Error checking banned status: {ex.Message}");
+                _logger.LogWarning(ex, "Error checking banned status; allowing request to continue.");
             }
 
             await _next(context);
