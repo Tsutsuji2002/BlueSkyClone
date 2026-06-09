@@ -31,7 +31,7 @@ public partial class Post
 
     public int? QuotesCount { get; set; }
 
-    public int? BookmarksCount { get; set; }
+    public int BookmarksCount { get; set; } = 0;
 
     public string? ReplyRestriction { get; set; }
 
