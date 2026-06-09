@@ -430,6 +430,19 @@ BEGIN
     ALTER TABLE [BlockedAccounts] ADD [Tid] nvarchar(max) NULL;
 END
 
+-- Ensure Posts.BookmarksCount has a default constraint
+IF COL_LENGTH('Posts', 'BookmarksCount') IS NOT NULL
+BEGIN
+    -- Update any existing NULL values
+    UPDATE Posts SET BookmarksCount = 0 WHERE BookmarksCount IS NULL;
+    
+    -- Add default constraint if it doesn't exist
+    IF NOT EXISTS (SELECT * FROM sys.default_constraints WHERE name = 'DF_Posts_BookmarksCount' AND parent_object_id = OBJECT_ID('Posts'))
+    BEGIN
+        ALTER TABLE Posts ADD CONSTRAINT DF_Posts_BookmarksCount DEFAULT 0 FOR BookmarksCount;
+    END
+END
+
 -- Performance optimization indices for Firehose
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_Posts_Uri' AND object_id = OBJECT_ID('Posts'))
 BEGIN CREATE INDEX [IX_Posts_Uri] ON [Posts] ([Uri]); END
