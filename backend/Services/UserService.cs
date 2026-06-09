@@ -50,6 +50,7 @@ public class UserService : IUserService
     // Per-user semaphores to prevent thundering-herd when token expires (e.g. ~3 AM)
     // Internal so AuthService can share the same lock to avoid parallel refresh conflicts.
     internal static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _tokenRefreshLocks = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, byte> _backgroundRefreshes = new();
 
     public UserService(
         IUnitOfWork unitOfWork, 
@@ -3035,16 +3036,36 @@ public class UserService : IUserService
         var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
         
         // [OPTIMIZATION] Short wait for lock (2s) to avoid blocking cold-starts during peak thundering herds.
-        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(2)))
+        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(2), ct))
         {
             _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Lock wait timeout for {UserId}. Serving cached token while refresh happens in background.", userId);
-            
-            // Proactively trigger a background refresh since we clearly need one but couldn't get the lock
-            _ = Task.Run(async () => {
-                try { await GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true); } catch { }
-            });
 
-            return await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
+            var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}", ct);
+
+            // Proactively trigger one scoped background refresh per user; do not let each API
+            // request start another worker while the original lock holder is still busy.
+            if (_backgroundRefreshes.TryAdd(userId, 0))
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        using var scope = _scopeFactory.CreateScope();
+                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                        await userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[GetOrRefreshBlueskyTokenAsync] Background refresh failed for {UserId}", userId);
+                    }
+                    finally
+                    {
+                        _backgroundRefreshes.TryRemove(userId, out _);
+                    }
+                });
+            }
+
+            return cachedToken;
         }
         try
         {

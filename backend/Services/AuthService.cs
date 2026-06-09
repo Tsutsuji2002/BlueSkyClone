@@ -429,8 +429,19 @@ public class AuthService : IAuthService
         // parallel tasks. Each sub-task calls GetOrRefreshBlueskyTokenAsync itself and will get
         // the cached token (fast path) or wait a short time for the background refresh to complete.
         _ = Task.Run(async () => {
-            using var scope = _scopeFactory.CreateScope();
-            await scope.ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false);
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                await scope.ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, globalToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Handshake moved on; callers can still use cached/stale data below.
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Background token refresh failed during handshake for user {UserId}.", userId);
+            }
         }, globalToken);
 
         // Launch all metadata tasks in parallel immediately
@@ -460,9 +471,39 @@ public class AuthService : IAuthService
              return await scope.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId, globalToken);
         }, globalToken);
 
-        try {
-            await Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
-        } catch (OperationCanceledException) {
+        try
+        {
+            var allTasks = Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+            var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(8), ct));
+
+            if (completedTask == allTasks)
+            {
+                try
+                {
+                    await allTasks;
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning("Handshake partially timed out for user {UserId}. Returning available data.", userId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Handshake sub-task failed for user {UserId}. Returning available data.", userId);
+                }
+            }
+            else
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+
+                await globalCts.CancelAsync();
+                _logger.LogWarning("Handshake hard timeout reached for user {UserId}. Returning available data.", userId);
+            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
             _logger.LogWarning("Handshake partially timed out for user {UserId}. Returning available data.", userId);
         }
 
