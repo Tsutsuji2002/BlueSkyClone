@@ -21,6 +21,7 @@ const initialState: PostsState = {
     timelineLoading: false,
     discoverLoading: false,
     bookmarkedLoading: false,
+    bookmarkedFetched: false,
     error: null,
     bookmarkedError: null,
     threadError: null,
@@ -1548,6 +1549,7 @@ const postsSlice = createSlice({
             })
             .addCase(fetchBookmarkedPosts.fulfilled, (state: PostsState, action: any) => {
                 state.bookmarkedLoading = false;
+                state.bookmarkedFetched = true;
                 state.bookmarkedError = null;
                 const { skip } = action.meta.arg || { skip: 0 };
 

@@ -17,7 +17,7 @@ const SavedPage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { bookmarkedPosts, bookmarkedLoading, hasMore, bookmarkedError } = useAppSelector((state) => state.posts);
+    const { bookmarkedPosts, bookmarkedLoading, bookmarkedFetched, hasMore, bookmarkedError } = useAppSelector((state) => state.posts);
 
     useEffect(() => {
         const dynamicTake = getDynamicBatchSize(250);
@@ -49,7 +49,7 @@ const SavedPage: React.FC = () => {
                     </div>
                 </div>
 
-                {bookmarkedLoading && bookmarkedPosts.length === 0 ? (
+                {!bookmarkedFetched || (bookmarkedLoading && bookmarkedPosts.length === 0) ? (
                     <LoadingIndicator text={t('common.loading')} />
                 ) : bookmarkedError ? (
                     <div className="p-12 text-center text-red-500 flex flex-col items-center">

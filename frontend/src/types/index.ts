@@ -452,6 +452,7 @@ export interface PostsState {
     timelineLoading: boolean;
     discoverLoading: boolean;
     bookmarkedLoading: boolean;
+    bookmarkedFetched: boolean;
     error: string | null;
     bookmarkedError: string | null;
     threadError: string | null;
