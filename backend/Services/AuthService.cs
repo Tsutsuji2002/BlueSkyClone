@@ -382,6 +382,7 @@ public class AuthService : IAuthService
     public async Task<AuthResponse?> GetUserProfileAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
@@ -418,6 +419,7 @@ public class AuthService : IAuthService
     public async Task<HandshakeResponse?> GetUserHandshakeAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await _unitOfWork.Users.Query()
+            .Include(u => u.UserSetting)
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
