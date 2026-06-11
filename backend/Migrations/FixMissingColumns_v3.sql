@@ -56,7 +56,14 @@ IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('[Notificat
 IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('[Notifications]') AND name = 'CreatedAt')
     ALTER TABLE [Notifications] ADD [CreatedAt] datetime2 NULL;
 
--- Add Unique Constraints if missing (Optional but good for stability)
-IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'UQ_Bookmarks_Tid' AND object_id = OBJECT_ID('[Bookmarks]'))
-    AND (SELECT COUNT(*) FROM [Bookmarks] WHERE [Tid] IS NOT NULL) = (SELECT COUNT(DISTINCT [Tid]) FROM [Bookmarks] WHERE [Tid] IS NOT NULL)
-    CREATE UNIQUE INDEX [UQ_Bookmarks_Tid] ON [Bookmarks] ([Tid]) WHERE [Tid] IS NOT NULL;
+-- 7. [UserListSubscriptions]
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('[UserListSubscriptions]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE [UserListSubscriptions] (
+        [UserId] uniqueidentifier NOT NULL,
+        [ListId] uniqueidentifier NOT NULL,
+        [PinnedOrder] int NOT NULL DEFAULT 0,
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_UserListSubscription] PRIMARY KEY ([UserId], [ListId])
+    );
+END

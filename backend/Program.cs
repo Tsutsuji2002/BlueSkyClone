@@ -426,6 +426,18 @@ IF COL_LENGTH('Posts', 'Cid') IS NULL ALTER TABLE [Posts] ADD [Cid] nvarchar(100
 IF COL_LENGTH('Notifications', 'Tid') IS NULL ALTER TABLE [Notifications] ADD [Tid] nvarchar(20) NULL;
 IF COL_LENGTH('Notifications', 'CreatedAt') IS NULL ALTER TABLE [Notifications] ADD [CreatedAt] datetime2 NULL;
 
+-- Ensure UserListSubscriptions exists
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('[UserListSubscriptions]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE [UserListSubscriptions] (
+        [UserId] uniqueidentifier NOT NULL,
+        [ListId] uniqueidentifier NOT NULL,
+        [PinnedOrder] int NOT NULL DEFAULT 0,
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_UserListSubscription] PRIMARY KEY ([UserId], [ListId])
+    );
+END
+
 -- Ensure PostMedia is aligned
 IF COL_LENGTH('PostMedia', 'Cid') IS NULL ALTER TABLE [PostMedia] ADD [Cid] nvarchar(100) NULL;
 IF COL_LENGTH('PostMedia', 'ThumbnailUrl') IS NULL ALTER TABLE [PostMedia] ADD [ThumbnailUrl] nvarchar(4000) NULL;
