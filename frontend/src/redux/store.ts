@@ -35,13 +35,21 @@ const appReducer = combineReducers({
 
 const rootReducer = (state: ReturnType<typeof appReducer> | undefined, action: AnyAction) => {
     // 'auth/logout' is a synchronous reducer action (not a thunk), so no '/fulfilled' suffix.
-    if (action.type === 'auth/logout') {
-        // Reset all slices on logout, but keep theme and language preferences.
-        const { theme, language } = state || {};
-        state = {
+    const isLoggingIn = action.type === 'auth/setAuth' || action.type?.endsWith('switchAccount/fulfilled');
+    
+    if (action.type === 'auth/logout' || isLoggingIn) {
+        // Reset all slices, but keep theme and language.
+        // For login/switch, we ALSO keep the auth slice because it was just updated by the child reducer.
+        const { theme, language, auth } = state || {};
+        const newState = {
             theme,
             language,
+            ...(isLoggingIn ? { auth } : {})
         } as any;
+        
+        // If we are logging out, we also want to clear the API state.
+        // The rootReducer reset handles most of it by setting state to undefined for other slices.
+        return appReducer(newState, action);
     }
     return appReducer(state, action);
 };

@@ -257,6 +257,10 @@ const authSlice = createSlice({
                 state.isAuthenticated = true;
                 state.user = payload.user;
                 state.settings = normalizeSettings(payload.settings);
+                state.isLoading = false;
+                state.isSessionSettled = true;
+                state.isInitializing = false;
+                
                 AccountManager.saveAccount(payload.user, payload.token, payload.refreshToken);
                 AccountManager.setActiveAccount(payload.user);
                 state.savedAccounts = AccountManager.getAccounts();
