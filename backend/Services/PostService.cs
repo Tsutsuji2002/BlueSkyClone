@@ -3767,7 +3767,12 @@ public class PostService : IPostService
 
             if (existing != null)
             {
-                return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
+                // [FIX] If it's a placeholder stub, don't return it directly; fall through to IngestRemotePostAsync
+                bool isPlaceholder = string.IsNullOrEmpty(existing.Content) || existing.Content == "[Remote interaction...]";
+                if (!isPlaceholder || (bypassCache && didOrHandle != "local"))
+                {
+                    if (!isPlaceholder) return await GetPostByIdAsync(existing.Id, viewerId, bypassCache);
+                }
             }
 
             // 3. Remote ingestion ONLY if not found locally
@@ -3950,7 +3955,10 @@ public class PostService : IPostService
             existing = await _unitOfWork.Posts.Query().FirstOrDefaultAsync(p => p.Uri == canonicalUri || p.Cid == cid);
             if (existing != null)
             {
-                bool isStub = string.IsNullOrEmpty(existing.Tid) || string.IsNullOrEmpty(existing.Content);
+                // [FIX] Recognize "[Remote interaction...]" as a stub that needs enrichment
+                bool isStub = string.IsNullOrEmpty(existing.Tid) || 
+                              string.IsNullOrEmpty(existing.Content) || 
+                              existing.Content == "[Remote interaction...]";
                 if (isStub)
                 {
                     _logger.LogInformation("[IngestRemotePostAsync] Enriching stub post {PostId} ({Uri})", existing.Id, canonicalUri);
@@ -4159,7 +4167,9 @@ public class PostService : IPostService
             if (existing != null)
             {
                 // If the post exists but is a stub (missing Tid or Content), update it with authoritative data
-                bool isStub = string.IsNullOrEmpty(existing.Tid) || string.IsNullOrEmpty(existing.Content);
+                bool isStub = string.IsNullOrEmpty(existing.Tid) || 
+                              string.IsNullOrEmpty(existing.Content) || 
+                              existing.Content == "[Remote interaction...]";
                 if (isStub)
                 {
                     _logger.LogInformation("[IngestViaGetRecordAsync] Enriching existing stub post {PostId} (Uri: {Uri}) with authoritative metadata", existing.Id, uri);
