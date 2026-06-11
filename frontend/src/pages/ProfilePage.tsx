@@ -88,8 +88,8 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         if (!handle) return;
 
-        // Ensure we only fetch if the handle has TRULY changed from what we last requested
-        if (lastFetchedHandle.current === handle) {
+        // Ensure we only fetch if the handle has TRULY changed OR if we have no profile data yet.
+        if (lastFetchedHandle.current === handle && profileUser && !profileError) {
             return;
         }
 
