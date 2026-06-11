@@ -842,6 +842,8 @@ const postsSlice = createSlice({
     reducers: {
         clearPosts: (state: PostsState) => {
             state.posts = [];
+            state.bookmarkedPosts = [];
+            state.bookmarkedFetched = false;
             state.hasMore = true;
             state.lastUserPostsFetch = 0;
             state.lastUserPostsUserId = null;

@@ -20,9 +20,11 @@ const SavedPage: React.FC = () => {
     const { bookmarkedPosts, bookmarkedLoading, bookmarkedFetched, hasMore, bookmarkedError } = useAppSelector((state) => state.posts);
 
     useEffect(() => {
-        const dynamicTake = getDynamicBatchSize(250);
-        dispatch(fetchBookmarkedPosts({ skip: 0, take: dynamicTake }));
-    }, [dispatch]);
+        if (!bookmarkedFetched && !bookmarkedLoading) {
+            const dynamicTake = getDynamicBatchSize(250);
+            dispatch(fetchBookmarkedPosts({ skip: 0, take: dynamicTake }));
+        }
+    }, [dispatch, bookmarkedFetched, bookmarkedLoading]);
 
     const handleLoadMore = () => {
         const dynamicTake = getDynamicBatchSize(250);
