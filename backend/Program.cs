@@ -400,6 +400,38 @@ BEGIN
     ALTER TABLE [MutedWords] ADD [ExcludeFollowing] bit NOT NULL CONSTRAINT [DF_MutedWords_ExcludeFollowing] DEFAULT ((0));
 END
 
+-- Ensure Interaction tables have all ATProto columns
+IF COL_LENGTH('Bookmarks', 'Tid') IS NULL ALTER TABLE [Bookmarks] ADD [Tid] nvarchar(20) NULL;
+IF COL_LENGTH('Bookmarks', 'Cid') IS NULL ALTER TABLE [Bookmarks] ADD [Cid] nvarchar(100) NULL;
+IF COL_LENGTH('Bookmarks', 'CreatedAt') IS NULL ALTER TABLE [Bookmarks] ADD [CreatedAt] datetime2 NULL;
+
+IF COL_LENGTH('Likes', 'Tid') IS NULL ALTER TABLE [Likes] ADD [Tid] nvarchar(20) NULL;
+IF COL_LENGTH('Likes', 'Cid') IS NULL ALTER TABLE [Likes] ADD [Cid] nvarchar(100) NULL;
+IF COL_LENGTH('Likes', 'Uri') IS NULL ALTER TABLE [Likes] ADD [Uri] nvarchar(200) NULL;
+IF COL_LENGTH('Likes', 'CreatedAt') IS NULL ALTER TABLE [Likes] ADD [CreatedAt] datetime2 NULL;
+
+IF COL_LENGTH('Reposts', 'Tid') IS NULL ALTER TABLE [Reposts] ADD [Tid] nvarchar(20) NULL;
+IF COL_LENGTH('Reposts', 'Cid') IS NULL ALTER TABLE [Reposts] ADD [Cid] nvarchar(100) NULL;
+IF COL_LENGTH('Reposts', 'Uri') IS NULL ALTER TABLE [Reposts] ADD [Uri] nvarchar(200) NULL;
+IF COL_LENGTH('Reposts', 'CreatedAt') IS NULL ALTER TABLE [Reposts] ADD [CreatedAt] datetime2 NULL;
+
+IF COL_LENGTH('UserFollows', 'Tid') IS NULL ALTER TABLE [UserFollows] ADD [Tid] nvarchar(20) NULL;
+IF COL_LENGTH('UserFollows', 'Cid') IS NULL ALTER TABLE [UserFollows] ADD [Cid] nvarchar(100) NULL;
+IF COL_LENGTH('UserFollows', 'Uri') IS NULL ALTER TABLE [UserFollows] ADD [Uri] nvarchar(200) NULL;
+IF COL_LENGTH('UserFollows', 'CreatedAt') IS NULL ALTER TABLE [UserFollows] ADD [CreatedAt] datetime2 NULL;
+
+IF COL_LENGTH('Posts', 'Tid') IS NULL ALTER TABLE [Posts] ADD [Tid] nvarchar(20) NULL;
+IF COL_LENGTH('Posts', 'Cid') IS NULL ALTER TABLE [Posts] ADD [Cid] nvarchar(100) NULL;
+
+IF COL_LENGTH('Notifications', 'Tid') IS NULL ALTER TABLE [Notifications] ADD [Tid] nvarchar(20) NULL;
+IF COL_LENGTH('Notifications', 'CreatedAt') IS NULL ALTER TABLE [Notifications] ADD [CreatedAt] datetime2 NULL;
+
+-- Ensure PostMedia is aligned
+IF COL_LENGTH('PostMedia', 'Cid') IS NULL ALTER TABLE [PostMedia] ADD [Cid] nvarchar(100) NULL;
+IF COL_LENGTH('PostMedia', 'ThumbnailUrl') IS NULL ALTER TABLE [PostMedia] ADD [ThumbnailUrl] nvarchar(4000) NULL;
+IF COL_LENGTH('PostMedia', 'Position') IS NULL ALTER TABLE [PostMedia] ADD [Position] int NULL;
+IF COL_LENGTH('PostMedia', 'IsDeleted') IS NULL ALTER TABLE [PostMedia] ADD [IsDeleted] bit NULL DEFAULT 0;
+
 -- Ensure Lists and ListMembers have ATProto columns
 IF COL_LENGTH('Lists', 'Uri') IS NULL
 BEGIN
