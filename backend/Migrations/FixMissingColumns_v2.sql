@@ -1,3 +1,6 @@
+USE [BlueSkyClone];
+GO
+
 /*
   Comprehensive Database Schema Alignment Fix (v2)
   This script adds missing columns to several tables to match the Entity Framework models.
