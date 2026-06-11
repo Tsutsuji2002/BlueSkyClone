@@ -193,8 +193,20 @@ export const setupFetchInterceptor = () => {
 
             // Re-check state after floodgate opens
             const updatedState = store.getState() as any;
-            if (!updatedState.auth.isAuthenticated && isEssential) {
-                console.warn(`[FetchInterceptor] Auth failed during init. Rejecting essential request: ${url}`);
+
+            // [FIX] Allow guest-friendly endpoints to proceed even if not authenticated.
+            // These endpoints are marked as 'essential' for UI performance (buffering), 
+            // but they don't strictly require a session for public data (Discover feed, Profiles, etc).
+            const isPublicEndpoint = 
+                url.includes('/unified-feed') || 
+                url.includes('/trending') || 
+                url.includes('/users/profile/') || 
+                (url.includes('/posts/') && !url.includes('/timeline') && !url.includes('/bookmarks')) ||
+                url.includes('/followers') ||
+                url.includes('/following');
+
+            if (!updatedState.auth.isAuthenticated && isEssential && !isPublicEndpoint) {
+                console.warn(`[FetchInterceptor] Auth failed during init. Rejecting authenticated-only request: ${url}`);
                 return new Response(JSON.stringify({ error: 'Auth failed during initialization' }), { 
                     status: 401, 
                     headers: { 'Content-Type': 'application/json' } 

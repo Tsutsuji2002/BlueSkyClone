@@ -92,7 +92,12 @@ const HomePage: React.FC = () => {
         // [PERF] Allow feed fetch even if isReverifying is true.
         // This ensures that when returning to the app, the feed starts loading 
         // immediately in parallel with the session handshake.
-        if (!user?.did || !isSessionSettled) return;
+        
+        // [FIX] Allow guest users to fetch discover feed even without user.did
+        const isGuestDiscoverTab = !isAuthenticated && activeTab === 'discover';
+        
+        if (!isGuestDiscoverTab && (!user?.did || !isSessionSettled)) return;
+        
         const now = Date.now();
 
         if (activeTab.startsWith('list:')) {
