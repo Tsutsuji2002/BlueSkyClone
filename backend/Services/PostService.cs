@@ -1277,8 +1277,8 @@ public class PostService : IPostService
 
             _logger.LogInformation("[PostService] EnrichAndFilterPostsAsync: Input Count={InputCount}, ViewerId={ViewerId}, IsTimeline={IsTimeline}", posts.Count(), viewerId, isTimeline);
         // Pre-resolve all stub authors and posts in parallel to avoid N+1 network/DB calls inside the loop
-        var stubAuthors = new HashSet<string>();
-        var stubPosts = new HashSet<string>();
+        var stubAuthors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var stubPosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // Recursive stub collection helper
         void CollectStubs(PostDto p)
         {
@@ -1311,9 +1311,10 @@ public class PostService : IPostService
         {
             CollectStubs(p);
         }
+        _logger.LogWarning("[EnrichAndFilterPostsAsync] Collected {StubPostCount} stub posts and {StubAuthorCount} stub authors.", stubPosts.Count, stubAuthors.Count);
 
-        var resolvedAuthors = new System.Collections.Concurrent.ConcurrentDictionary<string, User>();
-        var resolvedPosts = new System.Collections.Concurrent.ConcurrentDictionary<string, PostDto>();
+        var resolvedAuthors = new System.Collections.Concurrent.ConcurrentDictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+        var resolvedPosts = new System.Collections.Concurrent.ConcurrentDictionary<string, PostDto>(StringComparer.OrdinalIgnoreCase);
         
         var resolveTasks = new List<Task>();
 
@@ -1405,11 +1406,11 @@ public class PostService : IPostService
         if (resolveTasks.Any())
         {
             // [OPTIMIZATION] Aggregate timeout for all stubs to prevent hanging the whole request.
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(4)); // Reduced to 4s
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10)); // Increased to 10s for VPS stability
             var completedTask = await Task.WhenAny(Task.WhenAll(resolveTasks), timeoutTask);
             if (completedTask == timeoutTask)
             {
-                _logger.LogWarning("[EnrichAndFilterPostsAsync] Stub resolution timed out after 7s for {Count} authors/posts", stubAuthors.Count + stubPosts.Count);
+                _logger.LogWarning("[EnrichAndFilterPostsAsync] Stub resolution timed out after 10s for {Count} authors/posts", stubAuthors.Count + stubPosts.Count);
             }
         }
 
@@ -6513,7 +6514,7 @@ public class PostService : IPostService
 
     public async Task<PagedPostDto> GetBookmarkedPostsAsync(Guid userId, int skip = 0, int take = 20)
     {
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 1: Starting query.");
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 1: Starting query for UserId: {UserId}", userId);
         var query = _unitOfWork.Bookmarks.Query()
             .Where(b => b.UserId == userId)
             .Include(b => b.Post)
@@ -6551,8 +6552,10 @@ public class PostService : IPostService
         _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Mapped to DTOs. About to refresh token.");
         var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
         
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 6: Token refreshed. Calling EnrichAndFilterPostsAsync.");
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 4: Token refreshed. Calling EnrichAndFilterPostsAsync.");
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Enriching {Count} posts. Token present: {TokenPresent}", postDtos.Count, !string.IsNullOrEmpty(token));
         var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, !string.IsNullOrEmpty(token));
+        _logger.LogWarning("[BOOKMARK-TRACE] Step 6: Enrichment complete. Returned {Count} posts.", enriched.Count);
         
         _logger.LogWarning("[BOOKMARK-TRACE] Step 7: Enrichment complete. Emitting result.");
 
