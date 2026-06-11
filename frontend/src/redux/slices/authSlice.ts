@@ -17,6 +17,7 @@ function normalizeSettings(raw: any): UserSettings {
         if (typeof raw.enabledMediaProviders === 'string') parsedProviders = JSON.parse(raw.enabledMediaProviders);
         else if (typeof raw.EnabledMediaProviders === 'string') parsedProviders = JSON.parse(raw.EnabledMediaProviders);
         else if (Array.isArray(raw.enabledMediaProviders)) parsedProviders = raw.enabledMediaProviders;
+        else if (Array.isArray(raw.EnabledMediaProviders)) parsedProviders = raw.EnabledMediaProviders;
     } catch (e) {
         parsedProviders = [];
     }
@@ -26,7 +27,7 @@ function normalizeSettings(raw: any): UserSettings {
         // Map backend's enableTreeView -> frontend's treeView
         treeView: raw.treeView ?? raw.enableTreeView ?? raw.EnableTreeView ?? false,
         // Map backend's sortReplies (already camelCase) - keep as is
-        sortReplies: raw.sortReplies ?? 'top',
+        sortReplies: raw.sortReplies ?? raw.SortReplies ?? 'top',
         // Map backend's enableDiscoverVideo -> frontend's enableVideoDiscover
         enableVideoDiscover: raw.enableVideoDiscover ?? raw.enableDiscoverVideo ?? raw.EnableDiscoverVideo ?? false,
         openTrendingTopics: raw.openTrendingTopics ?? raw.enableTrending ?? raw.EnableTrending ?? true,
