@@ -29,7 +29,27 @@ const Avatar: React.FC<AvatarProps> = ({
         '2xl': 'w-6 h-6',
     };
 
-    const computedSrc = src?.startsWith('/') ? `${API_BASE_URL.replace('/api', '')}${src}` : src;
+    // Add cache-busting for Bluesky CDN URLs by extracting hash from URL
+    const getCacheBustingSrc = (originalSrc?: string): string | undefined => {
+        if (!originalSrc) return originalSrc;
+        
+        // If it's a Bluesky CDN URL, extract the hash portion to use as cache key
+        if (originalSrc.includes('cdn.bsky.app') || originalSrc.includes('bsky.social')) {
+            // Extract the hash portion (e.g., bafkreiaz6t...) from the URL
+            const hashMatch = originalSrc.match(/\/([a-z0-9]+)@jpeg|\/([a-z0-9]+)@png|\/([a-z0-9]+)$/);
+            if (hashMatch) {
+                const separator = originalSrc.includes('?') ? '&' : '?';
+                // The hash itself changes with each new image, so use it as cache key
+                const hash = hashMatch[1] || hashMatch[2] || hashMatch[3];
+                return `${originalSrc}${separator}_=${hash.slice(-8)}`;
+            }
+        }
+        
+        return originalSrc;
+    };
+
+    const baseSrc = src?.startsWith('/') ? `${API_BASE_URL.replace('/api', '')}${src}` : src;
+    const computedSrc = getCacheBustingSrc(baseSrc);
 
     useEffect(() => {
         setHasError(false);

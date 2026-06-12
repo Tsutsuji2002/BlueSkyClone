@@ -6,7 +6,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { closeEditProfile } from '../redux/slices/modalsSlice';
 import { useUpdateProfileMutation } from '../redux/api/authApi';
 import { updateUser } from '../redux/slices/authSlice';
-import { updateProfileLocal } from '../redux/slices/userSlice';
+import { updateProfileLocal, fetchUserProfile } from '../redux/slices/userSlice';
 import { updateAuthorInPosts } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
@@ -188,6 +188,14 @@ const EditProfileModal: React.FC = () => {
                 avatar: fullAvatarUrl,
                 coverImage: fullCoverUrl,
             }));
+            
+            console.log('Profile updated locally, forcing re-fetch if on own profile');
+            
+            // If user is viewing their own profile, force a profile refetch
+            if (currentUser?.handle) {
+                console.log('Refetching profile for:', currentUser.handle);
+                dispatch(fetchUserProfile(currentUser.handle));
+            }
             
             // Update author info in all posts by this user
             if (currentUser) {
