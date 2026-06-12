@@ -165,7 +165,6 @@ const EditProfileModal: React.FC = () => {
             const updatedUser = await updateProfileMutation(formData).unwrap();
             
             console.log('Updated user from backend:', updatedUser);
-            console.log('Current auth user before update:', currentUser);
             
             // Helper function to ensure full URL for images
             const getFullImageUrl = (url: string | null | undefined): string | undefined => {
@@ -181,49 +180,14 @@ const EditProfileModal: React.FC = () => {
             const fullAvatarUrl = getFullImageUrl(updatedUser.avatarUrl || updatedUser.avatar);
             const fullCoverUrl = getFullImageUrl(updatedUser.coverImage);
             
-            // Create the updated user object
-            const userUpdate = {
+            // Update the profile in userSlice (for profile page)
+            // Note: authSlice.user is updated automatically by RTK matcher
+            dispatch(updateProfileLocal({
                 ...updatedUser,
                 avatarUrl: fullAvatarUrl,
                 avatar: fullAvatarUrl,
                 coverImage: fullCoverUrl,
-            };
-            
-            // Update the auth user state (for logged-in user info in sidebar)
-            dispatch(updateUser(userUpdate));
-            
-            // Update the profile in userSlice (for profile page)
-            dispatch(updateProfileLocal(userUpdate));
-            
-            // Update AccountManager localStorage (for persistence across refreshes)
-            if (currentUser) {
-                // Get the current stored account to preserve tokens
-                const accounts = AccountManager.getAccounts();
-                const currentAccount = accounts.find(a => a.did === currentUser.did);
-                
-                console.log('Saving to AccountManager:', {
-                    displayName: updatedUser.displayName,
-                    avatarUrl: fullAvatarUrl,
-                    avatar: fullAvatarUrl,
-                    hasTokens: !!currentAccount?.accessToken
-                });
-                
-                // Save the updated user data while preserving tokens
-                AccountManager.saveAccount(
-                    {
-                        ...currentUser,
-                        displayName: updatedUser.displayName,
-                        bio: updatedUser.bio,
-                        avatarUrl: fullAvatarUrl,
-                        avatar: fullAvatarUrl,
-                        coverImage: fullCoverUrl,
-                    } as any,
-                    currentAccount?.accessToken,
-                    currentAccount?.refreshToken
-                );
-                
-                console.log('AccountManager after save:', AccountManager.getAccounts().find(a => a.did === currentUser.did));
-            }
+            }));
             
             // Update author info in all posts by this user
             if (currentUser) {

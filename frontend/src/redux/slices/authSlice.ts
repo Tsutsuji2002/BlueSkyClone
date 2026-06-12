@@ -6,6 +6,20 @@ import { AccountManager, StoredAccount } from '../../utils/accountManager';
 import { setHandshakeSettled } from './userSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+
+/**
+ * Helper to normalize image URLs to full URLs
+ */
+function normalizeImageUrl(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) {
+        return url;
+    }
+    // Relative URL - prepend base URL
+    const base = API_BASE_URL.replace('/api', '');
+    return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 /**
  * Normalizes settings from the backend (PascalCase / different field names)
@@ -249,7 +263,31 @@ const authSlice = createSlice({
                 state.settings = normalizeSettings(payload);
             })
             .addMatcher(authApi.endpoints.updateProfile.matchFulfilled, (state, { payload }) => {
-                state.user = payload;
+                // Normalize URLs and update user
+                if (state.user) {
+                    const normalizedAvatar = normalizeImageUrl(payload.avatarUrl || payload.avatar);
+                    const normalizedCover = normalizeImageUrl(payload.coverImage);
+                    
+                    state.user = {
+                        ...state.user,
+                        ...payload,
+                        avatarUrl: normalizedAvatar,
+                        avatar: normalizedAvatar,
+                        coverImage: normalizedCover,
+                    };
+                    
+                    // Also update AccountManager for persistence
+                    const accounts = AccountManager.getAccounts();
+                    const currentAccount = accounts.find(a => a.did === state.user!.did);
+                    if (currentAccount) {
+                        AccountManager.saveAccount(
+                            state.user,
+                            currentAccount.accessToken,
+                            currentAccount.refreshToken
+                        );
+                        state.savedAccounts = AccountManager.getAccounts();
+                    }
+                }
             })
             .addMatcher(authApi.endpoints.updateAccount.matchFulfilled, (state, { payload }) => {
                 state.user = payload;
