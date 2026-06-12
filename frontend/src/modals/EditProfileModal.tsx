@@ -15,6 +15,7 @@ import ImageEditorModal from '../components/common/ImageEditorModal';
 import { API_BASE_URL, AVATAR_PLACEHOLDER, COVER_PLACEHOLDER } from '../constants';
 import { RootState } from '../redux/store';
 import { readFileAsDataUrl } from '../utils/imageCrop';
+import { AccountManager } from '../utils/accountManager';
 
 type CropTarget = 'cover' | 'avatar';
 
@@ -180,21 +181,49 @@ const EditProfileModal: React.FC = () => {
             const fullAvatarUrl = getFullImageUrl(updatedUser.avatarUrl || updatedUser.avatar);
             const fullCoverUrl = getFullImageUrl(updatedUser.coverImage);
             
-            // Update the auth user state (for logged-in user info in sidebar)
-            dispatch(updateUser({
+            // Create the updated user object
+            const userUpdate = {
                 ...updatedUser,
                 avatarUrl: fullAvatarUrl,
                 avatar: fullAvatarUrl,
                 coverImage: fullCoverUrl,
-            }));
+            };
+            
+            // Update the auth user state (for logged-in user info in sidebar)
+            dispatch(updateUser(userUpdate));
             
             // Update the profile in userSlice (for profile page)
-            dispatch(updateProfileLocal({
-                ...updatedUser,
-                avatarUrl: fullAvatarUrl,
-                avatar: fullAvatarUrl,
-                coverImage: fullCoverUrl,
-            }));
+            dispatch(updateProfileLocal(userUpdate));
+            
+            // Update AccountManager localStorage (for persistence across refreshes)
+            if (currentUser) {
+                // Get the current stored account to preserve tokens
+                const accounts = AccountManager.getAccounts();
+                const currentAccount = accounts.find(a => a.did === currentUser.did);
+                
+                console.log('Saving to AccountManager:', {
+                    displayName: updatedUser.displayName,
+                    avatarUrl: fullAvatarUrl,
+                    avatar: fullAvatarUrl,
+                    hasTokens: !!currentAccount?.accessToken
+                });
+                
+                // Save the updated user data while preserving tokens
+                AccountManager.saveAccount(
+                    {
+                        ...currentUser,
+                        displayName: updatedUser.displayName,
+                        bio: updatedUser.bio,
+                        avatarUrl: fullAvatarUrl,
+                        avatar: fullAvatarUrl,
+                        coverImage: fullCoverUrl,
+                    } as any,
+                    currentAccount?.accessToken,
+                    currentAccount?.refreshToken
+                );
+                
+                console.log('AccountManager after save:', AccountManager.getAccounts().find(a => a.did === currentUser.did));
+            }
             
             // Update author info in all posts by this user
             if (currentUser) {
