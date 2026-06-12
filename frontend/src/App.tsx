@@ -24,7 +24,7 @@ import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
 import { stopLoading, setAuth, logout, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } from './redux/slices/authSlice';
-import { setMutedWords, setMutedWordsInitialized, setHandshakeSettled } from './redux/slices/userSlice';
+import { setMutedWords, setMutedWordsInitialized, setHandshakeSettled, updateProfileLocal } from './redux/slices/userSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetHandshakeQuery, authApi } from './redux/api/authApi';
 import { fetchUnreadCount, fetchNotifications } from './redux/slices/notificationsSlice';
@@ -95,6 +95,10 @@ const AppContent: React.FC = () => {
         token: handshakeData.token || '',
         refreshToken: handshakeData.refreshToken || ''
       }));
+      
+      // IMPORTANT: Also update user.profile if it matches the authenticated user
+      // This ensures ProfilePage shows correct data after page refresh
+      dispatch(updateProfileLocal(handshakeData.user));
       
         if (handshakeData.mutedWords) {
           dispatch(setMutedWords(handshakeData.mutedWords));
