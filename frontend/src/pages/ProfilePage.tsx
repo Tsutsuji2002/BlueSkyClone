@@ -151,21 +151,22 @@ const ProfilePage: React.FC = () => {
 
     const isOwnProfile = currentUser?.did === profileUser?.did;
 
-    // CRITICAL FIX: When viewing own profile, merge currentUser data to ensure avatar updates
-    // after handshake are always reflected (handles refresh case)
+    // CRITICAL FIX: When viewing own profile, ALWAYS prefer currentUser data
+    // currentUser comes from auth state which is updated by handshake
+    // profileUser might be stale if fetched before profile update
     const displayProfile = React.useMemo(() => {
         if (!profileUser) return profileUser;
         if (!isOwnProfile || !currentUser) return profileUser;
         
-        // Merge currentUser's latest avatar/cover into profileUser
-        // This ensures ProfilePage shows fresh data after handshake updates auth.user
+        // For own profile, ALWAYS use currentUser's data (it's the source of truth)
         return {
             ...profileUser,
-            avatarUrl: currentUser.avatarUrl || profileUser.avatarUrl,
-            avatar: currentUser.avatar || profileUser.avatar,
-            coverImage: currentUser.coverImage || profileUser.coverImage,
-            displayName: currentUser.displayName || profileUser.displayName,
-            bio: currentUser.bio || profileUser.bio,
+            // ALWAYS prefer currentUser fields (don't fallback to profileUser)
+            avatarUrl: currentUser.avatarUrl,
+            avatar: currentUser.avatar,
+            coverImage: currentUser.coverImage,
+            displayName: currentUser.displayName,
+            bio: currentUser.bio,
         };
     }, [profileUser, currentUser, isOwnProfile]);
 

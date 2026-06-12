@@ -957,15 +957,21 @@ const postsSlice = createSlice({
         updateAuthorInPosts: (state, action: PayloadAction<{ userIdentifier: string; updates: Partial<any> }>) => {
             const { userIdentifier, updates } = action.payload;
             
+            console.log('[postsSlice] updateAuthorInPosts called with:', { userIdentifier, updates });
+            let updateCount = 0;
+            
             const updatePostAuthor = (post: Post) => {
                 // Check if the post author matches the identifier
                 if (post.author && userMatchesIdentifier(post.author, userIdentifier)) {
+                    console.log('[postsSlice] Updating author in post:', post.id || post.uri, 'old avatar:', post.author.avatarUrl, 'new avatar:', updates.avatarUrl);
                     post.author = { ...post.author, ...updates };
+                    updateCount++;
                 }
                 
                 // Also update repostedBy if it matches
                 if (post.repostedBy && userMatchesIdentifier(post.repostedBy, userIdentifier)) {
                     post.repostedBy = { ...post.repostedBy, ...updates };
+                    updateCount++;
                 }
                 
                 // Recursively update nested posts
@@ -988,6 +994,8 @@ const postsSlice = createSlice({
             Object.values(state.searchPostsByTab || {}).forEach((posts: any) => {
                 posts.forEach(updatePostAuthor);
             });
+            
+            console.log('[postsSlice] Updated', updateCount, 'author references in posts');
         },
     },
 
