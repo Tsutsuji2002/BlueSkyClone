@@ -164,9 +164,14 @@ const EditProfileModal: React.FC = () => {
             const updatedUser = await updateProfileMutation(formData).unwrap();
             
             console.log('Updated user from backend:', updatedUser);
+            console.log('Current auth user before update:', currentUser);
             
-            // Update the auth user state (for logged-in user info)
-            dispatch(updateUser(updatedUser));
+            // Update the auth user state (for logged-in user info in sidebar)
+            dispatch(updateUser({
+                ...updatedUser,
+                avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
+                avatar: updatedUser.avatarUrl || updatedUser.avatar,
+            }));
             
             // Update the profile in userSlice (for profile page)
             dispatch(updateProfileLocal(updatedUser));
