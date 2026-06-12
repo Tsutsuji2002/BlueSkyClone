@@ -696,8 +696,13 @@ const userSlice = createSlice({
             state.activeProfileTab = action.payload;
         },
         updateProfileLocal: (state: UserState, action: PayloadAction<Partial<User>>) => {
+            console.log('[userSlice] updateProfileLocal called with:', action.payload);
+            console.log('[userSlice] Current profile before update:', state.profile);
             if (state.profile) {
                 state.profile = { ...state.profile, ...action.payload };
+                console.log('[userSlice] Profile after update:', state.profile);
+            } else {
+                console.log('[userSlice] No profile to update!');
             }
         },
         clearUsers: (state: UserState) => {
