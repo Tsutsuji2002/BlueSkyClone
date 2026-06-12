@@ -424,6 +424,8 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
+        _logger.LogInformation("[Handshake] User: {UserId}, AvatarUrl from DB: {AvatarUrl}", userId, user.AvatarUrl);
+
         // Global handshake cap: 8 seconds.
         // If tasks take longer, return partial/stale data and let the frontend catch up.
         using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
