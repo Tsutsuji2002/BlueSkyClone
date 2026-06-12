@@ -958,14 +958,32 @@ const postsSlice = createSlice({
             const { userIdentifier, updates } = action.payload;
             
             console.log('[postsSlice] updateAuthorInPosts called with:', { userIdentifier, updates });
+            console.log('[postsSlice] Total posts to check:', state.posts.length);
+            
+            // Log first post author to see what we're dealing with
+            if (state.posts.length > 0 && state.posts[0].author) {
+                console.log('[postsSlice] First post author:', {
+                    id: state.posts[0].author.id,
+                    did: state.posts[0].author.did,
+                    handle: state.posts[0].author.handle,
+                    username: state.posts[0].author.username
+                });
+            }
+            
             let updateCount = 0;
             
             const updatePostAuthor = (post: Post) => {
                 // Check if the post author matches the identifier
-                if (post.author && userMatchesIdentifier(post.author, userIdentifier)) {
-                    console.log('[postsSlice] Updating author in post:', post.id || post.uri, 'old avatar:', post.author.avatarUrl, 'new avatar:', updates.avatarUrl);
-                    post.author = { ...post.author, ...updates };
-                    updateCount++;
+                if (post.author) {
+                    const authorIdentifiers = identifiersForUser(post.author);
+                    const normalizedUserIdentifier = normalizeIdentifier(userIdentifier);
+                    const matches = authorIdentifiers.includes(normalizedUserIdentifier);
+                    
+                    if (matches) {
+                        console.log('[postsSlice] Updating author in post:', post.id || post.uri, 'old avatar:', post.author.avatarUrl, 'new avatar:', updates.avatarUrl);
+                        post.author = { ...post.author, ...updates };
+                        updateCount++;
+                    }
                 }
                 
                 // Also update repostedBy if it matches
