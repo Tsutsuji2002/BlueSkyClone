@@ -166,23 +166,43 @@ const EditProfileModal: React.FC = () => {
             console.log('Updated user from backend:', updatedUser);
             console.log('Current auth user before update:', currentUser);
             
+            // Helper function to ensure full URL for images
+            const getFullImageUrl = (url: string | null | undefined): string | undefined => {
+                if (!url) return undefined;
+                if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) {
+                    return url;
+                }
+                // Relative URL - prepend base URL
+                const base = API_BASE_URL.replace('/api', '');
+                return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+            };
+            
+            const fullAvatarUrl = getFullImageUrl(updatedUser.avatarUrl || updatedUser.avatar);
+            const fullCoverUrl = getFullImageUrl(updatedUser.coverImage);
+            
             // Update the auth user state (for logged-in user info in sidebar)
             dispatch(updateUser({
                 ...updatedUser,
-                avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
-                avatar: updatedUser.avatarUrl || updatedUser.avatar,
+                avatarUrl: fullAvatarUrl,
+                avatar: fullAvatarUrl,
+                coverImage: fullCoverUrl,
             }));
             
             // Update the profile in userSlice (for profile page)
-            dispatch(updateProfileLocal(updatedUser));
+            dispatch(updateProfileLocal({
+                ...updatedUser,
+                avatarUrl: fullAvatarUrl,
+                avatar: fullAvatarUrl,
+                coverImage: fullCoverUrl,
+            }));
             
             // Update author info in all posts by this user
             if (currentUser) {
                 const authorUpdates = {
                     displayName: updatedUser.displayName,
-                    avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
-                    avatar: updatedUser.avatarUrl || updatedUser.avatar,
-                    coverImage: updatedUser.coverImage,
+                    avatarUrl: fullAvatarUrl,
+                    avatar: fullAvatarUrl,
+                    coverImage: fullCoverUrl,
                     bio: updatedUser.bio,
                 };
                 
