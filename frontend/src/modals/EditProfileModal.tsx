@@ -5,6 +5,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { closeEditProfile } from '../redux/slices/modalsSlice';
 import { useUpdateProfileMutation } from '../redux/api/authApi';
+import { updateUser } from '../redux/slices/authSlice';
 import { updateProfileLocal } from '../redux/slices/userSlice';
 import { updateAuthorInPosts } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
@@ -162,20 +163,29 @@ const EditProfileModal: React.FC = () => {
         try {
             const updatedUser = await updateProfileMutation(formData).unwrap();
             
-            // Update the profile in userSlice if viewing own profile
+            console.log('Updated user from backend:', updatedUser);
+            
+            // Update the auth user state (for logged-in user info)
+            dispatch(updateUser(updatedUser));
+            
+            // Update the profile in userSlice (for profile page)
             dispatch(updateProfileLocal(updatedUser));
             
             // Update author info in all posts by this user
             if (currentUser) {
+                const authorUpdates = {
+                    displayName: updatedUser.displayName,
+                    avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
+                    avatar: updatedUser.avatarUrl || updatedUser.avatar,
+                    coverImage: updatedUser.coverImage,
+                    bio: updatedUser.bio,
+                };
+                
+                console.log('Dispatching author updates:', authorUpdates);
+                
                 dispatch(updateAuthorInPosts({
                     userIdentifier: currentUser.did || currentUser.handle || currentUser.id,
-                    updates: {
-                        displayName: updatedUser.displayName,
-                        avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
-                        avatar: updatedUser.avatarUrl || updatedUser.avatar,
-                        coverImage: updatedUser.coverImage,
-                        bio: updatedUser.bio,
-                    }
+                    updates: authorUpdates
                 }));
             }
             
