@@ -1338,6 +1338,20 @@ const userSlice = createSlice({
                 (state) => {
                     state.handshakeSettled = false;
                 }
+            )
+            .addMatcher(
+                (action) => action.type === 'api/executeMutation/fulfilled' && 
+                             action.meta?.arg?.endpointName === 'updateProfile',
+                (state, action: any) => {
+                    // When profile is updated via authApi, also update the profile in userSlice
+                    const updatedUser = action.payload;
+                    if (state.profile && updatedUser && 
+                        (state.profile.did === updatedUser.did || 
+                         state.profile.id === updatedUser.id ||
+                         state.profile.handle === updatedUser.handle)) {
+                        state.profile = { ...state.profile, ...updatedUser };
+                    }
+                }
             );
     }
 });

@@ -6,6 +6,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { closeEditProfile } from '../redux/slices/modalsSlice';
 import { useUpdateProfileMutation } from '../redux/api/authApi';
 import { updateProfileLocal } from '../redux/slices/userSlice';
+import { updateAuthorInPosts } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
 import Dropdown from '../components/common/Dropdown';
@@ -160,7 +161,24 @@ const EditProfileModal: React.FC = () => {
 
         try {
             const updatedUser = await updateProfileMutation(formData).unwrap();
+            
+            // Update the profile in userSlice if viewing own profile
             dispatch(updateProfileLocal(updatedUser));
+            
+            // Update author info in all posts by this user
+            if (currentUser) {
+                dispatch(updateAuthorInPosts({
+                    userIdentifier: currentUser.did || currentUser.handle || currentUser.id,
+                    updates: {
+                        displayName: updatedUser.displayName,
+                        avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
+                        avatar: updatedUser.avatarUrl || updatedUser.avatar,
+                        coverImage: updatedUser.coverImage,
+                        bio: updatedUser.bio,
+                    }
+                }));
+            }
+            
             dispatch(showToast({ message: 'Profile updated.', type: 'success' }));
             dispatch(closeEditProfile());
         } catch (error) {

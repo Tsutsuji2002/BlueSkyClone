@@ -950,6 +950,45 @@ const postsSlice = createSlice({
             state.searchFetchedByTab = {};
             state.posts = [];
         },
+        /**
+         * Update author info in all posts by a specific user
+         * Used when profile is updated to immediately reflect changes in posts
+         */
+        updateAuthorInPosts: (state, action: PayloadAction<{ userIdentifier: string; updates: Partial<any> }>) => {
+            const { userIdentifier, updates } = action.payload;
+            
+            const updatePostAuthor = (post: Post) => {
+                // Check if the post author matches the identifier
+                if (post.author && userMatchesIdentifier(post.author, userIdentifier)) {
+                    post.author = { ...post.author, ...updates };
+                }
+                
+                // Also update repostedBy if it matches
+                if (post.repostedBy && userMatchesIdentifier(post.repostedBy, userIdentifier)) {
+                    post.repostedBy = { ...post.repostedBy, ...updates };
+                }
+                
+                // Recursively update nested posts
+                if (post.quotePost) {
+                    updatePostAuthor(post.quotePost);
+                }
+                if (post.parentPost) {
+                    updatePostAuthor(post.parentPost);
+                }
+            };
+            
+            // Update all post arrays
+            state.posts.forEach(updatePostAuthor);
+            state.threadPosts.forEach(updatePostAuthor);
+            state.discoverPosts.forEach(updatePostAuthor);
+            state.trendingPosts.forEach(updatePostAuthor);
+            state.bookmarkedPosts.forEach(updatePostAuthor);
+            
+            // Update search results
+            Object.values(state.searchPostsByTab || {}).forEach((posts: any) => {
+                posts.forEach(updatePostAuthor);
+            });
+        },
     },
 
     extraReducers: (builder) => {
@@ -1992,7 +2031,7 @@ const postsSlice = createSlice({
 });
 
 
-export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, seedInteractionTruth, clearSearchResults } = postsSlice.actions;
+export const { clearPosts, clearThreadPosts, updatePostStats, updateUserPostStatus, removePost, receiveNewPost, seedInteractionTruth, clearSearchResults, updateAuthorInPosts } = postsSlice.actions;
 
 
 export default postsSlice.reducer;
