@@ -203,10 +203,24 @@ const EditProfileModal: React.FC = () => {
                 
                 console.log('Dispatching author updates:', authorUpdates);
                 
-                dispatch(updateAuthorInPosts({
-                    userIdentifier: currentUser.did || currentUser.handle || currentUser.id,
-                    updates: authorUpdates
-                }));
+                // Try all possible identifiers to maximize match chance
+                const identifiers = [
+                    currentUser.did,
+                    currentUser.handle,
+                    currentUser.id,
+                    currentUser.username
+                ].filter(Boolean);
+                
+                // Dispatch update for each identifier
+                identifiers.forEach(identifier => {
+                    if (identifier) {
+                        console.log('Updating posts for identifier:', identifier);
+                        dispatch(updateAuthorInPosts({
+                            userIdentifier: identifier,
+                            updates: authorUpdates
+                        }));
+                    }
+                });
             }
             
             dispatch(showToast({ message: 'Profile updated.', type: 'success' }));
