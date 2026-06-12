@@ -436,12 +436,14 @@ const ProfilePage: React.FC = () => {
                     {/* Avatar Overlap */}
                     <div className="absolute -bottom-12 lg:-bottom-16 left-4 lg:left-6 z-20">
                         <Avatar
+                            key={profileUser?.avatarUrl || profileUser?.avatar || 'default'}
                             src={profileUser?.avatarUrl || profileUser?.avatar}
                             alt={profileUser?.displayName || 'User'}
                             size="2xl"
                             className="border-[4px] lg:border-[6px] border-white dark:border-dark-bg cursor-pointer shadow-sm"
                         />
                     </div>
+
                 </div>
 
                 {/* Muted by List Indicator */}
