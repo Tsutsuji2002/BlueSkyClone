@@ -119,6 +119,21 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
         (currentUser?.handle && post.author?.handle && currentUser.handle === post.author.handle)
     );
 
+    // CRITICAL FIX: For posts by current user, dynamically read fresh avatar from auth state
+    // This ensures profile updates reflect immediately in all posts, regardless of where posts are stored
+    const displayAuthor = React.useMemo(() => {
+        if (!isOwnPost || !currentUser) return post.author;
+        
+        // For own posts, overlay fresh data from currentUser
+        return {
+            ...post.author,
+            avatarUrl: currentUser.avatarUrl,
+            avatar: currentUser.avatar,
+            displayName: currentUser.displayName,
+            bio: currentUser.bio,
+        };
+    }, [isOwnPost, currentUser, post.author]);
+
     const mutedWords = useAppSelector((state: RootState) => (state.user as any).mutedWords as MutedWord[] ?? []);
 
     const moderationSettings = useAppSelector((state: RootState) => state.auth.settings);
@@ -478,11 +493,11 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             <div className="absolute top-[-12px] bottom-[auto] w-[2px] h-[12px] bg-gray-200 dark:bg-dark-border z-0" />
                         )}
                         <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0">
-                            <UserHoverCard user={post.author}>
+                            <UserHoverCard user={displayAuthor}>
                                 <div onClick={handleAvatarClick}>
                                     <Avatar
-                                        src={post.author.avatarUrl || post.author.avatar}
-                                        alt={post.author.displayName || post.author.handle || '?'}
+                                        src={displayAuthor.avatarUrl || displayAuthor.avatar}
+                                        alt={displayAuthor.displayName || displayAuthor.handle || '?'}
                                         size="md"
                                     />
                                 </div>
@@ -497,13 +512,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                     <div className="flex-1 min-w-0">
                         {/* Header */}
                         <div className="flex items-center gap-1 mb-0.5 min-w-0">
-                            <UserHoverCard user={post.author}>
+                            <UserHoverCard user={displayAuthor}>
                                 <span
                                     className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5 min-w-0 max-w-[140px] sm:max-w-[220px]"
                                     onClick={handleAvatarClick}
-                                    title={post.author.displayName || post.author.handle || 'Unknown'}
+                                    title={displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
                                 >
-                                    {post.author.displayName || post.author.handle || 'Unknown'}
+                                    {displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
                                     {post.author.isVerified && (
                                         <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
                                     )}
@@ -511,9 +526,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             </UserHoverCard>
                             <span
                                 className="text-[15px] text-gray-500 dark:text-dark-text-secondary truncate max-w-[100px] sm:max-w-[160px]"
-                                title={post.author.handle || ''}
+                                title={displayAuthor.handle || ''}
                             >
-                                {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle)}
+                                {displayAuthor.handle?.startsWith('did:') ? '' : formatHandleText(displayAuthor.handle)}
                             </span>
                             <span className="text-[15px] text-gray-400 dark:text-dark-text-secondary">·</span>
                             <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary whitespace-nowrap">

@@ -2052,6 +2052,63 @@ const postsSlice = createSlice({
                     });
                     state.threadPosts = [...state.threadPosts, ...newPosts];
                 }
+            )
+            // Listen for profile updates from authApi to update post authors
+            .addMatcher(
+                (action): action is any => action.type === 'authApi/executeMutation/fulfilled' && action.meta?.arg?.endpointName === 'updateProfile',
+                (state, action) => {
+                    const updatedUser = action.payload;
+                    if (!updatedUser) return;
+                    
+                    console.log('[postsSlice] Profile update detected, updating all post authors');
+                    
+                    const updates = {
+                        displayName: updatedUser.displayName,
+                        avatarUrl: updatedUser.avatarUrl || updatedUser.avatar,
+                        avatar: updatedUser.avatar || updatedUser.avatarUrl,
+                        coverImage: updatedUser.coverImage,
+                        bio: updatedUser.bio,
+                    };
+                    
+                    // Try all possible identifiers
+                    const identifiers = [
+                        updatedUser.did,
+                        updatedUser.handle,
+                        updatedUser.id,
+                        updatedUser.username
+                    ].filter(Boolean);
+                    
+                    let totalUpdated = 0;
+                    
+                    const updatePostAuthor = (post: any, userIdentifier: string) => {
+                        if (post.author && userMatchesIdentifier(post.author, userIdentifier)) {
+                            post.author = { ...post.author, ...updates };
+                            totalUpdated++;
+                        }
+                        if (post.repostedBy && userMatchesIdentifier(post.repostedBy, userIdentifier)) {
+                            post.repostedBy = { ...post.repostedBy, ...updates };
+                            totalUpdated++;
+                        }
+                        if (post.quotePost) updatePostAuthor(post.quotePost, userIdentifier);
+                        if (post.parentPost) updatePostAuthor(post.parentPost, userIdentifier);
+                    };
+                    
+                    // Update all post arrays for each identifier
+                    identifiers.forEach(identifier => {
+                        if (identifier) {
+                            state.posts.forEach(post => updatePostAuthor(post, identifier));
+                            state.threadPosts.forEach(post => updatePostAuthor(post, identifier));
+                            state.discoverPosts.forEach(post => updatePostAuthor(post, identifier));
+                            state.trendingPosts.forEach(post => updatePostAuthor(post, identifier));
+                            state.bookmarkedPosts.forEach(post => updatePostAuthor(post, identifier));
+                            Object.values(state.searchPostsByTab || {}).forEach((posts: any) => {
+                                posts.forEach((post: any) => updatePostAuthor(post, identifier));
+                            });
+                        }
+                    });
+                    
+                    console.log('[postsSlice] Profile update: Updated', totalUpdated, 'author references');
+                }
             );
     },
 });
