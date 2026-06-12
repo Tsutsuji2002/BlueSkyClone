@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction, ActionReducerMapBuilder } from '@reduxjs/toolkit';
 import { UserState, User, MutedWord, UserListCacheEntry } from '../../types';
 import { API_BASE_URL } from '../../constants';
+import { setAuth } from './authSlice';
 
 const initialState: UserState = {
     profile: null,
@@ -1356,6 +1357,27 @@ const userSlice = createSlice({
                          state.profile.id === updatedUser.id ||
                          state.profile.handle === updatedUser.handle)) {
                         state.profile = { ...state.profile, ...updatedUser };
+                    }
+                }
+            )
+            // Listen for setAuth from handshake to update profile if viewing own profile
+            .addMatcher(
+                (action): action is ReturnType<typeof setAuth> => action.type === setAuth.type,
+                (state, action) => {
+                    const authUser = action.payload.user;
+                    // If we're currently viewing our own profile, update it with auth data
+                    if (state.profile && authUser && 
+                        (state.profile.did === authUser.did || 
+                         state.profile.id === authUser.id ||
+                         state.profile.handle === authUser.handle)) {
+                        console.log('[userSlice] setAuth detected - updating profile with auth user data');
+                        Object.assign(state.profile, {
+                            avatarUrl: authUser.avatarUrl || authUser.avatar,
+                            avatar: authUser.avatarUrl || authUser.avatar,
+                            displayName: authUser.displayName,
+                            coverImage: authUser.coverImage,
+                            bio: authUser.bio,
+                        });
                     }
                 }
             );
