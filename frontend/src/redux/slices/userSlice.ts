@@ -699,7 +699,8 @@ const userSlice = createSlice({
             console.log('[userSlice] updateProfileLocal called with:', action.payload);
             console.log('[userSlice] Current profile before update:', state.profile);
             if (state.profile) {
-                state.profile = { ...state.profile, ...action.payload };
+                // In Immer, direct mutation works, but we need to ensure all fields are updated
+                Object.assign(state.profile, action.payload);
                 console.log('[userSlice] Profile after update:', state.profile);
             } else {
                 console.log('[userSlice] No profile to update!');

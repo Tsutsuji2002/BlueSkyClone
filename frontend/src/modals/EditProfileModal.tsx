@@ -189,13 +189,7 @@ const EditProfileModal: React.FC = () => {
                 coverImage: fullCoverUrl,
             }));
             
-            console.log('Profile updated locally, forcing re-fetch if on own profile');
-            
-            // If user is viewing their own profile, force a profile refetch
-            if (currentUser?.handle) {
-                console.log('Refetching profile for:', currentUser.handle);
-                dispatch(fetchUserProfile(currentUser.handle));
-            }
+            console.log('Profile updated locally in userSlice');
             
             // Update author info in all posts by this user
             if (currentUser) {
