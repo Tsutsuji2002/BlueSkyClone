@@ -140,9 +140,6 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) throw new Exception("User not found");
 
-        _logger.LogInformation("[UpdateProfile] START - User: {UserId}, DID: {Did}, Current AvatarUrl: {CurrentAvatar}", 
-            userId, user.Did, user.AvatarUrl);
-
         var profileRecord = await GetCurrentProfileRecordNodeAsync(user)
             ?? new JsonObject
             {
@@ -156,16 +153,13 @@ public class UserService : IUserService
         {
             profileRecord.Remove("avatar");
             user.AvatarUrl = null;
-            _logger.LogInformation("[UpdateProfile] Removing avatar");
         }
         else if (request.Avatar != null)
         {
-            _logger.LogInformation("[UpdateProfile] Uploading new avatar, file size: {Size}", request.Avatar.Length);
             var avatarBlob = await UploadProfileBlobNodeAsync(user, request.Avatar);
             profileRecord["avatar"] = avatarBlob;
             var newAvatarUrl = BuildRemoteImageUrl(user.Did, avatarBlob, "avatar");
             user.AvatarUrl = newAvatarUrl;
-            _logger.LogInformation("[UpdateProfile] New AvatarUrl set to: {AvatarUrl}", newAvatarUrl);
         }
 
         if (request.RemoveCoverImage)
@@ -181,19 +175,11 @@ public class UserService : IUserService
         }
 
         await SaveProfileRecordAsync(user, profileRecord);
-
-        _logger.LogInformation("[UpdateProfile] Before Update - AvatarUrl: {AvatarUrl}", user.AvatarUrl);
         
         // CRITICAL: Mark entity as modified to ensure EF tracks the change
         _unitOfWork.Users.Update(user);
         
         await _unitOfWork.CompleteAsync();
-        
-        _logger.LogInformation("[UpdateProfile] After CompleteAsync - AvatarUrl should be saved: {AvatarUrl}", user.AvatarUrl);
-        
-        // VERIFICATION: Re-query from database to confirm it was saved
-        var verifyUser = await _unitOfWork.Users.GetByIdAsync(userId);
-        _logger.LogInformation("[UpdateProfile] VERIFICATION - AvatarUrl from DB after save: {AvatarUrl}", verifyUser?.AvatarUrl);
         
         return user;
     }

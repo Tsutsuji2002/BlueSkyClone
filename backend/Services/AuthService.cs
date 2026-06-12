@@ -424,8 +424,6 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
-        _logger.LogInformation("[Handshake] User: {UserId}, AvatarUrl from DB: {AvatarUrl}", userId, user.AvatarUrl);
-
         // Global handshake cap: 8 seconds.
         // If tasks take longer, return partial/stale data and let the frontend catch up.
         using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
@@ -451,10 +449,8 @@ public class AuthService : IAuthService
             }
         }, globalToken);
 
-        // [FIX] DON'T call GetUserProfileAsync during handshake - it fetches from Bluesky's remote API
-        // which may return stale/cached avatar data and overwrite our freshly saved database avatar.
-        // Instead, trust the local database and map directly to AuthResponse.
-        _logger.LogInformation("[Handshake] Using local DB profile data, skipping remote Bluesky sync to avoid overwriting fresh avatar");
+        // [FIX] Trust local database instead of fetching from Bluesky's remote API during handshake.
+        // Remote API may return stale cached avatar data that would overwrite fresh DB values.
         var profile = MapToAuthResponse(user, "", "");
 
         // Launch all metadata tasks in parallel immediately

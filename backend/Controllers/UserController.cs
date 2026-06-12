@@ -35,8 +35,6 @@ public class UserController : ControllerBase
         {
             var user = await _userService.UpdateProfileAsync(userId, request);
             
-            _logger.LogInformation("[UpdateProfile Controller] Returning AvatarUrl: {AvatarUrl}", user.AvatarUrl);
-            
             var userDto = new UserDto(
                 user.Id,
                 user.Username,
