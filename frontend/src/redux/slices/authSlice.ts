@@ -186,15 +186,25 @@ const authSlice = createSlice({
         },
         setAuth: (state, action: PayloadAction<{ user: User; settings: any; token: string; refreshToken: string }>) => {
             state.isAuthenticated = true;
-            state.user = action.payload.user;
+            
+            // CRITICAL FIX: Normalize avatar/cover URLs just like updateProfile matcher does
+            const normalizedAvatar = normalizeImageUrl(action.payload.user.avatarUrl || action.payload.user.avatar);
+            const normalizedCover = normalizeImageUrl(action.payload.user.coverImage);
+            
+            state.user = {
+                ...action.payload.user,
+                avatarUrl: normalizedAvatar,
+                avatar: normalizedAvatar,
+                coverImage: normalizedCover,
+            };
             state.settings = normalizeSettings(action.payload.settings);
             state.isLoading = false;
             state.isSessionSettled = true;
             state.isInitializing = false;
             
-            // Save to account manager with tokens and mark as active
-            AccountManager.saveAccount(action.payload.user, action.payload.token, action.payload.refreshToken);
-            AccountManager.setActiveAccount(action.payload.user);
+            // Save to account manager with normalized user data
+            AccountManager.saveAccount(state.user, action.payload.token, action.payload.refreshToken);
+            AccountManager.setActiveAccount(state.user);
             state.savedAccounts = AccountManager.getAccounts();
             localStorage.removeItem('home_active_tab');
         },
