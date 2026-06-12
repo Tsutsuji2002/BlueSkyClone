@@ -451,12 +451,14 @@ public class AuthService : IAuthService
             }
         }, globalToken);
 
+        // [FIX] DON'T call GetUserProfileAsync during handshake - it fetches from Bluesky's remote API
+        // which may return stale/cached avatar data and overwrite our freshly saved database avatar.
+        // Instead, trust the local database and map directly to AuthResponse.
+        _logger.LogInformation("[Handshake] Using local DB profile data, skipping remote Bluesky sync to avoid overwriting fresh avatar");
+        var profile = MapToAuthResponse(user, "", "");
+
         // Launch all metadata tasks in parallel immediately
         // Each sub-task gets its own disposed scope to prevent DB connection pool exhaustion.
-        var profileTask = Task.Run(async () => {
-             using var scope = _scopeFactory.CreateScope();
-             return await scope.ServiceProvider.GetRequiredService<IAuthService>().GetUserProfileAsync(userId, globalToken);
-        }, globalToken);
 
         var feedsTask = Task.Run(async () => {
              using var scope = _scopeFactory.CreateScope();
@@ -480,7 +482,7 @@ public class AuthService : IAuthService
 
         try
         {
-            var allTasks = Task.WhenAll(profileTask, feedsTask, countTask, trendingTask, mutedWordsTask);
+            var allTasks = Task.WhenAll(feedsTask, countTask, trendingTask, mutedWordsTask);
             var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(8), ct));
 
             if (completedTask == allTasks)
@@ -512,14 +514,6 @@ public class AuthService : IAuthService
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning("Handshake partially timed out for user {UserId}. Returning available data.", userId);
-        }
-
-        // Profile is essential for the UI to be "ready"
-        var profile = profileTask.IsCompletedSuccessfully ? await profileTask : null;
-        
-        // Final fallback for profile from DB if task timed out or failed
-        if (profile == null) {
-            profile = MapToAuthResponse(user, "", "");
         }
 
         // Extract results safely (using default values if they timed out)

@@ -183,9 +183,17 @@ public class UserService : IUserService
         await SaveProfileRecordAsync(user, profileRecord);
 
         _logger.LogInformation("[UpdateProfile] Before Update - AvatarUrl: {AvatarUrl}", user.AvatarUrl);
+        
+        // CRITICAL: Mark entity as modified to ensure EF tracks the change
         _unitOfWork.Users.Update(user);
+        
         await _unitOfWork.CompleteAsync();
+        
         _logger.LogInformation("[UpdateProfile] After CompleteAsync - AvatarUrl should be saved: {AvatarUrl}", user.AvatarUrl);
+        
+        // VERIFICATION: Re-query from database to confirm it was saved
+        var verifyUser = await _unitOfWork.Users.GetByIdAsync(userId);
+        _logger.LogInformation("[UpdateProfile] VERIFICATION - AvatarUrl from DB after save: {AvatarUrl}", verifyUser?.AvatarUrl);
         
         return user;
     }
