@@ -700,9 +700,16 @@ const userSlice = createSlice({
             console.log('[userSlice] updateProfileLocal called with:', action.payload);
             console.log('[userSlice] Current profile before update:', state.profile);
             if (state.profile) {
-                // In Immer, direct mutation works, but we need to ensure all fields are updated
-                Object.assign(state.profile, action.payload);
+                // Force a new object reference to trigger React re-render
+                state.profile = {
+                    ...state.profile,
+                    ...action.payload,
+                    // Ensure avatar fields are properly updated
+                    avatarUrl: action.payload.avatarUrl || action.payload.avatar || state.profile.avatarUrl,
+                    avatar: action.payload.avatar || action.payload.avatarUrl || state.profile.avatar,
+                };
                 console.log('[userSlice] Profile after update:', state.profile);
+                console.log('[userSlice] New avatar URL:', state.profile.avatarUrl);
             } else {
                 console.log('[userSlice] No profile to update!');
             }
