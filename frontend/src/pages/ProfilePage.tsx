@@ -151,8 +151,26 @@ const ProfilePage: React.FC = () => {
 
     const isOwnProfile = currentUser?.did === profileUser?.did;
 
-    // Use profileUser's cover image or placeholder
-    const coverImage = profileUser?.coverImage || COVER_PLACEHOLDER;
+    // CRITICAL FIX: When viewing own profile, merge currentUser data to ensure avatar updates
+    // after handshake are always reflected (handles refresh case)
+    const displayProfile = React.useMemo(() => {
+        if (!profileUser) return profileUser;
+        if (!isOwnProfile || !currentUser) return profileUser;
+        
+        // Merge currentUser's latest avatar/cover into profileUser
+        // This ensures ProfilePage shows fresh data after handshake updates auth.user
+        return {
+            ...profileUser,
+            avatarUrl: currentUser.avatarUrl || profileUser.avatarUrl,
+            avatar: currentUser.avatar || profileUser.avatar,
+            coverImage: currentUser.coverImage || profileUser.coverImage,
+            displayName: currentUser.displayName || profileUser.displayName,
+            bio: currentUser.bio || profileUser.bio,
+        };
+    }, [profileUser, currentUser, isOwnProfile]);
+
+    // Use displayProfile's cover image or placeholder
+    const coverImage = displayProfile?.coverImage || COVER_PLACEHOLDER;
 
     const ensureAuth = (callback: () => void) => {
         if (!currentUser) {
@@ -436,9 +454,9 @@ const ProfilePage: React.FC = () => {
                     {/* Avatar Overlap */}
                     <div className="absolute -bottom-12 lg:-bottom-16 left-4 lg:left-6 z-20">
                         <Avatar
-                            key={profileUser?.avatarUrl || profileUser?.avatar || 'default'}
-                            src={profileUser?.avatarUrl || profileUser?.avatar}
-                            alt={profileUser?.displayName || 'User'}
+                            key={displayProfile?.avatarUrl || displayProfile?.avatar || 'default'}
+                            src={displayProfile?.avatarUrl || displayProfile?.avatar}
+                            alt={displayProfile?.displayName || 'User'}
                             size="2xl"
                             className="border-[4px] lg:border-[6px] border-white dark:border-dark-bg cursor-pointer shadow-sm"
                         />
@@ -524,12 +542,12 @@ const ProfilePage: React.FC = () => {
 
                     <div className="mt-4 lg:mt-6 mb-1 min-w-0">
                         <div className="flex items-center gap-1.5 min-w-0">
-                            {profileUser ? (
+                            {displayProfile ? (
                                 <h1
                                     className="min-w-0 max-w-full truncate text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight"
-                                    title={profileUser?.displayName || profileUser?.handle || ''}
+                                    title={displayProfile?.displayName || displayProfile?.handle || ''}
                                 >
-                                    {profileUser?.displayName || profileUser?.handle}
+                                    {displayProfile?.displayName || displayProfile?.handle}
                                 </h1>
                             ) : (
                                 <Skeleton variant="text" width={200} height={32} />
@@ -538,12 +556,12 @@ const ProfilePage: React.FC = () => {
                                 <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={20} />
                             )}
                         </div>
-                        {profileUser ? (
+                        {displayProfile ? (
                             <p
                                 className="mt-0.5 max-w-full truncate text-[15px] text-gray-500 dark:text-dark-text-secondary"
-                                title={profileUser?.handle || ''}
+                                title={displayProfile?.handle || ''}
                             >
-                                {formatHandleText(profileUser?.handle)}
+                                {formatHandleText(displayProfile?.handle)}
                             </p>
                         ) : (
                             <Skeleton variant="text" width={120} height={20} className="mt-1" />
@@ -569,9 +587,9 @@ const ProfilePage: React.FC = () => {
                             </div>
 
                             {/* Bio Section */}
-                            {profileUser?.bio && (
+                            {displayProfile?.bio && (
                                 <div className="mb-3 text-gray-900 dark:text-dark-text text-[15px] leading-normal">
-                                    <RichText content={profileUser.bio} className="whitespace-pre-wrap break-words" />
+                                    <RichText content={displayProfile.bio} className="whitespace-pre-wrap break-words" />
                                 </div>
                             )}
                         </>

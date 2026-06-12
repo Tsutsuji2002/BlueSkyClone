@@ -699,8 +699,11 @@ const userSlice = createSlice({
         updateProfileLocal: (state: UserState, action: PayloadAction<Partial<User>>) => {
             console.log('[userSlice] updateProfileLocal called with:', action.payload);
             console.log('[userSlice] Current profile before update:', state.profile);
+            
+            // CRITICAL FIX: Always update/create profile, even if null
+            // This ensures handshake updates work after page refresh
             if (state.profile) {
-                // Force a new object reference to trigger React re-render
+                // Merge with existing profile
                 state.profile = {
                     ...state.profile,
                     ...action.payload,
@@ -708,11 +711,21 @@ const userSlice = createSlice({
                     avatarUrl: action.payload.avatarUrl || action.payload.avatar || state.profile.avatarUrl,
                     avatar: action.payload.avatar || action.payload.avatarUrl || state.profile.avatar,
                 };
-                console.log('[userSlice] Profile after update:', state.profile);
-                console.log('[userSlice] New avatar URL:', state.profile.avatarUrl);
+            } else if (action.payload.id || action.payload.did) {
+                // Create new profile from payload if we have enough data
+                // This handles the case where handshake updates profile before fetchUserProfile runs
+                state.profile = {
+                    ...action.payload,
+                    avatarUrl: action.payload.avatarUrl || action.payload.avatar,
+                    avatar: action.payload.avatar || action.payload.avatarUrl,
+                } as User;
+                console.log('[userSlice] Created new profile from payload');
             } else {
-                console.log('[userSlice] No profile to update!');
+                console.log('[userSlice] Insufficient data to create profile!');
             }
+            
+            console.log('[userSlice] Profile after update:', state.profile);
+            console.log('[userSlice] New avatar URL:', state.profile?.avatarUrl);
         },
         clearUsers: (state: UserState) => {
             state.users = [];
