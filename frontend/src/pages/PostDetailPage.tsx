@@ -103,9 +103,22 @@ const PostDetailPage: React.FC = () => {
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
-    const { data: threadDataModel, isLoading: isThreadLoading, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
     const threadData = threadDataModel?.allPosts;
     const targetPostFromApi = threadDataModel?.targetPost;
+
+    React.useEffect(() => {
+        console.log('[PostDetailPage] Render state metrics:', {
+            isInitializing,
+            isThreadLoading,
+            isThreadFetching,
+            isThreadError,
+            threadError,
+            hasData: !!threadDataModel,
+            postId,
+            handle
+        });
+    });
 
     // Insurance: if the handshake finishes but we don't have data, force a refetch
     // This handles cases where a mid-load resetApiState() might have cleared the pending query.
@@ -115,6 +128,7 @@ const PostDetailPage: React.FC = () => {
             refetchThread();
         }
     }, [isInitializing, isThreadLoading, threadDataModel, postId, refetchThread]);
+
 
     const postData = React.useMemo(() => {
         try {
