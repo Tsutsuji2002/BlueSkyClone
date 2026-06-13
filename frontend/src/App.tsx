@@ -115,6 +115,20 @@ const AppContent: React.FC = () => {
     }
   }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
 
+  // Safety timeout: Ensure the app never stays in "Initializing" state forever
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+        // We check current state inside the timeout to avoid unnecessary dispatches
+        // but here we just dispatch a stop-gap if handshake is still "loading" but requests are finished
+        if (!isHandshakeFetching && !handshakeData && !handshakeError) {
+            console.warn('[App] Initialization timed out or stuck, forcing settlement.');
+            dispatch(stopLoading());
+            dispatch(setHandshakeSettled(true));
+        }
+    }, 8000);
+    return () => clearTimeout(timeoutId);
+  }, [dispatch, isHandshakeFetching, handshakeData, handshakeError]);
+
   useEffect(() => {
     sessionStorage.removeItem('chunk_reload_count');
   }, []);

@@ -103,7 +103,20 @@ const PostDetailPage: React.FC = () => {
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const { data: threadData, isLoading: isThreadLoading } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
-    const postData = (threadData || []).find((p: Post) => p.id === postId || p.tid === postId || p.uri?.endsWith('/' + postId)) as Post;
+    const postData = React.useMemo(() => {
+        if (!threadData || !postId) return null;
+        const normalizedId = postId.toLowerCase();
+        
+        return threadData.find((p: Post) => {
+            const pid = p.id?.toLowerCase();
+            const ptid = p.tid?.toLowerCase();
+            const puri = p.uri?.toLowerCase();
+            
+            return pid === normalizedId || 
+                   ptid === normalizedId || 
+                   (puri && (puri === normalizedId || puri.endsWith('/' + normalizedId)));
+        });
+    }, [threadData, postId]) as Post;
 
     const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
     const [skipReplies, setSkipReplies] = React.useState(0);
