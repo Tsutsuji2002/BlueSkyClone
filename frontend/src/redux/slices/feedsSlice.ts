@@ -85,7 +85,7 @@ const normalizeFeedPosts = (incoming: any[], existing: Post[] = []): Post[] => {
         if (key) byKey.set(key, post);
     });
 
-    incoming.map(mapAtProtoPostToPost).forEach((post) => {
+    incoming.map(p => mapAtProtoPostToPost(p)).forEach((post) => {
         const key = getPostIdentityKey(post);
         if (!key) return;
         const existingPost = byKey.get(key);
@@ -504,7 +504,7 @@ export const fetchFeedPosts = createAsyncThunk<
             if (!response.ok) return rejectWithValue(data.error || data.message || `Failed to fetch feed posts (Status: ${response.status})`);
             
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             
             return {
                 feedId,

@@ -254,7 +254,7 @@ export const fetchTimeline = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const rawPosts = await response.json();
-            let posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
             
             // [NEW] Perform second-pass interaction hydration (Sync with local DB + AppView)
             posts = await hydratePostsWithInteractionStatus(posts);
@@ -282,7 +282,7 @@ export const fetchUserPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            let posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
 
             // [NEW] Perform second-pass interaction hydration
             posts = await hydratePostsWithInteractionStatus(posts);
@@ -506,7 +506,7 @@ export const fetchPostsByTag = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to fetch posts by tag');
             const rawPosts = await response.json();
-            const posts = rawPosts.map(mapAtProtoPostToPost);
+            const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             return { posts, cursor: null };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -524,7 +524,7 @@ export const fetchPostsSearch = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
             const rawPosts = await response.json();
-            let posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
 
             // [NEW] Perform second-pass interaction hydration
             posts = await hydratePostsWithInteractionStatus(posts);
@@ -635,7 +635,7 @@ export const fetchPostById = createAsyncThunk(
                 return await hydratePostsWithInteractionStatus(posts);
             }
 
-            let mappedPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+            let mappedPosts = Array.isArray(data) ? data.map((p: any) => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
             
             // Apply same skip-logic for direct API calls if they return viewer state
             if (mappedPosts.length > 0 && mappedPosts.every(p => p.viewer !== undefined)) {
@@ -769,7 +769,7 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             const data = await response.json();
             
             // [NEW] Perform second-pass interaction hydration
-            data.posts = await hydratePostsWithInteractionStatus(data.posts.map(mapAtProtoPostToPost));
+            data.posts = await hydratePostsWithInteractionStatus(data.posts.map((p: any) => mapAtProtoPostToPost(p)));
             
             return { 
                 posts: data.posts, 
@@ -792,7 +792,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            let posts = rawPosts.map(mapAtProtoPostToPost);
+            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
             
             // [NEW] Perform second-pass interaction hydration
             posts = await hydratePostsWithInteractionStatus(posts);
