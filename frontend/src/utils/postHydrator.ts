@@ -73,6 +73,7 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
 };
 
 export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<Post[]> => {
+    console.log(`[postHydrator] hydratePostsWithInteractionStatus STARTED for ${posts.length} posts`);
     if (!posts.length) return posts;
 
     const collectUris = (post?: Post | null, set: Set<string> = new Set(), seen: Set<string> = new Set()): Set<string> => {
@@ -88,8 +89,12 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<
     posts.forEach(post => collectUris(post, uriSet));
     const uris = Array.from(uriSet);
 
-    if (uris.length === 0) return posts;
+    if (uris.length === 0) {
+        console.log(`[postHydrator] collectUris found 0 URIs, returning early`);
+        return posts;
+    }
 
+    console.log(`[postHydrator] collected ${uris.length} URIs, preparing to fetch statuses`);
     // Interaction hydration now relies on HttpOnly cookies
     const authHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -99,6 +104,7 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second hard cap
 
     try {
+        console.log(`[postHydrator] fetching statuses via Promise.all...`);
         const [localStatuses, viewerStatuses] = await Promise.all([
             // (1) Local DB: authoritative for interactions done through this app
             (async (): Promise<InteractionStatus[]> => {
@@ -137,6 +143,8 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<
                 }
             })(),
         ]);
+        console.log(`[postHydrator] fetch complete: local=${localStatuses.length}, appView=${viewerStatuses.length}`);
+        
         // Merge both sources with prefer-true: if either source says liked/reposted, it wins
         const merged = new Map<string, InteractionStatus>();
         const addStatus = (s: InteractionStatus) => {
@@ -156,7 +164,12 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<
         localStatuses.forEach(addStatus);
         viewerStatuses.forEach(addStatus);
 
-        return applyInteractionStatuses(posts, Array.from(merged.values()));
+        const statuses = Array.from(merged.values());
+
+        console.log(`[postHydrator] merging complete, calling applyInteractionStatuses for ${statuses.length} statuses...`);
+        const result = applyInteractionStatuses(posts, statuses);
+        console.log(`[postHydrator] applyInteractionStatuses complete, returning hydrated posts`);
+        return result;
     } finally {
         clearTimeout(timeoutId);
     }
