@@ -129,8 +129,7 @@ const PostDetailPage: React.FC = () => {
                (tidStr && state.posts.interactionTruth[tidStr]) || null;
     });
 
-    const currentUser = useAppSelector((state: RootState) => state.auth.user);
-    const settings = useAppSelector((state: RootState) => state.auth.settings);
+    const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
 
@@ -315,7 +314,7 @@ const PostDetailPage: React.FC = () => {
     // Show skeleton while loading the thread (first fetch in progress and no post in cache yet)
     const isShell = post && !post.content && !post.media?.length && (!post.imageUrls || post.imageUrls.length === 0);
 
-    if (isThreadLoading && !post) {
+    if ((isThreadLoading || isInitializing) && !post) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator />
@@ -324,7 +323,7 @@ const PostDetailPage: React.FC = () => {
         );
     }
 
-    if (isShell && isThreadLoading) {
+    if (isShell && (isThreadLoading || isInitializing)) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator text={t('post.loading', { defaultValue: 'Loading post...' })} />
@@ -332,8 +331,8 @@ const PostDetailPage: React.FC = () => {
         );
     }
 
-    // Only show not-found AFTER the load attempt has finished (isThreadLoading is false)
-    if (!post && !isThreadLoading) {
+    // Only show not-found AFTER the load attempt and initialization have finished
+    if (!post && !isThreadLoading && !isInitializing) {
         return (
             <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
                 <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 h-[53px] flex items-center">

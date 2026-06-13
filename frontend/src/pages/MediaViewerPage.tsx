@@ -38,7 +38,7 @@ const MediaViewerPage: React.FC = () => {
     const [touchEnd, setTouchEnd] = useState<number | null>(null);
     const minSwipeDistance = 50;
 
-    const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const { user: currentUser, isInitializing } = useAppSelector((state: RootState) => state.auth);
     const { data: threadData, isLoading: isThreadLoading, error: threadError } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
     // Thunks are used instead of mutations for optimistic updates
 
@@ -146,26 +146,31 @@ const MediaViewerPage: React.FC = () => {
     }, [handlePrevMedia, handleNextMedia, navigate]);
 
     if (!currentPost) {
+        const isNotFound = !isPostsLoading && !isInitializing && !postsError;
         return (
             <div className="min-h-screen bg-black flex items-center justify-center">
-                {postsError ? (
+                {postsError || isNotFound ? (
                     <div className="text-center p-8 bg-dark-surface/50 rounded-[32px] backdrop-blur-xl border border-white/10 max-w-sm mx-4 shadow-2xl animate-in fade-in zoom-in duration-300">
                         <div className="text-red-500 mb-6 flex justify-center">
                             <FiX size={48} className="p-3 bg-red-500/20 rounded-full" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-3">
-                            {i18n.language === 'vi' ? 'Không thể tải bài đăng' : 'Failed to load post'}
+                            {isNotFound 
+                                ? (i18n.language === 'vi' ? 'Không tìm thấy bài đăng' : 'Post not found')
+                                : (i18n.language === 'vi' ? 'Không thể tải bài đăng' : 'Failed to load post')}
                         </h2>
                         <p className="text-white/60 mb-8 leading-relaxed">
-                            {postsError}
+                            {postsError || (i18n.language === 'vi' ? 'Bài đăng này không tồn tại hoặc đã bị xóa.' : "This post doesn't exist or is unavailable.")}
                         </p>
                         <div className="flex flex-col gap-3">
-                            <button 
-                                onClick={() => window.location.reload()}
-                                className="w-full py-4 bg-primary-500 hover:bg-primary-600 active:scale-95 transition-all text-white rounded-2xl font-bold text-[17px]"
-                            >
-                                {t('common.retry')}
-                            </button>
+                            {!isNotFound && (
+                                <button 
+                                    onClick={() => window.location.reload()}
+                                    className="w-full py-4 bg-primary-500 hover:bg-primary-600 active:scale-95 transition-all text-white rounded-2xl font-bold text-[17px]"
+                                >
+                                    {t('common.retry')}
+                                </button>
+                            )}
                             <button 
                                 onClick={() => navigate(-1)}
                                 className="w-full py-4 bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-white/80 rounded-2xl font-bold text-[17px]"
