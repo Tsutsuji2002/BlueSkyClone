@@ -85,7 +85,7 @@ const normalizeFeedPosts = (incoming: any[], existing: Post[] = []): Post[] => {
         if (key) byKey.set(key, post);
     });
 
-    incoming.map(p => mapAtProtoPostToPost(p)).forEach((post) => {
+    incoming.map((p: any) => mapAtProtoPostToPost(p)).forEach((post) => {
         const key = getPostIdentityKey(post);
         if (!key) return;
         const existingPost = byKey.get(key);

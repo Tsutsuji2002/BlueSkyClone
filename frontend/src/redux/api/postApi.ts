@@ -11,7 +11,7 @@ export const postApi = apiSlice.injectEndpoints({
                 params: { skip, take, refresh: refresh ? 'true' : undefined },
             }),
             transformResponse: async (rawPosts: any[]) => {
-                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, skip: 0, hasMore: rawPosts.length >= 20 };
             },
@@ -30,7 +30,7 @@ export const postApi = apiSlice.injectEndpoints({
             }),
             transformResponse: async (data: any) => {
                 const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, cursor: data.cursor || null };
             },
@@ -82,7 +82,7 @@ export const postApi = apiSlice.injectEndpoints({
                         extractPosts(data.thread);
                         allPosts = Array.from(postsMap.values());
                     } else {
-                        allPosts = Array.isArray(data) ? data.map(p => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
+                        allPosts = Array.isArray(data) ? data.map((p: any) => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
                         targetPost = allPosts[0] || null;
                     }
     
@@ -141,7 +141,7 @@ export const postApi = apiSlice.injectEndpoints({
         getTrending: builder.query<Post[], void>({
             query: () => '/posts/trending',
             transformResponse: async (rawPosts: Post[]) => {
-                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 return await hydratePostsWithInteractionStatus(posts);
             },
             providesTags: (result) =>
@@ -171,7 +171,7 @@ export const postApi = apiSlice.injectEndpoints({
             }),
             transformResponse: async (data: any) => {
                 const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 const hasMore: boolean = Array.isArray(data) ? posts.length >= 20 : (data.hasMore ?? false);
                 return { posts, hasMore };
@@ -187,7 +187,7 @@ export const postApi = apiSlice.injectEndpoints({
                 params: { q: query, skip, take },
             }),
             transformResponse: async (rawPosts: any[]) => {
-                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, cursor: null };
             },

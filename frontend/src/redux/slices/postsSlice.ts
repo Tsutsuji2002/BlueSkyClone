@@ -254,7 +254,7 @@ export const fetchTimeline = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const rawPosts = await response.json();
-            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             
             // [NEW] Perform second-pass interaction hydration (Sync with local DB + AppView)
             posts = await hydratePostsWithInteractionStatus(posts);
@@ -282,7 +282,7 @@ export const fetchUserPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
 
             // [NEW] Perform second-pass interaction hydration
             posts = await hydratePostsWithInteractionStatus(posts);
@@ -524,7 +524,7 @@ export const fetchPostsSearch = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
             const rawPosts = await response.json();
-            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
 
             // [NEW] Perform second-pass interaction hydration
             posts = await hydratePostsWithInteractionStatus(posts);
@@ -792,7 +792,7 @@ export const fetchDiscoverPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
+            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             
             // [NEW] Perform second-pass interaction hydration
             posts = await hydratePostsWithInteractionStatus(posts);
