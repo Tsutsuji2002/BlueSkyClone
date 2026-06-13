@@ -306,11 +306,10 @@ const AppContent: React.FC = () => {
     const accountSwitched = currentDid && prevDid.current && currentDid !== prevDid.current;
 
     // CRITICAL: We only trigger resetApiState if the account actually changes.
-    // On the very first mount, currentDid and prevDid.current are initialized to the same value
-    // (from the localStorage-hydrated state), so accountSwitched starts as false.
-    // If the handshake returns the SAME account, accountSwitched remains false.
-    // If the handshake returns a DIFFERENT account OR we are switching, then we reset.
-    if (authLost || accountSwitched) {
+    // If authLost is true, the user just logged out, so we MUST reset.
+    // If accountSwitched is true, the DIDs are different, so we MUST reset.
+    // However, if we are still settling the handshake, we avoid resetting unless the identity difference is confirmed.
+    if (authLost || (accountSwitched && isHandshakeSettled)) {
         console.log(`[App] ${authLost ? 'Auth lost' : 'Account switched'}: Clearing caches to prevent ghost data.`);
         dispatch(apiSlice.util.resetApiState());
         

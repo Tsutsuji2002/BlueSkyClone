@@ -102,7 +102,18 @@ const PostDetailPage: React.FC = () => {
     const { t, i18n } = useTranslation();
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
-    const { data: threadData, isLoading: isThreadLoading } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
+    const { data: threadData, isLoading: isThreadLoading, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+
+    // Insurance: if the handshake finishes but we don't have data, force a refetch
+    // This handles cases where a mid-load resetApiState() might have cleared the pending query.
+    React.useEffect(() => {
+        if (!isInitializing && !isThreadLoading && !threadData && postId) {
+            console.log('[PostDetailPage] Post data missing after initialization, forcing refetch...');
+            refetchThread();
+        }
+    }, [isInitializing, isThreadLoading, threadData, postId, refetchThread]);
+
     const postData = React.useMemo(() => {
         if (!threadData || !postId) return null;
         const normalizedId = postId.toLowerCase();
@@ -141,8 +152,6 @@ const PostDetailPage: React.FC = () => {
                (idStr && state.posts.interactionTruth[idStr]) || 
                (tidStr && state.posts.interactionTruth[tidStr]) || null;
     });
-
-    const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
 
