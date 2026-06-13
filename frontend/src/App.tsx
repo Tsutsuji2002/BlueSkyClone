@@ -283,13 +283,19 @@ const AppContent: React.FC = () => {
   // Prevent "Ghost" states: Clear caches when transitioning from logged-in to logged-out
   // OR when switching accounts (did change)
   const prevAuth = React.useRef(isAuthenticated);
-  const prevDid = React.useRef(useAppSelector((state: RootState) => state.auth.user?.did));
+  const isHandshakeSettled = useAppSelector((state: RootState) => state.user.handshakeSettled);
   const currentDid = useAppSelector((state: RootState) => state.auth.user?.did);
+  const prevDid = React.useRef(currentDid);
 
   useEffect(() => {
     const authLost = prevAuth.current && !isAuthenticated;
     const accountSwitched = currentDid && prevDid.current && currentDid !== prevDid.current;
 
+    // CRITICAL: We only trigger resetApiState if the account actually changes.
+    // On the very first mount, currentDid and prevDid.current are initialized to the same value
+    // (from the localStorage-hydrated state), so accountSwitched starts as false.
+    // If the handshake returns the SAME account, accountSwitched remains false.
+    // If the handshake returns a DIFFERENT account OR we are switching, then we reset.
     if (authLost || accountSwitched) {
         console.log(`[App] ${authLost ? 'Auth lost' : 'Account switched'}: Clearing caches to prevent ghost data.`);
         dispatch(apiSlice.util.resetApiState());
