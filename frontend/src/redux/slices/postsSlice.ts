@@ -2036,11 +2036,11 @@ const postsSlice = createSlice({
             )
             // RTK Query Sync: sync getPostDetails results into Redux threadPosts
             .addMatcher(
-                (action): action is PayloadAction<Post[]> =>
+                (action): action is PayloadAction<{ targetPost: Post | null; allPosts: Post[] }> =>
                     action.type === 'api/executeQuery/fulfilled' &&
                     (action as any).meta?.arg?.endpointName === 'getPostDetails',
                 (state, action) => {
-                    const posts = action.payload as Post[];
+                    const posts = action.payload.allPosts;
                     if (!posts?.length) return;
 
                     posts.forEach((post: Post) => updateInteractionTruth(state, post));
