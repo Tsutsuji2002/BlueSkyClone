@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
+import { useStore } from 'react-redux';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
 import { clearThreadPosts, toggleBookmark } from '../redux/slices/postsSlice';
@@ -106,6 +107,26 @@ const PostDetailPage: React.FC = () => {
     const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
     const threadData = threadDataModel?.allPosts;
     const targetPostFromApi = threadDataModel?.targetPost;
+    const store = useStore();
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            const state = store.getState() as any;
+            const queries = state.api?.queries || {};
+            const detailsQuery = Object.keys(queries).find(k => k.startsWith('getPostDetails'));
+            if (detailsQuery) {
+                console.log('[PostDetailPage] RAW REDUX GETPOSTDETAILS STATE:', {
+                    key: detailsQuery,
+                    status: queries[detailsQuery]?.status,
+                    hasData: !!queries[detailsQuery]?.data,
+                    isError: queries[detailsQuery]?.isError
+                });
+            } else {
+                console.log('[PostDetailPage] RAW REDUX GETPOSTDETAILS STATE: No active query found.');
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [store]);
 
     React.useEffect(() => {
         console.log('[PostDetailPage] Render state metrics:', {
