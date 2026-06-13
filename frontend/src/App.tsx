@@ -107,11 +107,9 @@ const AppContent: React.FC = () => {
 
         // Once handshake data is processed, the app is fully hydrated.
         dispatch(setHandshakeSettled(true));
-    } else if (handshakeError) {
-      if (!isHandshakeFetching) {
+    } else if (handshakeError || (!handshakeData && !isHandshakeFetching)) {
         dispatch(stopLoading());
         dispatch(setHandshakeSettled(true));
-      }
     }
   }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
 

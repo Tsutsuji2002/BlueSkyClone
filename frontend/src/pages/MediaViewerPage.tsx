@@ -39,18 +39,20 @@ const MediaViewerPage: React.FC = () => {
     const minSwipeDistance = 50;
 
     const { user: currentUser, isInitializing } = useAppSelector((state: RootState) => state.auth);
-    const { data: threadData, isLoading: isThreadLoading, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
-    // Thunks are used instead of mutations for optimistic updates
+    const { data: threadDataModel, isLoading: isThreadLoading, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const threadData = threadDataModel?.allPosts;
+    const targetPostFromApi = threadDataModel?.targetPost;
 
     // Insurance: if the handshake finishes but we don't have data, force a refetch
     useEffect(() => {
-        if (!isInitializing && !isThreadLoading && !threadData && postId) {
+        if (!isInitializing && !isThreadLoading && !threadDataModel && postId) {
             console.log('[MediaViewerPage] Post data missing after initialization, forcing refetch...');
             refetchThread();
         }
-    }, [isInitializing, isThreadLoading, threadData, postId, refetchThread]);
+    }, [isInitializing, isThreadLoading, threadDataModel, postId, refetchThread]);
 
     const postData = useMemo(() => {
+        if (targetPostFromApi) return targetPostFromApi;
         if (!threadData || !postId) return null;
         const normalizedId = postId.toLowerCase();
         
@@ -63,7 +65,7 @@ const MediaViewerPage: React.FC = () => {
                    ptid === normalizedId || 
                    (puri && (puri === normalizedId || puri.endsWith('/' + normalizedId)));
         });
-    }, [threadData, postId]);
+    }, [threadData, targetPostFromApi, postId]);
 
     const interactionTruth = useAppSelector((state: RootState) => {
         const uriStr = postData?.uri?.toLowerCase();

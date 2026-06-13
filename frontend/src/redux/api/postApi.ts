@@ -42,7 +42,7 @@ export const postApi = apiSlice.injectEndpoints({
                       ]
                     : [{ type: 'Feed', id: 'USER_POSTS' }],
         }),
-        getPostDetails: builder.query<Post[], { uri: string; handle?: string; take?: number }>({
+        getPostDetails: builder.query<{ targetPost: Post | null; allPosts: Post[] }, { uri: string; handle?: string; take?: number }>({
             query: ({ uri, handle, take = 20 }) => {
                 const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
                 const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
@@ -57,11 +57,16 @@ export const postApi = apiSlice.injectEndpoints({
                 }
             },
             transformResponse: async (data: any) => {
-                // Simplified extraction logic for brevity in this first pass, 
-                // inspired by the original postsSlice.ts logic.
-                let posts: Post[] = [];
+                let allPosts: Post[] = [];
+                let targetPost: Post | null = null;
+
                 if (data && data.thread) {
                     const postsMap = new Map<string, Post>();
+                    // The direct post in the thread response IS the target post
+                    if (data.thread.post) {
+                        targetPost = mapAtProtoPostToPost(data.thread.post);
+                    }
+
                     const extractPosts = (node: any) => {
                         if (!node) return;
                         if (node.post) {
@@ -74,16 +79,25 @@ export const postApi = apiSlice.injectEndpoints({
                         }
                     };
                     extractPosts(data.thread);
-                    posts = Array.from(postsMap.values());
+                    allPosts = Array.from(postsMap.values());
                 } else {
-                    posts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+                    allPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
+                    targetPost = allPosts[0] || null;
                 }
-                return await hydratePostsWithInteractionStatus(posts);
+
+                const hydrated = await hydratePostsWithInteractionStatus(allPosts);
+                
+                // Re-find targetPost in hydrated list to ensure it has interaction status
+                const hydratedTarget = targetPost && targetPost.uri 
+                    ? (hydrated.find(p => p.uri === targetPost!.uri) || targetPost)
+                    : targetPost;
+
+                return { targetPost: hydratedTarget, allPosts: hydrated };
             },
             providesTags: (result) =>
                 result
                     ? [
-                          ...result.map(({ uri }) => ({ type: 'Post' as const, id: uri })),
+                          ...result.allPosts.map(({ uri }) => ({ type: 'Post' as const, id: uri })),
                           { type: 'Post', id: 'DETAILS' },
                       ]
                     : [{ type: 'Post', id: 'DETAILS' }],

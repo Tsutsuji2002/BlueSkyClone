@@ -103,18 +103,21 @@ const PostDetailPage: React.FC = () => {
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
-    const { data: threadData, isLoading: isThreadLoading, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const { data: threadDataModel, isLoading: isThreadLoading, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
+    const threadData = threadDataModel?.allPosts;
+    const targetPostFromApi = threadDataModel?.targetPost;
 
     // Insurance: if the handshake finishes but we don't have data, force a refetch
     // This handles cases where a mid-load resetApiState() might have cleared the pending query.
     React.useEffect(() => {
-        if (!isInitializing && !isThreadLoading && !threadData && postId) {
+        if (!isInitializing && !isThreadLoading && !threadDataModel && postId) {
             console.log('[PostDetailPage] Post data missing after initialization, forcing refetch...');
             refetchThread();
         }
-    }, [isInitializing, isThreadLoading, threadData, postId, refetchThread]);
+    }, [isInitializing, isThreadLoading, threadDataModel, postId, refetchThread]);
 
     const postData = React.useMemo(() => {
+        if (targetPostFromApi) return targetPostFromApi;
         if (!threadData || !postId) return null;
         const normalizedId = postId.toLowerCase();
         
@@ -127,7 +130,7 @@ const PostDetailPage: React.FC = () => {
                    ptid === normalizedId || 
                    (puri && (puri === normalizedId || puri.endsWith('/' + normalizedId)));
         });
-    }, [threadData, postId]) as Post;
+    }, [threadData, targetPostFromApi, postId]) as Post;
 
     const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
     const [skipReplies, setSkipReplies] = React.useState(0);
@@ -152,6 +155,16 @@ const PostDetailPage: React.FC = () => {
                (idStr && state.posts.interactionTruth[idStr]) || 
                (tidStr && state.posts.interactionTruth[tidStr]) || null;
     });
+
+    const [showDiagnostics, setShowDiagnostics] = React.useState(false);
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            if ((isThreadLoading || isInitializing) && !postData) {
+                setShowDiagnostics(true);
+            }
+        }, 5000);
+        return () => clearTimeout(timer);
+    }, [isThreadLoading, isInitializing, postData]);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
 
@@ -341,6 +354,18 @@ const PostDetailPage: React.FC = () => {
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator />
                 <p className="mt-4 text-gray-400 text-sm">{t('common.loading', 'Loading...')}</p>
+                {showDiagnostics && (
+                    <div className="mt-12 p-4 bg-gray-100 dark:bg-dark-border/30 rounded-lg text-xs font-mono text-gray-500 max-w-sm">
+                        <p className="font-bold mb-2 text-gray-400 uppercase tracking-wider">Initialization Diagnostic</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            <span>Initializing:</span> <span className={isInitializing ? "text-amber-500" : "text-emerald-500"}>{isInitializing ? 'TRUE' : 'FALSE'}</span>
+                            <span>Thread Loading:</span> <span className={isThreadLoading ? "text-amber-500" : "text-emerald-500"}>{isThreadLoading ? 'TRUE' : 'FALSE'}</span>
+                            <span>Post Found:</span> <span className={post ? "text-emerald-500" : "text-rose-500"}>{post ? 'YES' : 'NO'}</span>
+                            <span>Post ID:</span> <span className="text-blue-400 truncate break-all">{postId}</span>
+                            <span>Handle:</span> <span className="text-blue-400 truncate break-all">{handle}</span>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
