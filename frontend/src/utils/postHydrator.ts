@@ -75,11 +75,12 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
 export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<Post[]> => {
     if (!posts.length) return posts;
 
-    const collectUris = (post?: Post | null, set: Set<string> = new Set()): Set<string> => {
-        if (!post || !post.uri) return set;
+    const collectUris = (post?: Post | null, set: Set<string> = new Set(), seen: Set<string> = new Set()): Set<string> => {
+        if (!post || !post.uri || seen.has(post.uri)) return set;
+        seen.add(post.uri);
         set.add(post.uri);
-        collectUris(post.parentPost, set);
-        collectUris(post.quotePost, set);
+        collectUris(post.parentPost, set, seen);
+        collectUris(post.quotePost, set, seen);
         return set;
     };
 

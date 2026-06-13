@@ -11,7 +11,7 @@ export const postApi = apiSlice.injectEndpoints({
                 params: { skip, take, refresh: refresh ? 'true' : undefined },
             }),
             transformResponse: async (rawPosts: any[]) => {
-                let posts = rawPosts.map(mapAtProtoPostToPost);
+                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, skip: 0, hasMore: rawPosts.length >= 20 };
             },
@@ -30,7 +30,7 @@ export const postApi = apiSlice.injectEndpoints({
             }),
             transformResponse: async (data: any) => {
                 const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-                let posts = rawPosts.map(mapAtProtoPostToPost);
+                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, cursor: data.cursor || null };
             },
@@ -57,42 +57,47 @@ export const postApi = apiSlice.injectEndpoints({
                 }
             },
             transformResponse: async (data: any) => {
-                let allPosts: Post[] = [];
-                let targetPost: Post | null = null;
-
-                if (data && data.thread) {
-                    const postsMap = new Map<string, Post>();
-                    // The direct post in the thread response IS the target post
-                    if (data.thread.post) {
-                        targetPost = mapAtProtoPostToPost(data.thread.post);
+                try {
+                    let allPosts: Post[] = [];
+                    let targetPost: Post | null = null;
+    
+                    if (data && data.thread) {
+                        const postsMap = new Map<string, Post>();
+                        // The direct post in the thread response IS the target post
+                        if (data.thread.post) {
+                            targetPost = mapAtProtoPostToPost(data.thread.post);
+                        }
+    
+                        const extractPosts = (node: any) => {
+                            if (!node) return;
+                            if (node.post) {
+                                const mapped = mapAtProtoPostToPost(node.post);
+                                if (mapped.uri) postsMap.set(mapped.uri, mapped);
+                            }
+                            if (node.parent) extractPosts(node.parent);
+                            if (node.replies && Array.isArray(node.replies)) {
+                                node.replies.forEach((r: any) => extractPosts(r));
+                            }
+                        };
+                        extractPosts(data.thread);
+                        allPosts = Array.from(postsMap.values());
+                    } else {
+                        allPosts = Array.isArray(data) ? data.map(p => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
+                        targetPost = allPosts[0] || null;
                     }
-
-                    const extractPosts = (node: any) => {
-                        if (!node) return;
-                        if (node.post) {
-                            const mapped = mapAtProtoPostToPost(node.post);
-                            if (mapped.uri) postsMap.set(mapped.uri, mapped);
-                        }
-                        if (node.parent) extractPosts(node.parent);
-                        if (node.replies && Array.isArray(node.replies)) {
-                            node.replies.forEach((r: any) => extractPosts(r));
-                        }
-                    };
-                    extractPosts(data.thread);
-                    allPosts = Array.from(postsMap.values());
-                } else {
-                    allPosts = Array.isArray(data) ? data.map(mapAtProtoPostToPost) : [mapAtProtoPostToPost(data)];
-                    targetPost = allPosts[0] || null;
+    
+                    const hydrated = await hydratePostsWithInteractionStatus(allPosts);
+                    
+                    // Re-find targetPost in hydrated list to ensure it has interaction status
+                    const hydratedTarget = targetPost && targetPost.uri 
+                        ? (hydrated.find(p => p.uri === targetPost!.uri) || targetPost)
+                        : targetPost;
+    
+                    return { targetPost: hydratedTarget, allPosts: hydrated };
+                } catch (e) {
+                    console.error('[postApi] Failed to transform post details:', e);
+                    throw e; // Rerising ensures the query enters 'rejected' state instead of hanging
                 }
-
-                const hydrated = await hydratePostsWithInteractionStatus(allPosts);
-                
-                // Re-find targetPost in hydrated list to ensure it has interaction status
-                const hydratedTarget = targetPost && targetPost.uri 
-                    ? (hydrated.find(p => p.uri === targetPost!.uri) || targetPost)
-                    : targetPost;
-
-                return { targetPost: hydratedTarget, allPosts: hydrated };
             },
             providesTags: (result) =>
                 result
@@ -136,7 +141,7 @@ export const postApi = apiSlice.injectEndpoints({
         getTrending: builder.query<Post[], void>({
             query: () => '/posts/trending',
             transformResponse: async (rawPosts: Post[]) => {
-                let posts = rawPosts.map(mapAtProtoPostToPost);
+                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
                 return await hydratePostsWithInteractionStatus(posts);
             },
             providesTags: (result) =>
@@ -150,7 +155,7 @@ export const postApi = apiSlice.injectEndpoints({
                 params: { skip, take },
             }),
             transformResponse: async (data: any) => {
-                let posts = data.posts.map(mapAtProtoPostToPost);
+                let posts = data.posts.map((p: any) => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, cursor: data.cursor || null };
             },
@@ -166,7 +171,7 @@ export const postApi = apiSlice.injectEndpoints({
             }),
             transformResponse: async (data: any) => {
                 const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-                let posts = rawPosts.map(mapAtProtoPostToPost);
+                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 const hasMore: boolean = Array.isArray(data) ? posts.length >= 20 : (data.hasMore ?? false);
                 return { posts, hasMore };
@@ -182,7 +187,7 @@ export const postApi = apiSlice.injectEndpoints({
                 params: { q: query, skip, take },
             }),
             transformResponse: async (rawPosts: any[]) => {
-                let posts = rawPosts.map(mapAtProtoPostToPost);
+                let posts = rawPosts.map(p => mapAtProtoPostToPost(p));
                 posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, cursor: null };
             },

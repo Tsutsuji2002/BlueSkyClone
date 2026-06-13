@@ -16,12 +16,13 @@ const normalizeLabelValues = (labels: any): string[] => {
         .filter((label): label is string => typeof label === 'string' && label.trim().length > 0);
 };
 
-/**
- * Maps a standard AT Protocol postView object (from getPostThread or similar)
- * to our internal Post interface.
- */
-export const mapAtProtoPostToPost = (atPost: any): Post => {
+export const mapAtProtoPostToPost = (atPost: any, seen: Set<string> = new Set()): Post => {
     if (!atPost) return atPost;
+    
+    // Cycle detection: if we've seen this URI/CID in the current recursion branch, stop
+    const id = atPost.uri || atPost.cid;
+    if (id && seen.has(id)) return atPost as Post;
+    if (id) seen.add(id);
 
     // If it's already mapped (has content and createdAt at top level), return it
     if (atPost.content !== undefined && atPost.createdAt && atPost.author?.id) {
@@ -44,8 +45,8 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
                     labels: normalizeLabelValues(atPost.author.labels),
                 }
                 : atPost.author,
-            quotePost: atPost.quotePost ? mapAtProtoPostToPost(atPost.quotePost) : atPost.quotePost,
-            parentPost: atPost.parentPost ? mapAtProtoPostToPost(atPost.parentPost) : atPost.parentPost,
+            quotePost: atPost.quotePost ? mapAtProtoPostToPost(atPost.quotePost, seen) : atPost.quotePost,
+            parentPost: atPost.parentPost ? mapAtProtoPostToPost(atPost.parentPost, seen) : atPost.parentPost,
             labels: normalizeLabelValues(atPost.labels),
             images: images,
             imageUrls: atPost.imageUrls || images.map((img: any) => img.url),
@@ -117,7 +118,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         }
 
         if (value.author && value.uri) {
-            return mapAtProtoPostToPost(value);
+            return mapAtProtoPostToPost(value, seen);
         }
 
         return undefined;
@@ -244,7 +245,7 @@ export const mapAtProtoPostToPost = (atPost: any): Post => {
         linkPreview,
         quotePost,
         quotePostId,
-        parentPost: atPost.parent ? mapAtProtoPostToPost(atPost.parent) : undefined,
+        parentPost: atPost.parent ? mapAtProtoPostToPost(atPost.parent, seen) : undefined,
         repostedBy,
         viewer: atPost.viewer,
         tid: atPost.uri?.split('/').pop(),

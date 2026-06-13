@@ -117,19 +117,24 @@ const PostDetailPage: React.FC = () => {
     }, [isInitializing, isThreadLoading, threadDataModel, postId, refetchThread]);
 
     const postData = React.useMemo(() => {
-        if (targetPostFromApi) return targetPostFromApi;
-        if (!threadData || !postId) return null;
-        const normalizedId = postId.toLowerCase();
-        
-        return threadData.find((p: Post) => {
-            const pid = p.id?.toLowerCase();
-            const ptid = p.tid?.toLowerCase();
-            const puri = p.uri?.toLowerCase();
+        try {
+            if (targetPostFromApi) return targetPostFromApi;
+            if (!threadData || !postId) return null;
+            const normalizedId = postId.toLowerCase();
             
-            return pid === normalizedId || 
-                   ptid === normalizedId || 
-                   (puri && (puri === normalizedId || puri.endsWith('/' + normalizedId)));
-        });
+            return threadData.find((p: Post) => {
+                const pid = p.id?.toLowerCase();
+                const ptid = p.tid?.toLowerCase();
+                const puri = p.uri?.toLowerCase();
+                
+                return pid === normalizedId || 
+                       ptid === normalizedId || 
+                       (puri && (puri === normalizedId || puri.endsWith('/' + normalizedId)));
+            });
+        } catch (e) {
+            console.error('[PostDetailPage] Error resolving post data:', e);
+            return null;
+        }
     }, [threadData, targetPostFromApi, postId]) as Post;
 
     const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
