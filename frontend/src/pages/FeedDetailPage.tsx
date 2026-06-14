@@ -52,6 +52,7 @@ const FeedDetailPage: React.FC = () => {
 
     useEffect(() => {
         if (routeKey) {
+            // fetchFeedPosts thunk condition handles the 60s TTL internally
             dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take }) as any)
                 .then((result: any) => {
                     if (result?.payload?.posts?.length) {
@@ -59,7 +60,8 @@ const FeedDetailPage: React.FC = () => {
                     }
                 });
         }
-    }, [dispatch, routeKey]);
+    }, [dispatch, routeKey, navType]);
+
 
     const handleLoadMore = () => {
         if (routeKey) {

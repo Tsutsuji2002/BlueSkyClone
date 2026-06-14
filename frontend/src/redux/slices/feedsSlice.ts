@@ -517,18 +517,31 @@ export const fetchFeedPosts = createAsyncThunk<
         }
     },
     {
-        condition: ({ feedId }, { getState }) => {
+        condition: ({ feedId, refresh }, { getState }) => {
             const state = getState() as RootState;
             // Prevent overlapping fetches for the same feedId.
-            // This is key to preventing the "3 redundant following requests" loop on reload.
             if (state.feeds.feedLoading[feedId]) {
                 console.log(`feedsSlice: fetchFeedPosts for ${feedId} skipped since it is already loading.`);
                 return false;
             }
+
+            // TTL Logic: If not a paginated fetch (skip === 0) and not an explicit refresh,
+            // check if we have data that is "fresh" (fetched within the last 60 seconds).
+            const lastFetch = state.feeds.feedLastFetch[feedId];
+            const hasPosts = state.feeds.feedPosts[feedId]?.length > 0;
+            const now = Date.now();
+            const TTL_MS = 60000; // 60 seconds
+
+            if (!refresh && hasPosts && lastFetch && (now - lastFetch < TTL_MS)) {
+                console.log(`feedsSlice: fetchFeedPosts for ${feedId} skipped (TTL fresh: ${(now - lastFetch) / 1000}s ago).`);
+                return false;
+            }
+
             return true;
         }
     }
 );
+
 
 // Background hydration thunk — dispatched after posts are rendered to overlay isLiked/isReposted/isBookmarked
 // without blocking the initial render. Uses cookie auth via credentials: 'include'.
