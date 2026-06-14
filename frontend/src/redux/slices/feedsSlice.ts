@@ -523,11 +523,19 @@ export const fetchFeedPosts = createAsyncThunk<
         }
     },
     {
-        condition: ({ feedId, refresh }, { getState }) => {
+        condition: ({ feedId, refresh, skip }, { getState }) => {
             const state = getState() as RootState;
-            // Prevent overlapping fetches for the same feedId.
+            
+            // [CRITICAL] Prevent overlapping fetches for the same feedId.
+            // This is matched synchronously to prevent the "request storm" seen in fast scroll events.
             if (state.feeds.feedLoading[feedId]) {
-                console.log(`feedsSlice: fetchFeedPosts for ${feedId} skipped since it is already loading.`);
+                console.log(`feedsSlice: fetchFeedPosts for ${feedId} BLOCKED (already in flight).`);
+                return false;
+            }
+
+            // [CRITICAL] Prevent pagination past the end of the list.
+            if (skip > 0 && state.feeds.feedHasMore[feedId] === false) {
+                console.log(`feedsSlice: fetchFeedPosts for ${feedId} BLOCKED (end of feed).`);
                 return false;
             }
 
@@ -538,7 +546,7 @@ export const fetchFeedPosts = createAsyncThunk<
             const now = Date.now();
             const TTL_MS = 60000; // 60 seconds
 
-            if (!refresh && hasPosts && lastFetch && (now - lastFetch < TTL_MS)) {
+            if (!refresh && skip === 0 && hasPosts && lastFetch && (now - lastFetch < TTL_MS)) {
                 console.log(`feedsSlice: fetchFeedPosts for ${feedId} skipped (TTL fresh: ${(now - lastFetch) / 1000}s ago).`);
                 return false;
             }
@@ -546,6 +554,7 @@ export const fetchFeedPosts = createAsyncThunk<
             return true;
         }
     }
+
 );
 
 
