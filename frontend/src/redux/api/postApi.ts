@@ -57,7 +57,6 @@ export const postApi = apiSlice.injectEndpoints({
                 }
             },
             transformResponse: async (data: any) => {
-                console.log('[postApi/getPostDetails] transformResponse STARTED', { data });
                 try {
                     let allPosts: Post[] = [];
                     let targetPost: Post | null = null;
@@ -82,14 +81,11 @@ export const postApi = apiSlice.injectEndpoints({
                         };
                         extractPosts(data.thread);
                         allPosts = Array.from(postsMap.values());
-                        console.log(`[postApi/getPostDetails] extractPosts finished, mapped ${allPosts.length} posts`);
                     } else {
                         allPosts = Array.isArray(data) ? data.map((p: any) => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
                         targetPost = allPosts[0] || null;
-                        console.log(`[postApi/getPostDetails] fallback mapping finished, mapped ${allPosts.length} posts`);
                     }
     
-                    console.log('[postApi/getPostDetails] Calling hydratePostsWithInteractionStatus...');
                     const hydrated = await hydratePostsWithInteractionStatus(allPosts);
                     console.log('[postApi/getPostDetails] hydratePostsWithInteractionStatus finished');
                     

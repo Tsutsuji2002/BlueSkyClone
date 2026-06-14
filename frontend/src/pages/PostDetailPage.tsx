@@ -107,48 +107,14 @@ const PostDetailPage: React.FC = () => {
     const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId! }, { skip: !postId });
     const threadData = threadDataModel?.allPosts;
     const targetPostFromApi = threadDataModel?.targetPost;
-    const store = useStore();
-
-    React.useEffect(() => {
-        const interval = setInterval(() => {
-            const state = store.getState() as any;
-            const queries = state.api?.queries || {};
-            const detailsQuery = Object.keys(queries).find(k => k.startsWith('getPostDetails'));
-            if (detailsQuery) {
-                console.log('[PostDetailPage] RAW REDUX GETPOSTDETAILS STATE:', {
-                    key: detailsQuery,
-                    status: queries[detailsQuery]?.status,
-                    hasData: !!queries[detailsQuery]?.data,
-                    isError: queries[detailsQuery]?.isError
-                });
-            } else {
-                console.log('[PostDetailPage] RAW REDUX GETPOSTDETAILS STATE: No active query found.');
-            }
-        }, 5000);
-        return () => clearInterval(interval);
-    }, [store]);
-
-    React.useEffect(() => {
-        console.log('[PostDetailPage] Render state metrics:', {
-            isInitializing,
-            isThreadLoading,
-            isThreadFetching,
-            isThreadError,
-            threadError,
-            hasData: !!threadDataModel,
-            postId,
-            handle
-        });
-    });
-
     // Insurance: if the handshake finishes but we don't have data, force a refetch
     // This handles cases where a mid-load resetApiState() might have cleared the pending query.
     React.useEffect(() => {
         if (!isInitializing && !isThreadLoading && !threadDataModel && postId) {
-            console.log('[PostDetailPage] Post data missing after initialization, forcing refetch...');
             refetchThread();
         }
     }, [isInitializing, isThreadLoading, threadDataModel, postId, refetchThread]);
+
 
 
     const postData = React.useMemo(() => {
@@ -196,15 +162,6 @@ const PostDetailPage: React.FC = () => {
                (tidStr && state.posts.interactionTruth[tidStr]) || null;
     });
 
-    const [showDiagnostics, setShowDiagnostics] = React.useState(false);
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
-            if ((isThreadLoading || isInitializing) && !postData) {
-                setShowDiagnostics(true);
-            }
-        }, 5000);
-        return () => clearTimeout(timer);
-    }, [isThreadLoading, isInitializing, postData]);
     const sortOrder = settings?.sortReplies || 'top';
     const treeViewEnabled = settings?.treeView || false;
 
@@ -394,21 +351,10 @@ const PostDetailPage: React.FC = () => {
             <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-white dark:bg-dark-bg">
                 <LoadingIndicator />
                 <p className="mt-4 text-gray-400 text-sm">{t('common.loading', 'Loading...')}</p>
-                {showDiagnostics && (
-                    <div className="mt-12 p-4 bg-gray-100 dark:bg-dark-border/30 rounded-lg text-xs font-mono text-gray-500 max-w-sm">
-                        <p className="font-bold mb-2 text-gray-400 uppercase tracking-wider">Initialization Diagnostic</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                            <span>Initializing:</span> <span className={isInitializing ? "text-amber-500" : "text-emerald-500"}>{isInitializing ? 'TRUE' : 'FALSE'}</span>
-                            <span>Thread Loading:</span> <span className={isThreadLoading ? "text-amber-500" : "text-emerald-500"}>{isThreadLoading ? 'TRUE' : 'FALSE'}</span>
-                            <span>Post Found:</span> <span className={post ? "text-emerald-500" : "text-rose-500"}>{post ? 'YES' : 'NO'}</span>
-                            <span>Post ID:</span> <span className="text-blue-400 truncate break-all">{postId}</span>
-                            <span>Handle:</span> <span className="text-blue-400 truncate break-all">{handle}</span>
-                        </div>
-                    </div>
-                )}
             </div>
         );
     }
+
 
     if (isShell && (isThreadLoading || isInitializing)) {
         return (
@@ -446,6 +392,10 @@ const PostDetailPage: React.FC = () => {
     };
 
     const handleLike = async () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
         if (!post.uri || !post.cid) return;
         try {
             await toggleLikeMutation({ 
@@ -460,6 +410,10 @@ const PostDetailPage: React.FC = () => {
     };
 
     const handleRepost = async () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
         if (!post.uri || !post.cid) return;
         try {
             await repostMutation({ 
@@ -472,6 +426,7 @@ const PostDetailPage: React.FC = () => {
             console.error('Repost failed:', err);
         }
     };
+
 
     const handleBookmark = () => {
         if (!post) return;
@@ -688,6 +643,7 @@ const PostDetailPage: React.FC = () => {
                                 <Avatar src={currentUser?.avatar} alt={currentUser?.displayName || 'User'} size="sm" />
                             </button>
                         </div>
+
                     </div>
                 </div>
             </div>
@@ -978,12 +934,17 @@ const PostDetailPage: React.FC = () => {
                     <IconButton
                         icon={<FiMessageCircle size={22} className={post.canReply === false ? 'text-gray-300 dark:text-gray-700' : ''} />}
                         onClick={() => {
+                            if (!currentUser) {
+                                dispatch(openAuthWall());
+                                return;
+                            }
                             if (post.canReply === false) {
                                 dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
                                 return;
                             }
                             dispatch(openReply(post));
                         }}
+
                         variant="default"
                         disabled={post.canReply === false}
                         tooltip={post.canReply === false ? t('post.replies_disabled') : undefined}
