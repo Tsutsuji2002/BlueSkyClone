@@ -112,7 +112,26 @@ const FeedDetailPage: React.FC = () => {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
+    // Handle visibility changes to re-trigger refresh on tab return
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && routeKey) {
+                // fetchFeedPosts handles the TTL check internally
+                dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take, refresh: false }) as any)
+                    .then((result: any) => {
+                        if (result?.payload?.posts?.length) {
+                            dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
+                        }
+                    });
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [dispatch, routeKey, take]);
+
     if (!feed && routeKey && infoLoading[routeKey] === false && infoError[routeKey]) {
+
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">

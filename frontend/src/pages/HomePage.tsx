@@ -126,6 +126,32 @@ const HomePage: React.FC = () => {
         }
     }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading, isSessionSettled]);
 
+    // Re-trigger refresh when tab becomes visible after being in background
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && activeTab) {
+                if (activeTab.startsWith('list:')) {
+                    const listId = activeTab.replace('list:', '');
+                    dispatch(fetchListFeed({ id: listId, skip: 0 }));
+                } else {
+                    // fetchFeedPosts handles the 60s TTL check internally
+                    dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: getDynamicBatchSize(250), refresh: false }) as any)
+                        .unwrap()
+                        .then((result: { feedId: string; posts: any[] }) => {
+                            if (result?.posts?.length) {
+                                dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
+                            }
+                        })
+                        .catch(() => {});
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [dispatch, activeTab]);
+
+
     // Consolidated scroll management moved to global useScrollRestoration(activeTab)
 
     const handleTabChange = (tabId: string) => {
