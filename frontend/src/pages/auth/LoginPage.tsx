@@ -89,7 +89,7 @@ const LoginPage: React.FC = () => {
     };
 
     const handleAccountClick = async (account: any) => {
-        const isActiveAccount = activeAccountId && String(account.id) === activeAccountId;
+        const isActiveAccount = isAuthenticated && activeAccountId && String(account.id) === activeAccountId;
         if (isActiveAccount) {
             navigate('/');
             return;
