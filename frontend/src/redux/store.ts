@@ -15,6 +15,18 @@ import supportReducer from './slices/supportSlice';
 import suggestionsReducer from './slices/suggestionsSlice';
 import { apiSlice } from './api/apiSlice';
 
+const crashReporterMiddleware = (store: any) => (next: any) => (action: any) => {
+    try {
+        if (action.type.includes('getPostDetails')) {
+            console.log('[Redux Crash Reporter] Dispatching action:', action.type);
+        }
+        return next(action);
+    } catch (err) {
+        console.error('[Redux Crash Reporter] Caught an exception during action:', action.type, err);
+        throw err;
+    }
+};
+
 const appReducer = combineReducers({
     theme: themeReducer,
     auth: authReducer,
@@ -66,7 +78,7 @@ export const store = configureStore({
                 // Ignore these paths in the state
                 ignoredPaths: ['modals.confirmation.onConfirm'],
             },
-        }).concat(apiSlice.middleware),
+        }).concat(apiSlice.middleware, crashReporterMiddleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
