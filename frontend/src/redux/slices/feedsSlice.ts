@@ -1147,13 +1147,19 @@ const feedsSlice = createSlice({
                     const payload = action.payload;
                     const isLogout = type === 'auth/logout';
 
-                    // Reset current state
-                    state.subscribedFeeds = [];
-                    state.pinnedFeedIds = [];
-                    state.feedPosts = {};
-                    state.feedLastFetch = {};
-                    state.feedCursors = {};
-                    state.lastSubscribedFeedsFetch = 0;
+                    // Reset current state ONLY if the account DID has changed
+                    // This prevents "No posts yet" empty state during normal session re-syncs
+                    const did = payload?.user?.did;
+                    const accountSwitched = did && state.lastFetchDid && did !== state.lastFetchDid;
+                    
+                    if (isLogout || accountSwitched) {
+                        state.subscribedFeeds = [];
+                        state.pinnedFeedIds = [];
+                        state.feedPosts = {};
+                        state.feedLastFetch = {};
+                        state.feedCursors = {};
+                        state.lastSubscribedFeedsFetch = 0;
+                    }
 
                     if (isLogout) {
                         state.lastFetchDid = '';
@@ -1162,9 +1168,9 @@ const feedsSlice = createSlice({
                     }
 
                     // For login/switch, perform immediate hydration if we have a DID
-                    const did = payload?.user?.did;
                     if (did) {
                         state.lastFetchDid = did;
+
                         state.subscribedFeeds = JSON.parse(localStorage.getItem(getAccountKey('feeds_subscribed', did)) || '[]');
                         state.pinnedFeedIds = JSON.parse(localStorage.getItem(getAccountKey('feeds_pinned_ids', did)) || '[]');
                         state.lastSubscribedFeedsFetch = Number(localStorage.getItem(getAccountKey('feeds_last_fetch', did)) || '0');
