@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import PostCard from './PostCard';
@@ -60,6 +60,9 @@ const Feed: React.FC<FeedProps> = ({
 
     const virtuosoRef = useRef<VirtuosoHandle>(null);
     const storageKey = feedId ? `virtuoso_state_full_${feedId}` : null;
+    // Debounce ref to prevent endReached from firing too rapidly
+    const loadMoreDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastLoadMoreRef = useRef<number>(0);
     
     // Capture state to restore precise scroll positions for Virtuoso
     const [savedState] = React.useState<any>(() => {
@@ -158,6 +161,16 @@ const Feed: React.FC<FeedProps> = ({
         if (!isLoading) isFetchingRef.current = false;
     }, [isLoading]);
 
+    // Debounced load more handler — ensures we can't fire faster than once per 800ms
+    const debouncedLoadMore = useCallback(() => {
+        if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) return;
+        const now = Date.now();
+        if (now - lastLoadMoreRef.current < 800) return; // min 800ms between loads
+        lastLoadMoreRef.current = now;
+        isFetchingRef.current = true;
+        onLoadMore();
+    }, [onLoadMore, hasMore, isLoading]);
+
     if (isLoading && localPosts.length === 0) {
         return <PostFeedSkeleton count={5} />;
     }
@@ -194,11 +207,9 @@ const Feed: React.FC<FeedProps> = ({
             data={localPosts}
             overscan={1000} // Preload items within 1000px of the viewport
             endReached={() => {
-                if (hasMore && !isLoading && !isFetchingRef.current && onLoadMore) {
-                    isFetchingRef.current = true;
-                    onLoadMore();
-                }
+                debouncedLoadMore();
             }}
+            followOutput={false}
             itemContent={(index, post) => (
                 <div className="relative z-10 bg-white dark:bg-dark-bg">
                     {post.parentPost && (

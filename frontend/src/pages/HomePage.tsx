@@ -108,21 +108,12 @@ const HomePage: React.FC = () => {
             }
         } else {
             if (feedLoading[activeTab]) return;
-            // TTL handled by fetchFeedPosts thunk condition
-            if (true) {
-
-                const isDiscover = activeTab === 'discover';
-                const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake, refresh: true }) as any)
-                    .unwrap()
-                    .then((result: { feedId: string; posts: any[] }) => {
-                        // Background hydration: overlay isLiked/isReposted/isBookmarked without blocking render
-                        if (result?.posts?.length) {
-                            dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
-                        }
-                    })
-                    .catch(() => {});
-            }
+            // TTL is handled by fetchFeedPosts thunk condition.
+            // Hydration is handled post-fetch by handleTabChange and handleLoadMore.
+            const isDiscover = activeTab === 'discover';
+            const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake, refresh: false }) as any)
+                .catch(() => {});
         }
     }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading, isSessionSettled]);
 
@@ -211,7 +202,14 @@ const HomePage: React.FC = () => {
             const currentFeedPosts = feedPosts[activeTab] || [];
             const dynamicTake = getDynamicBatchSize(250);
             const cursor = feedCursors[activeTab];
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor }) as any);
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor }) as any)
+                .unwrap()
+                .then((result: { feedId: string; posts: any[] }) => {
+                    if (result?.posts?.length) {
+                        dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
+                    }
+                })
+                .catch(() => {});
         }
     };
 
