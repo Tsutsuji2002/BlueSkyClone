@@ -228,6 +228,18 @@ const authSlice = createSlice({
             // but we can rely on components or a middleware to react.
             // Actually, the best way is to do it in the App.tsx or use a listener.
         },
+        logoutAll: (state) => {
+            // [MULTI-ACCOUNT] Complete global logout — wipes all accounts from local storage
+            AccountManager.clear();
+            state.user = null;
+            state.settings = null;
+            state.isAuthenticated = false;
+            state.isLoading = false;
+            state.error = null;
+            localStorage.removeItem('home_active_tab');
+            state.savedAccounts = [];
+        },
+
         removeSavedAccount: (state, action: PayloadAction<string>) => {
             AccountManager.removeAccount(action.payload);
             state.savedAccounts = AccountManager.getAccounts();
@@ -317,5 +329,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, removeSavedAccount, setSessionExpired, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, logoutAll, removeSavedAccount, setSessionExpired, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } = authSlice.actions;
 export default authSlice.reducer;

@@ -618,6 +618,10 @@
             "blog": "Blog",
             "jobs": "Jobs"
         },
+        "logout_confirm_title": "Sign out?",
+        "logout_confirm_message": "You will be signed out of all your accounts.",
+        "logout_confirm_btn": "Sign out",
+
         "login": {
             "title": "Log in",
             "welcome_back": "Welcome back",

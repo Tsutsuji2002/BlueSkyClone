@@ -2,10 +2,11 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { logout } from '../redux/slices/authSlice';
+import { logout, logoutAll } from '../redux/slices/authSlice';
 import { useLogoutMutation } from '../redux/api/authApi';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
+import ConfirmModal from '../components/common/ConfirmModal';
 
 import Avatar from '../components/common/Avatar';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +24,7 @@ const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const [logoutMutation] = useLogoutMutation();
+    const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
     const { t, i18n } = useTranslation();
     const user = useAppSelector((state: RootState) => state.auth.user);
 
@@ -46,15 +48,21 @@ const SettingsPage: React.FC = () => {
 
     const currentThemeName = settings?.themeMode === 'dark' ? t('settings.dark_mode') : settings?.themeMode === 'light' ? t('settings.light_mode') : t('settings.system_mode', 'System');
 
-    const handleLogout = async () => {
+    const handleLogout = () => {
+        setShowLogoutConfirm(true);
+    };
+
+    const handleConfirmLogout = async () => {
         try {
             await logoutMutation().unwrap();
         } catch (err) {
             console.error('Logout failed:', err);
+        } finally {
+            dispatch(logoutAll());
+            navigate('/welcome');
         }
-        dispatch(logout());
-        navigate('/welcome');
     };
+
 
     const settingsItems = [
         { id: 'account', label: t('settings.account'), icon: <FiUser size={20} /> },
@@ -164,8 +172,19 @@ const SettingsPage: React.FC = () => {
                         {t('settings.logout')}
                     </button>
                 </div>
+
+                <ConfirmModal
+                    isOpen={showLogoutConfirm}
+                    onClose={() => setShowLogoutConfirm(false)}
+                    onConfirm={handleConfirmLogout}
+                    title={t('auth.logout_confirm_title', 'Sign out?')}
+                    message={t('auth.logout_confirm_message', 'You will be signed out of all your accounts.')}
+                    confirmLabel={t('auth.logout_confirm_btn', 'Sign out')}
+                    variant="danger"
+                />
         </div>
     );
 };
+
 
 export default SettingsPage;

@@ -11,7 +11,8 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useTheme } from '../../hooks/useTheme';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
-import { logout, setSessionExpired } from '../../redux/slices/authSlice';
+import { logout, logoutAll, setSessionExpired } from '../../redux/slices/authSlice';
+import ConfirmModal from '../common/ConfirmModal';
 import { useLogoutMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import Avatar from '../common/Avatar';
 import Dropdown from '../common/Dropdown';
@@ -49,17 +50,23 @@ const Sidebar: React.FC = () => {
 
     const [logoutMutation] = useLogoutMutation();
     const [switchMutation] = useSwitchAccountMutation();
+    const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
 
-    const handleLogout = async () => {
+    const handleLogout = () => {
+        setShowLogoutConfirm(true);
+    };
+
+    const handleConfirmLogout = async () => {
         try {
             await logoutMutation().unwrap();
         } catch (err) {
             console.error('Logout API failed:', err);
         } finally {
-            dispatch(logout());
+            dispatch(logoutAll());
             navigate('/welcome');
         }
     };
+
 
     const handleAddAccount = () => {
         // Navigate to login WITHOUT logging out — the current session stays alive
@@ -277,8 +284,18 @@ const Sidebar: React.FC = () => {
             {/* Scroll to top button - positioned at bottom-right of sidebar */}
             <ScrollToTopButton />
             
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={handleConfirmLogout}
+                title={t('auth.logout_confirm_title', 'Sign out?')}
+                message={t('auth.logout_confirm_message', 'You will be signed out of all your accounts.')}
+                confirmLabel={t('auth.logout_confirm_btn', 'Sign out')}
+                variant="danger"
+            />
         </div>
     );
 };
+
 
 export default Sidebar;

@@ -13,9 +13,10 @@ import {
 import { RootState } from '../../redux/store';
 import { cn } from '../../utils/classNames';
 import { useTheme } from '../../hooks/useTheme';
-import { logout } from '../../redux/slices/authSlice';
+import { logout, logoutAll } from '../../redux/slices/authSlice';
 import { useLogoutMutation } from '../../redux/api/authApi';
 import IconButton from '../common/IconButton';
+import ConfirmModal from '../common/ConfirmModal';
 
 const iconMap: Record<string, React.ReactNode> = {
     home: <FiHome size={22} />,
@@ -34,6 +35,7 @@ const MobileMenu: React.FC = () => {
     const location = useLocation();
     const dispatch = useAppDispatch();
     const [logoutMutation] = useLogoutMutation();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const { t } = useTranslation();
     const { toggle, isDark } = useTheme();
     const user = useAppSelector((state: RootState) => state.auth.user);
@@ -207,21 +209,13 @@ const MobileMenu: React.FC = () => {
                 <div className="p-4 border-t border-gray-200 dark:border-dark-border">
                     {user && (
                         <button
-                            onClick={async () => {
-                                try {
-                                    await logoutMutation().unwrap();
-                                } catch (err) {
-                                    console.error('Logout failed:', err);
-                                }
-                                dispatch(logout());
-                                dispatch(closeMobileMenu());
-                                navigate('/welcome');
-                            }}
+                            onClick={() => setShowLogoutConfirm(true)}
                             className="w-full flex items-center gap-4 px-4 py-3 rounded-xl mb-4 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors font-bold"
                         >
                             <FiLogOut size={22} />
                             <span>{t('settings.logout_label')}</span>
                         </button>
+
                     )}
 
                     <div className="flex flex-col gap-2 px-4 mb-6">
@@ -268,8 +262,29 @@ const MobileMenu: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {/* Logout Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={async () => {
+                    try {
+                        await logoutMutation().unwrap();
+                    } catch (err) {
+                        console.error('Logout failed:', err);
+                    } finally {
+                        dispatch(logoutAll());
+                        dispatch(closeMobileMenu());
+                        navigate('/welcome');
+                    }
+                }}
+                title={t('auth.logout_confirm_title', 'Sign out?')}
+                message={t('auth.logout_confirm_message', 'You will be signed out of all your accounts.')}
+                confirmLabel={t('auth.logout_confirm_btn', 'Sign out')}
+                variant="danger"
+            />
         </div>
     );
 };
+
 
 export default MobileMenu;
