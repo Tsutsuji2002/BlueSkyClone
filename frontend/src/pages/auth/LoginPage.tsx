@@ -162,8 +162,9 @@ const LoginPage: React.FC = () => {
                                 
                                 <div className="border border-gray-100 dark:border-dark-border rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-dark-surface">
                                     {savedAccounts.map((account, index) => {
-                                        const isActive = activeAccountId && String(account.id) === activeAccountId;
+                                        const isActive = isAuthenticated && activeAccountId && String(account.id) === activeAccountId;
                                         const isExpired = !account.refreshToken;
+
 
                                         return (
                                             <div key={account.did}>
