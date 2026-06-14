@@ -429,9 +429,14 @@ const PostDetailPage: React.FC = () => {
 
 
     const handleBookmark = () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
         if (!post) return;
         dispatch(toggleBookmark({ post }));
     };
+
 
     const handleDelete = async () => {
         try {
@@ -452,19 +457,20 @@ const PostDetailPage: React.FC = () => {
             icon: <FiLink />,
             onClick: () => handleCopyLink(post.author.handle, post.tid || post.id),
         },
-        {
+        ...(currentUser ? [{
             id: 'send-message',
             label: t('post.send_via_message'),
             icon: <FiSend />,
             onClick: () => openShareModal(post),
-        },
+        }] : []),
         {
-            id: 'copy-link', // duplicate ID intentionally handled
+            id: 'embed-post',
             label: t('post.embed_post'),
             icon: <FiCode />,
             onClick: () => handleEmbedPost(post.author.handle, post.tid || post.id, post.content),
         },
     ];
+
 
     const settingsDropdownItems: DropdownItem[] = [
         {
@@ -536,54 +542,57 @@ const PostDetailPage: React.FC = () => {
             icon: <FiClipboard />,
             onClick: () => handleCopyText(post.content),
         },
-        {
-            id: 'toggle-view-shortcut',
-            label: treeViewEnabled ? t('post.view_as_linear') : t('post.view_as_threaded'),
-            icon: <FiList />,
-            onClick: () => {
-                dispatch(updateSettings({ treeView: !treeViewEnabled }));
-            },
-        },
-        {
-            id: 'sort-replies-shortcut',
-            label: t('post.sort_replies', 'Sort replies'),
-            icon: <FiSliders />,
-            onClick: () => {
-                const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
-                const currentIndex = orders.indexOf(sortOrder as any);
-                const nextIndex = (currentIndex + 1) % orders.length;
-                dispatch(updateSettings({ sortReplies: orders[nextIndex] }));
-                dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
-            },
-        },
-        {
-            id: 'mute-thread',
-            label: t('post.mute_thread', 'Mute thread'),
-            icon: <FiVolumeX />,
-            onClick: () => { },
-        },
-        {
-            id: 'report-post',
-            label: t('post.report_post', 'Report post'),
-            icon: <FiFlag />,
-            danger: true,
-            onClick: () => {
-                if (post.uri && post.cid) {
-                    dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
-                }
-            },
-        },
-        ...(isOwnPost ? [
-            { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
+        ...(currentUser ? [
             {
-                id: 'delete',
-                label: t('common.delete_post', 'Delete Post'),
-                icon: <FiTrash2 />,
-                onClick: () => setShowDeleteConfirm(true),
+                id: 'toggle-view-shortcut',
+                label: treeViewEnabled ? t('post.view_as_linear') : t('post.view_as_threaded'),
+                icon: <FiList />,
+                onClick: () => {
+                    dispatch(updateSettings({ treeView: !treeViewEnabled }));
+                },
+            },
+            {
+                id: 'sort-replies-shortcut',
+                label: t('post.sort_replies', 'Sort replies'),
+                icon: <FiSliders />,
+                onClick: () => {
+                    const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
+                    const currentIndex = orders.indexOf(sortOrder as any);
+                    const nextIndex = (currentIndex + 1) % orders.length;
+                    dispatch(updateSettings({ sortReplies: orders[nextIndex] }));
+                    dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
+                },
+            },
+            {
+                id: 'mute-thread',
+                label: t('post.mute_thread', 'Mute thread'),
+                icon: <FiVolumeX />,
+                onClick: () => { },
+            },
+            {
+                id: 'report-post',
+                label: t('post.report_post', 'Report post'),
+                icon: <FiFlag />,
                 danger: true,
-            }
+                onClick: () => {
+                    if (post.uri && post.cid) {
+                        dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
+                    }
+                },
+            },
+            ...(isOwnPost ? [
+                { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
+                {
+                    id: 'delete',
+                    label: t('common.delete_post', 'Delete Post'),
+                    icon: <FiTrash2 />,
+                    onClick: () => setShowDeleteConfirm(true),
+                    danger: true,
+                }
+            ] : []),
         ] : []),
     ];
+
 
     const dateLocale = i18n.language === 'vi' ? 'vi-VN' : 'en-US';
 
