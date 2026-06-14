@@ -77,6 +77,11 @@ const OnboardingCard: React.FC = () => {
             </div>
         );
     }, [suggestionData]);
+    
+    // Clear suggestions when switching users to prevent "ghost" data from the previous account
+    useEffect(() => {
+        setSuggestionData([]);
+    }, [user?.did]);
 
     // Optimized data loading with useCallback
     const loadAvatars = useCallback(async () => {

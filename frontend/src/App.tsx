@@ -113,23 +113,31 @@ const AppContent: React.FC = () => {
     }
   }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
 
-  // [POST-LOGIN FIX] When the user logs in interactively, auth/setAuth resets handshakeSettled to false.
-  // The handshake useEffect above only fires when handshakeData changes (i.e., on startup).
-  // This effect re-settles the flag whenever isAuthenticated becomes true, ensuring
-  // sidebar widgets (TrendingSection, OnboardingCard) load immediately after login.
-  const prevIsAuthenticated = React.useRef(isAuthenticated);
-  useEffect(() => {
-    const wasUnauthenticated = !prevIsAuthenticated.current;
-    prevIsAuthenticated.current = isAuthenticated;
+  // [POST-LOGIN FIX] When the user logs in interactively or switches accounts, 
+  // auth/setAuth resets handshakeSettled to false.
+  // This effect re-settles the flag whenever identity changes, ensuring
+  // sidebar widgets (TrendingSection, OnboardingCard) load immediately.
+  const user = useAppSelector(state => state.auth.user);
+  const prevUserRef = React.useRef<{ did?: string; isAuthenticated: boolean }>({
+      did: user?.did,
+      isAuthenticated
+  });
 
-    if (isAuthenticated && wasUnauthenticated) {
+  useEffect(() => {
+    const isNewLogin = isAuthenticated && !prevUserRef.current.isAuthenticated;
+    const isAccountSwitch = isAuthenticated && prevUserRef.current.isAuthenticated && user?.did !== prevUserRef.current.did;
+    
+    prevUserRef.current = { did: user?.did, isAuthenticated };
+
+    if (isNewLogin || isAccountSwitch) {
       // Short delay to let Redux state fully settle after setAuth
       const timer = setTimeout(() => {
         dispatch(setHandshakeSettled(true));
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, dispatch]);
+  }, [isAuthenticated, user?.did, dispatch]);
+
 
 
 

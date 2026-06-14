@@ -74,7 +74,26 @@ const trendingSlice = createSlice({
             .addCase(fetchInterestsList.rejected, (state, action: any) => {
                 state.isLoading = false;
                 state.error = action.payload;
-            });
+            })
+            // Reset state on auth changes to prevent stale data between accounts
+            .addCase('auth/setAuth', (state) => {
+                state.topics = [];
+                state.accounts = [];
+                state.interests = [];
+            })
+            .addCase('auth/logout', (state) => {
+                state.topics = [];
+                state.accounts = [];
+                state.interests = [];
+            })
+            .addMatcher(
+                (action) => action.type === 'auth/switchAccount/fulfilled',
+                (state) => {
+                    state.topics = [];
+                    state.accounts = [];
+                    state.interests = [];
+                }
+            );
     },
 });
 
