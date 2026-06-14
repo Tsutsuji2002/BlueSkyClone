@@ -168,20 +168,22 @@ const MediaViewerPage: React.FC = () => {
     if (!currentPost) {
         const isNotFound = !isPostsLoading && !isInitializing && !postsError;
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
+            <div className="min-h-screen bg-white dark:bg-dark-bg flex items-center justify-center">
                 {postsError || isNotFound ? (
-                    <div className="text-center p-8 bg-dark-surface/50 rounded-[32px] backdrop-blur-xl border border-white/10 max-w-sm mx-4 shadow-2xl animate-in fade-in zoom-in duration-300">
+                    <div className="text-center p-8 bg-gray-50 dark:bg-dark-surface/50 rounded-[32px] backdrop-blur-xl border border-gray-200 dark:border-white/10 max-w-sm mx-4 shadow-2xl animate-in fade-in zoom-in duration-300">
+
                         <div className="text-red-500 mb-6 flex justify-center">
                             <FiX size={48} className="p-3 bg-red-500/20 rounded-full" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-3">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
                             {isNotFound 
                                 ? (i18n.language === 'vi' ? 'Không tìm thấy bài đăng' : 'Post not found')
                                 : (i18n.language === 'vi' ? 'Không thể tải bài đăng' : 'Failed to load post')}
                         </h2>
-                        <p className="text-white/60 mb-8 leading-relaxed">
+                        <p className="text-gray-500 dark:text-white/60 mb-8 leading-relaxed">
                             {postsError || (i18n.language === 'vi' ? 'Bài đăng này không tồn tại hoặc đã bị xóa.' : "This post doesn't exist or is unavailable.")}
                         </p>
+
                         <div className="flex flex-col gap-3">
                             {!isNotFound && (
                                 <button 
@@ -191,12 +193,13 @@ const MediaViewerPage: React.FC = () => {
                                     {t('common.retry')}
                                 </button>
                             )}
-                            <button 
+                             <button 
                                 onClick={() => navigate(-1)}
-                                className="w-full py-4 bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-white/80 rounded-2xl font-bold text-[17px]"
+                                className="w-full py-4 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 active:scale-95 transition-all text-gray-700 dark:text-white/80 rounded-2xl font-bold text-[17px]"
                             >
                                 {t('common.back')}
                             </button>
+
                         </div>
                     </div>
                 ) : (
@@ -284,12 +287,12 @@ const MediaViewerPage: React.FC = () => {
             icon: <FiLink />,
             onClick: () => handleCopyLink(currentPost.author.handle, currentPost.id),
         },
-        {
+        ...(currentUser ? [{
             id: 'send-message',
             label: t('post.send_via_message'),
             icon: <FiSend />,
             onClick: () => openShareModal(currentPost),
-        },
+        }] : []),
         {
             id: 'embed',
             label: t('post.embed_post'),
@@ -297,6 +300,7 @@ const MediaViewerPage: React.FC = () => {
             onClick: () => handleEmbedPost(currentPost.author.handle, currentPost.id, currentPost.content || ''),
         },
     ];
+
 
     const formatCount = (count: number) => {
         if (count >= 1000) {
