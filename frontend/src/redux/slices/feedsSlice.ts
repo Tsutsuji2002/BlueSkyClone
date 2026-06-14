@@ -506,12 +506,18 @@ export const fetchFeedPosts = createAsyncThunk<
             const rawPosts = data.posts || (Array.isArray(data) ? data : []);
             const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             
+            // Smarter isMore: If we got a cursor, there's definitely more.
+            // Otherwise, if the server explicitly tells us hasMore, use that.
+            // Fallback: if we received exactly 'take' posts, assume there might be more.
+            const isMore = data.cursor ? true : (data.hasMore ?? (rawPosts.length >= take));
+
             return {
                 feedId,
                 posts,
-                isMore: data.hasMore ?? (Array.isArray(data) ? rawPosts.length >= take : rawPosts.length >= take),
+                isMore,
                 cursor: data.cursor || null
             };
+
         } catch (error: any) {
             return rejectWithValue(error.message);
         }

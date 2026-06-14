@@ -64,16 +64,18 @@ const FeedDetailPage: React.FC = () => {
 
 
     const handleLoadMore = () => {
-        if (routeKey) {
-            const cursor = feedCursors[routeKey];
-            dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }) as any)
-                .then((result: any) => {
-                    if (result?.payload?.posts?.length) {
-                        dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
-                    }
-                });
-        }
+        // [GUARD] Prevent redundant fetches
+        if (!routeKey || isFeedLoading) return;
+
+        const cursor = feedCursors[routeKey];
+        dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }) as any)
+            .then((result: any) => {
+                if (result?.payload?.posts?.length) {
+                    dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
+                }
+            });
     };
+
 
     // Scroll Persistence Logic
     useEffect(() => {

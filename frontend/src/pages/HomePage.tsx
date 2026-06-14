@@ -190,6 +190,9 @@ const HomePage: React.FC = () => {
     };
 
     const handleLoadMore = () => {
+        // [GUARD] Prevent request storms by checking if a fetch is already in progress for this tab
+        if (activeTab && feedLoading[activeTab]) return;
+
         if (activeTab.startsWith('list:')) {
             const listId = activeTab.replace('list:', '');
             dispatch(fetchListFeed({ id: listId, skip: activeListFeed.length }));
@@ -197,9 +200,10 @@ const HomePage: React.FC = () => {
             const currentFeedPosts = feedPosts[activeTab] || [];
             const dynamicTake = getDynamicBatchSize(250);
             const cursor = feedCursors[activeTab];
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor }));
+            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor }) as any);
         }
     };
+
 
     const pinnedHomeFeeds = useMemo(() => {
         const sorted = [...subscribedFeeds]
