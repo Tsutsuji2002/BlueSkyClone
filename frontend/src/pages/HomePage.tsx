@@ -20,7 +20,8 @@ import { feedActionKey } from '../utils/feedKeys';
 import { getDynamicBatchSize } from '../utils/pagination';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 
-const RELOAD_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+// Redux slice now handles per-feed 60s TTL logic centrally
+
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
@@ -77,8 +78,8 @@ const HomePage: React.FC = () => {
     // 1. Initial auth/feeds fetch is flying (no prior data)
     // 2. Active tab content is missing AND either we're not settled (handshake pending) OR actively loading
     const isActiveTabLoading = !!feedLoading[activeTab] || !isSessionSettled;
-    const isInitialLoading = ((feedsLoading || authLoading || isInitializing) && !hasAnyData)
-        || (isAuthenticated && !hasActivePosts && isActiveTabLoading);
+    const isInitialLoading = ((feedsLoading || authLoading || isInitializing) && !hasAnyData);
+
 
 
     const isInitializingRef = React.useRef(false);
@@ -107,10 +108,9 @@ const HomePage: React.FC = () => {
             }
         } else {
             if (feedLoading[activeTab]) return;
-            const lastFetch = feedLastFetch[activeTab] || 0;
-            const neverFetched = lastFetch === 0;
-            const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
-            if (neverFetched || isStale) {
+            // TTL handled by fetchFeedPosts thunk condition
+            if (true) {
+
                 const isDiscover = activeTab === 'discover';
                 const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
                 dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake, refresh: true }) as any)
@@ -146,10 +146,9 @@ const HomePage: React.FC = () => {
             const listId = tabId.replace('list:', '');
             dispatch(fetchListFeed({ id: listId, skip: 0 }));
         } else {
-            const lastFetch = feedLastFetch[tabId] || 0;
-            const isStale = (now - lastFetch) > RELOAD_TIMEOUT;
             const currentFeedPosts = feedPosts[tabId] || [];
-            if (currentFeedPosts.length === 0 || isStale) {
+            if (true) {
+
                 const isDiscover = tabId === 'discover';
                 const initialTake = (isDiscover && currentFeedPosts.length === 0) ? 6 : getDynamicBatchSize(250);
                 dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake, refresh: true }) as any)
