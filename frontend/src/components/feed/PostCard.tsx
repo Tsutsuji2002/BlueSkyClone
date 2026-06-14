@@ -242,12 +242,12 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             icon: <FiLink />,
             onClick: () => handleCopyLink(post.author?.handle || 'Unknown', post.tid || post.id),
         },
-        {
+        ...(currentUser ? [{
             id: 'send-message',
             label: t('post.send_via_message'),
             icon: <FiSend />,
             onClick: () => openShareModal(post),
-        },
+        }] : []),
         {
             id: 'embed',
             label: t('post.embed_post'),
@@ -256,8 +256,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
         },
     ];
 
+
     // Build more dropdown items based on context
-    const moreDropdownItems: DropdownItem[] = isInListContext ? [
+    const moreDropdownItems: DropdownItem[] = (isInListContext ? [
         // Simplified options for list context
         {
             id: 'translate',
@@ -277,7 +278,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             icon: <FiLink />,
             onClick: () => handleCopyLink(post.author.handle, post.tid || post.id),
         },
-        ...(onRemoveFromList ? [
+        ...(currentUser && onRemoveFromList ? [
             { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
             {
                 id: 'remove-from-list',
@@ -299,116 +300,118 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             id: 'copy-text',
             label: t('post.copy_text'),
             icon: <FiType />,
-            hasDivider: !isComment,
-            onClick: () => handleCopyText(post.content),
+            hasDivider: !isComment && !!currentUser,
+            onClick: () => handleCopyText(post.content)
         },
-        ...(!isComment && !isOwnPost ? [
-            {
-                id: 'show-more',
-                label: t('post.show_more'),
-                icon: <FiSmile />,
-                onClick: () => { },
-            },
-            {
-                id: 'show-less',
-                label: t('post.show_less'),
-                icon: <FiFrown />,
-                hasDivider: true,
-                onClick: () => { },
-            },
-        ] : []),
-        {
-            id: 'mute-thread',
-            label: t('post.mute_thread'),
-            icon: <FiBellOff />,
-            onClick: () => { },
-        },
-        ...(!isOwnPost ? [
-            {
-                id: 'muted-words-tags',
-                label: t('moderation.muted_words_tags', 'Muted words & tags'),
-                icon: <FiFilter />,
-                hasDivider: true,
-                onClick: () => dispatch(openMutedWords()),
-            },
-            {
-                id: isComment ? 'hide-reply' : 'hide-post',
-                label: isComment ? t('post.hide_reply') : t('post.hide_post'),
-                icon: <FiEyeOff />,
-                hasDivider: true,
-                onClick: () => { },
-            },
-            {
-                id: 'mute-account',
-                label: t('post.mute_account'),
-                icon: <FiUserMinus />,
-                onClick: () => {
-                    if (post.author?.id) {
-                        dispatch(muteUserAsync(post.author.id));
-                        dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
-                    }
+        ...(currentUser ? [
+            ...(!isComment && !isOwnPost ? [
+                {
+                    id: 'show-more',
+                    label: t('post.show_more'),
+                    icon: <FiSmile />,
+                    onClick: () => { },
                 },
-            },
-            {
-                id: 'block-account',
-                label: t('post.block_account'),
-                icon: <FiUserX />,
-                onClick: () => {
-                    if (post.author?.id) {
-                        dispatch(blockUserAsync(post.author.id));
-                        dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
-                    }
+                {
+                    id: 'show-less',
+                    label: t('post.show_less'),
+                    icon: <FiFrown />,
+                    hasDivider: true,
+                    onClick: () => { },
                 },
-            },
+            ] : []),
             {
-                id: 'report-post',
-                label: t('post.report_post'),
-                icon: <FiAlertTriangle />,
-                onClick: () => dispatch(openReport({
-                    uri: post.uri,
-                    cid: post.cid,
-                    type: isComment ? 'comment' : 'post'
-                })),
+                id: 'mute-thread',
+                label: t('post.mute_thread'),
+                icon: <FiBellOff />,
+                onClick: () => { },
             },
-        ] : []),
-        ...(onRemoveFromList ? [
-            { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
-            {
-                id: 'remove-from-list',
-                label: t('lists.remove_from_list'),
-                icon: <FiTrash2 />,
-                onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri!, isListRemoval: true, onConfirm: onRemoveFromList })),
-                danger: true,
-            }
-        ] : []),
-        ...(isOwnPost ? [
-            { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
+            ...(!isOwnPost ? [
+                {
+                    id: 'muted-words-tags',
+                    label: t('moderation.muted_words_tags', 'Muted words & tags'),
+                    icon: <FiFilter />,
+                    hasDivider: true,
+                    onClick: () => dispatch(openMutedWords()),
+                },
+                {
+                    id: isComment ? 'hide-reply' : 'hide-post',
+                    label: isComment ? t('post.hide_reply') : t('post.hide_post'),
+                    icon: <FiEyeOff />,
+                    hasDivider: true,
+                    onClick: () => { },
+                },
+                {
+                    id: 'mute-account',
+                    label: t('post.mute_account'),
+                    icon: <FiUserMinus />,
+                    onClick: () => {
+                        if (post.author?.id) {
+                            dispatch(muteUserAsync(post.author.id));
+                            dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
+                        }
+                    },
+                },
+                {
+                    id: 'block-account',
+                    label: t('post.block_account'),
+                    icon: <FiUserX />,
+                    onClick: () => {
+                        if (post.author?.id) {
+                            dispatch(blockUserAsync(post.author.id));
+                            dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
+                        }
+                    },
+                },
+                {
+                    id: 'report-post',
+                    label: t('post.report_post'),
+                    icon: <FiAlertTriangle />,
+                    onClick: () => dispatch(openReport({
+                        uri: post.uri,
+                        cid: post.cid,
+                        type: isComment ? 'comment' : 'post'
+                    })),
+                },
+            ] : []),
+            ...(onRemoveFromList ? [
+                { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
+                {
+                    id: 'remove-from-list',
+                    label: t('lists.remove_from_list'),
+                    icon: <FiTrash2 />,
+                    onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri!, isListRemoval: true, onConfirm: onRemoveFromList })),
+                    danger: true,
+                }
+            ] : []),
+            ...(isOwnPost ? [
+                { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
 
-            {
-                id: 'delete',
-                label: t('common.delete_post'),
-                icon: <FiTrash2 />,
-                onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
-                danger: true,
-            },
-            { id: 'divider-pin', label: '', icon: null, onClick: () => { }, hasDivider: true },
-            {
-                id: 'pin',
-                label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to profile'),
-                icon: <FiPin />,
-                onClick: () => {
-                    if (post.isPinned) {
-                        dispatch(unpinPost());
-                        dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
-                    } else {
-                        dispatch(pinPost(post.uri!));
-                        dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
+                {
+                    id: 'delete',
+                    label: t('common.delete_post'),
+                    icon: <FiTrash2 />,
+                    onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
+                    danger: true,
+                },
+                { id: 'divider-pin', label: '', icon: null, onClick: () => { }, hasDivider: true },
+                {
+                    id: 'pin',
+                    label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to profile'),
+                    icon: <FiPin />,
+                    onClick: () => {
+                        if (post.isPinned) {
+                            dispatch(unpinPost());
+                            dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
+                        } else {
+                            dispatch(pinPost(post.uri!));
+                            dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
+                        }
                     }
                 }
-            }
+            ] : []),
         ] : []),
+    ]);
 
-    ];
 
 
     if (post.isDeleted) {
