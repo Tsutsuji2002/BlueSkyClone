@@ -74,8 +74,13 @@ const Feed: React.FC<FeedProps> = ({
 
     // Force localPosts to sync if it's the first time or if length changes significantly (re-fetch)
     useEffect(() => {
-        setLocalPosts(filteredPosts);
-    }, [filteredPosts]);
+        // [STABILITY] Only wipe localPosts if the incoming filteredPosts is genuinely empty 
+        // AND we are not currently loading (to avoid flicker/scroll jump during background refresh)
+        if (filteredPosts.length > 0 || !isLoading) {
+            setLocalPosts(filteredPosts);
+        }
+    }, [filteredPosts, isLoading]);
+
 
     // SSE Listener
     useEffect(() => {

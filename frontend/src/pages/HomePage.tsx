@@ -160,7 +160,9 @@ const HomePage: React.FC = () => {
             return;
         }
 
-        if (activeTab) {
+        const isSameTab = activeTab === tabId;
+        
+        if (activeTab && !isSameTab) {
             scrollPositionsRef.current[activeTab] = window.scrollY;
             sessionStorage.setItem('home_tab_scrolls', JSON.stringify(scrollPositionsRef.current));
         }
@@ -170,11 +172,19 @@ const HomePage: React.FC = () => {
 
         if (tabId.startsWith('list:')) {
             const listId = tabId.replace('list:', '');
-            dispatch(fetchListFeed({ id: listId, skip: 0 }));
+            // Only fetch lists on initial switch or if not already loaded
+            if (!isSameTab || activeListFeed.length === 0) {
+                dispatch(fetchListFeed({ id: listId, skip: 0 }));
+            }
         } else {
             const currentFeedPosts = feedPosts[tabId] || [];
-            if (true) {
+            const lastFetch = feedLastFetch[tabId] || 0;
+            const TTL_MS = 60000;
+            const isStale = now - lastFetch > TTL_MS;
 
+            // [STABILITY] Only trigger a refresh if the data is stale or if switching to an empty tab.
+            // If already on the tab, clicking it shouldn't reset scroll or wipe posts unless stale.
+            if (currentFeedPosts.length === 0 || (isStale && !isSameTab)) {
                 const isDiscover = tabId === 'discover';
                 const initialTake = (isDiscover && currentFeedPosts.length === 0) ? 6 : getDynamicBatchSize(250);
                 dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake, refresh: true }) as any)
@@ -188,6 +198,7 @@ const HomePage: React.FC = () => {
             }
         }
     };
+
 
     const handleLoadMore = () => {
         // [GUARD] Prevent request storms by checking if a fetch is already in progress for this tab
