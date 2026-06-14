@@ -5,7 +5,7 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useStore } from 'react-redux';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { clearThreadPosts, toggleBookmark } from '../redux/slices/postsSlice';
+import { clearThreadPosts, toggleBookmark, toggleLike, repostPost } from '../redux/slices/postsSlice';
 import { 
     useGetPostDetailsQuery, 
     useGetRepliesQuery, 
@@ -397,16 +397,14 @@ const PostDetailPage: React.FC = () => {
             return;
         }
         if (!post.uri || !post.cid) return;
-        try {
-            await toggleLikeMutation({ 
-                uri: post.uri, 
-                cid: post.cid, 
-                isLiked: !!post.isLiked, 
-                likeUri: post.viewer?.like ?? post.likeUri 
-            }).unwrap();
-        } catch (err) {
-            console.error('Like failed:', err);
-        }
+        
+        dispatch(toggleLike({ 
+            uri: post.uri, 
+            cid: post.cid, 
+            isLiked: !!post.isLiked, 
+            likeUri: post.viewer?.like ?? post.likeUri,
+            currentLikesCount: post.likesCount
+        }));
     };
 
     const handleRepost = async () => {
@@ -415,17 +413,17 @@ const PostDetailPage: React.FC = () => {
             return;
         }
         if (!post.uri || !post.cid) return;
-        try {
-            await repostMutation({ 
-                uri: post.uri, 
-                cid: post.cid, 
-                isReposted: !!post.isReposted, 
-                repostUri: post.viewer?.repost 
-            }).unwrap();
-        } catch (err) {
-            console.error('Repost failed:', err);
-        }
+
+        dispatch(repostPost({ 
+            uri: post.uri, 
+            cid: post.cid, 
+            isReposted: !!post.isReposted, 
+            repostUri: post.viewer?.repost,
+            currentRepostsCount: post.repostsCount
+        }));
     };
+
+
 
 
     const handleBookmark = () => {
