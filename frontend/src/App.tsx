@@ -113,6 +113,26 @@ const AppContent: React.FC = () => {
     }
   }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
 
+  // [POST-LOGIN FIX] When the user logs in interactively, auth/setAuth resets handshakeSettled to false.
+  // The handshake useEffect above only fires when handshakeData changes (i.e., on startup).
+  // This effect re-settles the flag whenever isAuthenticated becomes true, ensuring
+  // sidebar widgets (TrendingSection, OnboardingCard) load immediately after login.
+  const prevIsAuthenticated = React.useRef(isAuthenticated);
+  useEffect(() => {
+    const wasUnauthenticated = !prevIsAuthenticated.current;
+    prevIsAuthenticated.current = isAuthenticated;
+
+    if (isAuthenticated && wasUnauthenticated) {
+      // Short delay to let Redux state fully settle after setAuth
+      const timer = setTimeout(() => {
+        dispatch(setHandshakeSettled(true));
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, dispatch]);
+
+
+
   // Safety timeout: Ensure the app never stays in "Initializing" state forever
   useEffect(() => {
     const timeoutId = setTimeout(() => {
