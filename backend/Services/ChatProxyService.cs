@@ -518,7 +518,10 @@ namespace BSkyClone.Services
                 convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id) : null,
                 convo.UnreadCount,
-                convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow
+                convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
+                true, // IsAccepted
+                null, // GroupName
+                convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null
             );
         }
 
@@ -558,7 +561,8 @@ namespace BSkyClone.Services
                 link.JoinRule ?? "anyone",
                 link.RequireApproval,
                 link.Link,
-                DateTimeOffset.UtcNow // Placeholder if not provided by API
+                DateTimeOffset.UtcNow, // Placeholder if not provided by API
+                link.Disabled
             );
         }
 
@@ -597,6 +601,8 @@ namespace BSkyClone.Services
             public List<BlueskyMember> Members { get; set; } = new();
             public BlueskyMessage? LastMessage { get; set; }
             public int UnreadCount { get; set; }
+            [JsonPropertyName("joinLink")]
+            public BlueskyJoinLink? JoinLink { get; set; }
         }
         private class BlueskyMember
         {
@@ -657,6 +663,7 @@ namespace BSkyClone.Services
             public string? JoinRule { get; set; }
             public bool RequireApproval { get; set; }
             public string? Link { get; set; }
+            public bool Disabled { get; set; }
         }
     }
 }

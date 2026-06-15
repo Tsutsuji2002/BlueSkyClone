@@ -10,7 +10,8 @@ public record ConversationDto(
     int UnreadCount,
     DateTimeOffset CreatedAt,
     bool IsAccepted = true,
-    string? GroupName = null
+    string? GroupName = null,
+    JoinLinkDto? JoinLink = null
 );
 
 public record MessageReactionDto(
@@ -84,5 +85,6 @@ public record JoinLinkDto(
     string JoinRule,
     bool RequireApproval,
     string? Link = null,
-    DateTimeOffset? CreatedAt = null
+    DateTimeOffset? CreatedAt = null,
+    bool Disabled = false
 );

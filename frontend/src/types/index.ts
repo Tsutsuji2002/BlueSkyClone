@@ -376,6 +376,7 @@ export interface Conversation {
         requireApproval: boolean;
         joinRule: string;
         createdAt?: string;
+        disabled?: boolean;
     };
 }
 

@@ -941,6 +941,7 @@ public class ChatService : IChatService
         if (string.IsNullOrEmpty(token)) return (false, "Session expired");
 
         return await _chatProxy.UpdateChatDeclarationAsync(token, user.Did, allowIncoming, allowGroupInvites);
+    }
 
     public async Task<ConversationDto> AddMembersAsync(Guid userId, string conversationId, List<string> members)
     {

@@ -12,10 +12,11 @@ interface InviteLinkModalProps {
         requireApproval: boolean;
         joinRule: string;
         createdAt?: string;
+        disabled?: boolean;
     } | null;
 }
 
-type Step = 'intro' | 'generate' | 'active';
+type Step = 'intro' | 'generate' | 'active' | 'confirmDisable' | 'disabled';
 
 const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conversationId, existingLink }) => {
     const dispatch = useAppDispatch();
@@ -32,7 +33,11 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             const hasSeenIntro = localStorage.getItem(`group_invite_intro_seen_${conversationId}`);
             
             if (existingLink) {
-                setStep('active');
+                if (existingLink.disabled) {
+                    setStep('disabled');
+                } else {
+                    setStep('active');
+                }
                 setRule(existingLink.joinRule);
                 setRequireApproval(existingLink.requireApproval);
             } else if (hasSeenIntro) {
@@ -95,12 +100,10 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     };
 
     const handleDisable = async () => {
-        if (!window.confirm('Are you sure you want to disable this invite link? Users with this link will no longer be able to join.')) return;
-        
         setLoading(true);
         try {
             await dispatch(disableInviteLink(conversationId) as any);
-            onClose();
+            setStep('disabled');
         } catch (err: any) {
             setError(err.message || 'Failed to disable link');
         } finally {
@@ -290,7 +293,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
 
                     <div className="mt-4 flex flex-row justify-between gap-2 text-center">
                         <button 
-                            onClick={handleDisable}
+                            onClick={() => setStep('confirmDisable')}
                             disabled={loading}
                             className="flex-1 flex flex-col items-center justify-center gap-1 bg-[#FEE7EC] dark:bg-red-950 p-2 py-4 rounded-[20px] transition-colors hover:bg-red-100 dark:hover:bg-red-900"
                         >
@@ -316,6 +319,91 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
         );
     };
 
+    const renderConfirmDisable = () => (
+        <div className="flex flex-col h-full animate-fadeIn p-6">
+            <div className="absolute top-3 right-3">
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                    <FiX size={18} className="text-[#526580]" />
+                </button>
+            </div>
+            
+            <div className="flex flex-col items-center justify-center pt-4 mb-4">
+                <svg fill="none" viewBox="0 0 24 24" width="48" height="48">
+                    <path fill="#E91646" fillRule="evenodd" clipRule="evenodd" d="M14.3 23v-1.1a1 1 0 0 1 2 0V23a1 1 0 1 1-2 0Zm5.243-3.457a1 1 0 0 1 1.414 0l1.1 1.1a1 1 0 1 1-1.414 1.414l-1.1-1.1a1 1 0 0 1 0-1.414ZM4.788 9.298a1 1 0 0 1 1.424 1.404l-.742.752-.004.005a5.003 5.003 0 1 0 7.075 7.075l.005-.004.752-.742a1 1 0 0 1 1.404 1.424l-.747.736a7.003 7.003 0 1 1-9.904-9.904l.737-.746ZM23 14.3a1 1 0 0 1 0 2h-1.1a1 1 0 1 1 0-2H23ZM10.044 4.05a7.005 7.005 0 0 1 9.905 9.906h0l-.737.746a1 1 0 0 1-1.424-1.404l.742-.752.004-.005a5.003 5.003 0 1 0-7.075-7.075l-.005.004-.752.742a1 1 0 0 1-1.404-1.424l.746-.737ZM2.1 7.7a1 1 0 1 1 0 2H1a1 1 0 0 1 0-2h1.1Zm-.157-5.757a1 1 0 0 1 1.414 0l1.1 1.1a1 1 0 1 1-1.414 1.414l-1.1-1.1a1 1 0 0 1 0-1.414ZM7.7 2.1V1a1 1 0 1 1 2 0v1.1a1 1 0 0 1-2 0Z"></path>
+                </svg>
+            </div>
+
+            <h2 className="text-[16.9px] font-bold text-black dark:text-white leading-[22px] text-center mb-2 px-4">
+                Disable this invite link?
+            </h2>
+            
+            <p className="text-[13.1px] leading-[17px] text-black dark:text-gray-300 text-center mb-6 px-4">
+                Anyone who has it will no longer be able to join or request to join. You can always create a new one.
+            </p>
+
+            <div className="flex flex-col gap-3">
+                <button 
+                    onClick={handleDisable}
+                    disabled={loading}
+                    className="w-full bg-[#E91646] hover:bg-[#CA123D] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
+                >
+                    {loading ? 'Disabling...' : 'Disable link'}
+                </button>
+                <button 
+                    onClick={() => setStep('active')}
+                    className="w-full bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-white/10 py-3 rounded-full text-[#405168] dark:text-white font-medium text-[15px] transition-colors"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    );
+
+    const renderDisabled = () => {
+        const link = existingLink?.link || 'https://bsky.app/chat/...';
+        const dateStr = existingLink?.createdAt ? new Date(existingLink.createdAt).toLocaleString() : 'Just now';
+
+        return (
+            <div className="flex flex-col h-full animate-fadeIn p-6">
+                <div className="absolute top-3 right-3">
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                        <FiX size={18} className="text-[#526580]" />
+                    </button>
+                </div>
+
+                <h2 className="text-[20.6px] font-bold text-black dark:text-white leading-[27px] mb-4">
+                    Invite link disabled
+                </h2>
+
+                <div className="mb-4">
+                    <div className="w-full bg-[#EFF2F6] dark:bg-dark-surface p-3 rounded-[10px] text-[15px] text-black/40 dark:text-white/40 truncate">
+                        {link}
+                    </div>
+                    <p className="text-[11.3px] text-[#526580] dark:text-gray-400 mt-1">Created {dateStr}</p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                    <button 
+                        onClick={handleUpdate} // Re-enable by saving settings again
+                        className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors"
+                    >
+                        Re-enable link
+                    </button>
+                    <button 
+                        onClick={() => {
+                            // Logic to clear and move to generate would go here, 
+                            // but for now re-use generate path
+                            setStep('generate');
+                        }}
+                        className="w-full bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-white/10 py-3 rounded-full text-[#405168] dark:text-white font-medium text-[15px] transition-colors"
+                    >
+                        Generate new link
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[110] flex items-start lg:items-center justify-center pt-0 lg:pt-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -324,6 +412,8 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                 {step === 'intro' && renderIntro()}
                 {step === 'generate' && renderRules(existingLink !== null && existingLink !== undefined)}
                 {step === 'active' && renderActive()}
+                {step === 'confirmDisable' && renderConfirmDisable()}
+                {step === 'disabled' && renderDisabled()}
             </div>
         </div>
     );
