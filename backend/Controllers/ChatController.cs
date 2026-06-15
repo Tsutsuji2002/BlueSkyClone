@@ -146,6 +146,7 @@ public class ChatController : ControllerBase
             throw new UnauthorizedAccessException();
         }
         return userId;
+    }
 
     [HttpPost("conversations/{conversationId}/accept")]
     public async Task<ActionResult> AcceptConversation(string conversationId)
