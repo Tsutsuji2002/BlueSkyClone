@@ -978,7 +978,7 @@ public class ChatService : IChatService
         return await _chatProxy.EditJoinLinkAsync(token, conversationId, requireApproval, joinRule);
     }
 
-    public async Task<JoinLinkDto> EnableJoinLinkAsync(Guid userId, string conversationId)
+    public async Task<JoinLinkDto> EnableInviteLinkAsync(Guid userId, string conversationId)
     {
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
@@ -986,7 +986,7 @@ public class ChatService : IChatService
         return await _chatProxy.EnableJoinLinkAsync(token, conversationId);
     }
 
-    public async Task<JoinLinkDto> DisableJoinLinkAsync(Guid userId, string conversationId)
+    public async Task<JoinLinkDto> DisableInviteLinkAsync(Guid userId, string conversationId)
     {
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
