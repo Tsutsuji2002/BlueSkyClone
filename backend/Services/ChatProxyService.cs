@@ -204,7 +204,7 @@ namespace BSkyClone.Services
 
         public async Task<ConversationDto> CreateConvoAsync(string token, List<string> members)
         {
-            var url = $"{ChatEndpoint}/chat.bsky.convo.createConvo";
+            var url = $"{ChatEndpoint}/chat.bsky.group.createGroup";
             var body = new { members = members };
 
             var response = await CallAsync(token, url, "POST", body);
@@ -220,7 +220,7 @@ namespace BSkyClone.Services
                 }
                 catch { }
 
-                _logger.LogError("createConvo failed: {StatusCode} - {Error} for {Url}", response.StatusCode, errorMessage, url);
+                _logger.LogError("createGroup failed: {StatusCode} - {Error} for {Url}", response.StatusCode, errorMessage, url);
                 throw new Exception($"Failed to create group conversation: {errorMessage}");
             }
 
