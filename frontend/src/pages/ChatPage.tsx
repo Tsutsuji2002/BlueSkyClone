@@ -630,7 +630,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                 Loading conversation...
                             </p>
                         </div>
-                    ) : activeConversationMessages.length === 0 ? (
+                    ) : (activeConversationMessages.filter(m => m.content || m.imageUrl || m.isRecalled).length === 0) ? (
                         <div className="flex-1 flex flex-col items-center pt-8 pb-12">
                             {isGroup ? (
                                 <>
@@ -700,7 +700,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                 </div>
                             )}
                             <div className="flex-grow min-h-0"></div>
-                            {activeConversationMessages.map((msg: Message) => {
+                            {activeConversationMessages.filter(m => m.content || m.imageUrl || m.isRecalled).map((msg: Message) => {
                                  const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
                                  
                                 return (
