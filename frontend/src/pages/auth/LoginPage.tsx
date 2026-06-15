@@ -7,7 +7,7 @@ import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useTranslation } from 'react-i18next';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
-import { clearError, setAuth, removeSavedAccount, setSessionExpired } from '../../redux/slices/authSlice';
+import { clearError, setAuth, removeSavedAccount, setSessionExpired, isTokenExpired } from '../../redux/slices/authSlice';
 import { useLoginMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -191,7 +191,7 @@ const LoginPage: React.FC = () => {
                                 <div className="border border-gray-100 dark:border-dark-border rounded-2xl overflow-hidden shadow-sm bg-white dark:bg-dark-surface">
                                     {savedAccounts.map((account, index) => {
                                         const isActive = isAuthenticated && activeAccountId && String(account.id) === activeAccountId;
-                                        const isExpired = !account.refreshToken;
+                                        const isExpired = !account.refreshToken || isTokenExpired(account.refreshToken);
 
 
                                         return (

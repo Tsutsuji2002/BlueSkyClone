@@ -25,21 +25,23 @@ function normalizeImageUrl(url: string | null | undefined): string | undefined {
  * Checks if a JWT token is mathematically expired.
  * Does not account for server-side revocation, but provides
  * a good proactive indicator for the UI.
+ * Exported for use in components (e.g. LoginPage).
  */
-function isTokenExpired(token?: string): boolean {
+export function isTokenExpired(token?: string): boolean {
     if (!token) return true;
     try {
         const parts = token.split('.');
-        if (parts.length !== 3) return true;
+        if (parts.length !== 3) return false; // Not a JWT, don't proactively expire
         // Decode base64url payload (handles browser/environment encoded characters)
         const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
         const payload = JSON.parse(atob(base64));
         
+        if (typeof payload.exp !== 'number') return false; // No exp claim, don't proactively expire
+
         // exp is in seconds, Date.now() is in ms
-        const bufferInSeconds = 300; // 5 minute conservative buffer for clock skew
-        return (payload.exp - bufferInSeconds) * 1000 < Date.now();
+        return payload.exp * 1000 < Date.now();
     } catch (e) {
-        return true;
+        return false; // Error decoding? Don't proactively expire.
     }
 }
 
@@ -130,30 +132,11 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
     let savedAccounts = AccountManager.getAccounts();
     
     const activeId = AccountManager.getActiveAccountId();
-
-    // [PROACTIVE CHECK] Verify expiration of all saved accounts on startup
-    // This ensures Pic 1 in the user request shows "Logged out" immediately
-    let changed = false;
-    savedAccounts = savedAccounts.map(account => {
-        // [FIX] Never proactively expire the ACTIVE session's tokens. 
-        // Clock skew could cause false positives, so we trust the handshake for the active user.
-        const isActive = (account.id === activeId || account.did === activeId);
-        if (!isActive && account.refreshToken && isTokenExpired(account.refreshToken)) {
-            changed = true;
-            return { ...account, refreshToken: undefined, accessToken: undefined };
-        }
-        return account;
-    });
-
-    if (changed) {
-        // Sync the proactively cleared tokens back to storage
-        localStorage.setItem('bsky_saved_accounts', JSON.stringify(savedAccounts));
-    }
-
     const activeAccount = activeId ? savedAccounts.find(a => a.id === activeId || a.did === activeId) : null;
     
-    // Only treat as authenticated if the token is still mathematically valid
-    const isValidSession = activeAccount && activeAccount.refreshToken && !isTokenExpired(activeAccount.refreshToken);
+    // Only treat as authenticated if we have a refresh token. 
+    // Handshake will handle actual validation.
+    const isValidSession = !!activeAccount?.refreshToken;
 
     return {
         user: (activeAccount && isValidSession) ? {
