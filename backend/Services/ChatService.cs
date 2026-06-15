@@ -247,7 +247,18 @@ public class ChatService : IChatService
                 try
                 {
                     _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
-                    return await _chatProxy.GetOrCreateConversationAsync(token, proxyParticipants);
+                    
+                    // Branching logic: 
+                    // If 1 other participant, it's a DM (use getConvoForMembers for idempotency).
+                    // If 2+ other participants, it's a Group (use createConvo).
+                    if (proxyParticipants.Count > 1)
+                    {
+                        return await _chatProxy.CreateConvoAsync(token, proxyParticipants);
+                    }
+                    else
+                    {
+                        return await _chatProxy.GetOrCreateConversationAsync(token, proxyParticipants);
+                    }
                 }
                 catch (Exception ex)
                 {

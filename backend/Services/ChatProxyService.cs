@@ -202,6 +202,34 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
+        public async Task<ConversationDto> CreateConvoAsync(string token, List<string> members)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.createConvo";
+            var body = new { members = members };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                var errorMessage = "Unknown error";
+
+                try
+                {
+                    using var doc = JsonDocument.Parse(errorJson);
+                    if (doc.RootElement.TryGetProperty("message", out var msg)) errorMessage = msg.GetString() ?? "Unknown";
+                }
+                catch { }
+
+                _logger.LogError("createConvo failed: {StatusCode} - {Error} for {Url}", response.StatusCode, errorMessage, url);
+                throw new Exception($"Failed to create group conversation: {errorMessage}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToConversationDto(data!.Convo);
+        }
+
         public async Task<bool> AddReactionAsync(string token, string conversationId, string messageId, string emoji)
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.addReaction";
