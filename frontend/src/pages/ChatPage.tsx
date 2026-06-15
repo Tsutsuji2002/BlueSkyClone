@@ -532,14 +532,14 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         </button>
                         {isGroup && otherParticipants.length >= 2 ? (
                             <div className="relative w-10 h-10">
-                                <div className="absolute top-0 left-0 z-20 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-[28px] h-[28px]">
+                                <div className="absolute top-0 left-0 z-20 border-2 border-white dark:border-[#161e27] rounded-full overflow-hidden w-[28px] h-[28px]">
                                     <Avatar
                                         src={otherParticipants[0].avatarUrl || otherParticipants[0].avatar}
                                         alt={otherParticipants[0].displayName}
                                         size="xs"
                                     />
                                 </div>
-                                <div className="absolute bottom-0 right-0 z-10 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-[28px] h-[28px]">
+                                <div className="absolute bottom-0 right-0 z-10 border-2 border-white dark:border-[#161e27] rounded-full overflow-hidden w-[28px] h-[28px]">
                                     <Avatar
                                         src={otherParticipants[1].avatarUrl || otherParticipants[1].avatar}
                                         alt={otherParticipants[1].displayName}
@@ -634,15 +634,15 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         <div className="flex-1 flex flex-col items-center pt-8 pb-12">
                             {isGroup ? (
                                 <>
-                                    <div className="relative w-[120px] h-[120px] mb-4">
-                                        <div className="absolute top-0 left-0 z-20 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[76px] h-[76px]">
+                                    <div className="relative w-[110px] h-[110px] mb-4">
+                                        <div className="absolute top-0 left-0 z-20 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[72px] h-[72px]">
                                             <Avatar
                                                 src={otherParticipants[0]?.avatarUrl || otherParticipants[0]?.avatar}
                                                 alt={otherParticipants[0]?.displayName}
                                                 size="lg"
                                             />
                                         </div>
-                                        <div className="absolute bottom-0 right-0 z-10 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[76px] h-[76px]">
+                                        <div className="absolute bottom-1 right-1 z-10 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[72px] h-[72px]">
                                             <Avatar
                                                 src={otherParticipants[1]?.avatarUrl || otherParticipants[1]?.avatar}
                                                 alt={otherParticipants[1]?.displayName}
@@ -659,11 +659,17 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                         })}
                                     </p>
                                     <div className="flex flex-row items-center gap-2">
-                                        <button className="flex flex-row items-center justify-center bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover text-gray-900 dark:text-dark-text rounded-full px-4 py-2 gap-1.5 transition-all">
+                                        <button 
+                                            onClick={() => setIsAddPeopleOpen(true)}
+                                            className="flex flex-row items-center justify-center bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover text-gray-900 dark:text-dark-text rounded-full px-4 py-2 gap-1.5 transition-all"
+                                        >
                                             <FiPlus size={16} />
                                             <span className="text-[13.1px] font-bold">{t('messages.add_people', 'Add people')}</span>
                                         </button>
-                                        <button className="flex flex-row items-center justify-center bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover text-gray-900 dark:text-dark-text rounded-full px-4 py-2 gap-1.5 transition-all">
+                                        <button 
+                                            onClick={() => setIsInviteLinkOpen(true)}
+                                            className="flex flex-row items-center justify-center bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover text-gray-900 dark:text-dark-text rounded-full px-4 py-2 gap-1.5 transition-all"
+                                        >
                                             <FiShare2 size={16} />
                                             <span className="text-[13.1px] font-bold">{t('messages.invite_link', 'Invite link')}</span>
                                         </button>
