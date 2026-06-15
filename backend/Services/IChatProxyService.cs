@@ -17,6 +17,6 @@ namespace BSkyClone.Services
         Task<bool> RemoveReactionAsync(string token, string conversationId, string messageId, string emoji);
         Task<bool> DeleteMessageForSelfAsync(string token, string conversationId, string messageId);
         Task<ChatSettingsDto> GetChatDeclarationAsync(string token);
-        Task<bool> UpdateChatDeclarationAsync(string token, string allowIncoming, string? allowGroupInvites = null);
+        Task<(bool Success, string? Message)> UpdateChatDeclarationAsync(string token, string allowIncoming, string? allowGroupInvites = null);
     }
 }

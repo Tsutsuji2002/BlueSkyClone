@@ -891,10 +891,10 @@ public class ChatService : IChatService
         return await _chatProxy.GetChatDeclarationAsync(token);
     }
 
-    public async Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null)
+    public async Task<(bool Success, string? Message)> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-        if (string.IsNullOrEmpty(token)) return false;
+        if (string.IsNullOrEmpty(token)) return (false, "Session expired");
 
         return await _chatProxy.UpdateChatDeclarationAsync(token, allowIncoming, allowGroupInvites);
     }

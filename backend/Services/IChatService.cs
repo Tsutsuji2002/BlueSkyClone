@@ -21,7 +21,7 @@ public interface IChatService
     Task<List<Guid>> GetParticipantIdsAsync(string conversationId);
     Task<ChatLogResult> GetLogAsync(Guid userId, string conversationId, string? cursor);
     Task<ChatSettingsDto> GetChatSettingsAsync(Guid userId);
-    Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null);
+    Task<(bool Success, string? Message)> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null);
     Task<bool> AcceptConversationAsync(Guid userId, string conversationId);
 }
 

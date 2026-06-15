@@ -268,35 +268,42 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<bool> UpdateChatDeclarationAsync(string token, string allowIncoming, string? allowGroupInvites = null)
+        public async Task<(bool Success, string? Message)> UpdateChatDeclarationAsync(string token, string allowIncoming, string? allowGroupInvites = null)
         {
             try
             {
                 var url = $"{ChatEndpoint}/chat.bsky.actor.updateDeclaration";
-                object body;
+                
+                // Strategy: Try updating both first. Fallback to only allowIncoming if it fails (PDS might not support the new field yet).
+                var bodiesToTry = new List<object>();
                 if (allowGroupInvites != null)
-                    body = new { allowIncoming = allowIncoming, allowGroupInvites = allowGroupInvites };
-                else
-                    body = new { allowIncoming = allowIncoming };
-                
-                _logger.LogInformation("Updating settings: URL={Url}, Body={Body}", url, JsonSerializer.Serialize(body));
-                
-                var response = await CallAsync(token, url, "POST", body);
-                if (!response.IsSuccessStatusCode)
                 {
-                    var error = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("UpdateChatDeclaration failed with status {Status}: {Error}", response.StatusCode, error);
+                    bodiesToTry.Add(new { allowIncoming = allowIncoming, allowGroupInvites = allowGroupInvites });
                 }
-                else
+                bodiesToTry.Add(new { allowIncoming = allowIncoming });
+
+                string lastError = "Unknown error";
+                foreach (var body in bodiesToTry)
                 {
-                    _logger.LogInformation("UpdateChatDeclaration succeeded");
+                    _logger.LogInformation("Attempting settings update with body: {Body}", JsonSerializer.Serialize(body));
+                    var response = await CallAsync(token, url, "POST", body);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation("UpdateChatDeclaration succeeded with body keys: {Keys}", string.Join(",", ((dynamic)body).GetType().GetProperties().Select(p => p.Name)));
+                        return (true, null);
+                    }
+                    
+                    lastError = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("UpdateChatDeclaration attempt failed: {Status} - {Error}", response.StatusCode, lastError);
                 }
-                return response.IsSuccessStatusCode;
+
+                return (false, lastError);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in UpdateChatDeclarationAsync");
-                return false;
+                return (false, ex.Message);
             }
         }
 

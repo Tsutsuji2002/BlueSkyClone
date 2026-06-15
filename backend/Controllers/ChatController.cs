@@ -69,9 +69,9 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> UpdateSettings([FromBody] UpdateChatSettingsRequest request)
     {
         var userId = GetUserId();
-        var success = await _chatService.UpdateChatSettingsAsync(userId, request.AllowIncoming, request.AllowGroupInvites);
-        if (success) return Ok();
-        return BadRequest(new { message = "Failed to update chat settings" });
+        var result = await _chatService.UpdateChatSettingsAsync(userId, request.AllowIncoming, request.AllowGroupInvites);
+        if (result.Success) return Ok();
+        return BadRequest(new { message = result.Message ?? "Failed to update chat settings" });
     }
 
     [HttpGet("conversations/{id}/messages")]
