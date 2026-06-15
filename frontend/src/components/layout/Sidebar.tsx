@@ -71,7 +71,7 @@ const Sidebar: React.FC = () => {
     const handleAddAccount = () => {
         // Navigate to login WITHOUT logging out — the current session stays alive
         // until the new account successfully logs in (setAuth replaces the session)
-        navigate('/login');
+        navigate('/login', { state: { from: location } });
     };
 
     const handleSwitchAccount = async (account: any) => {
@@ -96,7 +96,7 @@ const Sidebar: React.FC = () => {
             }
         }
         // No token or token expired → navigate to login with handle pre-filled
-        navigate('/login', { state: { prefillHandle: account.handle } });
+        navigate('/login', { state: { prefillHandle: account.handle, from: location } });
     };
 
     return (

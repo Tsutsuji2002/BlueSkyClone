@@ -40,6 +40,34 @@ const LoginPage: React.FC = () => {
         password: '',
         rememberMe: true, // Default to true for multi-account persistence
     });
+    
+    // [NEW] Intelligent Back Navigation Helper
+    const handleBack = () => {
+        const state = location.state as { from?: { pathname: string } } | null;
+        const fromPath = state?.from?.pathname;
+
+        // 1. If we have a 'from' location, check if it's safe to return to
+        if (fromPath && fromPath !== '/login' && fromPath !== '/signup' && fromPath !== '/welcome') {
+            // Guard: If unauthenticated, avoid returning to protected pages that would just redirect here again.
+            const isProtected = ['/settings', '/notifications', '/messages', '/feeds/settings', '/lists', '/saved', '/interests', '/admin']
+                .some(prefix => fromPath.startsWith(prefix));
+
+            if (!isAuthenticated && isProtected) {
+                navigate('/', { replace: true });
+            } else {
+                navigate(fromPath, { replace: true });
+            }
+            return;
+        }
+
+        // 2. If no valid 'from' state, try history back if we have history
+        if (window.history.length > 2) { // > 2 because current entry and potentially a prev one in this app
+             navigate(-1);
+        } else {
+            // 3. Absolute fallback is the "Home" (Discover for guests, Timeline for auth)
+            navigate('/', { replace: true });
+        }
+    };
 
     // Handle pre-filling from navigation state (used for switching accounts from sidebar)
     React.useEffect(() => {
@@ -255,7 +283,7 @@ const LoginPage: React.FC = () => {
 
                             <div className="flex justify-start">
                                 <button
-                                    onClick={() => navigate('/welcome')}
+                                    onClick={handleBack}
                                     className="px-6 py-2.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-900 dark:text-dark-text font-bold rounded-full transition-colors text-[15px]"
                                 >
                                     {t('auth.login.back') || 'Back'}
@@ -337,7 +365,7 @@ const LoginPage: React.FC = () => {
                                             type="button"
                                             onClick={() => {
                                                 if (savedAccounts.length > 0) setView('selector');
-                                                else navigate('/welcome');
+                                                else handleBack();
                                             }}
                                             className="px-6 py-3 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-gray-600 dark:text-dark-text-secondary font-semibold rounded-full transition-colors text-[15px]"
                                         >

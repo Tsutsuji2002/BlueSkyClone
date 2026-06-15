@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
 import Button from '../../components/common/Button';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -8,6 +8,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 const AuthRequiredPage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location = useLocation();
     useDocumentTitle(t('auth.required.title', { defaultValue: 'Login Required' }));
 
     return (
@@ -23,10 +24,10 @@ const AuthRequiredPage: React.FC = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <Button variant="primary" size="lg" onClick={() => navigate('/login')}>
+                <Button variant="primary" size="lg" onClick={() => navigate('/login', { state: { from: location } })}>
                     {t('auth.welcome.login', { defaultValue: 'Log in' })}
                 </Button>
-                <Button variant="outline" size="lg" onClick={() => navigate('/signup')}>
+                <Button variant="outline" size="lg" onClick={() => navigate('/signup', { state: { from: location } })}>
                     {t('auth.welcome.create_account', { defaultValue: 'Create account' })}
                 </Button>
             </div>
