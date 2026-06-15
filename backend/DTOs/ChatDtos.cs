@@ -62,6 +62,12 @@ public record CreateConversationRequest(
     List<string> ParticipantIds
 );
 
+public record ChatSettingsDto(
+    string AllowIncoming,
+    string? AllowGroupInvites = null
+);
+
 public record UpdateChatSettingsRequest(
-    string AllowIncoming
+    string AllowIncoming,
+    string? AllowGroupInvites = null
 );

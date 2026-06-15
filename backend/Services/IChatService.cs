@@ -20,8 +20,8 @@ public interface IChatService
     Task DeleteMessageForSelfAsync(Guid userId, string conversationId, string messageId);
     Task<List<Guid>> GetParticipantIdsAsync(string conversationId);
     Task<ChatLogResult> GetLogAsync(Guid userId, string conversationId, string? cursor);
-    Task<string> GetChatSettingsAsync(Guid userId);
-    Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming);
+    Task<ChatSettingsDto> GetChatSettingsAsync(Guid userId);
+    Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null);
     Task<bool> AcceptConversationAsync(Guid userId, string conversationId);
 }
 

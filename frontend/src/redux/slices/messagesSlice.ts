@@ -172,7 +172,8 @@ export const fetchChatSettings = createAsyncThunk(
             });
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch settings');
-            return data.allowIncoming;
+            // data is now ChatSettingsDto: { allowIncoming, allowGroupInvites }
+            return data as { allowIncoming: string; allowGroupInvites?: string };
         } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }
@@ -181,27 +182,20 @@ export const fetchChatSettings = createAsyncThunk(
 
 export const updateChatSettings = createAsyncThunk(
     'messages/updateSettings',
-    async (allowIncoming: string, { rejectWithValue }) => {
+    async (settings: { allowIncoming: string; allowGroupInvites?: string }, { rejectWithValue }) => {
         try {
-            console.log('Thunk: updateChatSettings starting with:', allowIncoming);
             const response = await fetch(`${API_URL}/chat/settings`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ allowIncoming }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings),
                 credentials: 'include'
             });
-            console.log('Thunk: response received:', response.status);
             if (!response.ok) {
                 const data = await response.json();
-                console.error('Thunk: update failed:', data);
                 return rejectWithValue(data.message || 'Failed to update settings');
             }
-            console.log('Thunk: update success');
-            return allowIncoming;
+            return settings;
         } catch (error: any) {
-            console.error('Thunk: error processing request:', error);
             return rejectWithValue(error.message || 'Something went wrong');
         }
     }

@@ -227,27 +227,54 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<string> GetChatDeclarationAsync(string token)
+        public async Task<ChatSettingsDto> GetChatDeclarationAsync(string token)
         {
+            // chat.bsky.actor.getDeclaration returns the actor's chat preferences record
             var url = $"{ChatEndpoint}/chat.bsky.actor.getDeclaration";
             var response = await CallAsync(token, url);
-            if (!response.IsSuccessStatusCode) return "all"; // Default fallback
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("GetChatDeclaration returned {Status}", response.StatusCode);
+                return new ChatSettingsDto("following"); // ATProto default is 'following'
+            }
 
             var json = await response.Content.ReadAsStringAsync();
+            _logger.LogDebug("GetChatDeclaration response: {Json}", json);
+            
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("allowIncoming", out var prop))
-            {
-                return prop.GetString() ?? "all";
-            }
-            return "all";
+            var root = doc.RootElement;
+            
+            // The response wraps in a 'declaration' object
+            var declaration = root.TryGetProperty("declaration", out var declProp) ? declProp : root;
+            
+            var allowIncoming = declaration.TryGetProperty("allowIncoming", out var ai) 
+                ? ai.GetString() ?? "following" 
+                : "following";
+            
+            var allowGroupInvites = declaration.TryGetProperty("allowGroupInvites", out var agi) 
+                ? agi.GetString() 
+                : null;
+            
+            return new ChatSettingsDto(allowIncoming, allowGroupInvites);
         }
 
-        public async Task<bool> UpdateChatDeclarationAsync(string token, string allowIncoming)
+        public async Task<bool> UpdateChatDeclarationAsync(string token, string allowIncoming, string? allowGroupInvites = null)
         {
+            // chat.bsky.actor.updateDeclaration persists the declaration record in the user's PDS
             var url = $"{ChatEndpoint}/chat.bsky.actor.updateDeclaration";
-            var body = new { allowIncoming = allowIncoming };
+            object body;
+            if (allowGroupInvites != null)
+                body = new { allowIncoming = allowIncoming, allowGroupInvites = allowGroupInvites };
+            else
+                body = new { allowIncoming = allowIncoming };
             
             var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("UpdateChatDeclaration failed: {Status} - {Error}", response.StatusCode, error);
+            }
             return response.IsSuccessStatusCode;
         }
 

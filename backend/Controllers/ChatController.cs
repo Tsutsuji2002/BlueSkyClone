@@ -61,15 +61,15 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetSettings()
     {
         var userId = GetUserId();
-        var allowIncoming = await _chatService.GetChatSettingsAsync(userId);
-        return Ok(new { allowIncoming });
+        var settings = await _chatService.GetChatSettingsAsync(userId);
+        return Ok(settings);
     }
 
     [HttpPost("settings")]
     public async Task<IActionResult> UpdateSettings([FromBody] UpdateChatSettingsRequest request)
     {
         var userId = GetUserId();
-        var success = await _chatService.UpdateChatSettingsAsync(userId, request.AllowIncoming);
+        var success = await _chatService.UpdateChatSettingsAsync(userId, request.AllowIncoming, request.AllowGroupInvites);
         if (success) return Ok();
         return BadRequest(new { message = "Failed to update chat settings" });
     }

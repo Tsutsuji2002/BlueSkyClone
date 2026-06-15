@@ -31,8 +31,9 @@ const MessagesPage: React.FC = () => {
     const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
     const loadMoreRef = React.useRef<HTMLDivElement>(null);
 
-    // Settings state
+    // Settings state - mirrors ATProto chat.bsky.actor.declaration
     const [allowIncoming, setAllowIncoming] = useState<string>('following');
+    const [allowGroupInvites, setAllowGroupInvites] = useState<string>('following');
     const [isSavingSettings, setIsSavingSettings] = useState(false);
 
     useEffect(() => {
@@ -42,17 +43,28 @@ const MessagesPage: React.FC = () => {
 
     useEffect(() => {
         if (isSettingsView) {
-            dispatch(fetchChatSettings()).unwrap().then((val) => {
-                if (val) setAllowIncoming(val);
-            });
+            dispatch(fetchChatSettings()).unwrap().then((data: any) => {
+                if (data?.allowIncoming) setAllowIncoming(data.allowIncoming);
+                if (data?.allowGroupInvites) setAllowGroupInvites(data.allowGroupInvites);
+            }).catch(() => {});
         }
     }, [dispatch, isSettingsView]);
 
-    const handleUpdateSettings = async (val: string) => {
+    const handleUpdateDmSetting = async (val: string) => {
         setAllowIncoming(val);
         setIsSavingSettings(true);
         try {
-            await dispatch(updateChatSettings(val)).unwrap();
+            await dispatch(updateChatSettings({ allowIncoming: val, allowGroupInvites })).unwrap();
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
+
+    const handleUpdateGroupSetting = async (val: string) => {
+        setAllowGroupInvites(val);
+        setIsSavingSettings(true);
+        try {
+            await dispatch(updateChatSettings({ allowIncoming, allowGroupInvites: val })).unwrap();
         } finally {
             setIsSavingSettings(false);
         }
@@ -119,13 +131,14 @@ const MessagesPage: React.FC = () => {
                         </p>
                         
                         <div className="space-y-px">
-                            {['all', 'following', 'none'].map((val) => (
+                            {(['all', 'following', 'none'] as const).map((val) => (
                                 <button
                                     key={val}
-                                    onClick={() => handleUpdateSettings(val)}
-                                    className={`w-full flex flex-row items-center gap-2 p-3 rounded-full transition-all ${allowIncoming === val ? 'bg-[#e5f0ff] dark:bg-primary-900/30' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                                    onClick={() => handleUpdateDmSetting(val)}
+                                    disabled={isSavingSettings}
+                                    className={`w-full flex flex-row items-center gap-2 p-3 rounded-full transition-all disabled:opacity-60 ${allowIncoming === val ? 'bg-[#e5f0ff] dark:bg-primary-900/30' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
                                 >
-                                    <div className={`flex items-center justify-center h-[25px] w-[25px] rounded-full border border-[#dce2ea] dark:border-dark-border transition-all ${allowIncoming === val ? 'bg-[#006aff] border-[#006aff]' : 'bg-[#f9fafb] dark:bg-dark-surface'}`}>
+                                    <div className={`flex items-center justify-center h-[25px] w-[25px] rounded-full border transition-all ${allowIncoming === val ? 'bg-[#006aff] border-[#006aff]' : 'bg-[#f9fafb] dark:bg-dark-surface border-[#dce2ea] dark:border-dark-border'}`}>
                                         {allowIncoming === val && <div className="h-3 w-3 bg-white rounded-full" />}
                                     </div>
                                     <span className={`text-[15px] font-medium ${allowIncoming === val ? 'text-black dark:text-white' : 'text-[#232e3e] dark:text-dark-text'}`}>
@@ -147,16 +160,24 @@ const MessagesPage: React.FC = () => {
                         <p className="text-[13.1px] text-[#232e3e] dark:text-[#667b99] leading-[17px] mb-3">
                             {t('messages.settings.allow_dm_desc', 'You can continue ongoing conversations regardless of which setting you choose.')}
                         </p>
-                        <div className="space-y-px opacity-50 cursor-not-allowed">
-                             {/* Group settings mimic DM settings but are currently locked to 'following' in many lexicon implementations */}
-                             <button className="w-full flex flex-row items-center gap-2 p-3 rounded-full bg-[#e5f0ff] dark:bg-primary-900/30">
-                                <div className="flex items-center justify-center h-[25px] w-[25px] rounded-full border border-[#006aff] bg-[#006aff]">
-                                    <div className="h-3 w-3 bg-white rounded-full" />
-                                </div>
-                                <span className="text-[15px] font-medium text-black dark:text-white">
-                                    {t('messages.settings.following', 'People I follow')}
-                                </span>
-                            </button>
+                        <div className="space-y-px">
+                            {(['all', 'following', 'none'] as const).map((val) => (
+                                <button
+                                    key={val}
+                                    onClick={() => handleUpdateGroupSetting(val)}
+                                    disabled={isSavingSettings}
+                                    className={`w-full flex flex-row items-center gap-2 p-3 rounded-full transition-all disabled:opacity-60 ${allowGroupInvites === val ? 'bg-[#e5f0ff] dark:bg-primary-900/30' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                                >
+                                    <div className={`flex items-center justify-center h-[25px] w-[25px] rounded-full border transition-all ${allowGroupInvites === val ? 'bg-[#006aff] border-[#006aff]' : 'bg-[#f9fafb] dark:bg-dark-surface border-[#dce2ea] dark:border-dark-border'}`}>
+                                        {allowGroupInvites === val && <div className="h-3 w-3 bg-white rounded-full" />}
+                                    </div>
+                                    <span className={`text-[15px] font-medium ${allowGroupInvites === val ? 'text-black dark:text-white' : 'text-[#232e3e] dark:text-dark-text'}`}>
+                                        {val === 'all' ? t('messages.settings.everyone', 'Everyone') : 
+                                         val === 'following' ? t('messages.settings.following', 'People I follow') : 
+                                         t('messages.settings.none', 'No one')}
+                                    </span>
+                                </button>
+                            ))}
                         </div>
                     </section>
 

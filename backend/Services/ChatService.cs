@@ -883,19 +883,19 @@ public class ChatService : IChatService
         await _notificationService.CreateNotificationAsync(notification);
     }
 
-    public async Task<string> GetChatSettingsAsync(Guid userId)
+    public async Task<ChatSettingsDto> GetChatSettingsAsync(Guid userId)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-        if (string.IsNullOrEmpty(token)) return "all";
+        if (string.IsNullOrEmpty(token)) return new ChatSettingsDto("following"); // ATProto default
 
         return await _chatProxy.GetChatDeclarationAsync(token);
     }
 
-    public async Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming)
+    public async Task<bool> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null)
     {
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (string.IsNullOrEmpty(token)) return false;
 
-        return await _chatProxy.UpdateChatDeclarationAsync(token, allowIncoming);
+        return await _chatProxy.UpdateChatDeclarationAsync(token, allowIncoming, allowGroupInvites);
     }
 }
