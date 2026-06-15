@@ -257,7 +257,8 @@ public class ChatService : IChatService
                             if (p.StartsWith("did:"))
                             {
                                 // If it's a DID, try to find the handle in our local DB or just use a truncated DID
-                                var localUser = await _unitOfWork.Users.FindAsync(u => u.Did == p);
+                                var users = await _unitOfWork.Users.FindAsync(u => u.Did == p);
+                                var localUser = users.FirstOrDefault();
                                 var handle = localUser?.Handle ?? (p.Length > 15 ? p.Substring(0, 15) + "..." : p);
                                 nameParts.Add(handle.StartsWith("@") ? handle : "@" + handle);
                             }
