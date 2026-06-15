@@ -1,7 +1,7 @@
 import { apiSlice } from './apiSlice';
 import { Post } from '../../types';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+import { hydrateInteractionsAsync } from '../slices/postsSlice';
 
 export const postApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
@@ -10,10 +10,17 @@ export const postApi = apiSlice.injectEndpoints({
                 url: '/posts/timeline',
                 params: { skip, take, refresh: refresh ? 'true' : undefined },
             }),
-            transformResponse: async (rawPosts: any[]) => {
-                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-                posts = await hydratePostsWithInteractionStatus(posts);
+            transformResponse: (rawPosts: any[]) => {
+                const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 return { posts, skip: 0, hasMore: rawPosts.length >= 20 };
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.posts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.posts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -28,11 +35,18 @@ export const postApi = apiSlice.injectEndpoints({
                 url: `/posts/user/${userId}`,
                 params: { type, take, skip, cursor, refresh: refresh ? 'true' : undefined },
             }),
-            transformResponse: async (data: any) => {
+            transformResponse: (data: any) => {
                 const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-                posts = await hydratePostsWithInteractionStatus(posts);
+                const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 return { posts, cursor: data.cursor || null };
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.posts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.posts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -56,14 +70,13 @@ export const postApi = apiSlice.injectEndpoints({
                     return { url: `/posts/tid/${postId}`, params: { take } };
                 }
             },
-            transformResponse: async (data: any) => {
+            transformResponse: (data: any) => {
                 try {
                     let allPosts: Post[] = [];
                     let targetPost: Post | null = null;
     
                     if (data && data.thread) {
                         const postsMap = new Map<string, Post>();
-                        // The direct post in the thread response IS the target post
                         if (data.thread.post) {
                             targetPost = mapAtProtoPostToPost(data.thread.post);
                         }
@@ -86,20 +99,27 @@ export const postApi = apiSlice.injectEndpoints({
                         targetPost = allPosts[0] || null;
                     }
     
-                    const hydrated = await hydratePostsWithInteractionStatus(allPosts);
-                    console.log('[postApi/getPostDetails] hydratePostsWithInteractionStatus finished');
-                    
-                    // Re-find targetPost in hydrated list to ensure it has interaction status
-                    const hydratedTarget = targetPost && targetPost.uri 
-                        ? (hydrated.find(p => p.uri === targetPost!.uri) || targetPost)
-                        : targetPost;
-    
-                    console.log('[postApi/getPostDetails] transformResponse FINISHED, returning data');
-                    return { targetPost: hydratedTarget, allPosts: hydrated };
+                    // Set initial flags from bsky viewer if available
+                    allPosts.forEach(p => {
+                        if (p.viewer) {
+                            p.isLiked = !!p.viewer.like;
+                            p.isReposted = !!p.viewer.repost;
+                        }
+                    });
+
+                    return { targetPost, allPosts };
                 } catch (e) {
                     console.error('[postApi/getPostDetails] transformResponse FAILED:', e);
-                    throw e; // Rerising ensures the query enters 'rejected' state instead of hanging
+                    throw e;
                 }
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.allPosts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.allPosts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -129,11 +149,18 @@ export const postApi = apiSlice.injectEndpoints({
                 url: '/posts/replies',
                 params: { uri: postId, skip, take },
             }),
-            transformResponse: async (data: any) => {
-                let posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            transformResponse: (data: any) => {
+                const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
                 const hasMore: boolean = Array.isArray(data) ? posts.length >= 20 : (data.hasMore ?? false);
-                posts = await hydratePostsWithInteractionStatus(posts);
                 return { posts, hasMore };
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.posts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.posts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -142,9 +169,16 @@ export const postApi = apiSlice.injectEndpoints({
         }),
         getTrending: builder.query<Post[], void>({
             query: () => '/posts/trending',
-            transformResponse: async (rawPosts: Post[]) => {
-                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-                return await hydratePostsWithInteractionStatus(posts);
+            transformResponse: (rawPosts: Post[]) => {
+                return rawPosts.map((p: any) => mapAtProtoPostToPost(p));
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -156,10 +190,17 @@ export const postApi = apiSlice.injectEndpoints({
                 url: '/posts/bookmarks',
                 params: { skip, take },
             }),
-            transformResponse: async (data: any) => {
-                let posts = data.posts.map((p: any) => mapAtProtoPostToPost(p));
-                posts = await hydratePostsWithInteractionStatus(posts);
+            transformResponse: (data: any) => {
+                const posts = data.posts.map((p: any) => mapAtProtoPostToPost(p));
                 return { posts, cursor: data.cursor || null };
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.posts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.posts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -171,12 +212,19 @@ export const postApi = apiSlice.injectEndpoints({
                 url: '/posts/discover',
                 params: { skip, take },
             }),
-            transformResponse: async (data: any) => {
+            transformResponse: (data: any) => {
                 const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-                posts = await hydratePostsWithInteractionStatus(posts);
+                const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 const hasMore: boolean = Array.isArray(data) ? posts.length >= 20 : (data.hasMore ?? false);
                 return { posts, hasMore };
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.posts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.posts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result
@@ -188,10 +236,17 @@ export const postApi = apiSlice.injectEndpoints({
                 url: '/search/posts',
                 params: { q: query, skip, take },
             }),
-            transformResponse: async (rawPosts: any[]) => {
-                let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-                posts = await hydratePostsWithInteractionStatus(posts);
+            transformResponse: (rawPosts: any[]) => {
+                const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
                 return { posts, cursor: null };
+            },
+            onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
+                try {
+                    const { data } = await queryFulfilled;
+                    if (data?.posts?.length) {
+                        dispatch((hydrateInteractionsAsync as any)(data.posts));
+                    }
+                } catch (e) {}
             },
             providesTags: (result) =>
                 result

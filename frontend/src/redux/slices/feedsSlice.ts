@@ -5,7 +5,7 @@ import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+import { hydrateInteractionsAsync } from './postsSlice';
 
 const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
 
@@ -493,7 +493,7 @@ export const fetchFeedPosts = createAsyncThunk<
     { rejectValue: string }
 >(
     'feeds/fetchPosts',
-    async ({ feedId, skip, take = 5, cursor, refresh = false }: { feedId: string; skip: number; take?: number, cursor?: string | null, refresh?: boolean }, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
+    async ({ feedId, skip, take = 5, cursor, refresh = false }: { feedId: string; skip: number; take?: number, cursor?: string | null, refresh?: boolean }, { rejectWithValue, dispatch }: { rejectWithValue: (value: string) => any, dispatch: any }) => {
         try {
             let url = `${API_BASE_URL}/unified-feed?feedId=${encodeURIComponent(feedId)}&skip=${skip}&take=${take}`;
             if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
@@ -510,6 +510,9 @@ export const fetchFeedPosts = createAsyncThunk<
             // Otherwise, if the server explicitly tells us hasMore, use that.
             // Fallback: if we received exactly 'take' posts, assume there might be more.
             const isMore = data.cursor ? true : (data.hasMore ?? (rawPosts.length >= take));
+
+            // [NEW] Trigger background interaction hydration without awaiting
+            dispatch(hydrateInteractionsAsync(posts) as any);
 
             return {
                 feedId,
@@ -558,21 +561,17 @@ export const fetchFeedPosts = createAsyncThunk<
 );
 
 
-// Background hydration thunk — dispatched after posts are rendered to overlay isLiked/isReposted/isBookmarked
-// without blocking the initial render. Uses cookie auth via credentials: 'include'.
+// Background hydration thunk - replaced with a non-blocking flow via postsSlice
 export const hydrateInteractionStatusForFeed = createAsyncThunk<
     { feedId: string; posts: Post[] },
     { feedId: string; posts: Post[] },
     { rejectValue: string }
 >(
     'feeds/hydratePosts',
-    async ({ feedId, posts }: { feedId: string; posts: Post[] }, { rejectWithValue }) => {
-        try {
-            const hydrated = await hydratePostsWithInteractionStatus(posts);
-            return { feedId, posts: hydrated };
-        } catch (error: any) {
-            return rejectWithValue(error.message);
-        }
+    async ({ feedId, posts }: { feedId: string; posts: Post[] }, { dispatch }) => {
+        // [REFAC] Delegate to the global non-blocking thunk
+        dispatch((hydrateInteractionsAsync as any)(posts));
+        return { feedId, posts };
     }
 );
 

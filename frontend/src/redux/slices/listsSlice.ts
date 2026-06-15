@@ -4,7 +4,7 @@ import { ListDto, ListItemDto, CreateListDto, UpdateListDto, Post, UserDto } fro
 import listService from '../../services/listsService';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+import { hydrateInteractionsAsync } from './postsSlice';
 
 interface ListsState {
     myLists: ListDto[];
@@ -283,7 +283,7 @@ export const fetchListMembers = createAsyncThunk(
 
 export const fetchListFeed = createAsyncThunk(
     'lists/fetchListFeed',
-    async ({ id, skip = 0, take = 5 }: { id: string; skip?: number; take?: number }, { rejectWithValue }) => {
+    async ({ id, skip = 0, take = 5 }: { id: string; skip?: number; take?: number }, { rejectWithValue, dispatch }) => {
         try {
             let posts: any[];
             if (id.startsWith('at://')) {
@@ -297,9 +297,11 @@ export const fetchListFeed = createAsyncThunk(
             } else {
                 posts = await listService.getListFeed(id, skip, take);
             }
-            // Hydrate interaction status in the background
-            const hydrated = await hydratePostsWithInteractionStatus(posts);
-            return hydrated;
+            
+            // [NEW] Trigger background interaction hydration without awaiting
+            dispatch(hydrateInteractionsAsync(posts) as any);
+
+            return posts;
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || error.message || 'Failed to fetch list feed');
         }

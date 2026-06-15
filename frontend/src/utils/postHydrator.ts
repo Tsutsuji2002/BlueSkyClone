@@ -72,25 +72,9 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
     return posts.map((post) => patchPost(post) ?? post);
 };
 
-export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<Post[]> => {
-    if (!posts.length) return posts;
+export const fetchInteractionStatuses = async (uris: string[]): Promise<InteractionStatus[]> => {
+    if (uris.length === 0) return [];
 
-    const collectUris = (post?: Post | null, set: Set<string> = new Set(), seen: Set<string> = new Set()): Set<string> => {
-        if (!post || !post.uri || seen.has(post.uri)) return set;
-        seen.add(post.uri);
-        set.add(post.uri);
-        collectUris(post.parentPost, set, seen);
-        collectUris(post.quotePost, set, seen);
-        return set;
-    };
-
-    const uriSet = new Set<string>();
-    posts.forEach(post => collectUris(post, uriSet));
-    const uris = Array.from(uriSet);
-
-    if (uris.length === 0) return posts;
-
-    // Interaction hydration now relies on HttpOnly cookies
     const authHeaders: Record<string, string> = {
         'Content-Type': 'application/json',
     };
@@ -157,11 +141,33 @@ export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<
         localStatuses.forEach(addStatus);
         viewerStatuses.forEach(addStatus);
 
-        return applyInteractionStatuses(posts, Array.from(merged.values()));
+        return Array.from(merged.values());
     } catch (e) {
-        console.error('[postHydrator] Error hydrating interactions:', e);
-        return posts;
+        console.error('[postHydrator] Error fetching interaction statuses:', e);
+        return [];
     } finally {
         clearTimeout(timeoutId);
     }
+};
+
+export const hydratePostsWithInteractionStatus = async (posts: Post[]): Promise<Post[]> => {
+    if (!posts.length) return posts;
+
+    const collectUris = (post?: Post | null, set: Set<string> = new Set(), seen: Set<string> = new Set()): Set<string> => {
+        if (!post || !post.uri || seen.has(post.uri)) return set;
+        seen.add(post.uri);
+        set.add(post.uri);
+        collectUris(post.parentPost, set, seen);
+        collectUris(post.quotePost, set, seen);
+        return set;
+    };
+
+    const uriSet = new Set<string>();
+    posts.forEach(post => collectUris(post, uriSet));
+    const uris = Array.from(uriSet);
+
+    if (uris.length === 0) return posts;
+
+    const statuses = await fetchInteractionStatuses(uris);
+    return applyInteractionStatuses(posts, statuses);
 };

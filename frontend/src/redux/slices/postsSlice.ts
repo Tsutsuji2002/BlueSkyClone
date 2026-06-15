@@ -3,7 +3,7 @@ import { PostsState, Post } from '../../types';
 import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+import { fetchInteractionStatuses } from '../../utils/postHydrator';
 import { showToast } from './toastSlice';
 
 const initialState: PostsState = {
@@ -254,10 +254,7 @@ export const fetchTimeline = createAsyncThunk(
             });
             if (!response.ok) return rejectWithValue('Failed to fetch timeline');
             const rawPosts = await response.json();
-            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-            
-            // [NEW] Perform second-pass interaction hydration (Sync with local DB + AppView)
-            posts = await hydratePostsWithInteractionStatus(posts);
+            const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             
             return { posts, skip, cursor: null };
         } catch (error: any) {
@@ -282,10 +279,7 @@ export const fetchUserPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch user posts');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-
-            // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts);
+            const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
 
             const cursorVal = data.cursor || null;
 
@@ -397,6 +391,37 @@ export const createPost = createAsyncThunk(
             return await response.json() as Post;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to create post');
+        }
+    }
+);
+
+export const hydrateInteractionsAsync = createAsyncThunk(
+    'posts/hydrateInteractions',
+    async (posts: Post[], { dispatch, getState }) => {
+        if (!posts.length) return [];
+        
+        const collectUris = (post?: Post | null, set: Set<string> = new Set(), seen: Set<string> = new Set()): Set<string> => {
+            if (!post || !post.uri || seen.has(post.uri)) return set;
+            seen.add(post.uri);
+            set.add(post.uri);
+            collectUris(post.parentPost, set, seen);
+            collectUris(post.quotePost, set, seen);
+            return set;
+        };
+
+        const uriSet = new Set<string>();
+        posts.forEach(post => collectUris(post, uriSet));
+        const uris = Array.from(uriSet);
+
+        if (uris.length === 0) return [];
+
+        try {
+            const statuses = await fetchInteractionStatuses(uris);
+            // We'll apply these via the extraReducer to update interactionTruth
+            return statuses;
+        } catch (error) {
+            console.error('[postsSlice] Failed background interaction hydration:', error);
+            throw error;
         }
     }
 );
@@ -524,10 +549,7 @@ export const fetchPostsSearch = createAsyncThunk(
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
             const rawPosts = await response.json();
-            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-
-            // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts);
+            const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
 
             return { posts, cursor: null };
         } catch (error: any) {
@@ -611,44 +633,30 @@ export const fetchPostById = createAsyncThunk(
                 };
 
                 extractPosts(data.thread);
+                extractPosts(data.thread);
                 const posts = Array.from(postsMap.values());
                 
-                // Problem 1 Fix: Check if we have authenticated viewer fields already
-                // If every post has a viewer object, it means getPostThread was called with auth
-                // and we can skip the extra round-trip to the local interactions DB.
-                // Note: We are now using credentials: 'include' instead of manual token
-                const hasViewerState = posts.length > 0 && posts.every(p => p.viewer !== undefined);
-                
-                if (hasViewerState) {
-                    // Map bsky viewer fields to our internal interaction flags
-                    posts.forEach(p => {
-                        if (p.viewer) {
-                            p.isLiked = !!p.viewer.like;
-                            p.isReposted = !!p.viewer.repost;
-                        }
-                    });
-                    
-                    // [NEW] Even if we have viewer state, we still need local DB for bookmarks
-                    return await hydratePostsWithInteractionStatus(posts);
-                }
-                
-                return await hydratePostsWithInteractionStatus(posts);
-            }
-
-            let mappedPosts = Array.isArray(data) ? data.map((p: any) => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
-            
-            // Apply same skip-logic for direct API calls if they return viewer state
-            if (mappedPosts.length > 0 && mappedPosts.every(p => p.viewer !== undefined)) {
-                 mappedPosts.forEach(p => {
+                // Set initial flags from bsky viewer if available
+                posts.forEach(p => {
                     if (p.viewer) {
                         p.isLiked = !!p.viewer.like;
                         p.isReposted = !!p.viewer.repost;
                     }
                 });
-                return await hydratePostsWithInteractionStatus(mappedPosts);
+                
+                return posts;
             }
 
-            return await hydratePostsWithInteractionStatus(mappedPosts);
+            const mappedPosts = Array.isArray(data) ? data.map((p: any) => mapAtProtoPostToPost(p)) : [mapAtProtoPostToPost(data)];
+            
+            mappedPosts.forEach(p => {
+                if (p.viewer) {
+                    p.isLiked = !!p.viewer.like;
+                    p.isReposted = !!p.viewer.repost;
+                }
+            });
+
+            return mappedPosts;
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -666,12 +674,9 @@ export const fetchPostReplies = createAsyncThunk(
             const data = await response.json();
             
             // Support both { posts, hasMore } shape and plain Post[] for backward compat
-            let posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
+            const posts: Post[] = Array.isArray(data) ? data : (data.posts || []);
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
-            // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts);
-
             return { posts, postId, skip, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -688,11 +693,7 @@ export const fetchTrendingPosts = createAsyncThunk(
                 { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to fetch trending');
-            let posts = await response.json() as Post[];
-
-            // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts);
-
+            const posts = await response.json() as Post[];
             return posts;
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -768,11 +769,8 @@ export const fetchBookmarkedPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch bookmarks');
             const data = await response.json();
             
-            // [NEW] Perform second-pass interaction hydration
-            data.posts = await hydratePostsWithInteractionStatus(data.posts.map((p: any) => mapAtProtoPostToPost(p)));
-            
             return { 
-                posts: data.posts, 
+                posts: data.posts.map((p: any) => mapAtProtoPostToPost(p)), 
                 cursor: data.cursor || null 
             };
         } catch (error: any) {
@@ -792,14 +790,11 @@ export const fetchDiscoverPosts = createAsyncThunk(
             if (!response.ok) return rejectWithValue('Failed to fetch discover feed');
             const data = await response.json();
             const rawPosts: any[] = Array.isArray(data) ? data : (data.posts || []);
-            let posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-            
-            // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts);
+            const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
             
             const hasMore: boolean = Array.isArray(data) ? posts.length >= take : (data.hasMore ?? false);
             
-            return { posts, skip, hasMore };
+            return { posts, hasMore };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -823,11 +818,7 @@ export const fetchPostQuotes = createAsyncThunk<
             const data = await response.json();
             if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch quotes');
 
-            let posts: Post[] = (data.posts || []);
-            
-            // [NEW] Perform second-pass interaction hydration
-            posts = await hydratePostsWithInteractionStatus(posts);
-
+            const posts: Post[] = (data.posts || []);
             return { posts, cursor: data.cursor || null, hasMore: data.hasMore ?? !!data.cursor };
         } catch (error: any) {
             return rejectWithValue(error.message);
@@ -1019,6 +1010,23 @@ const postsSlice = createSlice({
 
     extraReducers: (builder) => {
         builder
+            .addCase(hydrateInteractionsAsync.fulfilled, (state, action) => {
+                const statuses = action.payload;
+                statuses.forEach(status => {
+                    // Create a dummy post object to reuse updateInteractionTruth logic
+                    const postUpdate: Partial<Post> = {
+                        uri: status.uri,
+                        isLiked: status.isLiked,
+                        isReposted: status.isReposted,
+                        isBookmarked: status.isBookmarked,
+                        viewer: {
+                            like: status.likeUri ?? undefined,
+                            repost: status.repostUri ?? undefined
+                        }
+                    };
+                    updateInteractionTruth(state, postUpdate as Post);
+                });
+            })
             // Fetch Timeline
             .addCase(fetchTimeline.pending, (state: PostsState) => {
                 state.isLoading = true;

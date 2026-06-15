@@ -5,14 +5,14 @@ import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { API_BASE_URL } from '../../constants';
 import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
-import { hydratePostsWithInteractionStatus } from '../../utils/postHydrator';
+import { hydrateInteractionsAsync, seedInteractionTruth } from '../../redux/slices/postsSlice';
 import LoadingIndicator from '../common/LoadingIndicator';
 import { FiList, FiImage, FiVideo, FiRss, FiPlus } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
-import { seedInteractionTruth } from '../../redux/slices/postsSlice';
+// Removed redundant seedInteractionTruth import as it is now combined above
 import { saveFeed, unsaveFeed, pinFeed, unpinFeed } from '../../redux/slices/feedsSlice';
 import { getDynamicBatchSize } from '../../utils/pagination';
 import { matchesPost } from '../../utils/postUtils';
@@ -86,7 +86,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     fetchedItems = Array.isArray(data) ? data : (data.posts || []);
                     
                     if (fetchedItems.length > 0) {
-                        fetchedItems = await hydratePostsWithInteractionStatus(fetchedItems);
+                        dispatch(hydrateInteractionsAsync(fetchedItems) as any);
                     }
 
                     if (type === 'video') {
