@@ -21,7 +21,9 @@ const ChatSettingsPage: React.FC = () => {
         const loadSettings = async () => {
             try {
                 const result = await dispatch(fetchChatSettings()).unwrap();
-                setAllowIncoming(result || 'all');
+                if (result?.allowIncoming) {
+                    setAllowIncoming(result.allowIncoming);
+                }
             } catch (error) {
                 console.error('Failed to fetch chat settings:', error);
             } finally {
@@ -45,7 +47,7 @@ const ChatSettingsPage: React.FC = () => {
 
         try {
             console.log('Dispatching updateChatSettings...');
-            await dispatch(updateChatSettings(value)).unwrap();
+            await dispatch(updateChatSettings({ allowIncoming: value })).unwrap();
             console.log('Update successful');
         } catch (error) {
             console.error('Failed to update chat settings:', error);
