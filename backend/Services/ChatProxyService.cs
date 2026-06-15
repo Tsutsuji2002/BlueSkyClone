@@ -290,7 +290,7 @@ namespace BSkyClone.Services
                     
                     if (response.IsSuccessStatusCode)
                     {
-                        _logger.LogInformation("UpdateChatDeclaration succeeded with body keys: {Keys}", string.Join(",", ((dynamic)body).GetType().GetProperties().Select(p => p.Name)));
+                        _logger.LogInformation("UpdateChatDeclaration succeeded");
                         return (true, null);
                     }
                     
