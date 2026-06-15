@@ -14,6 +14,11 @@ namespace BSkyClone.Services
         Task<bool> UpdateReadAsync(string token, string conversationId, string? messageId = null);
         Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members);
         Task<ConversationDto> CreateConvoAsync(string token, List<string> members, string name);
+        Task<ConversationDto> AddMembersAsync(string token, string conversationId, List<string> members);
+        Task<JoinLinkDto> CreateJoinLinkAsync(string token, string conversationId, bool requireApproval, string joinRule);
+        Task<JoinLinkDto> EditJoinLinkAsync(string token, string conversationId, bool? requireApproval = null, string? joinRule = null);
+        Task<JoinLinkDto> EnableJoinLinkAsync(string token, string conversationId);
+        Task<JoinLinkDto> DisableJoinLinkAsync(string token, string conversationId);
         Task<bool> AddReactionAsync(string token, string conversationId, string messageId, string emoji);
         Task<bool> RemoveReactionAsync(string token, string conversationId, string messageId, string emoji);
         Task<bool> DeleteMessageForSelfAsync(string token, string conversationId, string messageId);

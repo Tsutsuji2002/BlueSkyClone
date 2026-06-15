@@ -138,6 +138,66 @@ public class ChatController : ControllerBase
         }
     }
 
+    [HttpPost("conversations/{id}/members")]
+    public async Task<IActionResult> AddMembers(string id, [FromBody] AddMembersRequest request)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var conversation = await _chatService.AddMembersAsync(userId, id, request.Members);
+            return Ok(conversation);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("conversations/{id}/invite-link")]
+    public async Task<IActionResult> CreateInviteLink(string id, [FromBody] CreateJoinLinkRequest request)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var link = await _chatService.CreateJoinLinkAsync(userId, id, request.RequireApproval, request.JoinRule);
+            return Ok(link);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("conversations/{id}/invite-link")]
+    public async Task<IActionResult> UpdateInviteLink(string id, [FromBody] EditJoinLinkRequest request)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var link = await _chatService.EditJoinLinkAsync(userId, id, request.RequireApproval, request.JoinRule);
+            return Ok(link);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpDelete("conversations/{id}/invite-link")]
+    public async Task<IActionResult> DisableInviteLink(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var link = await _chatService.DisableInviteLinkAsync(userId, id);
+            return Ok(link);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     private Guid GetUserId()
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

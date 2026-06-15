@@ -230,6 +230,96 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
+        public async Task<ConversationDto> AddMembersAsync(string token, string conversationId, List<string> members)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.addMembers";
+            var body = new { convoId = conversationId, members = members };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to add members: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToConversationDto(data!.Convo);
+        }
+
+        public async Task<JoinLinkDto> CreateJoinLinkAsync(string token, string conversationId, bool requireApproval, string joinRule)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.createJoinLink";
+            var body = new { convoId = conversationId, requireApproval = requireApproval, joinRule = joinRule };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to create join link: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToJoinLinkDto(data!);
+        }
+
+        public async Task<JoinLinkDto> EditJoinLinkAsync(string token, string conversationId, bool? requireApproval = null, string? joinRule = null)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.editJoinLink";
+            var body = new { convoId = conversationId, requireApproval = requireApproval, joinRule = joinRule };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to edit join link: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToJoinLinkDto(data!);
+        }
+
+        public async Task<JoinLinkDto> EnableJoinLinkAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.enableJoinLink";
+            var body = new { convoId = conversationId };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to enable join link: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToJoinLinkDto(data!);
+        }
+
+        public async Task<JoinLinkDto> DisableJoinLinkAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.disableJoinLink";
+            var body = new { convoId = conversationId };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to disable join link: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToJoinLinkDto(data!);
+        }
+
         public async Task<bool> AddReactionAsync(string token, string conversationId, string messageId, string emoji)
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.addReaction";
@@ -460,6 +550,18 @@ namespace BSkyClone.Services
             );
         }
 
+        private JoinLinkDto MapToJoinLinkDto(BlueskyJoinLink link)
+        {
+            return new JoinLinkDto(
+                link.Id ?? "",
+                link.ConvoId ?? "",
+                link.JoinRule ?? "anyone",
+                link.RequireApproval,
+                link.Link,
+                DateTimeOffset.UtcNow // Placeholder if not provided by API
+            );
+        }
+
         private UserDto MapToUserDto(BlueskyMember m)
         {
             return new UserDto(
@@ -546,6 +648,15 @@ namespace BSkyClone.Services
             public string? ConvoId { get; set; }
             public BlueskyMessage? Message { get; set; }
             public string? Rev { get; set; }
+        }
+
+        private class BlueskyJoinLink
+        {
+            public string? Id { get; set; }
+            public string? ConvoId { get; set; }
+            public string? JoinRule { get; set; }
+            public bool RequireApproval { get; set; }
+            public string? Link { get; set; }
         }
     }
 }

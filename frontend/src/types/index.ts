@@ -371,6 +371,12 @@ export interface Conversation {
     createdAt: string;
     isAccepted?: boolean;
     groupName?: string;
+    joinLink?: {
+        link: string;
+        requireApproval: boolean;
+        joinRule: string;
+        createdAt?: string;
+    };
 }
 
 export type UserDto = User;

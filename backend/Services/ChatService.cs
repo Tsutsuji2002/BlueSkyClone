@@ -941,5 +941,55 @@ public class ChatService : IChatService
         if (string.IsNullOrEmpty(token)) return (false, "Session expired");
 
         return await _chatProxy.UpdateChatDeclarationAsync(token, user.Did, allowIncoming, allowGroupInvites);
+
+    public async Task<ConversationDto> AddMembersAsync(Guid userId, string conversationId, List<string> members)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        // Resolve handles/dids for members (similar to GetOrCreateConversationAsync)
+        var proxyMembersTasks = members.Select(async mId => {
+            if (mId.StartsWith("did:")) return mId;
+            if (Guid.TryParse(mId, out var guid)) {
+                var pUser = await _unitOfWork.Users.GetByIdAsync(guid);
+                return pUser?.Did ?? pUser?.Handle;
+            }
+            return mId;
+        });
+        var proxyMembers = (await Task.WhenAll(proxyMembersTasks)).Where(m => !string.IsNullOrEmpty(m)).Cast<string>().ToList();
+
+        return await _chatProxy.AddMembersAsync(token, conversationId, proxyMembers);
+    }
+
+    public async Task<JoinLinkDto> CreateJoinLinkAsync(Guid userId, string conversationId, bool requireApproval, string joinRule)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.CreateJoinLinkAsync(token, conversationId, requireApproval, joinRule);
+    }
+
+    public async Task<JoinLinkDto> EditJoinLinkAsync(Guid userId, string conversationId, bool? requireApproval = null, string? joinRule = null)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.EditJoinLinkAsync(token, conversationId, requireApproval, joinRule);
+    }
+
+    public async Task<JoinLinkDto> EnableJoinLinkAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.EnableJoinLinkAsync(token, conversationId);
+    }
+
+    public async Task<JoinLinkDto> DisableJoinLinkAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.DisableJoinLinkAsync(token, conversationId);
     }
 }

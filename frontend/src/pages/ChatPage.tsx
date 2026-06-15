@@ -19,6 +19,8 @@ import { formatChatMessageDate } from '../utils/formatDate';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
+import AddPeopleModal from '../components/modals/AddPeopleModal';
+import InviteLinkModal from '../components/modals/InviteLinkModal';
 
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -61,6 +63,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     // Popup Layout State
     const [pickerPosition, setPickerPosition] = useState<{ top: number, left: number } | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null);
+
+    // Group Management Modals
+    const [isAddPeopleOpen, setIsAddPeopleOpen] = useState(false);
+    const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
 
     const [dismissedLinks, setDismissedLinks] = useState<Set<string>>(new Set());
     const prevContentRef = useRef('');
@@ -1079,6 +1085,22 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                 message={confirmModal.message}
                 variant={confirmModal.variant}
             />
+
+            {conversationId && (
+                <>
+                    <AddPeopleModal 
+                        isOpen={isAddPeopleOpen}
+                        onClose={() => setIsAddPeopleOpen(false)}
+                        conversationId={conversationId}
+                    />
+                    <InviteLinkModal 
+                        isOpen={isInviteLinkOpen}
+                        onClose={() => setIsInviteLinkOpen(false)}
+                        conversationId={conversationId}
+                        existingLink={conversation?.joinLink}
+                    />
+                </>
+            )}
         </>
     );
 };

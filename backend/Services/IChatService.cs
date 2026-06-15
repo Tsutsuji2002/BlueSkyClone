@@ -23,6 +23,11 @@ public interface IChatService
     Task<ChatSettingsDto> GetChatSettingsAsync(Guid userId);
     Task<(bool Success, string? Message)> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null);
     Task<bool> AcceptConversationAsync(Guid userId, string conversationId);
+    Task<ConversationDto> AddMembersAsync(Guid userId, string conversationId, List<string> members);
+    Task<JoinLinkDto> CreateJoinLinkAsync(Guid userId, string conversationId, bool requireApproval, string joinRule);
+    Task<JoinLinkDto> EditJoinLinkAsync(Guid userId, string conversationId, bool? requireApproval = null, string? joinRule = null);
+    Task<JoinLinkDto> EnableJoinLinkAsync(Guid userId, string conversationId);
+    Task<JoinLinkDto> DisableJoinLinkAsync(Guid userId, string conversationId);
 }
 
 public record ChatLogResult(IEnumerable<MessageDto> Messages, string? Cursor);

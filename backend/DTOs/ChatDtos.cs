@@ -71,3 +71,18 @@ public record UpdateChatSettingsRequest(
     string AllowIncoming,
     string? AllowGroupInvites = null
 );
+
+public record AddMembersRequest(List<string> Members);
+
+public record CreateJoinLinkRequest(bool RequireApproval, string JoinRule);
+
+public record EditJoinLinkRequest(bool? RequireApproval = null, string? JoinRule = null);
+
+public record JoinLinkDto(
+    string Id,
+    string ConvoId,
+    string JoinRule,
+    bool RequireApproval,
+    string? Link = null,
+    DateTimeOffset? CreatedAt = null
+);

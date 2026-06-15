@@ -220,6 +220,80 @@ export const deleteConversation = createAsyncThunk(
     }
 );
 
+export const addMembers = createAsyncThunk(
+    'messages/addMembers',
+    async ({ conversationId, members }: { conversationId: string; members: string[] }, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/members`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ members }),
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to add members');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const createInviteLink = createAsyncThunk(
+    'messages/createInviteLink',
+    async ({ conversationId, requireApproval, joinRule }: { conversationId: string; requireApproval: boolean; joinRule: string }, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requireApproval, joinRule }),
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to create invite link');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const updateInviteLink = createAsyncThunk(
+    'messages/updateInviteLink',
+    async ({ conversationId, requireApproval, joinRule }: { conversationId: string; requireApproval?: boolean; joinRule?: string }, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requireApproval, joinRule }),
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to update invite link');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const disableInviteLink = createAsyncThunk(
+    'messages/disableInviteLink',
+    async (conversationId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to disable invite link');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 const messagesSlice = createSlice({
     name: 'messages',
     initialState,
