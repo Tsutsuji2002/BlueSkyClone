@@ -372,7 +372,8 @@ export interface Conversation {
     isAccepted?: boolean;
     groupName?: string;
     joinLink?: {
-        link: string;
+        id: string;
+        link: string | null;
         requireApproval: boolean;
         joinRule: string;
         createdAt?: string;
