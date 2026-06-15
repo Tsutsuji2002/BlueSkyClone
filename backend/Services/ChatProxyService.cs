@@ -202,10 +202,10 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
-        public async Task<ConversationDto> CreateConvoAsync(string token, List<string> members)
+        public async Task<ConversationDto> CreateConvoAsync(string token, List<string> members, string name)
         {
             var url = $"{ChatEndpoint}/chat.bsky.group.createGroup";
-            var body = new { members = members };
+            var body = new { members = members, name = name };
 
             var response = await CallAsync(token, url, "POST", body);
             if (!response.IsSuccessStatusCode)

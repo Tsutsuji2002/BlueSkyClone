@@ -253,7 +253,15 @@ public class ChatService : IChatService
                     // If 2+ other participants, it's a Group (use createConvo).
                     if (proxyParticipants.Count > 1)
                     {
-                        return await _chatProxy.CreateConvoAsync(token, proxyParticipants);
+                        var groupName = "Group Chat";
+                        if (proxyParticipantsResults != null && proxyParticipantsResults.Length > 0)
+                        {
+                            var names = proxyParticipantsResults.Where(n => !string.IsNullOrEmpty(n)).Take(3).ToList();
+                            groupName = "Group with " + string.Join(", ", names);
+                            if (proxyParticipantsResults.Length > 3) groupName += "...";
+                        }
+                        
+                        return await _chatProxy.CreateConvoAsync(token, proxyParticipants, groupName);
                     }
                     else
                     {
