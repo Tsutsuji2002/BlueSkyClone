@@ -36,7 +36,7 @@ function isTokenExpired(token?: string): boolean {
         const payload = JSON.parse(atob(base64));
         
         // exp is in seconds, Date.now() is in ms
-        const bufferInSeconds = 60; // 1 minute security buffer
+        const bufferInSeconds = 300; // 5 minute conservative buffer for clock skew
         return (payload.exp - bufferInSeconds) * 1000 < Date.now();
     } catch (e) {
         return true;
@@ -129,11 +129,16 @@ function normalizeSettings(raw: any): UserSettings {
 const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
     let savedAccounts = AccountManager.getAccounts();
     
+    const activeId = AccountManager.getActiveAccountId();
+
     // [PROACTIVE CHECK] Verify expiration of all saved accounts on startup
     // This ensures Pic 1 in the user request shows "Logged out" immediately
     let changed = false;
     savedAccounts = savedAccounts.map(account => {
-        if (account.refreshToken && isTokenExpired(account.refreshToken)) {
+        // [FIX] Never proactively expire the ACTIVE session's tokens. 
+        // Clock skew could cause false positives, so we trust the handshake for the active user.
+        const isActive = (account.id === activeId || account.did === activeId);
+        if (!isActive && account.refreshToken && isTokenExpired(account.refreshToken)) {
             changed = true;
             return { ...account, refreshToken: undefined, accessToken: undefined };
         }
@@ -145,7 +150,6 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
         localStorage.setItem('bsky_saved_accounts', JSON.stringify(savedAccounts));
     }
 
-    const activeId = AccountManager.getActiveAccountId();
     const activeAccount = activeId ? savedAccounts.find(a => a.id === activeId || a.did === activeId) : null;
     
     // Only treat as authenticated if the token is still mathematically valid

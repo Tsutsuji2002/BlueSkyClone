@@ -212,7 +212,7 @@ const LoginPage: React.FC = () => {
                                                                 @{account.handle}
                                                             </span>
                                                         </div>
-                                                        {isExpired && (
+                                                        {isExpired && !isActive && (
                                                             <div className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-0.5 uppercase tracking-tight">
                                                                 {t('auth.login.logged_out') || 'Logged out'}
                                                             </div>
