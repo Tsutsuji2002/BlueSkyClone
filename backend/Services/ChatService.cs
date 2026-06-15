@@ -888,7 +888,14 @@ public class ChatService : IChatService
         var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
         if (string.IsNullOrEmpty(token)) return new ChatSettingsDto("following"); // ATProto default
 
-        return await _chatProxy.GetChatDeclarationAsync(token);
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did))
+        {
+             // Fallback if no DID, but ideally we have one
+             return await _chatProxy.GetChatDeclarationAsync(token, string.Empty);
+        }
+
+        return await _chatProxy.GetChatDeclarationAsync(token, user.Did);
     }
 
     public async Task<(bool Success, string? Message)> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null)

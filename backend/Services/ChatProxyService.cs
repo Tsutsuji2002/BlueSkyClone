@@ -229,8 +229,42 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<ChatSettingsDto> GetChatDeclarationAsync(string token)
+        public async Task<ChatSettingsDto> GetChatDeclarationAsync(string token, string did)
         {
+            // Strategy 1: Direct repo getRecord (Authoritative)
+            if (!string.IsNullOrEmpty(did))
+            {
+                try
+                {
+                    _logger.LogInformation("Attempting direct repo getRecord for chat settings ({Did})", did);
+                    var queryParams = new List<KeyValuePair<string, string?>>
+                    {
+                        new("repo", did),
+                        new("collection", "chat.bsky.actor.declaration"),
+                        new("rkey", "self")
+                    };
+                    
+                    var repoResponse = await _xrpcProxy.ProxyRequestAsync(did, "com.atproto.repo.getRecord", queryParams, token);
+                    if (repoResponse.Success)
+                    {
+                        using var doc = JsonDocument.Parse(repoResponse.Content);
+                        var value = doc.RootElement.TryGetProperty("value", out var v) ? v : doc.RootElement;
+                        
+                        var allowIncoming = value.TryGetProperty("allowIncoming", out var ai) ? ai.GetString() : "following";
+                        var allowGroupInvites = value.TryGetProperty("allowGroupInvites", out var agi) ? agi.GetString() : null;
+                        
+                        _logger.LogInformation("Fetched settings via getRecord: Incoming={Incoming}, Group={Group}", allowIncoming, allowGroupInvites);
+                        return new ChatSettingsDto(allowIncoming ?? "following", allowGroupInvites);
+                    }
+                    _logger.LogWarning("Direct repo getRecord failed: {Status} - {Content}", repoResponse.StatusCode, repoResponse.Content);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in GetChatDeclarationAsync direct repo fetch for {Did}", did);
+                }
+            }
+
+            // Strategy 2: Fallback to chat service getDeclaration
             try 
             {
                 var url = $"{ChatEndpoint}/chat.bsky.actor.getDeclaration";
@@ -244,28 +278,18 @@ namespace BSkyClone.Services
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                _logger.LogDebug("GetChatDeclaration response: {Json}", json);
-                
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
-                
-                // Response structure: { "declaration": { "allowIncoming": "..." } }
                 var declaration = root.TryGetProperty("declaration", out var declProp) ? declProp : root;
                 
-                var allowIncoming = declaration.TryGetProperty("allowIncoming", out var ai) 
-                    ? ai.GetString() ?? "following" 
-                    : "following";
+                var allowIncoming = declaration.TryGetProperty("allowIncoming", out var ai) ? ai.GetString() ?? "following" : "following";
+                var allowGroupInvites = declaration.TryGetProperty("allowGroupInvites", out var agi) ? agi.GetString() : null;
                 
-                var allowGroupInvites = declaration.TryGetProperty("allowGroupInvites", out var agi) 
-                    ? agi.GetString() 
-                    : null;
-                
-                _logger.LogInformation("Fetched settings: Incoming={Incoming}, Group={Group}", allowIncoming, allowGroupInvites);
                 return new ChatSettingsDto(allowIncoming, allowGroupInvites);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in GetChatDeclarationAsync");
+                _logger.LogError(ex, "Error in GetChatDeclarationAsync fallback");
                 return new ChatSettingsDto("following");
             }
         }
