@@ -51,16 +51,13 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             setIsFetching(true);
             dispatch(fetchInviteLink(conversationId) as any).then((result: any) => {
                 setIsFetching(false);
-                console.log('InviteLink fetch result:', result);
                 if (fetchInviteLink.fulfilled.match(result) && result.payload) {
                     const link = result.payload;
-                    console.log('Switching to active view with link:', link);
                     setFetchedLink(link);
                     setRule(link.joinRule || 'anyone');
                     setRequireApproval(link.requireApproval || false);
                     setStep(link.disabled ? 'disabled' : 'active');
                 } else {
-                    console.log('No link found or fetch failed, staying on intro/generate');
                     setStep(hasSeenIntro ? 'generate' : 'intro');
                 }
             });
@@ -493,7 +490,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             
             <div className="relative w-full max-w-[400px] bg-white dark:bg-black rounded-none lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full lg:h-auto max-h-[100vh] lg:max-h-[85vh] lg:min-h-[200px] animate-zoomIn">
                 {step === 'intro' && renderIntro()}
-                {step === 'generate' && renderRules(existingLink !== null && existingLink !== undefined)}
+                {step === 'generate' && renderRules(!!(activeLink))}
                 {step === 'active' && renderActive()}
                 {step === 'confirmDisable' && renderConfirmDisable()}
                 {step === 'disabled' && renderDisabled()}
