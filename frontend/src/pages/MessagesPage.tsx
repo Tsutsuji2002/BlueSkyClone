@@ -51,20 +51,28 @@ const MessagesPage: React.FC = () => {
     }, [dispatch, isSettingsView]);
 
     const handleUpdateDmSetting = async (val: string) => {
+        const prev = allowIncoming;
         setAllowIncoming(val);
         setIsSavingSettings(true);
         try {
             await dispatch(updateChatSettings({ allowIncoming: val, allowGroupInvites })).unwrap();
+        } catch (err) {
+            setAllowIncoming(prev); // Rollback
+            console.error('Failed to update DM settings:', err);
         } finally {
             setIsSavingSettings(false);
         }
     };
 
     const handleUpdateGroupSetting = async (val: string) => {
+        const prev = allowGroupInvites;
         setAllowGroupInvites(val);
         setIsSavingSettings(true);
         try {
             await dispatch(updateChatSettings({ allowIncoming, allowGroupInvites: val })).unwrap();
+        } catch (err) {
+            setAllowGroupInvites(prev); // Rollback
+            console.error('Failed to update group settings:', err);
         } finally {
             setIsSavingSettings(false);
         }
