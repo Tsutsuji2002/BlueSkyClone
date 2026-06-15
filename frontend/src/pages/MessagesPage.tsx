@@ -45,7 +45,8 @@ const MessagesPage: React.FC = () => {
         if (isSettingsView) {
             dispatch(fetchChatSettings()).unwrap().then((data: any) => {
                 if (data?.allowIncoming) setAllowIncoming(data.allowIncoming);
-                if (data?.allowGroupInvites) setAllowGroupInvites(data.allowGroupInvites);
+                // Even if null, we should handle it. Default to 'following' if null/not present.
+                setAllowGroupInvites(data?.allowGroupInvites || 'following');
             }).catch(() => {});
         }
     }, [dispatch, isSettingsView]);
