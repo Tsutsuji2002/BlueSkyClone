@@ -561,7 +561,7 @@ namespace BSkyClone.Services
                 link.JoinRule ?? "anyone",
                 link.RequireApproval,
                 link.Link,
-                DateTimeOffset.UtcNow, // Placeholder if not provided by API
+                !string.IsNullOrEmpty(link.CreatedAt) ? DateTimeOffset.Parse(link.CreatedAt) : DateTimeOffset.UtcNow,
                 link.Disabled
             );
         }
@@ -658,12 +658,26 @@ namespace BSkyClone.Services
 
         private class BlueskyJoinLink
         {
+            [JsonPropertyName("id")]
             public string? Id { get; set; }
+
+            [JsonPropertyName("convoId")]
             public string? ConvoId { get; set; }
+
+            [JsonPropertyName("joinRule")]
             public string? JoinRule { get; set; }
+
+            [JsonPropertyName("requireApproval")]
             public bool RequireApproval { get; set; }
+
+            [JsonPropertyName("link")]
             public string? Link { get; set; }
+
+            [JsonPropertyName("disabled")]
             public bool Disabled { get; set; }
+
+            [JsonPropertyName("createdAt")]
+            public string? CreatedAt { get; set; }
         }
     }
 }

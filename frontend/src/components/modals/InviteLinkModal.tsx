@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiX, FiLink, FiCopy, FiEdit, FiTrash2, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
@@ -8,7 +8,8 @@ interface InviteLinkModalProps {
     onClose: () => void;
     conversationId: string;
     existingLink?: {
-        link: string;
+        id: string;
+        link: string | null;
         requireApproval: boolean;
         joinRule: string;
         createdAt?: string;
@@ -318,7 +319,8 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
 
     const renderActive = () => {
         const activeLink = fetchedLink || existingLink;
-        const link = activeLink?.link || 'https://bsky.app/chat/...';
+        // Fallback link construction if server returns null but we have an ID
+        const link = activeLink?.link || (activeLink?.id ? `https://bsky.app/messages/join/${activeLink.id}` : 'https://bsky.app/chat/...');
         const dateStr = activeLink?.createdAt ? new Date(activeLink.createdAt).toLocaleString() : 'Just now';
         
         const currentRuleLabel = 
