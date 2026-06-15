@@ -839,10 +839,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                             <FiMail size={24} className="text-primary-500" />
                         </div>
                         <h3 className="text-base font-bold text-gray-900 dark:text-white mb-1">
-                            {t('messages.request_title', 'Message Request')}
+                            {t('messages.message_request_title', 'Message Request')}
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-dark-text-secondary max-w-xs mb-6">
-                            {t('messages.request_desc', 'If you accept, they will be able to see when you have read their messages.')}
+                            {t('messages.message_request_desc', 'If you accept, they\'ll be able to message you and see when you\'ve read their messages.')}
                         </p>
                         <div className="flex gap-3 w-full max-w-xs">
                             <button
@@ -850,7 +850,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                     setConfirmModal({
                                         isOpen: true,
                                         title: t('messages.delete_request_title', 'Delete this request?'),
-                                        message: t('messages.delete_request_desc', 'The conversation will be deleted. They won\'t be notified.'),
+                                        message: t('messages.message_request_delete_desc', 'The conversation will be deleted. They won\'t be notified.'),
                                         variant: 'danger',
                                         onConfirm: () => {
                                             dispatch(deleteConversation(conversation.id));

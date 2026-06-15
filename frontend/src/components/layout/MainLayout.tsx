@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import LoadingIndicator from '../common/LoadingIndicator';
 import Sidebar from './Sidebar';
 import GuestSidebar from './GuestSidebar';
@@ -26,6 +26,8 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, hideBottomNav = false, title }) => {
     useDocumentTitle(title || '');
     const dispatch = useAppDispatch();
+    const location = useLocation();
+    const isMessagesPage = location.pathname.startsWith('/messages');
     const { isAuthenticated, isLoading } = useAppSelector((state: RootState) => state.auth);
 
     // [OPTIMIZATION] Muted words are now hydrated via Handshake on startup.
@@ -43,7 +45,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
             {!hideTopBar && <TopBar />}
 
             <div className="flex justify-center min-h-screen">
-                <div className="flex w-full max-w-[1260px] justify-center px-4 lg:gap-x-8 xl:gap-x-12">
+                <div className={cn(
+                    "flex w-full justify-center px-4 lg:gap-x-8 xl:gap-x-12",
+                    isMessagesPage ? "max-w-[1400px]" : "max-w-[1260px]"
+                )}>
                     {/* Left Sidebar - Desktop only */}
                     <div className={cn("hidden lg:block flex-shrink-0", isAuthenticated ? "w-20 xl:w-[280px]" : "w-64 xl:w-[280px]")}>
                         {isAuthenticated ? (
@@ -56,7 +61,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
 
                     {/* Main Content */}
                     <main className={cn(
-                        "w-full max-w-[600px] min-w-0 border-x border-gray-100 dark:border-dark-border lg:pb-0 self-start bg-white dark:bg-dark-bg min-h-screen",
+                        "w-full min-w-0 lg:pb-0 self-start bg-white dark:bg-dark-bg min-h-screen",
+                        !isMessagesPage && "max-w-[600px] border-x border-gray-100 dark:border-dark-border",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
                         {children || (
@@ -67,9 +73,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     </main>
 
                     {/* Right Sidebar - Desktop only */}
-                    <div className="hidden xl:block w-72 flex-shrink-0">
-                        <RightSidebar />
-                    </div>
+                    {!isMessagesPage && (
+                        <div className="hidden xl:block w-72 flex-shrink-0">
+                            <RightSidebar />
+                        </div>
+                    )}
                 </div>
             </div>
 
