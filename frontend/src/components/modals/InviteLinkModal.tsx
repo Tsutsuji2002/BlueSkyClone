@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { FiX, FiLink, FiCopy, FiEdit, FiTrash2, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
@@ -23,10 +23,14 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     const [step, setStep] = useState<Step>('intro');
     const [rule, setRule] = useState<string>('anyone');
     const [requireApproval, setRequireApproval] = useState<boolean>(false);
+    // Track original settings when entering edit mode to detect changes
+    const [originalRule, setOriginalRule] = useState<string>('anyone');
+    const [originalRequireApproval, setOriginalRequireApproval] = useState<boolean>(false);
     const [loading, setLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [shareCopySuccess, setShareCopySuccess] = useState(false);
     const [fetchedLink, setFetchedLink] = useState<typeof existingLink>(null);
 
     useEffect(() => {
@@ -53,7 +57,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                     setRequireApproval(link.requireApproval || false);
                     setStep(link.disabled ? 'disabled' : 'active');
                 } else {
-                    // No link exists yet — go to intro or generate
+                    // No link exists yet â€” go to intro or generate
                     setStep(hasSeenIntro ? 'generate' : 'intro');
                 }
             });
@@ -62,6 +66,14 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             setFetchedLink(null);
         }
     }, [isOpen, conversationId, existingLink]);
+
+    // When navigating to the edit/generate screen, snapshot original settings
+    const goToEditRules = () => {
+        setOriginalRule(rule);
+        setOriginalRequireApproval(requireApproval);
+        setError(null);
+        setStep('generate');
+    };
 
     const handleGetStarted = () => {
         localStorage.setItem(`group_invite_intro_seen_${conversationId}`, 'true');
@@ -147,17 +159,13 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
         }
     };
 
+    // Share always copies to clipboard and shows confirmation
     const handleShare = () => {
         const activeLink = fetchedLink || existingLink;
         if (activeLink?.link) {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Join our group chat',
-                    url: activeLink.link
-                }).catch(() => handleCopy());
-            } else {
-                handleCopy();
-            }
+            navigator.clipboard.writeText(activeLink.link);
+            setShareCopySuccess(true);
+            setTimeout(() => setShareCopySuccess(false), 2500);
         }
     };
 
@@ -228,6 +236,9 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             { id: 'followed_request', label: 'People I follow can request to join', rule: 'followedByOwner', approval: true },
         ];
 
+        // Determine if the user has changed anything from original
+        const hasChanged = isEdit && (rule !== originalRule || requireApproval !== originalRequireApproval);
+
         return (
             <div className="flex flex-col h-full animate-fadeIn">
                 <div className="px-6 pt-5">
@@ -271,13 +282,34 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                     {error && <p className="mt-2 text-red-500 text-xs text-center">{error}</p>}
                     
                     <div className="mt-8">
-                        <button 
-                            onClick={isEdit ? handleUpdate : handleGenerate}
-                            disabled={loading}
-                            className="w-full flex flex-row items-center justify-center bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
-                        >
-                            {loading ? 'Processing...' : (isEdit ? 'Save settings' : 'Generate invite link')}
-                        </button>
+                        {isEdit ? (
+                            hasChanged ? (
+                                // Settings changed â€” show active Update button
+                                <button
+                                    onClick={handleUpdate}
+                                    disabled={loading}
+                                    className="w-full flex flex-row items-center justify-center gap-2 bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
+                                >
+                                    {loading ? 'Updating...' : 'Update invite link â†’'}
+                                </button>
+                            ) : (
+                                // Nothing changed â€” show grey Back button
+                                <button
+                                    onClick={() => setStep('active')}
+                                    className="w-full flex flex-row items-center justify-center gap-2 bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-white/10 py-3 rounded-full text-[#405168] dark:text-white font-medium text-[15px] transition-colors"
+                                >
+                                    Back
+                                </button>
+                            )
+                        ) : (
+                            <button
+                                onClick={handleGenerate}
+                                disabled={loading}
+                                className="w-full flex flex-row items-center justify-center bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
+                            >
+                                {loading ? 'Generating...' : 'Generate invite link'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -328,7 +360,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
 
                     <div className="mt-4">
                         <button 
-                            onClick={() => setStep('generate')}
+                            onClick={goToEditRules}
                             className="w-full flex flex-row items-center justify-between border border-[#DCE2EA] dark:border-dark-border bg-white dark:bg-black p-2 pl-4 rounded-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
                         >
                             <span className="text-[13.1px] text-black dark:text-white flex-1 truncate">{currentRuleLabel}</span>
@@ -358,7 +390,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                             className="flex-1 flex flex-col items-center justify-center gap-1 bg-[#E5F0FF] dark:bg-[#006AFF]/20 p-2 py-4 rounded-[20px] transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/30"
                         >
                             <div className="p-1 rounded-full"><svg fill="none" width="24" viewBox="0 0 24 24" height="24"><path fill="#0059D6" fillRule="evenodd" clipRule="evenodd" d="M11.839 4.744c0-1.488 1.724-2.277 2.846-1.364l.107.094 7.66 7.256.128.134c.558.652.558 1.62 0 2.272l-.128.135-7.66 7.255c-1.115 1.057-2.953.267-2.953-1.27v-2.748c-3.503.055-5.417.41-6.592.97-.997.474-1.525 1.122-2.084 2.14l-.243.46c-.558 1.088-2.09.583-2.08-.515l.015-.748c.111-3.68.777-6.5 2.546-8.415 1.83-1.98 4.63-2.771 8.438-2.884V4.744Zm2 3.256c0 .79-.604 1.41-1.341 1.494l-.149.01c-3.9.057-6.147.813-7.48 2.254-.963 1.043-1.562 2.566-1.842 4.79.38-.327.826-.622 1.361-.877 1.656-.788 4.08-1.14 7.938-1.169l.153.007c.754.071 1.36.704 1.36 1.491v2.675L20.884 12l-7045-6.676V8Z"></path></svg></div>
-                            <span className="text-[11.3px] font-bold text-[#0059D6]">Share</span>
+                            {shareCopySuccess ? <span className="text-[11.3px] font-bold text-[#0059D6]">Copied!</span> : <span className="text-[11.3px] font-bold text-[#0059D6]">Share</span>}
                         </button>
                     </div>
                 </div>
@@ -467,3 +499,4 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
 };
 
 export default InviteLinkModal;
+

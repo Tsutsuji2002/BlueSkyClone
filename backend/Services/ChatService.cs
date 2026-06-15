@@ -967,9 +967,28 @@ public class ChatService : IChatService
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
 
-        // Fetch the full conversation from the proxy — it contains the JoinLink if one exists
+        // Fetch the full conversation from the proxy — it contains JoinLink metadata if one exists
         var conversation = await _chatProxy.GetConversationAsync(token, conversationId);
-        return conversation?.JoinLink;
+        var linkMeta = conversation?.JoinLink;
+
+        if (linkMeta == null) return null; // No link exists
+
+        // AT Protocol's getConvo only returns metadata (id, joinRule, requireApproval, disabled)
+        // but NOT the actual clickable URL. Call editJoinLink (same settings) to get the full link.
+        if (string.IsNullOrEmpty(linkMeta.Link) && !linkMeta.Disabled)
+        {
+            try
+            {
+                return await _chatProxy.EditJoinLinkAsync(token, conversationId, linkMeta.RequireApproval, linkMeta.JoinRule);
+            }
+            catch
+            {
+                // If edit fails, return whatever metadata we have
+                return linkMeta;
+            }
+        }
+
+        return linkMeta;
     }
 
     public async Task<JoinLinkDto> CreateJoinLinkAsync(Guid userId, string conversationId, bool requireApproval, string joinRule)
