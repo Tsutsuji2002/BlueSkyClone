@@ -971,19 +971,24 @@ public class ChatService : IChatService
         var conversation = await _chatProxy.GetConversationAsync(token, conversationId);
         var linkMeta = conversation?.JoinLink;
 
-        if (linkMeta == null) return null; // No link exists
-
-        // AT Protocol's getConvo only returns metadata (id, joinRule, requireApproval, disabled)
-        // but NOT the actual clickable URL. Call editJoinLink (same settings) to get the full link.
-        if (string.IsNullOrEmpty(linkMeta.Link) && !linkMeta.Disabled)
+        // AT Protocol's getConvo sometimes omits the joinLink object even if one exists.
+        // If we don't see it, try a silent "editJoinLink" to force it to show up.
+        if (linkMeta == null || (string.IsNullOrEmpty(linkMeta.Link) && !linkMeta.Disabled))
         {
             try
             {
-                return await _chatProxy.EditJoinLinkAsync(token, conversationId, linkMeta.RequireApproval, linkMeta.JoinRule);
+                // Try to "edit" with defaults if we don't have existing metadata, or refresh if we do
+                return await _chatProxy.EditJoinLinkAsync(
+                    token, 
+                    conversationId, 
+                    linkMeta?.RequireApproval ?? false, 
+                    linkMeta?.JoinRule ?? "anyone"
+                );
             }
-            catch
+            catch (Exception ex)
             {
-                // If edit fails, return whatever metadata we have
+                _logger.LogWarning("Silent invite link recovery failed for {ConvoId}: {Message}", conversationId, ex.Message);
+                // If it really doesn't exist, this might fail too
                 return linkMeta;
             }
         }
