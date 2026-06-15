@@ -14,15 +14,17 @@ namespace BSkyClone.Services
     public class ChatProxyService : IChatProxyService
     {
         private readonly HttpClient _httpClient;
+        private readonly IXrpcProxyService _xrpcProxy;
         private readonly ILogger<ChatProxyService> _logger;
         private readonly ILinkService _linkService;
         private const string ChatEndpoint = "https://api.bsky.chat/xrpc";
 
-        public ChatProxyService(HttpClient httpClient, ILogger<ChatProxyService> logger, ILinkService linkService)
+        public ChatProxyService(HttpClient httpClient, ILogger<ChatProxyService> logger, ILinkService linkService, IXrpcProxyService xrpcProxy)
         {
             _httpClient = httpClient;
             _logger = logger;
             _linkService = linkService;
+            _xrpcProxy = xrpcProxy;
         }
 
         public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(string token, int limit = 50, string? cursor = null)
@@ -268,44 +270,101 @@ namespace BSkyClone.Services
             }
         }
 
-        public async Task<(bool Success, string? Message)> UpdateChatDeclarationAsync(string token, string allowIncoming, string? allowGroupInvites = null)
+        public async Task<(bool Success, string? Message)> UpdateChatDeclarationAsync(string token, string did, string allowIncoming, string? allowGroupInvites = null)
         {
+            var body = new { allowIncoming, allowGroupInvites };
+            
+            // Strategy 1: Attempt the official chat service procedure
             try
             {
                 var url = $"{ChatEndpoint}/chat.bsky.actor.updateDeclaration";
+                _logger.LogInformation("Attempting UpdateChatDeclaration via ChatEndpoint for {Did}", did);
+                var response = await CallAsync(token, url, "POST", body);
                 
-                // Strategy: Try updating both first. Fallback to only allowIncoming if it fails (PDS might not support the new field yet).
-                var bodiesToTry = new List<object>();
-                if (allowGroupInvites != null)
+                if (response.IsSuccessStatusCode)
                 {
-                    bodiesToTry.Add(new { allowIncoming = allowIncoming, allowGroupInvites = allowGroupInvites });
+                    _logger.LogInformation("UpdateChatDeclaration succeeded via ChatEndpoint");
+                    return (true, null);
                 }
-                bodiesToTry.Add(new { allowIncoming = allowIncoming });
-
-                string lastError = "Unknown error";
-                foreach (var body in bodiesToTry)
+                
+                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("UpdateChatDeclaration failed via ChatEndpoint: {Status} - {Content}", response.StatusCode, content);
+                
+                // If it's a validation error, try falling back to dm-only within Strategy 1
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && !content.Contains("MethodNotImplemented"))
                 {
-                    _logger.LogInformation("Attempting settings update with body: {Body}", JsonSerializer.Serialize(body));
-                    var response = await CallAsync(token, url, "POST", body);
-                    
-                    if (response.IsSuccessStatusCode)
+                    if (allowGroupInvites != null && (content.Contains("allowGroupInvites") || content.Contains("extra property")))
                     {
-                        _logger.LogInformation("UpdateChatDeclaration succeeded");
-                        return (true, null);
+                        _logger.LogInformation("Retrying UpdateChatDeclaration without allowGroupInvites via ChatEndpoint");
+                        var retryBody = new { allowIncoming };
+                        var retryResponse = await CallAsync(token, url, "POST", retryBody);
+                        if (retryResponse.IsSuccessStatusCode) return (true, null);
                     }
-                    
-                    lastError = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("UpdateChatDeclaration attempt failed: {Status} - {Error}", response.StatusCode, lastError);
                 }
 
-                return (false, lastError);
+                // If Strategy 1 failed with MethodNotImplemented or NotFound, fall through to others
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in UpdateChatDeclarationAsync");
-                return (false, ex.Message);
+                _logger.LogError(ex, "Error in Strategy 1 (ChatEndpoint) for {Did}", did);
+            }
+
+            // Strategy 2: Attempt via PDS proxy (some PDSs might implement the procedure directly)
+            try
+            {
+                _logger.LogInformation("Attempting UpdateChatDeclaration via PDS Proxy for {Did}", did);
+                var proxyResponse = await _xrpcProxy.ProxyRequestAsync(did, "chat.bsky.actor.updateDeclaration", new Dictionary<string, string?>(), token, "POST", body);
+                if (proxyResponse.Success)
+                {
+                    _logger.LogInformation("UpdateChatDeclaration succeeded via PDS Proxy");
+                    return (true, null);
+                }
+                _logger.LogWarning("UpdateChatDeclaration failed via PDS Proxy: {Status} - {Content}", proxyResponse.StatusCode, proxyResponse.Content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in Strategy 2 (PDS Proxy) for {Did}", did);
+            }
+
+            // Strategy 3: Direct repo update (putRecord) - The most robust but manual way
+            try
+            {
+                _logger.LogInformation("Attempting direct repo putRecord for chat settings ({Did})", did);
+                
+                var record = new Dictionary<string, object>
+                {
+                    { "$type", "chat.bsky.actor.declaration" },
+                    { "allowIncoming", allowIncoming }
+                };
+                
+                if (!string.IsNullOrEmpty(allowGroupInvites))
+                {
+                    record.Add("allowGroupInvites", allowGroupInvites);
+                }
+
+                var putRecordBody = new
+                {
+                    repo = did,
+                    collection = "chat.bsky.actor.declaration",
+                    rkey = "self",
+                    record = record
+                };
+                
+                var repoResponse = await _xrpcProxy.ProxyRequestAsync(did, "com.atproto.repo.putRecord", new Dictionary<string, string?>(), token, "POST", putRecordBody);
+                if (repoResponse.Success)
+                {
+                    _logger.LogInformation("Direct repo putRecord succeeded");
+                    return (true, null);
+                }
+                return (false, $"Settings update failed: {repoResponse.Content}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in Strategy 3 (putRecord) for {Did}", did);
+                return (false, $"Critical failure: {ex.Message}");
             }
         }
+
 
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
