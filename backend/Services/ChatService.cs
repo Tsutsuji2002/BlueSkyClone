@@ -236,8 +236,8 @@ public class ChatService : IChatService
                     return pId; // Handle or other string
                 });
             
-            var proxyParticipantsResults = await Task.WhenAll(proxyParticipantsTasks);
-            var proxyParticipants = proxyParticipantsResults
+            var participantMetaResults = await Task.WhenAll(proxyParticipantsTasks);
+            var proxyParticipants = participantMetaResults
                 .Where(res => !string.IsNullOrEmpty(res))
                 .Cast<string>()
                 .ToList();
@@ -248,17 +248,31 @@ public class ChatService : IChatService
                 {
                     _logger.LogInformation("[GetOrCreateConversationAsync] Using proxy for user {UserId} with participants {ParticipantIds}", userId, string.Join(", ", proxyParticipants));
                     
-                    // Branching logic: 
-                    // If 1 other participant, it's a DM (use getConvoForMembers for idempotency).
-                    // If 2+ other participants, it's a Group (use createConvo).
                     if (proxyParticipants.Count > 1)
                     {
-                        var groupName = "Group Chat";
-                        if (proxyParticipantsResults != null && proxyParticipantsResults.Length > 0)
+                        // Resolve handles for the group name to avoid DIDs in the UI
+                        var nameParts = new List<string>();
+                        foreach (var p in proxyParticipants)
                         {
-                            var names = proxyParticipantsResults.Where(n => !string.IsNullOrEmpty(n)).Take(3).ToList();
+                            if (p.StartsWith("did:"))
+                            {
+                                // If it's a DID, try to find the handle in our local DB or just use a truncated DID
+                                var localUser = await _unitOfWork.Users.FindAsync(u => u.Did == p);
+                                var handle = localUser?.Handle ?? (p.Length > 15 ? p.Substring(0, 15) + "..." : p);
+                                nameParts.Add(handle.StartsWith("@") ? handle : "@" + handle);
+                            }
+                            else
+                            {
+                                nameParts.Add(p.StartsWith("@") ? p : "@" + p);
+                            }
+                        }
+
+                        var groupName = "Group Chat";
+                        if (nameParts.Count > 0)
+                        {
+                            var names = nameParts.Take(3).ToList();
                             groupName = "Group with " + string.Join(", ", names);
-                            if (proxyParticipantsResults.Length > 3) groupName += "...";
+                            if (nameParts.Count > 3) groupName += "...";
                         }
                         
                         return await _chatProxy.CreateConvoAsync(token, proxyParticipants, groupName.Length > 50 ? groupName.Substring(0, 47) + "..." : groupName);

@@ -486,9 +486,17 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
         setShowOptionsMenu(false);
     };
 
-    const otherParticipant = conversation?.participants.find((p: User) => 
+    const isGroup = conversation?.participants && conversation.participants.length > 2;
+
+    const otherParticipants = conversation?.participants.filter((p: User) => 
         (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
-    );
+    ) || [];
+
+    const otherParticipant = otherParticipants[0];
+
+    const groupDisplayName = conversation?.groupName || (otherParticipants.length > 0 
+        ? "Group with " + otherParticipants.map(p => p.handle ? `@${p.handle}` : p.displayName).join(', ')
+        : t('messages.group_chat', 'Group Chat'));
 
     useDocumentTitle(otherParticipant?.displayName || otherParticipant?.handle || '');
 
@@ -516,18 +524,39 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         <button onClick={() => navigate('/messages')} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors">
                             <FiArrowLeft size={20} className="text-gray-600 dark:text-dark-text" />
                         </button>
-                        <Avatar
-                            src={otherParticipant?.avatarUrl || otherParticipant?.avatar}
-                            alt={otherParticipant?.displayName || 'User'}
-                            size="md"
-                        />
+                        {isGroup && otherParticipants.length >= 2 ? (
+                            <div className="relative w-10 h-10">
+                                <div className="absolute top-0 left-0 z-20 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-[28px] h-[28px]">
+                                    <Avatar
+                                        src={otherParticipants[0].avatarUrl || otherParticipants[0].avatar}
+                                        alt={otherParticipants[0].displayName}
+                                        size="xs"
+                                    />
+                                </div>
+                                <div className="absolute bottom-0 right-0 z-10 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-[28px] h-[28px]">
+                                    <Avatar
+                                        src={otherParticipants[1].avatarUrl || otherParticipants[1].avatar}
+                                        alt={otherParticipants[1].displayName}
+                                        size="xs"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <Avatar
+                                src={otherParticipant?.avatarUrl || otherParticipant?.avatar}
+                                alt={otherParticipant?.displayName || 'User'}
+                                size="md"
+                            />
+                        )}
                         <div>
-                            <h2 className="font-bold text-gray-900 dark:text-dark-text leading-tight">
-                                {otherParticipant?.displayName || t('messages.unknown_user')}
+                            <h2 className="font-bold text-gray-900 dark:text-dark-text leading-tight truncate max-w-[200px] sm:max-w-[300px]">
+                                {isGroup ? groupDisplayName : (otherParticipant?.displayName || t('messages.unknown_user'))}
                             </h2>
-                            <p className="text-xs text-gray-500 dark:text-dark-text-secondary">
-                                @{otherParticipant?.handle}
-                            </p>
+                            {!isGroup && (
+                                <p className="text-xs text-gray-500 dark:text-dark-text-secondary">
+                                    @{otherParticipant?.handle}
+                                </p>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -596,19 +625,60 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                             </p>
                         </div>
                     ) : activeConversationMessages.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
-                                <FiSmile size={32} className="text-blue-500" />
-                            </div>
-                            <h3 className="font-bold text-gray-900 dark:text-dark-text mb-1">
-                                {t('messages.start_conversation')}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-dark-text-secondary max-w-xs mb-6">
-                                {t('messages.say_hello_desc')}
-                            </p>
-                            <button className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-full text-sm font-bold transition-all transform active:scale-95 shadow-md shadow-primary-500/20">
-                                {t('messages.say_hello')}
-                            </button>
+                        <div className="flex-1 flex flex-col items-center pt-8 pb-12">
+                            {isGroup ? (
+                                <>
+                                    <div className="relative w-[120px] h-[120px] mb-4">
+                                        <div className="absolute top-0 left-0 z-20 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[76px] h-[76px]">
+                                            <Avatar
+                                                src={otherParticipants[0]?.avatarUrl || otherParticipants[0]?.avatar}
+                                                alt={otherParticipants[0]?.displayName}
+                                                size="lg"
+                                            />
+                                        </div>
+                                        <div className="absolute bottom-0 right-0 z-10 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[76px] h-[76px]">
+                                            <Avatar
+                                                src={otherParticipants[1]?.avatarUrl || otherParticipants[1]?.avatar}
+                                                alt={otherParticipants[1]?.displayName}
+                                                size="lg"
+                                            />
+                                        </div>
+                                    </div>
+                                    <h3 className="text-[20.6px] font-bold text-gray-900 dark:text-dark-text mb-1 px-4 text-center leading-tight">
+                                        {groupDisplayName}
+                                    </h3>
+                                    <p className="text-[13.1px] text-gray-500 dark:text-dark-text-secondary text-center px-4 mb-6">
+                                        {t('messages.group_welcome_desc', 'New chat with {{names}}', { 
+                                            names: otherParticipants.slice(0, 2).map(p => p.displayName || `@${p.handle}`).join(otherParticipants.length > 2 ? ', ' : ' and ') + (otherParticipants.length > 2 ? ' and others' : '')
+                                        })}
+                                    </p>
+                                    <div className="flex flex-row items-center gap-2">
+                                        <button className="flex flex-row items-center justify-center bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover text-gray-900 dark:text-dark-text rounded-full px-4 py-2 gap-1.5 transition-all">
+                                            <FiPlus size={16} />
+                                            <span className="text-[13.1px] font-bold">{t('messages.add_people', 'Add people')}</span>
+                                        </button>
+                                        <button className="flex flex-row items-center justify-center bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover text-gray-900 dark:text-dark-text rounded-full px-4 py-2 gap-1.5 transition-all">
+                                            <FiShare2 size={16} />
+                                            <span className="text-[13.1px] font-bold">{t('messages.invite_link', 'Invite link')}</span>
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
+                                        <FiSmile size={32} className="text-blue-500" />
+                                    </div>
+                                    <h3 className="font-bold text-gray-900 dark:text-dark-text mb-1">
+                                        {t('messages.start_conversation')}
+                                    </h3>
+                                    <p className="text-sm text-gray-500 dark:text-dark-text-secondary max-w-xs mb-6">
+                                        {t('messages.say_hello_desc')}
+                                    </p>
+                                    <button className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-full text-sm font-bold transition-all transform active:scale-95 shadow-md shadow-primary-500/20">
+                                        {t('messages.say_hello')}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <>

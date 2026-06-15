@@ -32,12 +32,14 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     );
     const otherParticipant = otherParticipants[0] || conversation.participants[0];
 
-    const groupDisplayName = conversation.groupName || otherParticipants.map(p => p.displayName || p.handle).join(', ');
+    const groupDisplayName = conversation.groupName || (otherParticipants.length > 0 
+        ? "Group with " + otherParticipants.map(p => p.handle ? `@${p.handle}` : p.displayName).join(', ')
+        : t('messages.group_chat', 'Group Chat'));
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (otherParticipant) {
-            navigate(`/profile/user/${otherParticipant.id}`);
+        if (otherParticipant && !isGroup) {
+            navigate(`/profile/${otherParticipant.handle || otherParticipant.did || otherParticipant.id}`);
         }
     };
 
@@ -55,14 +57,14 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
                 <div className="flex-shrink-0 relative">
                     {isGroup && otherParticipants.length >= 2 ? (
                         <div className="relative w-12 h-12">
-                            <div className="absolute top-0 right-0 z-10 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-8 h-8">
+                            <div className="absolute top-0 left-0 z-20 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-[32px] h-[32px]">
                                 <Avatar
                                     src={otherParticipants[0].avatarUrl || otherParticipants[0].avatar}
                                     alt={otherParticipants[0].displayName}
                                     size="sm"
                                 />
                             </div>
-                            <div className="absolute bottom-0 left-0 z-0 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-8 h-8">
+                            <div className="absolute bottom-0 right-0 z-10 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-[32px] h-[32px]">
                                 <Avatar
                                     src={otherParticipants[1].avatarUrl || otherParticipants[1].avatar}
                                     alt={otherParticipants[1].displayName}
