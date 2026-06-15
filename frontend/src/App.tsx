@@ -88,6 +88,13 @@ const AppContent: React.FC = () => {
 
   // Sync Handshake result to authSlice and other feature slices
   useEffect(() => {
+    // [LOGOUT SAFETY] If the user just logged out (auth state cleared), 
+    // ignore any late-arriving handshake data to prevent re-saving ghost accounts.
+    if (!isAuthenticated && !isLoading && handshakeData) {
+        console.log('[App] Handshake arrived after logout/clear. Ignoring to prevent ghost account persistence.');
+        return;
+    }
+
     if (handshakeData) {
       dispatch(setAuth({
         user: handshakeData.user,

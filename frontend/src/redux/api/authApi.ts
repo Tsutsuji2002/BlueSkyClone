@@ -94,7 +94,7 @@ export const authApi = apiSlice.injectEndpoints({
                 url: '/auth/logout',
                 method: 'POST',
             }),
-            invalidatesTags: ['Auth', 'Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],
+            invalidatesTags: ['Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],
         }),
         updateSettings: builder.mutation<UserSettings, Partial<UserSettings>>({
             query: (settings) => ({
