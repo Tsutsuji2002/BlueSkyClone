@@ -110,10 +110,18 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
         }
     }
 
+    const SUGGESTED_USERS = [
+        { did: 'did:plc:2uueinkgzwo3lnlvlt5rvecv', handle: 'hrosenborg.bsky.social', displayName: 'Henrik Rosenborg (Open for work)', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:2uueinkgzwo3lnlvlt5rvecv/bafkreigvxqek6oeeccoj4cmdkyhebzc3uerxj662vh2aodvdse3pbc4ku4' },
+        { did: 'did:plc:pb7gp4lz3cslvw4oha36b4fa', handle: 'aidenr0.bsky.social', displayName: 'SPiNDLE', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:pb7gp4lz3cslvw4oha36b4fa/bafkreiehuo4rch6qe6dyt4zrj3tsejhkgalrzqhklhehizsp2hnwnx6aie' },
+        { did: 'did:plc:w4ngtpcrryag6omeu63mlj3l', handle: 'darkcurtain.bsky.social', displayName: 'darkcurtain.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:w4ngtpcrryag6omeu63mlj3l/bafkreihx4434pppsqv2cgnlla4xpldhcykbpqendqh55wc6j6dzjy7evru' },
+        { did: 'did:plc:6h7zo2yvfexpm52p3mi7uwoc', handle: 'komiflo.com', displayName: 'Komiflo', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:6h7zo2yvfexpm52p3mi7uwoc/bafkreigti2zn2gol3ugju6jikqeaqshe3uhazoinitx2sokwhmkehgeeve' },
+        { did: 'did:plc:ry3hbexak5ytsum7aazhpkbv', handle: 'jp.bsky.app', displayName: 'Bluesky日本語（公式）', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:ry3hbexak5ytsum7aazhpkbv/bafkreienc27b7pfsjflwvh645zh7ywb3ruwgshwqziv3ilo5mqsksjnl3i', verified: true },
+    ];
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-start lg:items-center justify-center pt-0 lg:pt-4">
             {/* Backdrop */}
             <div 
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
@@ -121,54 +129,43 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
             />
 
             {/* Modal Content */}
-            <div className="relative w-full max-w-[450px] bg-white dark:bg-[#161e27] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-gray-200 dark:border-[#232e3e]">
+            <div className="relative w-full max-w-[500px] bg-white dark:bg-black rounded-none lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full lg:h-auto max-h-[100vh] lg:max-h-[600px] lg:min-h-[280px]">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-[#232e3e]">
-                    <div className="flex flex-col">
-                        <h2 className="text-[19px] font-bold text-gray-900 dark:text-white leading-tight">
-                            {isGroupMode ? t('messages.new_group_chat', 'New group chat') : t('messages.start_new_chat', 'New chat')}
-                        </h2>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {isGroupMode && (
-                            <button
-                                onClick={handleCreateGroup}
-                                disabled={selectedUsers.length === 0}
-                                className={`text-sm font-bold px-4 py-1.5 rounded-full transition-all ${selectedUsers.length > 0 ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-gray-100 dark:bg-white/5 text-gray-400 cursor-not-allowed'}`}
-                            >
-                                {t('common.create', 'Create')}
-                            </button>
-                        )}
-                        <button 
-                            onClick={onClose}
-                            className="p-2 -mr-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-[#a5b2c5]"
+                <div className="relative flex items-center justify-center px-4 py-4 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-black">
+                    <h2 className="text-[16.9px] font-bold text-[#232e3e] dark:text-white leading-[19px] tracking-[0.25px] z-10">
+                        {isGroupMode ? t('messages.new_group_chat', 'New group chat') : t('messages.start_new_chat', 'New chat')}
+                    </h2>
+                    <button 
+                        onClick={onClose}
+                        className="absolute right-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors z-20"
+                    >
+                        <svg fill="none" width="18" viewBox="0 0 24 24" height="18" style={{ color: '#526580' }}>
+                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L12 10.586l6.293-6.293a1 1 0 1 1 1.414 1.414L13.414 12l6.293 6.293a1 1 0 0 1-1.414 1.414L12 13.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L10.586 12 4.293 5.707a1 1 0 0 1 0-1.414Z"></path>
+                        </svg>
+                    </button>
+                    {isGroupMode && selectedUsers.length > 0 && (
+                        <button
+                            onClick={handleCreateGroup}
+                            className="absolute left-4 text-[#006aff] font-bold text-[15px]"
                         >
-                            <FiX size={20} />
+                            {t('common.create', 'Create')}
                         </button>
-                    </div>
+                    )}
                 </div>
 
                 {/* Email Verification Warning */}
                 {currentUser && !currentUser.emailConfirmed && (
-                    <div className="bg-[#0085ff]/10 p-4 border-b border-[#0085ff]/20">
+                    <div className="bg-[#0085ff]/10 p-3 border-b border-[#0085ff]/20">
                         <div className="flex gap-3">
-                            <div className="text-[#0085ff] pt-0.5">
-                                <svg fill="none" viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5">
+                            <div className="text-[#0085ff]">
+                                <svg fill="none" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                                 </svg>
                             </div>
                             <div className="flex-1">
-                                <p className="text-[13.5px] text-[#0085ff] font-medium leading-normal">
+                                <p className="text-[13px] text-[#0085ff] font-medium">
                                     Confirm your email address on Bluesky to start chats.
                                 </p>
-                                <a 
-                                    href="https://bsky.app/settings" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-[13px] text-[#0085ff] font-bold underline mt-1 inline-block"
-                                >
-                                    Verify on Bluesky
-                                </a>
                             </div>
                         </div>
                     </div>
@@ -176,111 +173,141 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
 
                 {/* Error Message */}
                 {error && (
-                    <div className="bg-red-50 dark:bg-red-500/10 p-4 border-b border-red-100 dark:border-red-500/20">
-                        <p className="text-[13.5px] text-red-600 dark:text-red-400 font-medium">
+                    <div className="bg-red-50 dark:bg-red-500/10 p-3 border-b border-red-100 dark:border-red-500/20">
+                        <p className="text-[13px] text-red-600 dark:text-red-400 font-medium">
                             {error}
                         </p>
                     </div>
                 )}
 
-                {/* Selected Users Chips */}
+                {/* Selected Users Chips for Group Mode */}
                 {isGroupMode && selectedUsers.length > 0 && (
-                    <div className="px-6 py-2 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
+                    <div className="px-4 py-2 flex flex-wrap gap-2 border-b border-gray-100 dark:border-dark-border/30 bg-gray-50/50 dark:bg-white/5">
                         {selectedUsers.map(user => (
-                            <div key={user.did || user.id} className="flex items-center gap-1.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 pl-1 pr-2 py-0.5 rounded-full text-xs font-bold border border-primary-200 dark:border-primary-800">
+                            <div key={user.did || user.id} className="flex items-center gap-1.5 bg-white dark:bg-black text-[#232e3e] dark:text-white pl-1 pr-2 py-1 rounded-full text-xs font-bold border border-gray-200 dark:border-dark-border shadow-sm">
                                 <Avatar src={user.avatarUrl || user.avatar} alt={user.handle} size="xs" />
                                 <span>{user.handle}</span>
                                 <button onClick={() => setSelectedUsers(prev => prev.filter(u => (u.did || u.id) !== (user.did || user.id)))}>
-                                    <FiX size={14} />
+                                    <svg fill="none" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
                                 </button>
                             </div>
                         ))}
                     </div>
                 )}
 
-                {/* Search Input */}
-                <div className="p-4 px-6 flex items-center gap-3">
-                    <div className="relative flex-1 flex items-center group">
-                        <FiSearch className="absolute left-3.5 text-primary-500" size={18} />
+                {/* Search Input Section */}
+                <div className="p-4 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-black">
+                    <div className="flex flex-row items-center gap-2">
+                        <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                            <path fill="#A5B2C5" fillRule="evenodd" clipRule="evenodd" d="M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 14.32 4.906l3.387 3.387a1 1 0 0 1-1.414 1.414l-3.387-3.387A8 8 0 0 1 3 11Z"></path>
+                        </svg>
                         <input
                             ref={searchInputRef}
                             type="text"
-                            placeholder={isGroupMode ? t('messages.search_participants', 'Search for people') : t('common.search', { defaultValue: 'Search' })}
-                            className="w-full bg-gray-50 dark:bg-[#0a0f14] py-2.5 pl-11 pr-4 rounded-xl text-[15px] focus:bg-white dark:focus:bg-black border border-transparent focus:border-primary-500 outline-none transition-all dark:text-white dark:placeholder-[#526580]"
+                            placeholder="Search for people"
+                            className="flex-1 bg-transparent py-3 text-[15px] text-black dark:text-white outline-none placeholder-[#667B99]"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
                 </div>
 
-                {/* Results List */}
                 <div className="flex-1 overflow-y-auto no-scrollbar">
-                    {!isGroupMode && !searchQuery && (
-                        <button
-                            onClick={() => setIsGroupMode(true)}
-                            className="w-full px-6 py-4 flex items-center gap-4 text-primary-500 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-[#232e3e]"
-                        >
-                            <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                                <FiUsers size={20} />
+                    {!searchQuery && !loading && (
+                        <>
+                            {/* New Group Chat Action */}
+                            {!isGroupMode && (
+                                <button
+                                    onClick={() => setIsGroupMode(true)}
+                                    className="w-full flex flex-row items-center justify-between p-4 bg-white dark:bg-black hover:bg-gray-50 dark:hover:bg-white/5 transition-colors border-b border-gray-100 dark:border-dark-border/50"
+                                >
+                                    <div className="flex flex-row items-center gap-4 flex-1">
+                                        <div className="bg-[#eff2f6] dark:bg-dark-surface p-3 rounded-full flex items-center justify-center">
+                                            <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                <path fill="#000000" className="dark:fill-white" fillRule="evenodd" clipRule="evenodd" d="M8 5a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM4 7a4 4 0 1 1 8 0 4 4 0 0 1-8 0Zm13-1a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-3.5 1.5a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0Zm7.301 9.7c-.836-2.6-2.88-3.503-4.575-3.111a1 1 0 0 1-.451-1.949c2.815-.651 5.81.966 6.93 4.448a2.49 2.49 0 0 1-.506 2.43A2.92 2.92 0 0 1 20 20h-2a1 1 0 1 1 0-2h2a.92.92 0 0 0 .69-.295.49.49 0 0 0 .112-.505ZM8 14c-1.865 0-3.878 1.274-4.681 4.151a.57.57 0 0 0 .132.55c.15.171.4.299.695.299h7.708a.93.93 0 0 0 .695-.299.57.57 0 0 0 .132-.55C11.878 15.274 9.865 14 8 14Zm0-2c2.87 0 5.594 1.98 6.607 5.613.53 1.9-1.09 3.387-2.753 3.387H4.146c-1.663 0-3.283-1.487-2.753-3.387C2.406 13.981 5.129 12 8 12Z"></path>
+                                            </svg>
+                                        </div>
+                                        <span className="text-[15px] font-medium text-black dark:text-white">New group chat</span>
+                                    </div>
+                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20" className="text-black dark:text-white">
+                                        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M8.293 3.293a1 1 0 0 1 1.414 0l8 8a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414-1.414L15.586 12 8.293 4.707a1 1 0 0 1 0-1.414Z"></path>
+                                    </svg>
+                                </button>
+                            )}
+
+                            {/* Suggested Labels Section */}
+                            <div className="px-4 pt-4 pb-2">
+                                <span className="text-[11.3px] font-medium tracking-[0.25px] text-[#232e3e] dark:text-[#667b99] uppercase">Suggested</span>
                             </div>
-                            <span className="font-bold">{t('messages.new_group_chat', 'New group chat')}</span>
-                        </button>
+
+                            {/* Suggested Users List */}
+                            <div className="flex flex-col">
+                                {SUGGESTED_USERS.map((user) => (
+                                    <button
+                                        key={user.did}
+                                        onClick={() => handleStartChat(user)}
+                                        className="w-full flex flex-row items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left"
+                                    >
+                                        <div className="relative w-11 h-11">
+                                            <Avatar src={user.avatar} alt={user.displayName} size="lg" />
+                                            <div className="absolute inset-0 border border-black/10 dark:border-white/10 rounded-full"></div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex flex-row items-center gap-1">
+                                                <span className="text-[15px] font-semibold text-black dark:text-white truncate leading-5">
+                                                    {user.displayName}
+                                                </span>
+                                                {user.verified && (
+                                                    <svg fill="none" width="14" viewBox="0 0 24 24" height="14">
+                                                        <circle cx="12" cy="12" r="11.5" fill="#006AFF"></circle>
+                                                        <path fill="#fff" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span className="text-[13.1px] text-[#526580] dark:text-[#a5b2c5] truncate block leading-4">
+                                                @{user.handle}
+                                            </span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
                     )}
 
-                    {loading ? (
-                        <div className="py-12 flex justify-center">
-                            <LoadingIndicator size="md" />
-                        </div>
-                    ) : results.length > 0 ? (
+                    {/* Dynamic Search Results */}
+                    {searchQuery && (
                         <div className="flex flex-col">
-                            {results.map((user) => {
-                                const isSelected = selectedUsers.some(u => (u.did || u.id) === (user.did || user.id));
-                                
-                                return (
+                            {loading ? (
+                                <div className="py-12 flex justify-center">
+                                    <LoadingIndicator size="md" />
+                                </div>
+                            ) : results.length > 0 ? (
+                                results.map((user) => (
                                     <button
                                         key={user.did || user.id}
                                         onClick={() => handleStartChat(user)}
-                                        className="px-6 py-3.5 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-left group"
+                                        className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-left"
                                     >
-                                        <div className="relative">
-                                            <Avatar 
-                                                src={user.avatarUrl || user.avatar} 
-                                                alt={user.displayName} 
-                                                size="md" 
-                                            />
-                                            {isGroupMode && isSelected && (
-                                                <div className="absolute -bottom-1 -right-1 bg-primary-500 text-white rounded-full p-0.5 border-2 border-white dark:border-[#161e27]">
-                                                    <FiCheck size={10} strokeWidth={4} />
-                                                </div>
-                                            )}
-                                        </div>
+                                        <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="md" />
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div className="min-w-0">
-                                                    <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate group-hover:underline">
-                                                        {user.displayName || user.handle}
-                                                    </p>
-                                                    <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate font-medium">
-                                                        @{user.handle}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate">
+                                                {user.displayName || user.handle}
+                                            </p>
+                                            <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate">
+                                                @{user.handle}
+                                            </p>
                                         </div>
                                     </button>
-                                );
-                            })}
-                        </div>
-                    ) : searchQuery.trim() && !loading ? (
-                        <div className="py-20 text-center px-10">
-                            <p className="text-[#526580] dark:text-[#a5b2c5]">
-                                {t('search.no_results', { defaultValue: 'No results for' })} "{searchQuery}"
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="py-20 text-center px-10">
-                            <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] max-w-[250px] mx-auto font-medium">
-                                {isGroupMode ? t('messages.search_group_desc', 'Search for people to add to your group.') : t('messages.search_desc', 'Search for someone by their handle or name to start a chat.')}
-                            </p>
+                                ))
+                            ) : (
+                                <div className="py-20 text-center px-10">
+                                    <p className="text-[#526580] dark:text-[#667B99]">
+                                        {t('search.no_results', { defaultValue: 'No results for' })} "{searchQuery}"
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
