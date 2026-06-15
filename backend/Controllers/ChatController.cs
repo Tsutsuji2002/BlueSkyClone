@@ -153,6 +153,22 @@ public class ChatController : ControllerBase
         }
     }
 
+    [HttpGet("conversations/{id}/invite-link")]
+    public async Task<IActionResult> GetInviteLink(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var link = await _chatService.GetInviteLinkAsync(userId, id);
+            if (link == null) return NotFound(new { message = "No active invite link found." });
+            return Ok(link);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("conversations/{id}/invite-link")]
     public async Task<IActionResult> CreateInviteLink(string id, [FromBody] CreateJoinLinkRequest request)
     {

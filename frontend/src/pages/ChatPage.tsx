@@ -634,19 +634,21 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         <div className="flex-1 flex flex-col items-center pt-8 pb-12">
                             {isGroup ? (
                                 <>
-                                    <div className="relative w-[110px] h-[110px] mb-4">
-                                        <div className="absolute top-0 left-0 z-20 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[72px] h-[72px]">
+                                    <div className="relative flex items-center mb-6" style={{width: '96px', height: '56px'}}>
+                                        <div className="absolute left-0 z-20">
                                             <Avatar
                                                 src={otherParticipants[0]?.avatarUrl || otherParticipants[0]?.avatar}
                                                 alt={otherParticipants[0]?.displayName}
-                                                size="lg"
+                                                size="xl"
+                                                className="ring-4 ring-white dark:ring-black"
                                             />
                                         </div>
-                                        <div className="absolute bottom-1 right-1 z-10 border-4 border-white dark:border-dark-bg rounded-full overflow-hidden w-[72px] h-[72px]">
+                                        <div className="absolute left-8 z-10">
                                             <Avatar
                                                 src={otherParticipants[1]?.avatarUrl || otherParticipants[1]?.avatar}
                                                 alt={otherParticipants[1]?.displayName}
-                                                size="lg"
+                                                size="xl"
+                                                className="ring-4 ring-white dark:ring-black"
                                             />
                                         </div>
                                     </div>
@@ -1098,6 +1100,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         isOpen={isAddPeopleOpen}
                         onClose={() => setIsAddPeopleOpen(false)}
                         conversationId={conversationId}
+                        existingParticipants={conversation?.participants || []}
                     />
                     <InviteLinkModal 
                         isOpen={isInviteLinkOpen}

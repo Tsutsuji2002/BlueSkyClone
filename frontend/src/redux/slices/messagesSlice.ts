@@ -294,6 +294,24 @@ export const disableInviteLink = createAsyncThunk(
     }
 );
 
+export const fetchInviteLink = createAsyncThunk(
+    'messages/fetchInviteLink',
+    async (conversationId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link`, {
+                credentials: 'include'
+            });
+            if (response.status === 404) return null; // No link exists yet
+            const data = await response.json();
+            if (!response.ok) return rejectWithValue(data.message || 'Failed to fetch invite link');
+            return data;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+
 const messagesSlice = createSlice({
     name: 'messages',
     initialState,

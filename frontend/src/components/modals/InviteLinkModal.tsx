@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiLink, FiCopy, FiEdit, FiTrash2, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
-import { createInviteLink, updateInviteLink, disableInviteLink } from '../../redux/slices/messagesSlice';
+import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
 
 interface InviteLinkModalProps {
     isOpen: boolean;
@@ -24,29 +24,42 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     const [rule, setRule] = useState<string>('anyone');
     const [requireApproval, setRequireApproval] = useState<boolean>(false);
     const [loading, setLoading] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [fetchedLink, setFetchedLink] = useState<typeof existingLink>(null);
 
     useEffect(() => {
         if (isOpen) {
-            // Check if user has seen intro for this convo
-            const hasSeenIntro = localStorage.getItem(`group_invite_intro_seen_${conversationId}`);
-            
+            setFetchedLink(null);
+            setError(null);
+            // If existingLink is already passed via props, use it directly
             if (existingLink) {
-                if (existingLink.disabled) {
-                    setStep('disabled');
-                } else {
-                    setStep('active');
-                }
+                setFetchedLink(existingLink);
                 setRule(existingLink.joinRule);
                 setRequireApproval(existingLink.requireApproval);
-            } else if (hasSeenIntro) {
-                setStep('generate');
-            } else {
-                setStep('intro');
+                setStep(existingLink.disabled ? 'disabled' : 'active');
+                return;
             }
+            // Otherwise, fetch from server to detect pre-existing links
+            const hasSeenIntro = localStorage.getItem(`group_invite_intro_seen_${conversationId}`);
+            setIsFetching(true);
+            dispatch(fetchInviteLink(conversationId) as any).then((result: any) => {
+                setIsFetching(false);
+                if (fetchInviteLink.fulfilled.match(result) && result.payload) {
+                    const link = result.payload;
+                    setFetchedLink(link);
+                    setRule(link.joinRule || 'anyone');
+                    setRequireApproval(link.requireApproval || false);
+                    setStep(link.disabled ? 'disabled' : 'active');
+                } else {
+                    // No link exists yet — go to intro or generate
+                    setStep(hasSeenIntro ? 'generate' : 'intro');
+                }
+            });
         } else {
             setError(null);
+            setFetchedLink(null);
         }
     }, [isOpen, conversationId, existingLink]);
 
@@ -66,9 +79,22 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             }) as any);
             
             if (createInviteLink.fulfilled.match(resultAction)) {
+                setFetchedLink(resultAction.payload);
                 setStep('active');
             } else {
-                setError(resultAction.payload as string || 'Failed to generate link');
+                const errMsg: string = resultAction.payload as string || '';
+                // If already exists, fall back to editing the existing link
+                if (errMsg.toLowerCase().includes('already') || errMsg.toLowerCase().includes('exists')) {
+                    const updateResult = await dispatch(updateInviteLink({ conversationId, requireApproval, joinRule: rule }) as any);
+                    if (updateInviteLink.fulfilled.match(updateResult)) {
+                        setFetchedLink(updateResult.payload);
+                        setStep('active');
+                    } else {
+                        setError(updateResult.payload as string || 'Failed to sync invite link');
+                    }
+                } else {
+                    setError(errMsg || 'Failed to generate link');
+                }
             }
         } catch (err: any) {
             setError(err.message || 'Something went wrong');
@@ -88,6 +114,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             }) as any);
             
             if (updateInviteLink.fulfilled.match(resultAction)) {
+                setFetchedLink(resultAction.payload);
                 setStep('active');
             } else {
                 setError(resultAction.payload as string || 'Failed to update link');
@@ -112,19 +139,21 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     };
 
     const handleCopy = () => {
-        if (existingLink?.link) {
-            navigator.clipboard.writeText(existingLink.link);
+        const activeLink = fetchedLink || existingLink;
+        if (activeLink?.link) {
+            navigator.clipboard.writeText(activeLink.link);
             setCopySuccess(true);
             setTimeout(() => setCopySuccess(false), 2000);
         }
     };
 
     const handleShare = () => {
-        if (existingLink?.link) {
+        const activeLink = fetchedLink || existingLink;
+        if (activeLink?.link) {
             if (navigator.share) {
                 navigator.share({
                     title: 'Join our group chat',
-                    url: existingLink.link
+                    url: activeLink.link
                 }).catch(() => handleCopy());
             } else {
                 handleCopy();
@@ -133,6 +162,23 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     };
 
     if (!isOpen) return null;
+
+    if (isFetching) {
+        return (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+                <div className="relative w-full max-w-[400px] bg-white dark:bg-black rounded-2xl shadow-2xl p-12 flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-8 h-8 border-2 border-[#006AFF] border-t-transparent rounded-full animate-spin" />
+                        <p className="text-sm text-gray-500">Loading link info...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Use fetched link if available, otherwise fall back to prop
+    const activeLink = fetchedLink || existingLink;
 
     const renderIntro = () => (
         <div className="flex flex-col h-full animate-fadeIn">
@@ -239,8 +285,9 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     };
 
     const renderActive = () => {
-        const link = existingLink?.link || 'https://bsky.app/chat/...';
-        const dateStr = existingLink?.createdAt ? new Date(existingLink.createdAt).toLocaleString() : 'Just now';
+        const activeLink = fetchedLink || existingLink;
+        const link = activeLink?.link || 'https://bsky.app/chat/...';
+        const dateStr = activeLink?.createdAt ? new Date(activeLink.createdAt).toLocaleString() : 'Just now';
         
         const currentRuleLabel = 
             rule === 'anyone' ? (requireApproval ? 'Anyone can request to join' : 'Anyone can join instantly') :

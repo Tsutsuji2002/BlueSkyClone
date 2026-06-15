@@ -11,9 +11,15 @@ interface AddPeopleModalProps {
     isOpen: boolean;
     onClose: () => void;
     conversationId: string;
+    existingParticipants?: any[];
 }
 
-const AddPeopleModal: React.FC<AddPeopleModalProps> = ({ isOpen, onClose, conversationId }) => {
+const AddPeopleModal: React.FC<AddPeopleModalProps> = ({ 
+    isOpen, 
+    onClose, 
+    conversationId,
+    existingParticipants = [] 
+}) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const [searchQuery, setSearchQuery] = useState('');
@@ -54,10 +60,16 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({ isOpen, onClose, conver
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
+    const isAlreadyMember = (user: any) => {
+        return existingParticipants.some(p => (p.did || (p as any).id) === (user.did || (user as any).id));
+    };
+
     const handleToggleUser = (user: any) => {
-        const isSelected = selectedUsers.some(u => (u.did || u.id) === (user.did || user.id));
+        if (isAlreadyMember(user)) return;
+        
+        const isSelected = selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id));
         if (isSelected) {
-            setSelectedUsers(prev => prev.filter(u => (u.did || u.id) !== (user.did || user.id)));
+            setSelectedUsers(prev => prev.filter(u => (u.did || (u as any).id) !== (user.did || (user as any).id)));
         } else {
             setSelectedUsers(prev => [...prev, user]);
         }
@@ -159,13 +171,19 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({ isOpen, onClose, conver
                                             <p className="text-[15px] font-semibold text-black dark:text-white truncate leading-5">{user.displayName}</p>
                                             <p className="text-[13.1px] text-[#526580] dark:text-[#a5b2c5] truncate leading-4">@{user.handle}</p>
                                         </div>
-                                        <div className={`w-[24px] h-[24px] border rounded-[6px] flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF] border-[#006AFF]' : 'bg-[#F9FAFB] dark:bg-white/5 border-[#DCE2EA] dark:border-dark-border'}`}>
-                                            {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
-                                                <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
-                                                    <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
-                                                </svg>
-                                            )}
-                                        </div>
+                                        {isAlreadyMember(user) ? (
+                                            <div className="px-2.5 py-1 bg-gray-100 dark:bg-white/10 rounded-full">
+                                                <span className="text-[11px] font-bold text-[#526580] dark:text-gray-400">Member</span>
+                                            </div>
+                                        ) : (
+                                            <div className={`w-[24px] h-[24px] border rounded-[6px] flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF] border-[#006AFF]' : 'bg-[#F9FAFB] dark:bg-white/5 border-[#DCE2EA] dark:border-dark-border'}`}>
+                                                {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
+                                                    <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
+                                                        <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -188,13 +206,19 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({ isOpen, onClose, conver
                                             <p className="text-[15px] font-semibold text-black dark:text-white truncate leading-5">{user.displayName || user.handle}</p>
                                             <p className="text-[13.1px] text-[#526580] dark:text-[#a5b2c5] truncate leading-4">@{user.handle}</p>
                                         </div>
-                                        <div className={`w-[24px] h-[24px] border rounded-[6px] flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF] border-[#006AFF]' : 'bg-[#F9FAFB] dark:bg-white/5 border-[#DCE2EA] dark:border-dark-border'}`}>
-                                            {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
-                                                <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
-                                                    <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
-                                                </svg>
-                                            )}
-                                        </div>
+                                        {isAlreadyMember(user) ? (
+                                            <div className="px-2.5 py-1 bg-gray-100 dark:bg-white/10 rounded-full">
+                                                <span className="text-[11px] font-bold text-[#526580] dark:text-gray-400">Member</span>
+                                            </div>
+                                        ) : (
+                                            <div className={`w-[24px] h-[24px] border rounded-[6px] flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF] border-[#006AFF]' : 'bg-[#F9FAFB] dark:bg-white/5 border-[#DCE2EA] dark:border-dark-border'}`}>
+                                                {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
+                                                    <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
+                                                        <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        )}
                                     </button>
                                 ))
                             ) : (

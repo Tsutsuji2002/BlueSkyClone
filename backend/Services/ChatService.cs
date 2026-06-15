@@ -962,6 +962,16 @@ public class ChatService : IChatService
         return await _chatProxy.AddMembersAsync(token, conversationId, proxyMembers);
     }
 
+    public async Task<JoinLinkDto?> GetInviteLinkAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        // Fetch the full conversation from the proxy — it contains the JoinLink if one exists
+        var conversation = await _chatProxy.GetConversationAsync(token, conversationId);
+        return conversation?.JoinLink;
+    }
+
     public async Task<JoinLinkDto> CreateJoinLinkAsync(Guid userId, string conversationId, bool requireApproval, string joinRule)
     {
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);

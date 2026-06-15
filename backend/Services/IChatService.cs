@@ -24,6 +24,7 @@ public interface IChatService
     Task<(bool Success, string? Message)> UpdateChatSettingsAsync(Guid userId, string allowIncoming, string? allowGroupInvites = null);
     Task<bool> AcceptConversationAsync(Guid userId, string conversationId);
     Task<ConversationDto> AddMembersAsync(Guid userId, string conversationId, List<string> members);
+    Task<JoinLinkDto?> GetInviteLinkAsync(Guid userId, string conversationId);
     Task<JoinLinkDto> CreateJoinLinkAsync(Guid userId, string conversationId, bool requireApproval, string joinRule);
     Task<JoinLinkDto> EditJoinLinkAsync(Guid userId, string conversationId, bool? requireApproval = null, string? joinRule = null);
     Task<JoinLinkDto> EnableInviteLinkAsync(Guid userId, string conversationId);

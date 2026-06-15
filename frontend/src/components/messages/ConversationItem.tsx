@@ -57,18 +57,20 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
                 <div className="flex-shrink-0 relative">
                     {isGroup && otherParticipants.length >= 2 ? (
                         <div className="relative w-12 h-12">
-                            <div className="absolute top-0 left-0 z-20 border-2 border-white dark:border-black rounded-full overflow-hidden w-[32px] h-[32px]">
+                            <div className="absolute top-0 left-0 z-20">
                                 <Avatar
                                     src={otherParticipants[0].avatarUrl || otherParticipants[0].avatar}
                                     alt={otherParticipants[0].displayName}
                                     size="sm"
+                                    className="ring-2 ring-white dark:ring-black"
                                 />
                             </div>
-                            <div className="absolute bottom-0 right-0 z-10 border-2 border-white dark:border-black rounded-full overflow-hidden w-[32px] h-[32px]">
+                            <div className="absolute bottom-0 right-0 z-10">
                                 <Avatar
                                     src={otherParticipants[1].avatarUrl || otherParticipants[1].avatar}
                                     alt={otherParticipants[1].displayName}
                                     size="sm"
+                                    className="ring-2 ring-white dark:ring-black"
                                 />
                             </div>
                         </div>
