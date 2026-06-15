@@ -132,9 +132,26 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
             <div className="relative w-full max-w-[500px] bg-white dark:bg-black rounded-none lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full lg:h-auto max-h-[100vh] lg:max-h-[600px] lg:min-h-[280px]">
                 {/* Header */}
                 <div className="relative flex items-center justify-center px-4 py-4 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-black">
+                    {isGroupMode && selectedUsers.length > 0 ? (
+                        <button
+                            onClick={handleCreateGroup}
+                            className="absolute left-4 text-[#006aff] font-bold text-[15px] z-20"
+                        >
+                            {t('common.create', 'Create')}
+                        </button>
+                    ) : isGroupMode ? (
+                        <button
+                            onClick={() => setIsGroupMode(false)}
+                            className="absolute left-4 text-[#006aff] font-normal text-[15px] z-20"
+                        >
+                            Back
+                        </button>
+                    ) : null}
+                    
                     <h2 className="text-[16.9px] font-bold text-[#232e3e] dark:text-white leading-[19px] tracking-[0.25px] z-10">
-                        {isGroupMode ? t('messages.new_group_chat', 'New group chat') : t('messages.start_new_chat', 'New chat')}
+                        {isGroupMode ? (selectedUsers.length > 0 ? t('messages.new_group_chat', 'New group chat') : t('messages.new_group_chat', 'New group chat')) : t('messages.start_new_chat', 'New chat')}
                     </h2>
+                    
                     <button 
                         onClick={onClose}
                         className="absolute right-3 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors z-20"
@@ -143,14 +160,6 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                             <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L12 10.586l6.293-6.293a1 1 0 1 1 1.414 1.414L13.414 12l6.293 6.293a1 1 0 0 1-1.414 1.414L12 13.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L10.586 12 4.293 5.707a1 1 0 0 1 0-1.414Z"></path>
                         </svg>
                     </button>
-                    {isGroupMode && selectedUsers.length > 0 && (
-                        <button
-                            onClick={handleCreateGroup}
-                            className="absolute left-4 text-[#006aff] font-bold text-[15px]"
-                        >
-                            {t('common.create', 'Create')}
-                        </button>
-                    )}
                 </div>
 
                 {/* Email Verification Warning */}
@@ -214,7 +223,24 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto no-scrollbar">
+                {/* Selected Users Chips Area */}
+                {isGroupMode && selectedUsers.length > 0 && (
+                    <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-gray-100 dark:border-dark-border/30 bg-white dark:bg-black overflow-y-auto max-h-[120px] no-scrollbar">
+                        {selectedUsers.map(user => (
+                            <div key={user.did || user.id} className="flex items-center gap-1.5 bg-[#f1f3f5] dark:bg-dark-surface text-[#232e3e] dark:text-white pl-1 pr-2 py-1 rounded-full text-xs font-bold border border-gray-200 dark:border-dark-border shadow-sm">
+                                <Avatar src={user.avatarUrl || user.avatar} alt={user.handle} size="xs" />
+                                <span className="max-w-[120px] truncate">{user.handle}</span>
+                                <button onClick={() => setSelectedUsers(prev => prev.filter(u => (u.did || u.id) !== (user.did || user.id)))}>
+                                    <svg fill="none" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="3">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto no-scrollbar pb-[72px]">
                     {!searchQuery && !loading && (
                         <>
                             {/* New Group Chat Action */}
@@ -248,9 +274,9 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                                     <button
                                         key={user.did}
                                         onClick={() => handleStartChat(user)}
-                                        className="w-full flex flex-row items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-left"
+                                        className={`w-full flex flex-row items-center gap-3 px-4 py-2 transition-colors text-left ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && isGroupMode ? 'bg-[#f1f3f5] dark:bg-white/5' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
                                     >
-                                        <div className="relative w-11 h-11">
+                                        <div className="relative w-11 h-11 shrink-0">
                                             <Avatar src={user.avatar} alt={user.displayName} size="lg" />
                                             <div className="absolute inset-0 border border-black/10 dark:border-white/10 rounded-full"></div>
                                         </div>
@@ -270,6 +296,15 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                                                 @{user.handle}
                                             </span>
                                         </div>
+                                        {isGroupMode && (
+                                            <div className={`w-[22px] h-[22px] rounded-[6px] shrink-0 flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF]' : 'border-[2px] border-[#DCE2EA] dark:border-[#2E3C4D]'}`}>
+                                                {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
+                                                    <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
+                                                        <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -288,17 +323,26 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                                     <button
                                         key={user.did || user.id}
                                         onClick={() => handleStartChat(user)}
-                                        className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-left"
+                                        className={`w-full flex flex-row items-center gap-3 px-4 py-2 transition-colors text-left ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && isGroupMode ? 'bg-[#f1f3f5] dark:bg-white/5' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
                                     >
                                         <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="md" />
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate">
+                                            <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate leading-5">
                                                 {user.displayName || user.handle}
                                             </p>
-                                            <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate">
+                                            <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate leading-4">
                                                 @{user.handle}
                                             </p>
                                         </div>
+                                        {isGroupMode && (
+                                            <div className={`w-[22px] h-[22px] rounded-[6px] shrink-0 flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF]' : 'border-[2px] border-[#DCE2EA] dark:border-[#2E3C4D]'}`}>
+                                                {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
+                                                    <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
+                                                        <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        )}
                                     </button>
                                 ))
                             ) : (
@@ -311,6 +355,28 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                         </div>
                     )}
                 </div>
+
+                {/* Footer Navigation */}
+                {isGroupMode && (
+                    <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-dark-border bg-white dark:bg-black flex items-center justify-between">
+                        <button 
+                            onClick={() => setIsGroupMode(false)}
+                            className="flex items-center gap-1.5 px-3 py-2 text-[#006aff] font-bold text-[15px] hover:bg-[#006aff]/5 rounded-full transition-colors"
+                        >
+                            <svg fill="none" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                            </svg>
+                            Back
+                        </button>
+                        <button
+                            onClick={handleCreateGroup}
+                            disabled={selectedUsers.length === 0}
+                            className={`px-6 py-2 rounded-full font-bold text-[15px] transition-all ${selectedUsers.length > 0 ? 'bg-[#006aff] text-white hover:bg-[#0052cc]' : 'bg-[#dce2ea] dark:bg-[#2e3c4d] text-white/50 cursor-not-allowed'}`}
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
