@@ -261,7 +261,7 @@ public class ChatService : IChatService
                             if (proxyParticipantsResults.Length > 3) groupName += "...";
                         }
                         
-                        return await _chatProxy.CreateConvoAsync(token, proxyParticipants, groupName);
+                        return await _chatProxy.CreateConvoAsync(token, proxyParticipants, groupName.Length > 50 ? groupName.Substring(0, 47) + "..." : groupName);
                     }
                     else
                     {
