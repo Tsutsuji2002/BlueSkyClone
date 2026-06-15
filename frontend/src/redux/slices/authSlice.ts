@@ -22,6 +22,28 @@ function normalizeImageUrl(url: string | null | undefined): string | undefined {
 }
 
 /**
+ * Checks if a JWT token is mathematically expired.
+ * Does not account for server-side revocation, but provides
+ * a good proactive indicator for the UI.
+ */
+function isTokenExpired(token?: string): boolean {
+    if (!token) return true;
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return true;
+        // Decode base64url payload (handles browser/environment encoded characters)
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        
+        // exp is in seconds, Date.now() is in ms
+        const bufferInSeconds = 60; // 1 minute security buffer
+        return (payload.exp - bufferInSeconds) * 1000 < Date.now();
+    } catch (e) {
+        return true;
+    }
+}
+
+/**
  * Normalizes settings from the backend (PascalCase / different field names)
  * to the frontend camelCase UserSettings shape.
  */
@@ -105,12 +127,32 @@ function normalizeSettings(raw: any): UserSettings {
 // Removed hydrateAtpSession because the backend handles session via HttpOnly cookies
 
 const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
-    const savedAccounts = AccountManager.getAccounts();
+    let savedAccounts = AccountManager.getAccounts();
+    
+    // [PROACTIVE CHECK] Verify expiration of all saved accounts on startup
+    // This ensures Pic 1 in the user request shows "Logged out" immediately
+    let changed = false;
+    savedAccounts = savedAccounts.map(account => {
+        if (account.refreshToken && isTokenExpired(account.refreshToken)) {
+            changed = true;
+            return { ...account, refreshToken: undefined, accessToken: undefined };
+        }
+        return account;
+    });
+
+    if (changed) {
+        // Sync the proactively cleared tokens back to storage
+        localStorage.setItem('bsky_saved_accounts', JSON.stringify(savedAccounts));
+    }
+
     const activeId = AccountManager.getActiveAccountId();
     const activeAccount = activeId ? savedAccounts.find(a => a.id === activeId || a.did === activeId) : null;
+    
+    // Only treat as authenticated if the token is still mathematically valid
+    const isValidSession = activeAccount && activeAccount.refreshToken && !isTokenExpired(activeAccount.refreshToken);
 
     return {
-        user: activeAccount ? {
+        user: (activeAccount && isValidSession) ? {
             id: activeAccount.id,
             did: activeAccount.did,
             handle: activeAccount.handle,
@@ -122,7 +164,7 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
             postsCount: 0
         } as User : null,
         settings: null,
-        isAuthenticated: !!activeAccount,
+        isAuthenticated: !!(activeAccount && isValidSession),
         isLoading: !activeAccount,
         isSessionSettled: false, 
         isInitializing: true, // [NEW] Blocking flag for first load
