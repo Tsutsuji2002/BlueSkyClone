@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -261,10 +261,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
             _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
-
-            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var data = wrapper?.JoinLink;
 
             return MapToJoinLinkDto(data!);
         }
@@ -282,10 +281,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
             _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
-
-            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var data = wrapper?.JoinLink;
 
             return MapToJoinLinkDto(data!);
         }
@@ -303,10 +301,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
             _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
-
-            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var data = wrapper?.JoinLink;
 
             return MapToJoinLinkDto(data!);
         }
@@ -324,10 +321,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
             _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
-
-            var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var data = wrapper?.JoinLink;
 
             return MapToJoinLinkDto(data!);
         }
@@ -567,14 +563,24 @@ namespace BSkyClone.Services
 
         private JoinLinkDto MapToJoinLinkDto(BlueskyJoinLink link)
         {
+            if (link == null) return null!;
+
+            var code = link.Code ?? "";
+            // Construct full link URL from code if missing
+            var linkUrl = link.Link;
+            if (string.IsNullOrEmpty(linkUrl) && !string.IsNullOrEmpty(code))
+            {
+                linkUrl = $"https://bsky.app/messages/join/{code}";
+            }
+
             return new JoinLinkDto(
-                link.Id ?? "",
+                code, // Use code as ID
                 link.ConvoId ?? "",
                 link.JoinRule ?? "anyone",
                 link.RequireApproval,
-                link.Link,
+                linkUrl,
                 !string.IsNullOrEmpty(link.CreatedAt) ? DateTimeOffset.Parse(link.CreatedAt) : DateTimeOffset.UtcNow,
-                link.Disabled
+                link.EnabledStatus != "enabled"
             );
         }
 
@@ -668,10 +674,16 @@ namespace BSkyClone.Services
             public string? Rev { get; set; }
         }
 
+        private class BlueskyJoinLinkWrapper
+        {
+            [JsonPropertyName("joinLink")]
+            public BlueskyJoinLink? JoinLink { get; set; }
+        }
+
         private class BlueskyJoinLink
         {
-            [JsonPropertyName("id")]
-            public string? Id { get; set; }
+            [JsonPropertyName("code")]
+            public string? Code { get; set; }
 
             [JsonPropertyName("convoId")]
             public string? ConvoId { get; set; }
@@ -685,8 +697,8 @@ namespace BSkyClone.Services
             [JsonPropertyName("link")]
             public string? Link { get; set; }
 
-            [JsonPropertyName("disabled")]
-            public bool Disabled { get; set; }
+            [JsonPropertyName("enabledStatus")]
+            public string? EnabledStatus { get; set; }
 
             [JsonPropertyName("createdAt")]
             public string? CreatedAt { get; set; }
