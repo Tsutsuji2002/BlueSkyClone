@@ -51,14 +51,16 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
             setIsFetching(true);
             dispatch(fetchInviteLink(conversationId) as any).then((result: any) => {
                 setIsFetching(false);
+                console.log('InviteLink fetch result:', result);
                 if (fetchInviteLink.fulfilled.match(result) && result.payload) {
                     const link = result.payload;
+                    console.log('Switching to active view with link:', link);
                     setFetchedLink(link);
                     setRule(link.joinRule || 'anyone');
                     setRequireApproval(link.requireApproval || false);
                     setStep(link.disabled ? 'disabled' : 'active');
                 } else {
-                    // No link exists yet â€” go to intro or generate
+                    console.log('No link found or fetch failed, staying on intro/generate');
                     setStep(hasSeenIntro ? 'generate' : 'intro');
                 }
             });
