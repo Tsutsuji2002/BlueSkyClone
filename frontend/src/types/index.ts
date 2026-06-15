@@ -369,6 +369,8 @@ export interface Conversation {
     lastMessage: Message | null;
     unreadCount: number;
     createdAt: string;
+    isAccepted?: boolean;
+    groupName?: string;
 }
 
 export type UserDto = User;

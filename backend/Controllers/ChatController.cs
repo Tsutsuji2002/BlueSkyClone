@@ -22,12 +22,12 @@ public class ChatController : ControllerBase
     }
 
     [HttpGet("conversations")]
-    public async Task<IActionResult> GetConversations([FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+    public async Task<IActionResult> GetConversations([FromQuery] int limit = 50, [FromQuery] string? cursor = null, [FromQuery] bool? isRequest = null)
     {
         var userId = GetUserId();
         try 
         {
-            var conversations = await _chatService.GetConversationsAsync(userId, limit, cursor);
+            var conversations = await _chatService.GetConversationsAsync(userId, limit, cursor, isRequest);
             return Ok(conversations);
         }
         catch (Exception ex)
@@ -146,5 +146,13 @@ public class ChatController : ControllerBase
             throw new UnauthorizedAccessException();
         }
         return userId;
+
+    [HttpPost("conversations/{conversationId}/accept")]
+    public async Task<ActionResult> AcceptConversation(string conversationId)
+    {
+        var userId = GetUserId();
+        var success = await _chatService.AcceptConversationAsync(userId, conversationId);
+        if (!success) return NotFound();
+        return Ok();
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -12,6 +12,10 @@ public partial class Conversation
     public Guid? LastMessageId { get; set; }
 
     public bool? IsDeleted { get; set; }
+    
+    public bool IsAccepted { get; set; } = true;
+    
+    public string? GroupName { get; set; }
 
     public virtual ICollection<ConversationParticipant> ConversationParticipants { get; set; } = new List<ConversationParticipant>();
 

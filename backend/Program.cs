@@ -502,6 +502,16 @@ BEGIN CREATE INDEX [IX_Reposts_Uri] ON [Reposts] ([Uri]); END
 
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'IX_BlockedAccounts_Uri' AND object_id = OBJECT_ID('BlockedAccounts'))
 BEGIN CREATE INDEX [IX_BlockedAccounts_Uri] ON [BlockedAccounts] ([Uri]); END
+
+-- Ensure Conversations have IsAccepted and GroupName
+IF COL_LENGTH('Conversations', 'IsAccepted') IS NULL
+BEGIN
+    ALTER TABLE [Conversations] ADD [IsAccepted] bit NOT NULL DEFAULT 1;
+END
+IF COL_LENGTH('Conversations', 'GroupName') IS NULL
+BEGIN
+    ALTER TABLE [Conversations] ADD [GroupName] nvarchar(max) NULL;
+END
 ");
             logger.LogInformation("Verified muted word schema.");
         }

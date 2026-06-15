@@ -105,6 +105,11 @@ const AppRoutes: React.FC = () => {
                             <MessagesPage />
                         </ProtectedRoute>
                     } />
+                    <Route path="messages/:conversationId" element={
+                        <ProtectedRoute>
+                            <MessagesPage />
+                        </ProtectedRoute>
+                    } />
                     <Route path="feeds" element={<FeedsPage />} />
                     <Route path="feeds/settings" element={
                         <ProtectedRoute>
@@ -289,14 +294,6 @@ const AppRoutes: React.FC = () => {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
 
-                {/* Chat Page - No Bottom Nav on mobile */}
-                <Route path="/messages/:conversationId" element={
-                    <MainLayout hideTopBar={true} hideBottomNav={true}>
-                        <ProtectedRoute>
-                            <ChatPage />
-                        </ProtectedRoute>
-                    </MainLayout>
-                } />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

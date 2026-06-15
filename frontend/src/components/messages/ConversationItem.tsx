@@ -24,11 +24,15 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     const { t } = useTranslation();
     const { user: currentUser } = useAppSelector((state) => state.auth);
 
+    const isGroup = conversation.participants.length > 2 || !!conversation.groupName;
+
     // Filter out the current user to find the other participant(s)
     const otherParticipants = conversation.participants.filter(p => 
-        (p.did && currentUser?.did) ? p.did !== currentUser.did : p.id !== currentUser?.id
+        (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
     );
     const otherParticipant = otherParticipants[0] || conversation.participants[0];
+
+    const groupDisplayName = conversation.groupName || otherParticipants.map(p => p.displayName || p.handle).join(', ');
 
     const handleProfileClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -47,30 +51,56 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             )}
             onClick={onClick}
         >
-            <div className="flex-shrink-0">
-                <UserHoverCard user={otherParticipant}>
-                    <div onClick={handleProfileClick}>
-                        <Avatar
-                            src={otherParticipant.avatarUrl || otherParticipant.avatar}
-                            alt={otherParticipant.displayName}
-                            size="md"
-                        />
+            <div className="flex-shrink-0 relative">
+                {isGroup && otherParticipants.length >= 2 ? (
+                    <div className="relative w-12 h-12">
+                        <div className="absolute top-0 right-0 z-10 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-8 h-8">
+                             <Avatar
+                                src={otherParticipants[0].avatarUrl || otherParticipants[0].avatar}
+                                alt={otherParticipants[0].displayName}
+                                size="sm"
+                            />
+                        </div>
+                        <div className="absolute bottom-0 left-0 z-0 border-2 border-white dark:border-dark-bg rounded-full overflow-hidden w-8 h-8">
+                             <Avatar
+                                src={otherParticipants[1].avatarUrl || otherParticipants[1].avatar}
+                                alt={otherParticipants[1].displayName}
+                                size="sm"
+                            />
+                        </div>
                     </div>
-                </UserHoverCard>
+                ) : (
+                    <UserHoverCard user={otherParticipant}>
+                        <div onClick={handleProfileClick}>
+                            <Avatar
+                                src={otherParticipant.avatarUrl || otherParticipant.avatar}
+                                alt={otherParticipant.displayName}
+                                size="md"
+                            />
+                        </div>
+                    </UserHoverCard>
+                )}
             </div>
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between">
                     <div className="flex flex-col min-w-0">
                         <span className="font-bold text-gray-900 dark:text-dark-text truncate flex items-center gap-0.5">
-                            {otherParticipant.displayName}
-                            {(otherParticipant as any).isVerified && (
+                            {isGroup ? groupDisplayName : otherParticipant.displayName}
+                            {!isGroup && (otherParticipant as any).isVerified && (
                                 <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
                             )}
                         </span>
-                        <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
-                            @{otherParticipant.handle || otherParticipant.username}
-                        </span>
+                        {!isGroup && (
+                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
+                                @{otherParticipant.handle || otherParticipant.username}
+                            </span>
+                        )}
+                        {isGroup && (
+                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
+                                {t('messages.n_participants', { count: conversation.participants.length })}
+                            </span>
+                        )}
                     </div>
                     {conversation.lastMessage && (
                         <span className="text-xs text-gray-400 dark:text-dark-text-secondary whitespace-nowrap pt-1">

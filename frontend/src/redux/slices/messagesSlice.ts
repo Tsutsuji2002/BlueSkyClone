@@ -31,10 +31,11 @@ const initialState: MessagesState = {
 
 export const fetchConversations = createAsyncThunk(
     'messages/fetchConversations',
-    async ({ limit = 50, cursor }: { limit?: number; cursor?: string | null } | undefined = {}, { rejectWithValue }) => {
+    async ({ limit = 50, cursor, isRequest }: { limit?: number; cursor?: string | null; isRequest?: boolean } | undefined = {}, { rejectWithValue }) => {
         try {
             let url = `${API_URL}/chat/conversations?limit=${limit}`;
             if (cursor) url += `&cursor=${cursor}`;
+            if (isRequest !== undefined) url += `&isRequest=${isRequest}`;
 
             const response = await fetch(url, {
                 credentials: 'include'
@@ -121,6 +122,25 @@ export const startConversation = createAsyncThunk(
     }
 );
 
+export const acceptConversation = createAsyncThunk(
+    'messages/acceptConversation',
+    async (conversationId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/accept`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to accept conversation');
+            }
+            return conversationId;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 export const markAsRead = createAsyncThunk(
     'messages/markAsRead',
     async ({ conversationId, messageId }: { conversationId: string; messageId?: string }, { rejectWithValue }) => {
@@ -182,6 +202,25 @@ export const updateChatSettings = createAsyncThunk(
             return allowIncoming;
         } catch (error: any) {
             console.error('Thunk: error processing request:', error);
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
+export const deleteConversation = createAsyncThunk(
+    'messages/deleteConversation',
+    async (conversationId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to delete conversation');
+            }
+            return conversationId;
+        } catch (error: any) {
             return rejectWithValue(error.message || 'Something went wrong');
         }
     }
@@ -365,6 +404,19 @@ const messagesSlice = createSlice({
                     state.activeConversationMessages = [...state.activeConversationMessages, ...newMessages];
                 }
             });
+        builder.addCase(acceptConversation.fulfilled, (state, action) => {
+            const conv = state.conversations.find(c => c.id === action.payload);
+            if (conv) {
+                conv.isAccepted = true;
+            }
+        });
+        builder.addCase(deleteConversation.fulfilled, (state, action) => {
+            state.conversations = state.conversations.filter(c => c.id !== action.payload);
+            if (state.activeConversationId === action.payload) {
+                state.activeConversationId = null;
+                state.activeConversationMessages = [];
+            }
+        });
     }
 });
 

@@ -8,7 +8,9 @@ public record ConversationDto(
     List<UserDto> Participants,
     MessageDto? LastMessage,
     int UnreadCount,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    bool IsAccepted = true,
+    string? GroupName = null
 );
 
 public record MessageReactionDto(

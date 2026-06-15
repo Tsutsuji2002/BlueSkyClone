@@ -39,7 +39,7 @@ public class ChatService : IChatService
         _notificationService = notificationService;
     }
 
-    public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId, int limit = 50, string? cursor = null)
+    public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid userId, int limit = 50, string? cursor = null, bool? isRequest = null)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return Enumerable.Empty<ConversationDto>();
@@ -85,6 +85,11 @@ public class ChatService : IChatService
             .Include(c => c.ConversationParticipants).ThenInclude(p => p.User)
             .Include(c => c.Messages)
             .Where(c => c.ConversationParticipants.Any(p => p.UserId == userId) && (c.IsDeleted == false || c.IsDeleted == null));
+
+        if (isRequest.HasValue)
+        {
+            query = query.Where(c => c.IsAccepted == !isRequest.Value);
+        }
 
         if (!string.IsNullOrEmpty(cursor) && Guid.TryParse(cursor, out var cursorId))
         {
@@ -296,11 +301,26 @@ public class ChatService : IChatService
             return MapToConversationDto(fullConv!, userId, unreadCount);
         }
 
+        var isAccepted = true;
+        // Logic for IsAccepted: If any participant (who is not the creator) doesn't follow the creator, 
+        // it starts as a request (Accepted = false).
+        foreach (var pId in ids)
+        {
+            if (pId == userId) continue;
+            var isFollowing = await _userService.IsFollowingAsync(pId, userId);
+            if (!isFollowing)
+            {
+                isAccepted = false;
+                break;
+            }
+        }
+
         var newConversation = new Conversation
         {
             Id = Guid.NewGuid(),
             CreatedAt = DateTime.UtcNow,
-            IsDeleted = false
+            IsDeleted = false,
+            IsAccepted = isAccepted
         };
 
         foreach (var pId in ids)
@@ -682,6 +702,33 @@ public class ChatService : IChatService
         await _cacheService.RemoveAsync($"user:{userId}:conv:{conversationId}");
     }
 
+    public async Task<bool> AcceptConversationAsync(Guid userId, string conversationId)
+    {
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        var conversation = await _unitOfWork.Conversations.GetByIdAsync(convId);
+        
+        if (conversation == null) return false;
+        
+        // Check if user is a participant
+        var isParticipant = await _unitOfWork.Conversations.Query()
+            .AnyAsync(c => c.Id == convId && c.ConversationParticipants.Any(p => p.UserId == userId));
+            
+        if (!isParticipant) return false;
+
+        conversation.IsAccepted = true;
+        await _unitOfWork.CompleteAsync();
+
+        // Invalidate caches for all participants
+        var participants = await GetParticipantIdsAsync(conversationId);
+        foreach (var pId in participants)
+        {
+            await _cacheService.RemoveAsync($"user:{pId}:conversations");
+            await _cacheService.RemoveAsync($"user:{pId}:conv:{conversationId}");
+        }
+
+        return true;
+    }
+
     public async Task<List<Guid>> GetParticipantIdsAsync(string conversationId)
     {
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
@@ -752,7 +799,9 @@ public class ChatService : IChatService
             participants,
             lastMessage != null ? MapToMessageDto(lastMessage) : null,
             unreadCount,
-            c.CreatedAt.HasValue ? DateTime.SpecifyKind(c.CreatedAt.Value, DateTimeKind.Utc) : DateTimeOffset.UtcNow
+            c.CreatedAt.HasValue ? DateTime.SpecifyKind(c.CreatedAt.Value, DateTimeKind.Utc) : DateTimeOffset.UtcNow,
+            c.IsAccepted,
+            c.GroupName
         );
     }
 
