@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -261,6 +261,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
+
+            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
+
             var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return MapToJoinLinkDto(data!);
@@ -279,6 +282,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
+
+            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
+
             var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return MapToJoinLinkDto(data!);
@@ -297,6 +303,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
+
+            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
+
             var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return MapToJoinLinkDto(data!);
@@ -315,6 +324,9 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
+
+            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
+
             var data = JsonSerializer.Deserialize<BlueskyJoinLink>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
             return MapToJoinLinkDto(data!);
@@ -681,3 +693,4 @@ namespace BSkyClone.Services
         }
     }
 }
+
