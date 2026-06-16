@@ -10,6 +10,10 @@ export interface DeleteConfirmState {
 }
 
 interface ExtendedModalsState extends ModalsState {
+    createPost: {
+        isOpen: boolean;
+        initialContent?: string;
+    };
     deleteConfirm: DeleteConfirmState;
     report: {
         isOpen: boolean;
@@ -25,7 +29,10 @@ interface ExtendedModalsState extends ModalsState {
 }
 
 const initialState: ExtendedModalsState = {
-    createPost: false,
+    createPost: {
+        isOpen: false,
+        initialContent: undefined,
+    },
     editProfile: false,
     imageViewer: {
         isOpen: false,
@@ -81,11 +88,17 @@ const modalsSlice = createSlice({
     name: 'modals',
     initialState,
     reducers: {
-        openCreatePost: (state) => {
-            state.createPost = true;
+        openCreatePost: (state, action: PayloadAction<{ initialContent?: string } | undefined>) => {
+            state.createPost = {
+                isOpen: true,
+                initialContent: action.payload?.initialContent,
+            };
         },
         closeCreatePost: (state) => {
-            state.createPost = false;
+            state.createPost = {
+                isOpen: false,
+                initialContent: undefined,
+            };
         },
         openEditProfile: (state) => {
             state.editProfile = true;
@@ -160,28 +173,28 @@ const modalsSlice = createSlice({
                 isOpen: true,
                 post: action.payload,
             };
-            state.createPost = true;
+            state.createPost = { isOpen: true };
         },
         closeEditPost: (state) => {
             state.editPost = {
                 isOpen: false,
                 post: null,
             };
-            state.createPost = false;
+            state.createPost = { isOpen: false };
         },
         openQuote: (state, action: PayloadAction<Post>) => {
             state.quote = {
                 isOpen: true,
                 post: action.payload,
             };
-            state.createPost = true;
+            state.createPost = { isOpen: true };
         },
         closeQuote: (state) => {
             state.quote = {
                 isOpen: false,
                 post: null,
             };
-            state.createPost = false;
+            state.createPost = { isOpen: false };
         },
         openDeleteConfirm: (state, action: PayloadAction<{ postUri: string; isListRemoval?: boolean; onConfirm?: () => void }>) => {
             (state as any).deleteConfirm = {
@@ -241,7 +254,7 @@ const modalsSlice = createSlice({
             };
         },
         closeAllModals: (state) => {
-            state.createPost = false;
+            state.createPost = { isOpen: false };
             state.editProfile = false;
             state.imageViewer = {
                 isOpen: false,

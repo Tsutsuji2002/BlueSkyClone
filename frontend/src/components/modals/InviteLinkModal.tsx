@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiLink, FiCopy, FiEdit, FiTrash2, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
-import PostInviteLinkModal from './PostInviteLinkModal';
+import { openCreatePost } from '../../redux/slices/modalsSlice';
 
 interface InviteLinkModalProps {
     isOpen: boolean;
@@ -43,7 +43,6 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
     const [copySuccess, setCopySuccess] = useState(false);
     const [shareCopySuccess, setShareCopySuccess] = useState(false);
     const [fetchedLink, setFetchedLink] = useState<typeof existingLink>(null);
-    const [isPostingLink, setIsPostingLink] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -414,7 +413,10 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
     };
 
     const handlePostLink = () => {
-        setIsPostingLink(true);
+        if (fetchedLink?.link) {
+            dispatch(openCreatePost({ initialContent: fetchedLink.link }));
+            onClose();
+        }
     };
 
     const renderConfirmDisable = () => (
@@ -512,17 +514,6 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                 {step === 'active' && renderActive()}
                 {step === 'confirmDisable' && renderConfirmDisable()}
                 {step === 'disabled' && renderDisabled()}
-
-                {isPostingLink && fetchedLink?.link && (
-                    <PostInviteLinkModal 
-                        isOpen={isPostingLink}
-                        onClose={() => setIsPostingLink(false)}
-                        inviteLink={fetchedLink.link}
-                        participants={participants}
-                        convoName={convoName}
-                        memberCount={participants.length}
-                    />
-                )}
             </div>
         </div>
     );

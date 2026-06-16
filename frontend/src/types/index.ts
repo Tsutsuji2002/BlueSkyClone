@@ -548,7 +548,7 @@ export interface LanguageState {
 }
 
 export interface ModalsState {
-    createPost: boolean;
+    createPost: any;
     editProfile: boolean;
     mobileMenu: boolean;
     imageViewer: {

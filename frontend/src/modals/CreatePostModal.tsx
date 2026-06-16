@@ -25,11 +25,13 @@ import QuotedPost from '../components/feed/QuotedPost';
 import PostInteractionSettingsModal from './PostInteractionSettingsModal';
 import LanguagePickerModal from '../components/modals/LanguagePickerModal';
 import GifPicker from '../components/common/GifPicker';
+import InvitePreviewCard from '../components/messages/InvitePreviewCard';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const isOpen = useAppSelector((state) => state.modals.createPost);
+    const createPostState = useAppSelector((state) => state.modals.createPost);
+    const isOpen = createPostState.isOpen;
     const editPostState = useAppSelector((state) => state.modals.editPost);
     const quoteState = useAppSelector((state) => state.modals.quote);
     const isEditing = editPostState.isOpen && !!editPostState.post;
@@ -138,6 +140,13 @@ const CreatePostModal: React.FC = () => {
             }
         }
     }, [isEditing, postToEdit, authSettings]);
+
+    // Handle initialContent
+    useEffect(() => {
+        if (isOpen && !isEditing && !isQuoting && createPostState.initialContent) {
+            setContent(createPostState.initialContent);
+        }
+    }, [isOpen, isEditing, isQuoting, createPostState.initialContent]);
 
     // Link Detection logic
     useEffect(() => {
@@ -550,46 +559,60 @@ const CreatePostModal: React.FC = () => {
                                 )}
 
                                 {linkPreview && images.length === 0 && !video && !isLinkLoading && (
-                                    <div className="mb-4 rounded-xl border border-gray-200 dark:border-dark-border overflow-hidden relative bg-white dark:bg-dark-surface group shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="mb-4 overflow-hidden relative">
                                         <button
                                             onClick={handleDismissLink}
                                             className="absolute top-2 right-2 z-20 p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
                                         >
                                             <FiX size={16} />
                                         </button>
-                                        <a
-                                            href={linkPreview.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="block h-full transition-opacity"
-                                        >
-                                            {linkPreview.image ? (
-                                                <div className="flex flex-col h-[360px]">
-                                                    <div className="h-[240px] w-full bg-gray-100 dark:bg-dark-border relative overflow-hidden">
-                                                        <img
-                                                            src={linkPreview.image}
-                                                            alt=""
-                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                                        />
-                                                    </div>
-                                                    <div className="p-4 flex-1 flex flex-col justify-center border-t border-gray-100 dark:border-dark-border">
-                                                        <div className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-tight mb-1">
-                                                            <span className="truncate">{linkPreview.domain}</span>
+                                        
+                                        {/* Special handling for chat invite links */}
+                                        {linkPreview.url.includes('/chat/') ? (
+                                            <div className="p-0">
+                                                <InvitePreviewCard 
+                                                    participants={[]} // We might need to fetch this or pass it through state
+                                                    inviteLink={linkPreview.url}
+                                                    name={linkPreview.title}
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-xl border border-gray-200 dark:border-dark-border overflow-hidden relative bg-white dark:bg-dark-surface group shadow-sm hover:shadow-md transition-shadow">
+                                                <a
+                                                    href={linkPreview.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block h-full transition-opacity"
+                                                >
+                                                    {linkPreview.image ? (
+                                                        <div className="flex flex-col h-[360px]">
+                                                            <div className="h-[240px] w-full bg-gray-100 dark:bg-dark-border relative overflow-hidden">
+                                                                <img
+                                                                    src={linkPreview.image}
+                                                                    alt=""
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                                                />
+                                                            </div>
+                                                            <div className="p-4 flex-1 flex flex-col justify-center border-t border-gray-100 dark:border-dark-border">
+                                                                <div className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-tight mb-1">
+                                                                    <span className="truncate">{linkPreview.domain}</span>
+                                                                </div>
+                                                                <h3 className="font-bold text-[16px] leading-snug text-gray-900 dark:text-dark-text mb-1 line-clamp-1">{linkPreview.title}</h3>
+                                                                <p className="text-[14px] leading-normal text-gray-500 dark:text-dark-text-secondary line-clamp-2">{linkPreview.description}</p>
+                                                            </div>
                                                         </div>
-                                                        <h3 className="font-bold text-[16px] leading-snug text-gray-900 dark:text-dark-text mb-1 line-clamp-1">{linkPreview.title}</h3>
-                                                        <p className="text-[14px] leading-normal text-gray-500 dark:text-dark-text-secondary line-clamp-2">{linkPreview.description}</p>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col h-[100px] p-4 justify-center">
-                                                    <div className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-tight mb-1">
-                                                        <span className="truncate">{linkPreview.domain}</span>
-                                                    </div>
-                                                    <h3 className="font-bold text-[16px] leading-snug text-gray-900 dark:text-dark-text mb-1 line-clamp-1">{linkPreview.title}</h3>
-                                                    <p className="text-[14px] leading-normal text-gray-500 dark:text-dark-text-secondary line-clamp-1">{linkPreview.description}</p>
-                                                </div>
-                                            )}
-                                        </a>
+                                                    ) : (
+                                                        <div className="flex flex-col h-[100px] p-4 justify-center">
+                                                            <div className="flex items-center gap-1.5 text-[12px] font-bold text-gray-500 dark:text-dark-text-secondary uppercase tracking-tight mb-1">
+                                                                <span className="truncate">{linkPreview.domain}</span>
+                                                            </div>
+                                                            <h3 className="font-bold text-[16px] leading-snug text-gray-900 dark:text-dark-text mb-1 line-clamp-1">{linkPreview.title}</h3>
+                                                            <p className="text-[14px] leading-normal text-gray-500 dark:text-dark-text-secondary line-clamp-1">{linkPreview.description}</p>
+                                                        </div>
+                                                    )}
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
