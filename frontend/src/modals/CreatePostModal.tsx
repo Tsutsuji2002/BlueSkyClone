@@ -497,17 +497,6 @@ const CreatePostModal: React.FC = () => {
                                     autoFocus
                                 />
 
-                                {/* Interaction Settings */}
-                                <div className="mt-2 mb-4">
-                                    <button
-                                        onClick={() => setIsInteractionModalOpen(true)}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
-                                    >
-                                        <FiSmile size={13} className="text-gray-400" />
-                                        <span>{replyRestriction === 'anyone' && allowQuotes ? t('post.anyone_can_interact', 'Anyone can interact') : t('post.interaction_limited', 'Interaction limited')}</span>
-                                        <FiChevronRight size={12} className="ml-0.5 rotate-90 opacity-40" />
-                                    </button>
-                                </div>
 
                                 {content.trim().length > 0 && (content.includes('@') || content.includes('http')) && (
                                     <div className="mt-2 mb-4 p-3 bg-blue-50/30 dark:bg-primary-900/5 rounded-xl border border-blue-100/50 dark:border-primary-800/20">
@@ -686,6 +675,18 @@ const CreatePostModal: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Interaction Settings */}
+                                <div className="mt-4 mb-2">
+                                    <button
+                                        onClick={() => setIsInteractionModalOpen(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-bold border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+                                    >
+                                        <FiSmile size={13} className="text-gray-400" />
+                                        <span>{replyRestriction === 'anyone' && allowQuotes ? t('post.anyone_can_interact', 'Anyone can interact') : t('post.interaction_limited', 'Interaction limited')}</span>
+                                        <FiChevronRight size={12} className="ml-0.5 rotate-90 opacity-40" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -721,10 +722,10 @@ const CreatePostModal: React.FC = () => {
                                     {labels.length > 0 && <span className="text-[11px] font-bold">CW</span>}
                                 </button>
                                 {isLabelDropdownOpen && (
-                                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1e2028] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
-                                        <div className="p-3 border-b border-gray-700">
-                                            <h3 className="text-[13px] font-bold text-gray-300 uppercase tracking-wider">{t('post.content_warning', 'Content Warning')}</h3>
-                                            <p className="text-[11px] text-gray-500 mt-1">{t('post.cw_description', 'Add a warning label to your post.')}</p>
+                                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1e2028] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
+                                        <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                                            <h3 className="text-[13px] font-bold text-gray-500 dark:text-gray-300 uppercase tracking-wider">{t('post.content_warning', 'Content Warning')}</h3>
+                                            <p className="text-[11px] text-gray-400 mt-1">{t('post.cw_description', 'Add a warning label to your post.')}</p>
                                         </div>
                                         <div className="p-1 space-y-0.5">
                                             {[
@@ -744,10 +745,10 @@ const CreatePostModal: React.FC = () => {
                                                     )}
                                                 >
                                                     <div>
-                                                        <div className={cn('text-[14px] font-bold', labels.includes(opt.id) ? 'text-[#f45d48]' : 'text-gray-200')}>
+                                                        <div className={cn('text-[14px] font-bold', labels.includes(opt.id) ? 'text-[#f45d48]' : 'text-gray-800 dark:text-gray-200')}>
                                                             {opt.label}
                                                         </div>
-                                                        <div className="text-[11px] text-gray-500">{opt.desc}</div>
+                                                        <div className="text-[11px] text-gray-400">{opt.desc}</div>
                                                     </div>
                                                     {labels.includes(opt.id) && <FiCheck className="text-[#f45d48]" size={16} />}
                                                 </button>
@@ -773,20 +774,20 @@ const CreatePostModal: React.FC = () => {
                                     className="text-[13px] font-bold text-[#1d9bf0] hover:text-[#60b8f5] transition-colors"
                                 >{ALL_LANGUAGES.find(l => l.code === postLanguage)?.englishName || 'English'}</button>
                                 {isLanguageDropdownOpen && (
-                                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-[#1e2028] border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
+                                    <div className="absolute bottom-full right-0 mb-2 w-52 bg-white dark:bg-[#1e2028] border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-[65]">
                                         <div className="max-h-[260px] overflow-y-auto p-1 space-y-0.5">
                                             {['en', 'vi', 'ja', 'fr', 'ko', 'zh'].map(code => {
                                                 const lang = ALL_LANGUAGES.find(l => l.code === code);
                                                 if (!lang) return null;
                                                 return (
                                                     <button key={code} onClick={() => { setPostLanguage(code); setIsLanguageManual(true); setIsLanguageDropdownOpen(false); }}
-                                                        className={cn('w-full text-left px-4 py-2.5 rounded-xl text-[14px] transition-colors', postLanguage === code ? 'bg-[#1d9bf0] text-white font-bold' : 'text-gray-200 hover:bg-gray-700/50')}
+                                                        className={cn('w-full text-left px-4 py-2.5 rounded-xl text-[14px] transition-colors', postLanguage === code ? 'bg-[#1d9bf0] text-white font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50')}
                                                     >{lang.englishName}</button>
                                                 );
                                             })}
-                                            <div className="h-px bg-gray-700 my-1" />
+                                            <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
                                             <button onClick={() => { setIsLanguageDropdownOpen(false); setIsLanguageModalOpen(true); }}
-                                                className="w-full flex items-center justify-between px-4 py-2 text-[13px] text-gray-400 hover:bg-gray-700/50 rounded-xl transition-colors"
+                                                className="w-full flex items-center justify-between px-4 py-2 text-[13px] text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-xl transition-colors"
                                             >More languages… <FiChevronRight size={13} /></button>
                                         </div>
                                     </div>

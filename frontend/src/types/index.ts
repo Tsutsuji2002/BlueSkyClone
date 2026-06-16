@@ -356,6 +356,7 @@ export interface Message {
     isRead: boolean;
     isModified?: boolean;
     isRecalled?: boolean;
+    isSending?: boolean; // optimistic UI flag — true while awaiting SignalR confirmation
     sender?: Partial<User>;
     linkPreview?: LinkPreview;
     replyTo?: Message;

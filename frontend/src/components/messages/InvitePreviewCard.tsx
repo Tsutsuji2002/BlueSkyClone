@@ -25,9 +25,16 @@ const InvitePreviewCard: React.FC<InvitePreviewCardProps> = ({
 }) => {
     const { t } = useTranslation();
 
-    // If no name, generate one based on participants
+    // If no name, generate one based on participants, ensuring we don't show raw DIDs
+    const cleanHandle = (u: User) => {
+        if (!u.handle || u.handle.includes(':')) {
+            return u.displayName || 'User';
+        }
+        return u.handle;
+    };
+
     const displayName = name || (participants.length > 0 
-        ? `Group with ${participants.map(p => p.handle?.includes(':') ? p.displayName || p.handle.slice(0, 10) + '...' : p.handle).join(', ')}`.slice(0, 45) + (participants.length > 2 ? '...' : '')
+        ? `Group with ${participants.map(cleanHandle).join(', ')}`.slice(0, 45) + (participants.length > 2 ? '...' : '')
         : 'Invite to group chat');
 
     return (

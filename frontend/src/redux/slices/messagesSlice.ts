@@ -387,6 +387,21 @@ const messagesSlice = createSlice({
                 }
             });
         },
+        replaceOptimisticMessage: (state, action: PayloadAction<{ tempId: string; realMessage: Message }>) => {
+            const { tempId, realMessage } = action.payload;
+            const idx = state.activeConversationMessages.findIndex(m => m.id === tempId);
+            if (idx !== -1) {
+                state.activeConversationMessages[idx] = realMessage;
+            } else if (!state.activeConversationMessages.find(m => m.id === realMessage.id)) {
+                // If temp was already removed / replaced, just push real if not present
+                state.activeConversationMessages.push(realMessage);
+            }
+            // Update lastMessage in conversation list
+            const conv = state.conversations.find(c => c.id === realMessage.conversationId);
+            if (conv && conv.lastMessage?.id === tempId) {
+                conv.lastMessage = realMessage;
+            }
+        },
         clearMessages: (state) => {
             state.conversations = [];
             state.conversationsCursor = null;
@@ -509,5 +524,5 @@ const messagesSlice = createSlice({
     }
 });
 
-export const { setActiveConversation, addMessage, updateMessageInStore, removeMessageFromStore, clearMessages } = messagesSlice.actions;
+export const { setActiveConversation, addMessage, updateMessageInStore, removeMessageFromStore, clearMessages, replaceOptimisticMessage } = messagesSlice.actions;
 export default messagesSlice.reducer;

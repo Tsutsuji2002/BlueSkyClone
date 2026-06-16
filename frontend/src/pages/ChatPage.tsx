@@ -7,7 +7,7 @@ import MessageSkeleton from '../components/messages/MessageSkeleton';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead, fetchChatLog, removeMessageFromStore, acceptConversation, deleteConversation } from '../redux/slices/messagesSlice';
+import { setActiveConversation, fetchMessages, fetchConversationById, markAsRead, fetchChatLog, removeMessageFromStore, acceptConversation, deleteConversation, addMessage } from '../redux/slices/messagesSlice';
 import { openImageViewer } from '../redux/slices/modalsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import signalrService, { HubStatus } from '../services/signalrService';
@@ -322,21 +322,54 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
         e.preventDefault();
         if (!message.trim() || !conversationId) return;
 
-        try {
-            if (editingMessage) {
-                await signalrService.editMessage(editingMessage.id, message);
-                setEditingMessage(null);
-            } else {
-                await signalrService.sendMessage(conversationId, message.trim(), null, replyingTo?.id || null, linkPreview);
+        const textToSend = message.trim();
+        const capturedLinkPreview = linkPreview;
+        const capturedReplyTo = replyingTo;
+
+        // --- Optimistic UI: clear input & show temp message immediately ---
+        setMessage('');
+        setShowEmojiPicker(false);
+        setReplyingTo(null);
+        setLinkPreview(null);
+        setStickyLink(null);
+        setDismissedLinks(new Set());
+
+        if (!editingMessage && currentUser) {
+            const tempId = `temp-${Date.now()}`;
+            const optimisticMsg = {
+                id: tempId,
+                conversationId,
+                senderId: currentUser.id,
+                sender: currentUser as any,
+                content: textToSend,
+                imageUrl: null,
+                linkPreview: capturedLinkPreview,
+                replyTo: capturedReplyTo,
+                reactions: [],
+                isRead: false,
+                isRecalled: false,
+                isModified: false,
+                createdAt: new Date().toISOString(),
+                isSending: true,  // flag for pending indicator
+            };
+            dispatch(addMessage({ message: optimisticMsg as any, currentUserId: currentUser.id }));
+
+            try {
+                await signalrService.sendMessage(conversationId, textToSend, null, capturedReplyTo?.id || null, capturedLinkPreview);
+                // SignalR's ReceiveMessage will deliver the confirmed message back.
+                // Remove the temp message now so it doesn't duplicate.
+                dispatch(removeMessageFromStore(tempId));
+            } catch (error) {
+                console.error('Failed to send message:', error);
+                dispatch(removeMessageFromStore(tempId));
             }
-            setMessage('');
-            setShowEmojiPicker(false);
-            setReplyingTo(null);
-            setLinkPreview(null);
-            setStickyLink(null);
-            setDismissedLinks(new Set());
-        } catch (error) {
-            console.error('Failed to send message:', error);
+        } else if (editingMessage) {
+            try {
+                await signalrService.editMessage(editingMessage.id, textToSend);
+            } catch (error) {
+                console.error('Failed to edit message:', error);
+            }
+            setEditingMessage(null);
         }
     };
 
@@ -685,7 +718,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                  const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
                                  
                                 return (
-                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[15%] sm:pl-[20%]' : 'items-start pr-[15%] sm:pr-[20%]'} group/msg relative mb-2`}>
+                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[15%] sm:pl-[20%]' : 'items-start pr-[15%] sm:pr-[20%]'} group/msg relative mb-2 ${msg.isSending ? 'opacity-60' : 'opacity-100'} transition-opacity duration-150`}>
                                         <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2 max-w-full w-full ${isMe ? 'justify-start' : 'justify-start'}`}>
                                             <div className="relative min-w-0 max-w-full">
                                                 <div className={`overflow-hidden ${isMe
@@ -872,13 +905,21 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5 px-1">
-                                            <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
-                                                {formatChatMessageDate(msg.createdAt, i18n.language)}
-                                            </span>
-                                            {isMe && msg.isRead && (
-                                                <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
-                                                    {t('messages.read')}
+                                            {msg.isSending ? (
+                                                <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary animate-pulse">
+                                                    Sending…
                                                 </span>
+                                            ) : (
+                                                <>
+                                                    <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
+                                                        {formatChatMessageDate(msg.createdAt, i18n.language)}
+                                                    </span>
+                                                    {isMe && msg.isRead && (
+                                                        <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
+                                                            {t('messages.read')}
+                                                        </span>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </div>

@@ -143,12 +143,12 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
     const isListSelected = (id: string) => localReply === 'custom' && selectedLists.includes(id);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-[#000000] border border-gray-800 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-[#000000] border border-gray-200 dark:border-gray-800 rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5">
-                    <h2 className="text-[20px] font-bold text-white tracking-tight">{t('post.interaction_settings', 'Post interaction settings')}</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+                    <h2 className="text-[20px] font-bold text-gray-900 dark:text-white tracking-tight">{t('post.interaction_settings', 'Post interaction settings')}</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
                         <FiX size={24} />
                     </button>
                 </div>
@@ -156,7 +156,7 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                 <div className="px-6 pb-6 space-y-5 overflow-y-auto max-h-[75vh]">
                     {/* Who can reply Section */}
                     <div className="space-y-4">
-                        <h3 className="text-[15px] font-bold text-white">
+                        <h3 className="text-[15px] font-bold text-gray-900 dark:text-white">
                             {t('post.who_can_reply', 'Who can reply')}
                         </h3>
 
@@ -167,17 +167,17 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                                 className={cn(
                                     "flex-1 flex items-center gap-3 p-4 rounded-2xl transition-all border-2",
                                     localReply === 'anyone'
-                                        ? "bg-[#001933] border-[#0085FF]"
-                                        : "bg-[#161618] border-transparent hover:bg-[#202022]"
+                                        ? "bg-blue-50 dark:bg-[#001933] border-[#0085FF]"
+                                        : "bg-gray-50 dark:bg-[#161618] border-transparent hover:bg-gray-100 dark:hover:bg-[#202022]"
                                 )}
                             >
                                 <div className={cn(
                                     "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-                                    localReply === 'anyone' ? "border-[#0085FF] bg-[#0085FF]" : "border-gray-600"
+                                    localReply === 'anyone' ? "border-[#0085FF] bg-[#0085FF]" : "border-gray-300 dark:border-gray-600"
                                 )}>
                                     {localReply === 'anyone' && <div className="w-2 h-2 bg-white rounded-full shadow-sm" />}
                                 </div>
-                                <span className={cn("font-bold text-[16px]", localReply === 'anyone' ? "text-white" : "text-gray-400")}>
+                                <span className={cn("font-bold text-[16px]", localReply === 'anyone' ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
                                     {t('post.reply_anyone', 'Anyone')}
                                 </span>
                             </button>
@@ -187,17 +187,17 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                                 className={cn(
                                     "flex-1 flex items-center gap-3 p-4 rounded-2xl transition-all border-2",
                                     localReply === 'nobody'
-                                        ? "bg-[#001933] border-[#0085FF]"
-                                        : "bg-[#161618] border-transparent hover:bg-[#202022]"
+                                        ? "bg-blue-50 dark:bg-[#001933] border-[#0085FF]"
+                                        : "bg-gray-50 dark:bg-[#161618] border-transparent hover:bg-gray-100 dark:hover:bg-[#202022]"
                                 )}
                             >
                                 <div className={cn(
                                     "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-                                    localReply === 'nobody' ? "border-[#0085FF] bg-[#0085FF]" : "border-gray-600"
+                                    localReply === 'nobody' ? "border-[#0085FF] bg-[#0085FF]" : "border-gray-300 dark:border-gray-600"
                                 )}>
                                     {localReply === 'nobody' && <div className="w-2 h-2 bg-white rounded-full shadow-sm" />}
                                 </div>
-                                <span className={cn("font-bold text-[16px]", localReply === 'nobody' ? "text-white" : "text-gray-400")}>
+                                <span className={cn("font-bold text-[16px]", localReply === 'nobody' ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
                                     {t('post.reply_nobody', 'Nobody')}
                                 </span>
                             </button>
@@ -216,17 +216,17 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                                     className={cn(
                                         "w-full flex items-center gap-3 p-4 rounded-2xl transition-all border-2",
                                         isCustomSelected(opt.id)
-                                            ? "bg-[#001933] border-[#0085FF]"
-                                            : "bg-[#161618] border-transparent hover:bg-[#202022]"
+                                            ? "bg-blue-50 dark:bg-[#001933] border-[#0085FF]"
+                                            : "bg-gray-50 dark:bg-[#161618] border-transparent hover:bg-gray-100 dark:hover:bg-[#202022]"
                                     )}
                                 >
                                     <div className={cn(
                                         "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                                        isCustomSelected(opt.id) ? "bg-[#0085FF] border-[#0085FF]" : "border-gray-600"
+                                        isCustomSelected(opt.id) ? "bg-[#0085FF] border-[#0085FF]" : "border-gray-300 dark:border-gray-600"
                                     )}>
                                         {isCustomSelected(opt.id) && <FiCheck className="text-white" size={14} strokeWidth={4} />}
                                     </div>
-                                    <span className={cn("font-bold text-[16px]", isCustomSelected(opt.id) ? "text-white" : "text-gray-400")}>
+                                    <span className={cn("font-bold text-[16px]", isCustomSelected(opt.id) ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
                                         {opt.label}
                                     </span>
                                 </button>
@@ -239,11 +239,11 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                                     className={cn(
                                         "w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2",
                                         selectedLists.length > 0
-                                            ? "bg-[#001933] border-[#0085FF]"
-                                            : "bg-[#161618] border-transparent hover:bg-[#202022]"
+                                            ? "bg-blue-50 dark:bg-[#001933] border-[#0085FF]"
+                                            : "bg-gray-50 dark:bg-[#161618] border-transparent hover:bg-gray-100 dark:hover:bg-[#202022]"
                                     )}
                                 >
-                                    <span className={cn("font-bold text-[16px]", selectedLists.length > 0 ? "text-white" : "text-gray-400")}>
+                                    <span className={cn("font-bold text-[16px]", selectedLists.length > 0 ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
                                         {t('post.select_from_lists', 'Select from your lists')}
                                     </span>
                                     <FiChevronDown className={cn("text-gray-400 transition-transform", isListsOpen && "rotate-180")} size={20} />
@@ -262,19 +262,19 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                                                     onClick={() => toggleListSelection(list.id)}
                                                     className={cn(
                                                         "w-full flex items-center gap-3 p-3 rounded-xl transition-all",
-                                                        isListSelected(list.id) ? "bg-primary-500/10" : "hover:bg-[#161618]"
+                                                        isListSelected(list.id) ? "bg-primary-500/10" : "hover:bg-gray-50 dark:hover:bg-[#161618]"
                                                     )}
                                                 >
                                                     <div className={cn(
                                                         "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
-                                                        isListSelected(list.id) ? "bg-[#0085FF] border-[#0085FF]" : "border-gray-600"
+                                                        isListSelected(list.id) ? "bg-[#0085FF] border-[#0085FF]" : "border-gray-300 dark:border-gray-600"
                                                     )}>
                                                         {isListSelected(list.id) && <FiCheck className="text-white" size={12} strokeWidth={4} />}
                                                     </div>
                                                     <div className="w-8 h-8 rounded-lg bg-[#0085FF] flex items-center justify-center text-white">
                                                         <FiUsers size={16} />
                                                     </div>
-                                                    <span className={cn("font-bold text-[15px]", isListSelected(list.id) ? "text-white" : "text-gray-400")}>
+                                                    <span className={cn("font-bold text-[15px]", isListSelected(list.id) ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400")}>
                                                         {list.name}
                                                     </span>
                                                 </button>
@@ -289,11 +289,11 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                     {/* Allow Quotes Switch */}
                     <button
                         onClick={() => setLocalQuotes(!localQuotes)}
-                        className="w-full flex items-center justify-between p-4 rounded-3xl bg-[#001933] border border-[#0085FF]/30 transition-all hover:bg-[#002850]"
+                        className="w-full flex items-center justify-between p-4 rounded-3xl bg-blue-50 dark:bg-[#001933] border border-blue-100 dark:border-[#0085FF]/30 transition-all hover:bg-blue-100 dark:hover:bg-[#002850]"
                     >
                         <div className="flex items-center gap-3">
-                            <FiRepeat className="text-white" size={20} />
-                            <span className="font-bold text-[16px] text-white underline decoration-[#0085FF]/50 underline-offset-4">
+                            <FiRepeat className="text-gray-900 dark:text-white" size={20} />
+                            <span className="font-bold text-[16px] text-gray-900 dark:text-white underline decoration-[#0085FF]/50 underline-offset-4">
                                 {t('post.allow_quotes', 'Allow quote posts')}
                             </span>
                         </div>
@@ -320,13 +320,13 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                             <div className={cn(
                                 "w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center",
                                 saveForNextTime
-                                    ? "bg-[#202022] border-[#202022]"
-                                    : "border-gray-700 bg-[#161618] group-hover:border-gray-500"
+                                    ? "bg-gray-100 dark:bg-[#202022] border-gray-100 dark:border-[#202022]"
+                                    : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#161618] group-hover:border-gray-400 dark:group-hover:border-gray-500"
                             )}>
-                                {saveForNextTime && <FiCheck size={16} className="text-white" strokeWidth={3} />}
+                                {saveForNextTime && <FiCheck size={16} className="text-gray-900 dark:text-white" strokeWidth={3} />}
                             </div>
                         </div>
-                        <span className="text-[15px] font-bold text-gray-300">
+                        <span className="text-[15px] font-bold text-gray-600 dark:text-gray-300">
                             {t('post.save_defaults', 'Save these options for next time')}
                         </span>
                     </label>
