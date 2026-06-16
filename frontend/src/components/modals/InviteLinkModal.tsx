@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { FiX, FiLink, FiCopy, FiEdit, FiTrash2, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
+import PostInviteLinkModal from './PostInviteLinkModal';
 
 interface InviteLinkModalProps {
     isOpen: boolean;
     onClose: () => void;
     conversationId: string;
+    participants: any[];
+    convoName?: string;
     existingLink?: {
         id: string;
         link: string | null;
@@ -19,7 +22,14 @@ interface InviteLinkModalProps {
 
 type Step = 'intro' | 'generate' | 'active' | 'confirmDisable' | 'disabled';
 
-const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conversationId, existingLink }) => {
+const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ 
+    isOpen, 
+    onClose, 
+    conversationId, 
+    participants,
+    convoName,
+    existingLink 
+}) => {
     const dispatch = useAppDispatch();
     const [step, setStep] = useState<Step>('intro');
     const [rule, setRule] = useState<string>('anyone');
@@ -33,6 +43,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
     const [copySuccess, setCopySuccess] = useState(false);
     const [shareCopySuccess, setShareCopySuccess] = useState(false);
     const [fetchedLink, setFetchedLink] = useState<typeof existingLink>(null);
+    const [isPostingLink, setIsPostingLink] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -381,7 +392,10 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                             <span className="text-[11.3px] font-bold text-[#CA123D]">Disable</span>
                         </button>
                         
-                        <button className="flex-1 flex flex-col items-center justify-center gap-1 bg-[#E5F0FF] dark:bg-[#006AFF]/20 p-2 py-4 rounded-[20px] transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/30">
+                        <button 
+                            onClick={handlePostLink}
+                            className="flex-1 flex flex-col items-center justify-center gap-1 bg-[#E5F0FF] dark:bg-[#006AFF]/20 p-2 py-4 rounded-[20px] transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                        >
                             <div className="p-1 rounded-full"><svg fill="none" width="24" viewBox="0 0 24 24" height="24"><path fill="#0059D6" fillRule="evenodd" clipRule="evenodd" d="M3 16.8V7.2c0-.544-.001-1.011.03-1.395.033-.395.104-.789.297-1.167a3 3 0 0 1 1.31-1.31c.379-.193.772-.265 1.168-.297C6.188 2.999 6.657 3 7.2 3H11a1 1 0 1 1 0 2H7.2c-.576 0-.949 0-1.232.023-.272.022-.373.06-.422.085a1 1 0 0 0-.437.437c-.025.05-.062.15-.085.422C5.001 6.251 5 6.623 5 7.2v9.6c0 .577.001.95.024 1.232.023.272.06.373.085.422a1 1 0 0 0 .437.437c.05.025.15.063.422.085.283.023.656.024 1.232.024h9.6c.576 0 .949-.001 1.232-.024.272-.022.373-.06.422-.085a1 1 0 0 0 .437-.437c.025-.049.062-.15.085-.422.023-.283.024-.655.024-1.232V13a1 1 0 1 1 2 0v3.8c0 .543.001 1.011-.03 1.395-.033.395-.104.788-.297 1.167a3 3 0 0 1-1.31 1.311c-.379.193-.772.264-1.168.296-.383.031-.852.031-1.395.031H7.2c-.543 0-1.012 0-1.395-.031-.396-.032-.789-.103-1.167-.296a3 3 0 0 1-1.31-1.311c-.194-.379-.265-.772-.298-1.167C3 17.81 3 17.343 3 16.8M16.629 2.957a3 3 0 0 1 4.242 0l.172.171a3 3 0 0 1 0 4.243L13 15.414a2 2 0 0 1-1.414.586H9a1 1 0 0 1-1-1v-2.586A2 2 0 0 1 8.586 11zM10 14h1.586l8.043-8.043a1 1 0 0 0 0-1.414l-.172-.172a1 1 0 0 0-1.414 0L10 12.414z"></path></svg></div>
                             <span className="text-[11.3px] font-bold text-[#0059D6]">Post link</span>
                         </button>
@@ -397,6 +411,10 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                 </div>
             </div>
         );
+    };
+
+    const handlePostLink = () => {
+        setIsPostingLink(true);
     };
 
     const renderConfirmDisable = () => (
@@ -494,6 +512,17 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({ isOpen, onClose, conv
                 {step === 'active' && renderActive()}
                 {step === 'confirmDisable' && renderConfirmDisable()}
                 {step === 'disabled' && renderDisabled()}
+
+                {isPostingLink && fetchedLink?.link && (
+                    <PostInviteLinkModal 
+                        isOpen={isPostingLink}
+                        onClose={() => setIsPostingLink(false)}
+                        inviteLink={fetchedLink.link}
+                        participants={participants}
+                        convoName={convoName}
+                        memberCount={participants.length}
+                    />
+                )}
             </div>
         </div>
     );

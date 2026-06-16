@@ -1085,6 +1085,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         isOpen={isInviteLinkOpen}
                         onClose={() => setIsInviteLinkOpen(false)}
                         conversationId={conversationId}
+                        participants={conversation?.participants || []}
+                        convoName={conversation?.groupName}
                         existingLink={conversation?.joinLink}
                     />
                 </>

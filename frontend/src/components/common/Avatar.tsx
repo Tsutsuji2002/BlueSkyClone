@@ -59,7 +59,7 @@ const Avatar: React.FC<AvatarProps> = ({
 
 
     return (
-        <div className={cn('relative inline-block', className)}>
+        <div className={cn('relative inline-block rounded-full')}>
             {src && !hasError ? (
                 <img
                     src={computedSrc}
