@@ -36,17 +36,22 @@ const GroupAvatar: React.FC<GroupAvatarProps> = ({
         xl: 'lg',
     };
 
-    // Correct overlapping offsets
+    // Correct overlapping offsets to match official sample
     const offsets = {
         2: [
             'top-0 left-0 z-20',
             'bottom-0 right-0 z-10'
         ],
         3: [
-            'top-0 left-0 z-30',
-            'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20',
-            'bottom-0 right-0 z-10'
+            'top-[-2px] left-[-2px] z-30', // P1: Largest, Top Left
+            'top-[62px] left-[38px] z-20', // P2: Medium, Bottom Right-ish
+            'top-[18px] left-[71px] z-10'  // P3: Smallest, Top Right
         ]
+    };
+
+    // Specific sizes for 3-avatar layout to match official sample
+    const individualSizes = {
+        3: [68, 56, 46]
     };
 
     if (users.length === 0) return null;
@@ -75,7 +80,7 @@ const GroupAvatar: React.FC<GroupAvatarProps> = ({
                         src={user.avatarUrl || user.avatar}
                         alt={user.displayName || 'User'}
                         // @ts-ignore
-                        size={avatarSizes[size]}
+                        size={individualSizes[visibleUsers.length as keyof typeof individualSizes]?.[index] || avatarSizes[size]}
                         hasBorder={true}
                         // Use a specific class for the ring that matches the app background
                         className="ring-2 ring-white dark:ring-black"

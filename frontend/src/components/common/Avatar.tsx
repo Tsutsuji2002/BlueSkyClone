@@ -22,6 +22,10 @@ const Avatar: React.FC<AvatarProps> = ({
         '2xl': 'w-24 h-24 lg:w-32 lg:h-32',
     };
 
+    const isNumericSize = typeof size === 'number';
+    const computedSizeStyle = isNumericSize ? { width: size, height: size } : {};
+    const sizeClassName = isNumericSize ? '' : sizeStyles[size as keyof typeof sizeStyles];
+
     const onlineIndicatorSize = {
         xs: 'w-1.5 h-1.5',
         sm: 'w-2 h-2',
@@ -66,22 +70,24 @@ const Avatar: React.FC<AvatarProps> = ({
                     alt={alt}
                     onError={() => setHasError(true)}
                     className={cn(
-                        sizeStyles[size],
+                        sizeClassName,
                         'rounded-full object-cover',
                         hasBorder && (borderColor || 'border-2 border-white dark:border-dark-bg'),
                         className
                     )}
+                    style={computedSizeStyle}
                     referrerPolicy="no-referrer"
                     loading="lazy"
                 />
             ) : (
                 <div
                     className={cn(
-                        sizeStyles[size],
+                        sizeClassName,
                         'rounded-full bg-gray-100 dark:bg-dark-surface-hover flex items-center justify-center text-gray-400 dark:text-dark-text-secondary',
                         hasBorder && (borderColor || 'border-2 border-white dark:border-dark-bg'),
                         className
                     )}
+                    style={computedSizeStyle}
                 >
                     <svg 
                         viewBox="0 0 24 24" 

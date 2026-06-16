@@ -27,40 +27,42 @@ const InvitePreviewCard: React.FC<InvitePreviewCardProps> = ({
 
     // If no name, generate one based on participants
     const displayName = name || (participants.length > 0 
-        ? `Group with ${participants.map(p => p.handle).join(', ')}`.slice(0, 45) + (participants.length > 2 ? '...' : '')
+        ? `Group with ${participants.map(p => p.handle?.includes(':') ? p.displayName || p.handle.slice(0, 10) + '...' : p.handle).join(', ')}`.slice(0, 45) + (participants.length > 2 ? '...' : '')
         : 'Invite to group chat');
 
     return (
-        <div className="w-full bg-white dark:bg-dark-surface border border-[#A5B2C7]/50 rounded-[16px] overflow-hidden p-4 flex flex-col gap-4 shadow-sm">
-            <div className="flex flex-row gap-3 items-center">
+        <div className="w-full bg-white dark:bg-dark-surface border border-[#A5B2C7] rounded-[16px] overflow-hidden p-4 flex flex-col gap-[16px] shadow-sm relative">
+            <div className="flex flex-row gap-[12px] items-center">
                 {/* Group Avatar with 3 visible in preview as per sample */}
-                <div className="flex-shrink-0">
-                    <GroupAvatar 
-                        users={participants} 
-                        size="md" 
-                        maxVisible={3}
-                    />
+                <div className="flex-shrink-0 p-[2px] w-[56px] h-[56px]">
+                    <div className="transform scale-[0.466667] origin-top-left -mt-[2px] -ml-[2px]">
+                        <GroupAvatar 
+                            users={participants} 
+                            size="md" 
+                            maxVisible={3}
+                        />
+                    </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                    <h3 className="text-[16.9px] font-bold text-black dark:text-white leading-tight truncate">
+                <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                    <h3 className="text-[16.9px] font-[700] text-black dark:text-white leading-[22px] tracking-[0.25px] line-clamp-1">
                         {displayName}
                     </h3>
-                    <div className="flex flex-row items-center gap-2 mt-0.5">
-                        <span className="text-[9.4px] font-bold text-[#405168] dark:text-gray-400 uppercase tracking-tight">
+                    <div className="flex flex-row items-center gap-[8px]">
+                        <span className="text-[9.4px] font-[500] text-[#232E3E] dark:text-gray-400 leading-[12px] tracking-[0.25px]">
                             {t('messages.group_chat', 'Group chat')}
                         </span>
-                        <span className="text-[9.4px] font-bold text-[#405168] dark:text-gray-400 uppercase tracking-tight">
-                            {memberCount}/{maxMembers} members
+                        <span className="text-[9.4px] font-[500] text-[#232E3E] dark:text-gray-400 leading-[11px] tracking-[0.25px]">
+                            {memberCount > 0 ? `${memberCount}/${maxMembers} members` : `3/${maxMembers} members`}
                         </span>
                     </div>
-                    {creator && (
-                        <div className="flex flex-row items-center gap-1 mt-1">
-                            <span className="text-[13.1px] text-[#405168] dark:text-gray-400">
-                                By {creator.displayName}
+                    {(creator || participants[0]) && (
+                        <div className="flex flex-row items-center gap-[4px] mt-[2px]">
+                            <span className="text-[13.1px] font-[500] text-black dark:text-white leading-[17px] tracking-[0.25px]">
+                                By <span className="hover:underline cursor-pointer">{creator?.displayName || creator?.handle || participants[0]?.displayName || participants[0]?.handle}</span>
                             </span>
-                            <span className="text-[13.1px] text-[#405168]/60 dark:text-gray-500 truncate">
-                                @{creator.handle}
+                            <span className="text-[13.1px] text-[#405168] dark:text-gray-500 leading-[17px] tracking-[0.25px] truncate">
+                                @{creator?.handle || participants[0]?.handle}
                             </span>
                         </div>
                     )}
@@ -68,11 +70,14 @@ const InvitePreviewCard: React.FC<InvitePreviewCardProps> = ({
             </div>
 
             <button 
-                className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-2.5 rounded-full flex items-center justify-center gap-2 text-white font-bold text-[13.1px] transition-colors"
+                className="w-full bg-[rgb(0,106,255)] hover:opacity-90 py-[9px] px-[28px] rounded-full flex items-center justify-center gap-[5px] text-white font-[500] text-[13.1px] leading-[17px] tracking-[0.25px] transition-colors"
                 disabled
+                type="button"
             >
-                {t('messages.open_chat', 'Open chat')}
-                <FiArrowRight size={16} />
+                <span className="flex-1 text-center">{t('messages.open_chat', 'Open chat')}</span>
+                <div className="w-[17px] h-[17px] flex items-center justify-center -mr-[2px]">
+                    <FiArrowRight size={16} />
+                </div>
             </button>
         </div>
     );

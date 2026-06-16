@@ -16,6 +16,7 @@ interface ExtendedModalsState extends ModalsState {
         chatMetadata?: {
             participants: any[];
             groupName: string;
+            creator?: any;
         };
     };
     deleteConfirm: DeleteConfirmState;
@@ -93,7 +94,7 @@ const modalsSlice = createSlice({
     name: 'modals',
     initialState,
     reducers: {
-        openCreatePost: (state, action: PayloadAction<{ initialContent?: string; chatMetadata?: { participants: any[]; groupName: string } } | undefined>) => {
+        openCreatePost: (state, action: PayloadAction<{ initialContent?: string; chatMetadata?: { participants: any[]; groupName: string; creator?: any } } | undefined>) => {
             state.createPost = {
                 isOpen: true,
                 initialContent: action.payload?.initialContent,

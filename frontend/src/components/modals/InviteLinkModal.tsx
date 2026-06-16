@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiLink, FiCopy, FiEdit, FiTrash2, FiShare2, FiArrowRight } from 'react-icons/fi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { useAppSelector } from '../../hooks/useAppSelector';
+import { RootState } from '../../redux/store';
 import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
 
@@ -31,6 +33,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
     existingLink 
 }) => {
     const dispatch = useAppDispatch();
+    const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const [step, setStep] = useState<Step>('intro');
     const [rule, setRule] = useState<string>('anyone');
     const [requireApproval, setRequireApproval] = useState<boolean>(false);
@@ -418,7 +421,8 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                 initialContent: fetchedLink.link,
                 chatMetadata: {
                     participants,
-                    groupName: convoName || ''
+                    groupName: convoName || '',
+                    creator: currentUser
                 }
             }));
             onClose();
