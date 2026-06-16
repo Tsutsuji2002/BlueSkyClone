@@ -13,6 +13,10 @@ interface ExtendedModalsState extends ModalsState {
     createPost: {
         isOpen: boolean;
         initialContent?: string;
+        chatMetadata?: {
+            participants: any[];
+            groupName: string;
+        };
     };
     deleteConfirm: DeleteConfirmState;
     report: {
@@ -32,6 +36,7 @@ const initialState: ExtendedModalsState = {
     createPost: {
         isOpen: false,
         initialContent: undefined,
+        chatMetadata: undefined,
     },
     editProfile: false,
     imageViewer: {
@@ -88,10 +93,11 @@ const modalsSlice = createSlice({
     name: 'modals',
     initialState,
     reducers: {
-        openCreatePost: (state, action: PayloadAction<{ initialContent?: string } | undefined>) => {
+        openCreatePost: (state, action: PayloadAction<{ initialContent?: string; chatMetadata?: { participants: any[]; groupName: string } } | undefined>) => {
             state.createPost = {
                 isOpen: true,
                 initialContent: action.payload?.initialContent,
+                chatMetadata: action.payload?.chatMetadata,
             };
         },
         closeCreatePost: (state) => {

@@ -568,12 +568,12 @@ const CreatePostModal: React.FC = () => {
                                         </button>
                                         
                                         {/* Special handling for chat invite links */}
-                                        {linkPreview.url.includes('/chat/') ? (
+                                        {(linkPreview.url.includes('/chat/') || linkPreview.url.includes('/messages/join/')) ? (
                                             <div className="p-0">
                                                 <InvitePreviewCard 
-                                                    participants={[]} // We might need to fetch this or pass it through state
+                                                    participants={createPostState.chatMetadata?.participants || []}
                                                     inviteLink={linkPreview.url}
-                                                    name={linkPreview.title}
+                                                    name={createPostState.chatMetadata?.groupName || linkPreview.title}
                                                 />
                                             </div>
                                         ) : (

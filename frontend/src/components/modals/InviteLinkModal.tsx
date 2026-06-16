@@ -414,7 +414,13 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
 
     const handlePostLink = () => {
         if (fetchedLink?.link) {
-            dispatch(openCreatePost({ initialContent: fetchedLink.link }));
+            dispatch(openCreatePost({ 
+                initialContent: fetchedLink.link,
+                chatMetadata: {
+                    participants,
+                    groupName: convoName || ''
+                }
+            }));
             onClose();
         }
     };
