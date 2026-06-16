@@ -213,7 +213,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                 dispatch(fetchConversationById(conversationId));
             }
         }
-    }, [conversationId, dispatch]);
+    }, [conversationId, dispatch, isSessionSettled]);
 
     // Reliable Join conversation
     useEffect(() => {
