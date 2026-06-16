@@ -23,7 +23,7 @@ const SharePostModal: React.FC = () => {
         if (isOpen) console.log('SharePostModal OPEN. Post ID:', post?.id);
     }, [isOpen, post]);
 
-    const { conversations, isLoading } = useAppSelector((state: RootState) => state.messages);
+    const { conversations, isConversationsLoading: isLoading } = useAppSelector((state: RootState) => state.messages);
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
 
     const [searchQuery, setSearchQuery] = useState('');
