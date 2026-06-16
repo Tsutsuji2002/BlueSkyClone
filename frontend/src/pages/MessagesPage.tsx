@@ -4,6 +4,7 @@ import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { fetchConversations, fetchChatSettings, updateChatSettings, acceptConversation, deleteConversation } from '../redux/slices/messagesSlice';
 import ConversationItem from '../components/messages/ConversationItem';
+import SkeletonConversationItem from '../components/messages/SkeletonConversationItem';
 import { FiSearch, FiMenu, FiArrowLeft, FiMoreHorizontal } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
@@ -18,7 +19,7 @@ const MessagesPage: React.FC = () => {
     const location = useLocation();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { conversations, isLoading, hasMoreConversations, conversationsCursor, isLoadingMoreConversations } = useAppSelector((state: RootState) => state.messages);
+    const { conversations, isConversationsLoading, hasMoreConversations, conversationsCursor, isLoadingMoreConversations } = useAppSelector((state: RootState) => state.messages);
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const { conversationId } = useParams<{ conversationId: string }>();
     
@@ -80,7 +81,7 @@ const MessagesPage: React.FC = () => {
     };
 
     useEffect(() => {
-        if (!hasMoreConversations || isLoadingMoreConversations || isLoading || searchQuery) return;
+        if (!hasMoreConversations || isLoadingMoreConversations || isConversationsLoading || searchQuery) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
@@ -96,7 +97,7 @@ const MessagesPage: React.FC = () => {
         }
 
         return () => observer.disconnect();
-    }, [dispatch, hasMoreConversations, isLoadingMoreConversations, isLoading, conversationsCursor, searchQuery, isInboxView]);
+    }, [dispatch, hasMoreConversations, isLoadingMoreConversations, isConversationsLoading, conversationsCursor, searchQuery, isInboxView]);
 
     const handleConversationClick = (id: string) => {
         navigate(`/messages/${id}`);
@@ -309,12 +310,11 @@ const MessagesPage: React.FC = () => {
 
                 {/* Conversations List */}
                 <div className="flex-1 overflow-y-auto bg-white dark:bg-black no-scrollbar scrollbar-thin scrollbar-color-[#dce2ea] transparent">
-                    {isLoading && conversations.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center p-20">
-                            <LoadingIndicator size="lg" />
-                            <p className="mt-4 text-gray-400 dark:text-dark-text-secondary animate-pulse text-sm">
-                                {t('messages.loading_conversations')}
-                            </p>
+                    {isConversationsLoading && conversations.length === 0 ? (
+                        <div className="space-y-px px-2 pt-2">
+                            {[...Array(8)].map((_, i) => (
+                                <SkeletonConversationItem key={i} />
+                            ))}
                         </div>
                     ) : (
                         <div className="pt-2 pb-8">

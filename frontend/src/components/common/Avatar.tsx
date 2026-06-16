@@ -8,6 +8,8 @@ const Avatar: React.FC<AvatarProps> = ({
     alt,
     size = 'md',
     online = false,
+    hasBorder = true,
+    borderColor,
     className,
 }) => {
     const [hasError, setHasError] = useState(false);
@@ -65,7 +67,8 @@ const Avatar: React.FC<AvatarProps> = ({
                     onError={() => setHasError(true)}
                     className={cn(
                         sizeStyles[size],
-                        'rounded-full object-cover border-2 border-white dark:border-dark-bg',
+                        'rounded-full object-cover',
+                        hasBorder && (borderColor || 'border-2 border-white dark:border-dark-bg'),
                         className
                     )}
                     referrerPolicy="no-referrer"
@@ -75,7 +78,8 @@ const Avatar: React.FC<AvatarProps> = ({
                 <div
                     className={cn(
                         sizeStyles[size],
-                        'rounded-full bg-gray-100 dark:bg-dark-surface-hover flex items-center justify-center text-gray-400 dark:text-dark-text-secondary border-2 border-white dark:border-dark-bg',
+                        'rounded-full bg-gray-100 dark:bg-dark-surface-hover flex items-center justify-center text-gray-400 dark:text-dark-text-secondary',
+                        hasBorder && (borderColor || 'border-2 border-white dark:border-dark-bg'),
                         className
                     )}
                 >

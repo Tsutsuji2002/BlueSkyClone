@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash, FiSettings, FiX, FiRotateCcw, FiChevronDown, FiPlus, FiImage, FiMail } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
+import GroupAvatar from '../components/messages/GroupAvatar';
+import MessageSkeleton from '../components/messages/MessageSkeleton';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
@@ -161,7 +163,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const messageMenuRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-    const { conversations, activeConversationMessages, isLoading, hasMore, isLoadingMore } = useAppSelector((state: RootState) => state.messages);
+    const { conversations, activeConversationMessages, isMessagesLoading, hasMore, isLoadingMore } = useAppSelector((state: RootState) => state.messages);
     const { isAuthenticated, user: currentUser, isLoading: authLoading, isSessionSettled } = useAppSelector((state: RootState) => state.auth);
     const { mode } = useAppSelector((state: RootState) => state.theme);
     const conversation = conversations.find((c: Conversation) => c.id === conversationId);
@@ -531,22 +533,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                             <FiArrowLeft size={20} className="text-gray-600 dark:text-dark-text" />
                         </button>
                         {isGroup && otherParticipants.length >= 2 ? (
-                            <div className="relative w-10 h-10">
-                                <div className="absolute top-0 left-0 z-20 border-2 border-white dark:border-[#161e27] rounded-full overflow-hidden w-[28px] h-[28px]">
-                                    <Avatar
-                                        src={otherParticipants[0].avatarUrl || otherParticipants[0].avatar}
-                                        alt={otherParticipants[0].displayName}
-                                        size="xs"
-                                    />
-                                </div>
-                                <div className="absolute bottom-0 right-0 z-10 border-2 border-white dark:border-[#161e27] rounded-full overflow-hidden w-[28px] h-[28px]">
-                                    <Avatar
-                                        src={otherParticipants[1].avatarUrl || otherParticipants[1].avatar}
-                                        alt={otherParticipants[1].displayName}
-                                        size="xs"
-                                    />
-                                </div>
-                            </div>
+                            <GroupAvatar 
+                                users={otherParticipants}
+                                size="md"
+                            />
                         ) : (
                             <Avatar
                                 src={otherParticipant?.avatarUrl || otherParticipant?.avatar}
@@ -623,34 +613,23 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                 >
-                    {isLoading && activeConversationMessages.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center p-10">
-                            <LoadingIndicator size="lg" />
-                            <p className="mt-4 text-gray-500 dark:text-dark-text-secondary animate-pulse text-sm">
-                                Loading conversation...
-                            </p>
+                    {isMessagesLoading && activeConversationMessages.length === 0 ? (
+                        <div className="flex-1 flex flex-col p-4">
+                            <MessageSkeleton isMe={false} />
+                            <MessageSkeleton isMe={true} />
+                            <MessageSkeleton isMe={false} />
+                            <MessageSkeleton isMe={false} />
+                            <MessageSkeleton isMe={true} />
                         </div>
                     ) : (activeConversationMessages.filter(m => m.content || m.imageUrl || m.isRecalled).length === 0) ? (
                         <div className="flex-1 flex flex-col items-center pt-8 pb-12">
                             {isGroup ? (
                                 <>
-                                    <div className="relative flex items-center mb-6" style={{width: '96px', height: '56px'}}>
-                                        <div className="absolute left-0 z-20">
-                                            <Avatar
-                                                src={otherParticipants[0]?.avatarUrl || otherParticipants[0]?.avatar}
-                                                alt={otherParticipants[0]?.displayName}
-                                                size="xl"
-                                                className="ring-4 ring-white dark:ring-black"
-                                            />
-                                        </div>
-                                        <div className="absolute left-8 z-10">
-                                            <Avatar
-                                                src={otherParticipants[1]?.avatarUrl || otherParticipants[1]?.avatar}
-                                                alt={otherParticipants[1]?.displayName}
-                                                size="xl"
-                                                className="ring-4 ring-white dark:ring-black"
-                                            />
-                                        </div>
+                                    <div className="mb-6">
+                                        <GroupAvatar 
+                                            users={otherParticipants}
+                                            size="xl"
+                                        />
                                     </div>
                                     <h3 className="text-[20.6px] font-bold text-gray-900 dark:text-dark-text mb-1 px-4 text-center leading-tight">
                                         {groupDisplayName}

@@ -619,6 +619,8 @@ export interface AvatarProps {
     alt: string;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     online?: boolean;
+    hasBorder?: boolean;
+    borderColor?: string;
     className?: string;
 }
 

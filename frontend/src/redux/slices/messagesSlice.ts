@@ -9,7 +9,8 @@ interface MessagesState {
     hasMoreConversations: boolean;
     activeConversationMessages: Message[];
     activeConversationId: string | null;
-    isLoading: boolean;
+    isConversationsLoading: boolean;
+    isMessagesLoading: boolean;
     isLoadingMore: boolean;
     isLoadingMoreConversations: boolean;
     hasMore: boolean;
@@ -22,7 +23,8 @@ const initialState: MessagesState = {
     hasMoreConversations: true,
     activeConversationMessages: [],
     activeConversationId: null,
-    isLoading: false,
+    isConversationsLoading: false,
+    isMessagesLoading: false,
     isLoadingMore: false,
     isLoadingMoreConversations: false,
     hasMore: true,
@@ -391,7 +393,8 @@ const messagesSlice = createSlice({
             state.hasMoreConversations = true;
             state.activeConversationMessages = [];
             state.activeConversationId = null;
-            state.isLoading = false;
+            state.isConversationsLoading = false;
+            state.isMessagesLoading = false;
             state.isLoadingMore = false;
             state.isLoadingMoreConversations = false;
             state.hasMore = true;
@@ -404,11 +407,11 @@ const messagesSlice = createSlice({
                 if (action.meta.arg?.cursor) {
                     state.isLoadingMoreConversations = true;
                 } else {
-                    state.isLoading = true;
+                    state.isConversationsLoading = true;
                 }
             })
             .addCase(fetchConversations.fulfilled, (state, action) => {
-                state.isLoading = false;
+                state.isConversationsLoading = false;
                 state.isLoadingMoreConversations = false;
                 const { conversations, isLoadMore } = action.payload;
                 
@@ -422,7 +425,7 @@ const messagesSlice = createSlice({
                 state.conversationsCursor = conversations.length > 0 ? conversations[conversations.length - 1].id : state.conversationsCursor;
             })
             .addCase(fetchConversations.rejected, (state, action) => {
-                state.isLoading = false;
+                state.isConversationsLoading = false;
                 state.isLoadingMoreConversations = false;
                 state.error = action.payload as string;
             })
@@ -439,7 +442,7 @@ const messagesSlice = createSlice({
                 if (action.meta.arg.before) {
                     state.isLoadingMore = true;
                 } else {
-                    state.isLoading = true;
+                    state.isMessagesLoading = true;
                     // Only clear if conversation changed, to prevent flickers on refresh
                     if (state.activeConversationId !== action.meta.arg.conversationId) {
                         state.activeConversationMessages = [];
@@ -447,7 +450,7 @@ const messagesSlice = createSlice({
                 }
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {
-                state.isLoading = false;
+                state.isMessagesLoading = false;
                 state.isLoadingMore = false;
                 const { messages, isLoadMore } = action.payload;
 
@@ -460,7 +463,7 @@ const messagesSlice = createSlice({
                 state.hasMore = messages.length >= (action.meta.arg.limit || 50);
             })
             .addCase(fetchMessages.rejected, (state, action) => {
-                state.isLoading = false;
+                state.isMessagesLoading = false;
                 state.isLoadingMore = false;
                 state.error = action.payload as string;
             })
