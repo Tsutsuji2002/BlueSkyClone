@@ -814,6 +814,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                 <div className="flex-shrink-0 mb-1">
                                                     <Avatar 
                                                         src={msg.sender?.avatarUrl || msg.sender?.avatar} 
+                                                        alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
                                                         size="xs" 
                                                         className="w-7 h-7"
                                                     />
