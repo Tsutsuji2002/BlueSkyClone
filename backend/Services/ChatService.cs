@@ -403,7 +403,8 @@ public class ChatService : IChatService
             IsRead = false,
             IsDeleted = false,
             IsModified = false,
-            IsRecalled = false
+            IsRecalled = false,
+            Type = "message"
         };
 
         if (!string.IsNullOrEmpty(content))
@@ -863,7 +864,8 @@ public class ChatService : IChatService
                 Domain = m.LinkPreview.Domain
             },
             m.ReplyTo != null ? MapToMessageDtoSimple(m.ReplyTo) : null,
-            m.Reactions?.Select(r => new MessageReactionDto(r.UserId.ToString(), r.Emoji, r.User?.DisplayName)).ToList()
+            m.Reactions?.Select(r => new MessageReactionDto(r.UserId.ToString(), r.Emoji, r.User?.DisplayName)).ToList(),
+            m.Type ?? "message"
         );
     }
 
@@ -879,7 +881,11 @@ public class ChatService : IChatService
             m.IsRead ?? false,
             m.IsModified,
             m.IsRecalled,
-            m.Sender != null ? MapToUserDto(m.Sender) : null
+            m.Sender != null ? MapToUserDto(m.Sender) : null,
+            null,
+            null,
+            null,
+            m.Type ?? "message"
         );
     }
 
@@ -1001,7 +1007,9 @@ public class ChatService : IChatService
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
 
-        return await _chatProxy.CreateJoinLinkAsync(token, conversationId, requireApproval, joinRule);
+        var result = await _chatProxy.CreateJoinLinkAsync(token, conversationId, requireApproval, joinRule);
+        await LogSystemEventAsync(Guid.Parse(conversationId), userId, "invite_link_created");
+        return result;
     }
 
     public async Task<JoinLinkDto> EditJoinLinkAsync(Guid userId, string conversationId, bool? requireApproval = null, string? joinRule = null)
@@ -1009,7 +1017,9 @@ public class ChatService : IChatService
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
 
-        return await _chatProxy.EditJoinLinkAsync(token, conversationId, requireApproval, joinRule);
+        var result = await _chatProxy.EditJoinLinkAsync(token, conversationId, requireApproval, joinRule);
+        await LogSystemEventAsync(Guid.Parse(conversationId), userId, "invite_link_edited");
+        return result;
     }
 
     public async Task<JoinLinkDto> EnableInviteLinkAsync(Guid userId, string conversationId)
@@ -1025,6 +1035,36 @@ public class ChatService : IChatService
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
 
-        return await _chatProxy.DisableJoinLinkAsync(token, conversationId);
+        var result = await _chatProxy.DisableJoinLinkAsync(token, conversationId);
+        await LogSystemEventAsync(Guid.Parse(conversationId), userId, "invite_link_disabled");
+        return result;
+    }
+
+    private async Task LogSystemEventAsync(Guid conversationId, Guid userId, string type, string? content = null)
+    {
+        var message = new Message
+        {
+            Id = Guid.NewGuid(),
+            Tid = GenerateTid(),
+            ConversationId = conversationId,
+            SenderId = userId,
+            Content = content,
+            CreatedAt = DateTime.UtcNow,
+            IsRead = false,
+            IsDeleted = false,
+            IsModified = false,
+            IsRecalled = false,
+            Type = type
+        };
+
+        await _unitOfWork.Messages.AddAsync(message);
+        await _unitOfWork.CompleteAsync();
+        
+        // Invalidate cache
+        await _cacheService.RemoveAsync($"conv:{conversationId}:messages");
+        
+        // Notify via SignalR (optional but recommended)
+        var dto = MapToMessageDto(message);
+        await _hubContext.Clients.Group(conversationId.ToString()).SendAsync("ReceiveMessage", dto);
     }
 }

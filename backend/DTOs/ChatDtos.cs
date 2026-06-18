@@ -33,7 +33,9 @@ public record MessageDto(
     UserDto? Sender = null,
     LinkPreviewDto? LinkPreview = null,
     MessageDto? ReplyTo = null,
-    List<MessageReactionDto>? Reactions = null
+    List<MessageReactionDto>? Reactions = null,
+    string Type = "message",
+    Dictionary<string, string>? Metadata = null
 );
 
 public record SendMessageRequest(

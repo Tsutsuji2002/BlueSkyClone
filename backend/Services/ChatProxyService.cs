@@ -107,12 +107,42 @@ namespace BSkyClone.Services
 
             // Parallelize enrichment
             var enrichmentTasks = data.Logs
-                .Where(log => log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
-                .Select(log => EnrichMessageAsync(MapToMessageDto(log.Message!, log.ConvoId ?? "")))
+                .Select(async log => 
+                {
+                    if (log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
+                    {
+                        return await EnrichMessageAsync(MapToMessageDto(log.Message!, log.ConvoId ?? ""));
+                    }
+                    
+                    // Handle other log types as system events
+                    if (log.ConvoId != null)
+                    {
+                        var type = log.Type.Split('#').Last();
+                        // Special handling for member and group actions
+                        return new MessageDto(
+                            Guid.NewGuid().ToString(),
+                            log.ConvoId,
+                            "system",
+                            null,
+                            null,
+                            DateTimeOffset.UtcNow,
+                            true,
+                            false,
+                            false,
+                            null,
+                            null,
+                            null,
+                            null,
+                            type,
+                            new Dictionary<string, string> { { "rev", log.Rev ?? "" } }
+                        );
+                    }
+                    return null;
+                })
                 .ToList();
 
-            var messages = await Task.WhenAll(enrichmentTasks);
-            return messages.OrderBy(m => m.CreatedAt);
+            var results = await Task.WhenAll(enrichmentTasks);
+            return results.Where(m => m != null).Cast<MessageDto>().OrderBy(m => m.CreatedAt);
         }
 
         private async Task<MessageDto> EnrichMessageAsync(MessageDto dto)

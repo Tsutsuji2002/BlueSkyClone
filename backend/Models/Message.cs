@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace BSkyClone.Models;
@@ -22,6 +22,7 @@ public partial class Message
     public bool IsModified { get; set; }
     public bool IsRecalled { get; set; }
     public bool? IsDeleted { get; set; }
+    public string Type { get; set; } = "message";
 
     public Guid? ReplyToId { get; set; }
     public virtual Message? ReplyTo { get; set; }

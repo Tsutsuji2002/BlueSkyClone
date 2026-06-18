@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash, FiSettings, FiX, FiRotateCcw, FiChevronDown, FiPlus, FiImage, FiMail } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiSmile, FiSend, FiUser, FiBellOff, FiUserX, FiFlag, FiLogOut, FiCornerUpLeft, FiEdit3, FiTrash2, FiShare2, FiSearch, FiGlobe, FiCopy, FiTrash, FiSettings, FiX, FiRotateCcw, FiChevronDown, FiPlus, FiImage, FiMail, FiActivity } from 'react-icons/fi';
 import Avatar from '../components/common/Avatar';
 import GroupAvatar from '../components/messages/GroupAvatar';
 import MessageSkeleton from '../components/messages/MessageSkeleton';
@@ -39,6 +39,59 @@ const extractPostDetails = (content: string) => {
     const match = content.match(/profile\/([\w.-]+)\/post\/([a-zA-Z0-9-]+)/);
     if (!match) return null;
     return { handle: match[1], postId: match[2] };
+};
+
+// Sub-component for grouping system events
+const ChatActivityGroup = ({ events, t, i18n }: { events: Message[], t: any, i18n: any }) => {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+
+    if (events.length === 0) return null;
+
+    const getEventText = (event: Message) => {
+        const type = event.type;
+        switch (type) {
+            case 'invite_link_created':
+                return t('messages.updates.invite_link_created', 'Invite link created');
+            case 'invite_link_edited':
+                return t('messages.updates.invite_link_edited', 'Invite link edited');
+            case 'invite_link_disabled':
+                return t('messages.updates.invite_link_disabled', 'Invite link disabled');
+            case 'logUpdateConversation':
+                return t('messages.updates.conversation_updated', 'Conversation updated');
+            case 'logLeaveConversation':
+                return t('messages.updates.left_conversation', 'Member left');
+            default:
+                return type?.replace(/([A-Z])/g, ' $1').trim() || t('messages.updates.unknown', 'Chat update');
+        }
+    };
+
+    return (
+        <div className="flex flex-col items-center w-full my-4 px-4">
+            <button 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover rounded-full text-[12.5px] font-semibold text-gray-600 dark:text-dark-text-secondary transition-all"
+            >
+                <FiActivity size={14} className="text-gray-400" />
+                <span>{t('messages.updates.count', '{{count}} chat updates', { count: events.length })}</span>
+                <FiChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isExpanded && (
+                <div className="flex flex-col items-center gap-2 mt-3 w-full animate-in fade-in slide-in-from-top-1 duration-200">
+                    {events.map((event, idx) => (
+                        <div key={event.id || idx} className="flex flex-col items-center gap-0.5">
+                            <span className="text-[12px] text-gray-500 dark:text-dark-text-secondary text-center">
+                                {getEventText(event)}
+                            </span>
+                            <span className="text-[10px] text-gray-400 dark:text-dark-text-secondary/60">
+                                {formatChatMessageDate(event.createdAt, i18n.language)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
 
 const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
@@ -714,17 +767,72 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                 </div>
                             )}
                             <div className="flex-grow min-h-0"></div>
-                            {activeConversationMessages.filter(m => m.content || m.imageUrl || m.isRecalled).map((msg: Message) => {
-                                 const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
-                                 
-                                return (
-                                    <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[15%] sm:pl-[20%]' : 'items-start pr-[15%] sm:pr-[20%]'} group/msg relative mb-2 ${msg.isSending ? 'opacity-60' : 'opacity-100'} transition-opacity duration-150`}>
-                                        <div className={`flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-2 max-w-full w-full ${isMe ? 'justify-start' : 'justify-start'}`}>
-                                            <div className="relative min-w-0 max-w-full">
-                                                <div className={`overflow-hidden ${isMe
-                                                    ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
-                                                    : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
-                                                    }`}>
+                            {(() => {
+                                const filteredMessages = activeConversationMessages.filter(m => m.type !== 'message' || m.content || m.imageUrl || m.isRecalled);
+                                
+                                // Group consecutive system events
+                                const chunks: (Message | Message[])[] = [];
+                                filteredMessages.forEach(msg => {
+                                    if (msg.type === 'message') {
+                                        chunks.push(msg);
+                                    } else {
+                                        const lastChunk = chunks[chunks.length - 1];
+                                        if (Array.isArray(lastChunk)) {
+                                            lastChunk.push(msg);
+                                        } else {
+                                            chunks.push([msg]);
+                                        }
+                                    }
+                                });
+
+                                return chunks.map((chunk, chunkIndex) => {
+                                    if (Array.isArray(chunk)) {
+                                        return (
+                                            <ChatActivityGroup 
+                                                key={`group-${chunkIndex}`} 
+                                                events={chunk} 
+                                                t={t}
+                                                i18n={i18n}
+                                            />
+                                        );
+                                    }
+
+                                    const msg = chunk;
+                                    const index = filteredMessages.indexOf(msg);
+                                    const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
+                                    const isGroup = (conversation?.participants?.length ?? 0) > 2 || !!conversation?.groupName;
+                                    
+                                    // Check if we should show the sender name (only in groups, for others, and if different from previous sender)
+                                    const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
+                                    const showSenderInfo = isGroup && !isMe && (!prevMsg || (prevMsg.senderId !== msg.senderId && prevMsg.sender?.did !== msg.sender?.did && prevMsg.type === 'message'));
+
+                                    return (
+                                        <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[12%] sm:pl-[20%]' : 'items-start pr-[12%] sm:pr-[20%]'} group/msg relative mb-2 ${msg.isSending ? 'opacity-60' : 'opacity-100'} transition-opacity duration-150`}>
+                                        <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-1 max-w-full w-full`}>
+                                            {/* Group Chat: Show Avatar for others */}
+                                            {isGroup && !isMe && (
+                                                <div className="flex-shrink-0 mb-1">
+                                                    <Avatar 
+                                                        src={msg.sender?.avatarUrl || msg.sender?.avatar} 
+                                                        size="xs" 
+                                                        className="w-7 h-7"
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col min-w-0 max-w-full">
+                                                {/* Group Chat: Show Handle/Name for others if first in cluster */}
+                                                {showSenderInfo && (
+                                                    <span className="text-[11.5px] font-semibold text-gray-500 dark:text-dark-text-secondary ml-1 mb-0.5 truncate">
+                                                        {msg.sender?.displayName || `@${msg.sender?.handle}`}
+                                                    </span>
+                                                )}
+
+                                                <div className="relative group/bubble">
+                                                    <div className={`overflow-hidden ${isMe
+                                                        ? 'bg-[#0085ff] text-white rounded-2xl rounded-tr-none shadow-sm shadow-primary-500/10'
+                                                        : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
+                                                        }`}>
                                                     {msg.replyTo && !msg.isRecalled && (
                                                         <div className={`mx-2 mt-2 p-2 rounded-lg text-xs border-l-2 bg-black/5 dark:bg-white/5 flex flex-col gap-1 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${isMe ? 'border-white/50' : 'border-primary-500/50'}`}
                                                             onClick={() => {
@@ -781,6 +889,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                             )}
                                                         </>
                                                     )}
+                                                    </div>
                                                 </div>
 
                                                 {/* Reactions */}
@@ -808,7 +917,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                     );
                                                 })()}
                                             </div>
-                                            
+
                                             <div className="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 mb-1 z-10">
                                                 <div className="relative">
                                                     <button
@@ -924,7 +1033,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                         </div>
                                     </div>
                                 );
-                            })}
+                                });
+                            })()}
                         </>
                     )}
                 </div>
