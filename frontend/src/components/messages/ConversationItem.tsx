@@ -36,7 +36,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     const otherParticipant = otherParticipants[0] || conversation.participants[0];
 
     const groupDisplayName = conversation.groupName || (otherParticipants.length > 0
-        ? "Group with " + otherParticipants.map(p => p.handle ? `@${p.handle}` : p.displayName).join(', ')
+        ? otherParticipants.map(p => p.handle ? `@${p.handle}` : p.displayName).join(', ')
         : t('messages.group_chat', 'Group Chat'));
 
     const handleProfileClick = (e: React.MouseEvent) => {
