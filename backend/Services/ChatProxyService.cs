@@ -285,7 +285,7 @@ namespace BSkyClone.Services
         public async Task<ConversationDto> EditGroupAsync(string token, string conversationId, string displayName)
         {
             var url = $"{ChatEndpoint}/chat.bsky.group.editGroup";
-            var body = new { convoId = conversationId, displayName = displayName };
+            var body = new { convoId = conversationId, name = displayName };
 
             var response = await CallAsync(token, url, "POST", body);
             if (!response.IsSuccessStatusCode)
@@ -587,7 +587,7 @@ namespace BSkyClone.Services
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
-                convo.DisplayName, // GroupName from Bluesky API
+                convo.Name ?? convo.DisplayName, // GroupName from Bluesky API - try "name" first, fallback to "displayName"
                 convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null
             );
         }
@@ -690,6 +690,8 @@ namespace BSkyClone.Services
             public BlueskyMessage? LastMessage { get; set; }
             [JsonPropertyName("unreadCount")]
             public int UnreadCount { get; set; }
+            [JsonPropertyName("name")]
+            public string? Name { get; set; }
             [JsonPropertyName("displayName")]
             public string? DisplayName { get; set; }
             [JsonPropertyName("joinLink")]
