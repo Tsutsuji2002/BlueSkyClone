@@ -309,8 +309,8 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                 onConfirm={confirmLock}
                 title={t('messages.lock_group_chat', 'Lock group chat?')}
                 message={t('messages.lock_group_chat_message', "Members can still read chat history but can't send new messages.")}
-                confirmText={t('messages.lock_group_chat', 'Lock group chat')}
-                variant="warning"
+                confirmLabel={t('messages.lock_group_chat', 'Lock group chat')}
+                variant="primary"
             />
 
             {/* Leave Confirmation Modal */}
@@ -320,7 +320,7 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                 onConfirm={confirmLeave}
                 title={t('messages.leave_group', 'Are you sure you want to leave {{name}}?', { name: groupDisplayName })}
                 message={t('messages.leave_group_message', "Leaving this chat will lock it permanently and you won't be able to rejoin.")}
-                confirmText={t('messages.leave_group_chat', 'Leave group chat')}
+                confirmLabel={t('messages.leave_group_chat', 'Leave group chat')}
                 variant="danger"
             />
         </>
