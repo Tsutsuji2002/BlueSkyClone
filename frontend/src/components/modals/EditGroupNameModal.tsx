@@ -20,7 +20,7 @@ const EditGroupNameModal: React.FC<EditGroupNameModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const [groupName, setGroupName] = useState(currentName);
+    const [groupName, setGroupName] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -57,7 +57,7 @@ const EditGroupNameModal: React.FC<EditGroupNameModalProps> = ({
             }));
             onClose();
             
-            // Refresh the page to update the conversation name everywhere
+            // Refresh to update UI
             window.location.reload();
         } catch (error) {
             console.error('Error updating group name:', error);
@@ -73,48 +73,66 @@ const EditGroupNameModal: React.FC<EditGroupNameModalProps> = ({
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSave();
+            if (groupName.trim()) {
+                handleSave();
+            }
         }
     };
 
     if (!isOpen) return null;
 
+    const hasContent = groupName.trim().length > 0;
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={onClose}>
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" 
+            onClick={onClose}
+        >
             <div 
-                className="bg-white dark:bg-dark-surface rounded-2xl shadow-xl max-w-md w-full p-6" 
+                className="bg-white dark:bg-dark-surface rounded-2xl shadow-xl w-full max-w-md overflow-hidden" 
                 onClick={(e) => e.stopPropagation()}
             >
-                <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-dark-text">
-                    {t('messages.edit_group_name', 'Edit group name')}
-                </h2>
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-dark-text">
+                        {t('messages.edit_group_name', 'Edit group name')}
+                    </h2>
+                </div>
 
-                <input
-                    type="text"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t('messages.enter_group_name', 'Enter group name')}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent mb-4"
-                    maxLength={100}
-                    autoFocus
-                />
-
-                <div className="flex flex-col gap-2">
-                    <button
-                        onClick={handleSave}
-                        disabled={isLoading || !groupName.trim()}
-                        className="w-full px-4 py-3 rounded-full font-semibold bg-primary text-white hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isLoading ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
-                    </button>
-                    <button
-                        onClick={onClose}
-                        className="w-full px-4 py-3 rounded-full font-semibold text-gray-700 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
+                {/* Input */}
+                <div className="px-6 py-4">
+                    <input
+                        type="text"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={t('messages.enter_group_name', 'Enter group name')}
+                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                        maxLength={100}
+                        autoFocus
                         disabled={isLoading}
-                    >
-                        {t('common.cancel', 'Cancel')}
-                    </button>
+                    />
+                </div>
+
+                {/* Footer with dynamic button */}
+                <div className="px-6 py-4">
+                    {hasContent ? (
+                        <button
+                            onClick={handleSave}
+                            disabled={isLoading}
+                            className="w-full py-2.5 rounded-full font-semibold text-white bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        >
+                            {isLoading ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={onClose}
+                            disabled={isLoading}
+                            className="w-full py-2.5 rounded-full font-semibold text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors text-sm"
+                        >
+                            {t('common.cancel', 'Cancel')}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
