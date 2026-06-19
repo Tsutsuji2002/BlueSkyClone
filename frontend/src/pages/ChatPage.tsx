@@ -18,6 +18,7 @@ import { Message, Conversation, User } from '../types';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import PostEmbed from '../components/messages/PostEmbed';
 import { formatChatMessageDate } from '../utils/formatDate';
+import { format } from 'date-fns';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
@@ -707,7 +708,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                             <MessageSkeleton isMe={false} />
                             <MessageSkeleton isMe={true} />
                         </div>
-                    ) : (activeConversationMessages.filter(m => m.content || m.imageUrl || m.isRecalled).length === 0) ? (
+                    ) : (activeConversationMessages.filter(m => m.type !== 'message' || m.content || m.imageUrl || m.isRecalled).length === 0) ? (
                         <div className="flex-1 flex flex-col items-center pt-8 pb-12">
                             {isGroup ? (
                                 <>
@@ -768,7 +769,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                             )}
                             <div className="flex-grow min-h-0"></div>
                             {(() => {
-                                const filteredMessages = activeConversationMessages.filter(m => m.type !== 'message' || m.content || m.imageUrl || m.isRecalled);
+                                // Ensure messages are sorted (redundancy check) and filtered
+                                const filteredMessages = [...activeConversationMessages]
+                                    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                                    .filter(m => m.type !== 'message' || m.content || m.imageUrl || m.isRecalled);
                                 
                                 // Group consecutive system events
                                 const chunks: (Message | Message[])[] = [];
@@ -786,38 +790,64 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                 });
 
                                 return chunks.map((chunk, chunkIndex) => {
+                                    const currentMsg = Array.isArray(chunk) ? chunk[0] : chunk;
+                                    const prevChunk = chunkIndex > 0 ? chunks[chunkIndex - 1] : null;
+                                    const prevMsg = prevChunk ? (Array.isArray(prevChunk) ? prevChunk[prevChunk.length - 1] : prevChunk) : null;
+                                    
+                                    // Show time header if first message or > 15 minutes since last message
+                                    const showTimeHeader = !prevMsg || 
+                                        (new Date(currentMsg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime() > 15 * 60 * 1000);
+
+                                    const timeHeader = showTimeHeader && (
+                                        <div className="flex justify-center my-6">
+                                            <span className="text-[12px] font-bold text-gray-500 dark:text-dark-text-secondary">
+                                                {formatChatMessageDate(currentMsg.createdAt, i18n.language)}
+                                            </span>
+                                        </div>
+                                    );
+
                                     if (Array.isArray(chunk)) {
                                         return (
-                                            <ChatActivityGroup 
-                                                key={`group-${chunkIndex}`} 
-                                                events={chunk} 
-                                                t={t}
-                                                i18n={i18n}
-                                            />
+                                            <React.Fragment key={`group-wrapper-${chunkIndex}`}>
+                                                {timeHeader}
+                                                <ChatActivityGroup 
+                                                    key={`group-${chunkIndex}`} 
+                                                    events={chunk} 
+                                                    t={t}
+                                                    i18n={i18n}
+                                                />
+                                            </React.Fragment>
                                         );
                                     }
 
                                     const msg = chunk;
-                                    const index = filteredMessages.indexOf(msg);
                                     const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
                                     const isGroup = (conversation?.participants?.length ?? 0) > 2 || !!conversation?.groupName;
+
+                                    // Check if we should show the sender info
+                                    const isSameSender = prevMsg && 
+                                        prevMsg.type === 'message' && 
+                                        (prevMsg.senderId === msg.senderId || prevMsg.sender?.did === msg.sender?.did) &&
+                                        !showTimeHeader;
                                     
-                                    // Check if we should show the sender name (only in groups, for others, and if different from previous sender)
-                                    const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
-                                    const showSenderInfo = isGroup && !isMe && (!prevMsg || (prevMsg.senderId !== msg.senderId && prevMsg.sender?.did !== msg.sender?.did && prevMsg.type === 'message'));
+                                    const showSenderInfo = isGroup && !isMe && !isSameSender;
 
                                     return (
-                                        <div key={msg.id} id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end pl-[12%] sm:pl-[20%]' : 'items-start pr-[12%] sm:pr-[20%]'} group/msg relative mb-2 ${msg.isSending ? 'opacity-60' : 'opacity-100'} transition-opacity duration-150`}>
+                                        <React.Fragment key={msg.id}>
+                                            {timeHeader}
+                                            <div id={`msg-${msg.id}`} className={`flex flex-col w-full ${isMe ? 'items-end' : 'items-start'} group/msg relative mb-0.5 ${msg.isSending ? 'opacity-60' : 'opacity-100'} transition-opacity duration-150`}>
                                         <div className={`flex items-end gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'} relative pb-1 max-w-full w-full`}>
-                                            {/* Group Chat: Show Avatar for others */}
+                                            {/* Group Chat: Show Avatar for others - only if first in cluster */}
                                             {isGroup && !isMe && (
-                                                <div className="flex-shrink-0 mb-1">
-                                                    <Avatar 
-                                                        src={msg.sender?.avatarUrl || msg.sender?.avatar} 
-                                                        alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
-                                                        size="xs" 
-                                                        className="w-7 h-7"
-                                                    />
+                                                <div className="flex-shrink-0 mb-1 w-7">
+                                                    {showSenderInfo && (
+                                                        <Avatar 
+                                                            src={msg.sender?.avatarUrl || msg.sender?.avatar} 
+                                                            alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
+                                                            size="xs" 
+                                                            className="w-7 h-7"
+                                                        />
+                                                    )}
                                                 </div>
                                             )}
 
@@ -1014,7 +1044,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-0.5 px-1">
+                                        <div className="flex items-center gap-2 mt-0.5 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150">
                                             {msg.isSending ? (
                                                 <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary animate-pulse">
                                                     Sending…
@@ -1022,7 +1052,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                             ) : (
                                                 <>
                                                     <span className="text-[10px] font-medium text-gray-400 dark:text-dark-text-secondary">
-                                                        {formatChatMessageDate(msg.createdAt, i18n.language)}
+                                                        {format(new Date(msg.createdAt), 'h:mm a')}
                                                     </span>
                                                     {isMe && msg.isRead && (
                                                         <span className="text-[10px] font-bold text-primary-500 uppercase tracking-tighter">
@@ -1033,6 +1063,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                             )}
                                         </div>
                                     </div>
+                                </React.Fragment>
                                 );
                                 });
                             })()}

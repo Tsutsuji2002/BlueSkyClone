@@ -332,9 +332,12 @@ const messagesSlice = createSlice({
             const { message, currentUserId } = action.payload;
             // If it's for the active conversation, add to messages list
             if (state.activeConversationId === message.conversationId) {
-                // Avoid duplicates if sender also received via SignalR
-                if (!state.activeConversationMessages.find(m => m.id === message.id)) {
+                // Avoid duplicates using Tid or Id
+                if (!state.activeConversationMessages.find(m => m.id === message.id || (m.tid && message.tid && m.tid === message.tid))) {
                     state.activeConversationMessages.push(message);
+                    state.activeConversationMessages.sort((a, b) => 
+                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                    );
                 }
             }
 
@@ -470,9 +473,16 @@ const messagesSlice = createSlice({
                 const { messages, isLoadMore } = action.payload;
 
                 if (isLoadMore) {
-                    state.activeConversationMessages = [...messages, ...state.activeConversationMessages];
+                    const combined = [...messages, ...state.activeConversationMessages];
+                    // Unique by id
+                    const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
+                    state.activeConversationMessages = unique.sort((a, b) => 
+                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                    );
                 } else {
-                    state.activeConversationMessages = messages;
+                    state.activeConversationMessages = [...messages].sort((a, b) => 
+                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                    );
                 }
 
                 state.hasMore = messages.length >= (action.meta.arg.limit || 50);
@@ -505,7 +515,12 @@ const messagesSlice = createSlice({
                 if (logs && logs.length > 0) {
                     const existingIds = new Set(state.activeConversationMessages.map(m => m.id));
                     const newMessages = logs.filter((m: Message) => !existingIds.has(m.id));
-                    state.activeConversationMessages = [...state.activeConversationMessages, ...newMessages];
+                    
+                    if (newMessages.length > 0) {
+                        state.activeConversationMessages = [...state.activeConversationMessages, ...newMessages].sort((a, b) => 
+                            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                        );
+                    }
                 }
             });
         builder.addCase(acceptConversation.fulfilled, (state, action) => {
