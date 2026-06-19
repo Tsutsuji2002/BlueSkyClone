@@ -858,12 +858,22 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                             {isGroup && !isMe && (
                                                 <div className="flex-shrink-0 mb-1 w-7">
                                                     {showSenderInfo && (
-                                                        <Avatar 
-                                                            src={msg.sender?.avatarUrl || msg.sender?.avatar} 
-                                                            alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
-                                                            size="xs" 
-                                                            className="w-7 h-7"
-                                                        />
+                                                        <>
+                                                            {/* Debug log */}
+                                                            {console.log('[ChatPage] Message sender data:', {
+                                                                msgId: msg.id,
+                                                                sender: msg.sender,
+                                                                avatarUrl: msg.sender?.avatarUrl,
+                                                                avatar: msg.sender?.avatar,
+                                                                finalSrc: msg.sender?.avatarUrl || msg.sender?.avatar
+                                                            })}
+                                                            <Avatar 
+                                                                src={msg.sender?.avatarUrl || msg.sender?.avatar} 
+                                                                alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
+                                                                size="xs" 
+                                                                className="w-7 h-7"
+                                                            />
+                                                        </>
                                                     )}
                                                 </div>
                                             )}
