@@ -6,4 +6,5 @@ public interface IConversationRepository : IRepository<Conversation>
 {
     Task<IEnumerable<Conversation>> GetUserConversationsAsync(Guid userId);
     Task<Conversation?> GetConversationWithParticipantsAsync(Guid conversationId);
+    Task<Conversation?> GetByBlueskyConvoIdAsync(string blueskyConvoId);
 }

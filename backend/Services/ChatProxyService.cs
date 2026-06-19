@@ -282,24 +282,6 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
-        public async Task<ConversationDto> UpdateConversationNameAsync(string token, string conversationId, string name)
-        {
-            var url = $"{ChatEndpoint}/chat.bsky.convo.updateConvo";
-            var body = new { convoId = conversationId, displayName = name };
-
-            var response = await CallAsync(token, url, "POST", body);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorJson = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Failed to update conversation name: {errorJson}");
-            }
-
-            var json = await response.Content.ReadAsStringAsync();
-            var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            return MapToConversationDto(data!.Convo);
-        }
-
         public async Task<JoinLinkDto> CreateJoinLinkAsync(string token, string conversationId, bool requireApproval, string joinRule)
         {
             var url = $"{ChatEndpoint}/chat.bsky.group.createJoinLink";

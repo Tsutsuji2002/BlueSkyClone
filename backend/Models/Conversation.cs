@@ -16,6 +16,8 @@ public partial class Conversation
     public bool IsAccepted { get; set; } = true;
     
     public string? GroupName { get; set; }
+    
+    public string? BlueskyConvoId { get; set; }
 
     public virtual ICollection<ConversationParticipant> ConversationParticipants { get; set; } = new List<ConversationParticipant>();
 

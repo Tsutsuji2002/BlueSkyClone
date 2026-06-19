@@ -29,4 +29,12 @@ public class ConversationRepository : Repository<Conversation>, IConversationRep
                 .ThenInclude(p => p.User)
             .FirstOrDefaultAsync(c => c.Id == conversationId);
     }
+
+    public async Task<Conversation?> GetByBlueskyConvoIdAsync(string blueskyConvoId)
+    {
+        return await _dbSet
+            .Include(c => c.ConversationParticipants)
+                .ThenInclude(p => p.User)
+            .FirstOrDefaultAsync(c => c.BlueskyConvoId == blueskyConvoId);
+    }
 }
