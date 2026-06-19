@@ -100,7 +100,7 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                         <div className="mb-4">
                             <GroupAvatar 
                                 users={otherParticipants}
-                                size="2xl"
+                                size="xl"
                                 maxVisible={2}
                             />
                         </div>
