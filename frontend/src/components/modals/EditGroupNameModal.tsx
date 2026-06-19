@@ -20,12 +20,12 @@ const EditGroupNameModal: React.FC<EditGroupNameModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const [groupName, setGroupName] = useState('');
+    const [groupName, setGroupName] = useState(currentName || '');
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            setGroupName(currentName);
+            setGroupName(currentName || '');
         }
     }, [isOpen, currentName]);
 
@@ -81,58 +81,66 @@ const EditGroupNameModal: React.FC<EditGroupNameModalProps> = ({
 
     if (!isOpen) return null;
 
-    const hasContent = groupName.trim().length > 0;
-
     return (
         <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" 
             onClick={onClose}
         >
             <div 
-                className="bg-white dark:bg-dark-surface rounded-2xl shadow-xl w-full max-w-md overflow-hidden" 
+                className="bg-white dark:bg-dark-surface rounded-[36px] shadow-xl w-full max-w-[320px] border border-gray-300 dark:border-dark-border" 
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-200 dark:border-dark-border">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-dark-text">
-                        {t('messages.edit_group_name', 'Edit group name')}
-                    </h2>
-                </div>
+                <div className="p-6">
+                    {/* Title */}
+                    <div className="pb-2">
+                        <h2 className="text-[20.6px] font-semibold text-gray-900 dark:text-dark-text leading-[27px] pb-1">
+                            {t('messages.edit_group_name', 'Edit group name')}
+                        </h2>
+                        
+                        {/* Input wrapper */}
+                        <div className="mt-2 mb-2">
+                            <div className="relative flex items-center w-full px-3">
+                                {/* Background */}
+                                <div className="absolute inset-0 bg-gray-100 dark:bg-dark-surface rounded-[10px] border border-transparent" />
+                                
+                                {/* Input */}
+                                <input
+                                    type="text"
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={t('messages.group_name', 'Group name')}
+                                    className="relative z-20 flex-1 text-[15px] text-gray-900 dark:text-dark-text py-[11px] px-1 leading-[18px] min-w-0 bg-transparent border-none outline-none placeholder-gray-500 dark:placeholder-gray-400"
+                                    maxLength={100}
+                                    autoFocus
+                                    disabled={isLoading}
+                                />
+                            </div>
+                        </div>
+                    </div>
 
-                {/* Input */}
-                <div className="px-6 py-4">
-                    <input
-                        type="text"
-                        value={groupName}
-                        onChange={(e) => setGroupName(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={t('messages.enter_group_name', 'Enter group name')}
-                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-dark-text placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                        maxLength={100}
-                        autoFocus
-                        disabled={isLoading}
-                    />
-                </div>
-
-                {/* Footer with dynamic button */}
-                <div className="px-6 py-4">
-                    {hasContent ? (
+                    {/* Buttons */}
+                    <div className="w-full flex flex-col gap-2 justify-end">
                         <button
                             onClick={handleSave}
-                            disabled={isLoading}
-                            className="w-full py-2.5 rounded-full font-semibold text-white bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            disabled={isLoading || !groupName.trim()}
+                            className="flex items-center justify-center bg-primary rounded-full px-6 py-3 gap-1.5 hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+                            <span className="text-[15px] text-white leading-5 text-center font-medium">
+                                {isLoading ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
+                            </span>
                         </button>
-                    ) : (
+                        
                         <button
                             onClick={onClose}
                             disabled={isLoading}
-                            className="w-full py-2.5 rounded-full font-semibold text-gray-700 dark:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors text-sm"
+                            className="flex items-center justify-center bg-gray-100 dark:bg-dark-surface rounded-full px-6 py-3 gap-1.5 hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
                         >
-                            {t('common.cancel', 'Cancel')}
+                            <span className="text-[15px] text-gray-700 dark:text-gray-400 leading-5 text-center font-medium">
+                                {t('common.cancel', 'Cancel')}
+                            </span>
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>
