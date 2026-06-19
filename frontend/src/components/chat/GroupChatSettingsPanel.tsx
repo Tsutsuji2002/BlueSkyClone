@@ -291,7 +291,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                 isOpen={isEditNameOpen}
                 onClose={() => setIsEditNameOpen(false)}
                 conversationId={conversation.id}
-                currentName={conversation.groupName || ''}
+                currentName={groupDisplayName}
             />
 
             <InviteLinkModal
