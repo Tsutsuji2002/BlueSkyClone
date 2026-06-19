@@ -77,6 +77,10 @@ namespace BSkyClone.Services
 
         public async Task<IEnumerable<MessageDto>> GetMessagesAsync(string token, string conversationId, int limit = 50, string? cursor = null)
         {
+            // First, get conversation to access member data for enriching message senders
+            var conversation = await GetConversationAsync(token, conversationId);
+            var members = conversation?.Participants?.ToDictionary(m => m.Did ?? "", m => m) ?? new Dictionary<string, UserDto>();
+            
             var url = $"{ChatEndpoint}/chat.bsky.convo.getMessages?convoId={conversationId}&limit={limit}";
             if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
 
@@ -87,7 +91,7 @@ namespace BSkyClone.Services
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             // Order by CreatedAt to ensure chronological order (oldest first)
-            var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
+            var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
             
             // Parallelize enrichment to avoid sequential bottleneck
             var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
@@ -563,10 +567,17 @@ namespace BSkyClone.Services
                     member.Did, member.Handle, member.DisplayName, member.Avatar);
             }
 
+            // Create members dictionary for enriching last message sender
+            var membersDict = convo.Members.ToDictionary(m => m.Did, m => new UserDto(
+                Guid.Empty, m.Handle, m.Handle, string.Empty, 
+                string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, 
+                m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did
+            ));
+
             return new ConversationDto(
                 convo.Id,
-                convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
-                convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id) : null,
+                membersDict.Values.ToList(),
+                convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id, membersDict) : null,
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
@@ -575,11 +586,23 @@ namespace BSkyClone.Services
             );
         }
 
-        private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId)
+        private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)
         {
-            // Log sender data for debugging
-            _logger.LogInformation("Mapping message {MsgId}: Sender DID={Did}, Handle={Handle}, DisplayName={DisplayName}, Avatar={Avatar}", 
-                msg.Id, msg.Sender?.Did, msg.Sender?.Handle, msg.Sender?.DisplayName, msg.Sender?.Avatar);
+            // Try to get full sender data from conversation members if available
+            UserDto? sender = null;
+            if (members != null && members.TryGetValue(msg.Sender?.Did ?? "", out var memberData))
+            {
+                sender = memberData;
+                _logger.LogInformation("Enriched message {MsgId} sender from members: DID={Did}, Handle={Handle}, Avatar={Avatar}", 
+                    msg.Id, sender.Did, sender.Handle, sender.AvatarUrl);
+            }
+            else
+            {
+                // Fallback to whatever data we have from the message
+                sender = MapToUserDto(msg.Sender);
+                _logger.LogInformation("Mapping message {MsgId} with limited sender data: DID={Did}, Handle={Handle}, DisplayName={DisplayName}, Avatar={Avatar}", 
+                    msg.Id, msg.Sender?.Did, msg.Sender?.Handle, msg.Sender?.DisplayName, msg.Sender?.Avatar);
+            }
 
             if (msg.Reactions?.Count > 0)
             {
@@ -589,14 +612,14 @@ namespace BSkyClone.Services
             return new MessageDto(
                 msg.Id,
                 convoId,
-                msg.Sender.Did,
+                msg.Sender?.Did ?? "",
                 msg.Text,
                 null,
                 DateTimeOffset.Parse(msg.SentAt),
                 false,
                 false,
                 false,
-                MapToUserDto(msg.Sender),
+                sender,
                 null, // LinkPreview handled by EnrichMessageAsync
                 null, // ReplyTo
                 msg.Reactions?.Select(r => new MessageReactionDto(
