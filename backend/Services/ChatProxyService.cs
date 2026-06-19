@@ -577,6 +577,10 @@ namespace BSkyClone.Services
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId)
         {
+            // Log sender data for debugging
+            _logger.LogInformation("Mapping message {MsgId}: Sender DID={Did}, Handle={Handle}, DisplayName={DisplayName}, Avatar={Avatar}", 
+                msg.Id, msg.Sender?.Did, msg.Sender?.Handle, msg.Sender?.DisplayName, msg.Sender?.Avatar);
+
             if (msg.Reactions?.Count > 0)
             {
                 _logger.LogInformation("Mapping message {Id} with {Count} reactions", msg.Id, msg.Reactions.Count);
