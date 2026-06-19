@@ -24,7 +24,6 @@ import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
 import AddPeopleModal from '../components/modals/AddPeopleModal';
 import InviteLinkModal from '../components/modals/InviteLinkModal';
-import GroupChatSettingsModal from '../components/modals/GroupChatSettingsModal';
 
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -124,7 +123,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     // Group Management Modals
     const [isAddPeopleOpen, setIsAddPeopleOpen] = useState(false);
     const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
-    const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
 
     const [dismissedLinks, setDismissedLinks] = useState<Set<string>>(new Set());
     const prevContentRef = useRef('');
@@ -648,7 +646,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         {isGroup ? (
                             // Group chat - show settings button
                             <button
-                                onClick={() => setIsGroupSettingsOpen(true)}
+                                onClick={() => navigate(`/messages/${conversationId}/settings`)}
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
                                 aria-label={t('messages.group_settings', 'Group settings')}
                             >
@@ -1286,31 +1284,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         convoName={conversation?.groupName}
                         existingLink={conversation?.joinLink}
                     />
-                    {isGroup && conversation && currentUser && (
-                        <GroupChatSettingsModal
-                            isOpen={isGroupSettingsOpen}
-                            onClose={() => setIsGroupSettingsOpen(false)}
-                            conversation={conversation}
-                            currentUser={currentUser}
-                            onMuteToggle={() => {
-                                // TODO: Call API to toggle mute
-                                console.log('Toggle mute');
-                            }}
-                            onLockToggle={(locked) => {
-                                // TODO: Call API to lock/unlock
-                                console.log('Lock/unlock:', locked);
-                            }}
-                            onLeave={() => {
-                                // TODO: Call API to leave group
-                                console.log('Leave group');
-                                navigate('/messages');
-                            }}
-                            onAddMembers={() => {
-                                setIsGroupSettingsOpen(false);
-                                setIsAddPeopleOpen(true);
-                            }}
-                        />
-                    )}
                 </>
             )}
         </>

@@ -13,6 +13,7 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import ChatSearchModal from '../components/modals/ChatSearchModal';
 import ChatPage from './ChatPage';
+import GroupChatSettingsPanel from '../components/chat/GroupChatSettingsPanel';
 
 const MessagesPage: React.FC = () => {
     const navigate = useNavigate();
@@ -26,7 +27,8 @@ const MessagesPage: React.FC = () => {
     // Determine current view from route
     const isInboxView = location.pathname === '/messages/inbox';
     const isSettingsView = location.pathname === '/messages/settings';
-    const isChatView = !!conversationId;
+    const isGroupSettingsView = location.pathname.includes('/settings') && conversationId;
+    const isChatView = !!conversationId && !isGroupSettingsView;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
@@ -348,11 +350,38 @@ const MessagesPage: React.FC = () => {
             </div>
 
             {/* Right Column: Chat Content / Inbox / Settings (600px) */}
-            <div className={`flex-1 flex flex-col min-w-0 border-r border-gray-200 dark:border-dark-border ${isChatView || isInboxView || isSettingsView ? 'flex' : 'hidden lg:flex'} bg-white dark:bg-black overflow-hidden lg:w-[600px]`}>
+            <div className={`flex-1 flex flex-col min-w-0 border-r border-gray-200 dark:border-dark-border ${isChatView || isInboxView || isSettingsView || isGroupSettingsView ? 'flex' : 'hidden lg:flex'} bg-white dark:bg-black overflow-hidden lg:w-[600px]`}>
                 {isSettingsView ? (
                     renderChatSettings()
                 ) : isInboxView ? (
                     renderChatRequests()
+                ) : isGroupSettingsView ? (
+                    (() => {
+                        const conversation = conversations.find(c => c.id === conversationId);
+                        if (!conversation || !currentUser) {
+                            return (
+                                <div className="flex-1 flex items-center justify-center">
+                                    <LoadingIndicator />
+                                </div>
+                            );
+                        }
+                        return (
+                            <GroupChatSettingsPanel
+                                conversation={conversation}
+                                currentUser={currentUser}
+                                onMuteToggle={() => console.log('Toggle mute')}
+                                onLockToggle={(locked) => console.log('Lock/unlock:', locked)}
+                                onLeave={() => {
+                                    console.log('Leave group');
+                                    navigate('/messages');
+                                }}
+                                onAddMembers={() => {
+                                    // TODO: Open add people modal
+                                    console.log('Add members');
+                                }}
+                            />
+                        );
+                    })()
                 ) : isChatView ? (
                     <ChatPage isInSidebar={true} />
                 ) : (

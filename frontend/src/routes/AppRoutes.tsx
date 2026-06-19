@@ -115,6 +115,11 @@ const AppRoutes: React.FC = () => {
                             <MessagesPage />
                         </ProtectedRoute>
                     } />
+                    <Route path="messages/:conversationId/settings" element={
+                        <ProtectedRoute>
+                            <MessagesPage />
+                        </ProtectedRoute>
+                    } />
                     <Route path="messages/:conversationId" element={
                         <ProtectedRoute>
                             <MessagesPage />
