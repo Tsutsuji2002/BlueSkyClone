@@ -222,6 +222,23 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const { mode } = useAppSelector((state: RootState) => state.theme);
     const conversation = conversations.find((c: Conversation) => c.id === conversationId);
 
+    // Debug logging for group chat members
+    React.useEffect(() => {
+        if (conversation && conversationId) {
+            console.log('[ChatPage] Conversation data:', {
+                id: conversation.id,
+                participants: conversation.participants?.map(p => ({
+                    id: p.id,
+                    handle: p.handle,
+                    displayName: p.displayName,
+                    avatar: p.avatar,
+                    avatarUrl: p.avatarUrl,
+                    did: p.did
+                }))
+            });
+        }
+    }, [conversation, conversationId]);
+
     // Close picker/menu on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
