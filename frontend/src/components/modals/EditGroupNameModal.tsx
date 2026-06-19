@@ -124,7 +124,7 @@ const EditGroupNameModal: React.FC<EditGroupNameModalProps> = ({
                         <button
                             onClick={handleSave}
                             disabled={isLoading || !groupName.trim()}
-                            className="flex items-center justify-center bg-primary rounded-full px-6 py-3 gap-1.5 hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center justify-center bg-primary-500 rounded-full px-6 py-3 gap-1.5 hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <span className="text-[15px] text-white leading-5 text-center font-medium">
                                 {isLoading ? t('common.saving', 'Saving...') : t('common.save', 'Save')}
