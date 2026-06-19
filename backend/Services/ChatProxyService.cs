@@ -282,6 +282,24 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
+        public async Task<ConversationDto> EditGroupAsync(string token, string conversationId, string displayName)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.editGroup";
+            var body = new { convoId = conversationId, displayName = displayName };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to edit group: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToConversationDto(data!.Convo);
+        }
+
         public async Task<JoinLinkDto> CreateJoinLinkAsync(string token, string conversationId, bool requireApproval, string joinRule)
         {
             var url = $"{ChatEndpoint}/chat.bsky.group.createJoinLink";
@@ -569,7 +587,7 @@ namespace BSkyClone.Services
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
-                null, // GroupName
+                convo.DisplayName, // GroupName from Bluesky API
                 convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null
             );
         }
@@ -672,6 +690,8 @@ namespace BSkyClone.Services
             public BlueskyMessage? LastMessage { get; set; }
             [JsonPropertyName("unreadCount")]
             public int UnreadCount { get; set; }
+            [JsonPropertyName("displayName")]
+            public string? DisplayName { get; set; }
             [JsonPropertyName("joinLink")]
             public BlueskyJoinLink? JoinLink { get; set; }
         }

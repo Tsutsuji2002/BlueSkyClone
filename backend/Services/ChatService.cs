@@ -970,46 +970,10 @@ public class ChatService : IChatService
 
     public async Task<ConversationDto> UpdateConversationNameAsync(Guid userId, string conversationId, string name)
     {
-        // Store custom group name in our database
-        // Note: Bluesky doesn't support updating group names via AT Protocol API,
-        // so we store custom names locally
-        
-        // Try to find existing conversation record by Bluesky ID
-        var conversation = await _unitOfWork.Conversations.GetByBlueskyConvoIdAsync(conversationId);
-        
-        if (conversation == null)
-        {
-            // Create new conversation record to store the custom name
-            conversation = new Conversation
-            {
-                Id = Guid.NewGuid(),
-                BlueskyConvoId = conversationId,
-                GroupName = name,
-                CreatedAt = DateTime.UtcNow,
-                IsAccepted = true
-            };
-            await _unitOfWork.Conversations.AddAsync(conversation);
-        }
-        else
-        {
-            // Update existing record
-            conversation.GroupName = name;
-        }
-        
-        await _unitOfWork.CompleteAsync();
-
-        // Fetch updated conversation from Bluesky to get latest state
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
-        
-        var updatedConvo = await _chatProxy.GetConversationAsync(token, conversationId);
-        if (updatedConvo != null)
-        {
-            // Override with our custom name
-            updatedConvo = updatedConvo with { GroupName = name };
-        }
 
-        return updatedConvo ?? throw new Exception("Failed to fetch updated conversation");
+        return await _chatProxy.EditGroupAsync(token, conversationId, name);
     }
 
     public async Task<JoinLinkDto?> GetInviteLinkAsync(Guid userId, string conversationId)
