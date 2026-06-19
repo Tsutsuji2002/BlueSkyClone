@@ -232,4 +232,19 @@ public class ChatController : ControllerBase
         if (!success) return NotFound();
         return Ok();
     }
+
+    [HttpPut("conversations/{id}/name")]
+    public async Task<IActionResult> UpdateConversationName(string id, [FromBody] UpdateConversationNameRequest request)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var conversation = await _chatService.UpdateConversationNameAsync(userId, id, request.Name);
+            return Ok(conversation);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

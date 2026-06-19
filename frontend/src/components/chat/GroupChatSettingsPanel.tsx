@@ -41,7 +41,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
     );
 
     const groupDisplayName = conversation.groupName || 
-        otherParticipants.map(p => p.handle ? `@${p.handle}` : (p.displayName || p.did)).join(', ');
+        "Group with " + otherParticipants.map(p => p.did || p.handle || p.displayName).join(', ');
 
     const createdDate = conversation.createdAt ? format(new Date(conversation.createdAt), 'MMMM d, yyyy') : '';
 

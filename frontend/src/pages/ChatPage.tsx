@@ -590,7 +590,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const otherParticipant = otherParticipants[0];
 
     const groupDisplayName = conversation?.groupName || (otherParticipants.length > 0 
-        ? otherParticipants.map(p => p.handle ? `@${p.handle}` : p.displayName).join(', ')
+        ? "Group with " + otherParticipants.map(p => p.did || p.handle || p.displayName).join(', ')
         : t('messages.group_chat', 'Group Chat'));
 
     useDocumentTitle(otherParticipant?.displayName || otherParticipant?.handle || '');

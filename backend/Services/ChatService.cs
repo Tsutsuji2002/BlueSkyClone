@@ -968,6 +968,14 @@ public class ChatService : IChatService
         return await _chatProxy.AddMembersAsync(token, conversationId, proxyMembers);
     }
 
+    public async Task<ConversationDto> UpdateConversationNameAsync(Guid userId, string conversationId, string name)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.UpdateConversationNameAsync(token, conversationId, name);
+    }
+
     public async Task<JoinLinkDto?> GetInviteLinkAsync(Guid userId, string conversationId)
     {
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);

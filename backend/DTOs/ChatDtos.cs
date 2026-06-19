@@ -77,6 +77,8 @@ public record UpdateChatSettingsRequest(
 
 public record AddMembersRequest(List<string> Members);
 
+public record UpdateConversationNameRequest(string Name);
+
 public record CreateJoinLinkRequest(bool RequireApproval, string JoinRule);
 
 public record EditJoinLinkRequest(bool? RequireApproval = null, string? JoinRule = null);

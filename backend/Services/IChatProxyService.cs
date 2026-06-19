@@ -15,6 +15,7 @@ namespace BSkyClone.Services
         Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members);
         Task<ConversationDto> CreateConvoAsync(string token, List<string> members, string name);
         Task<ConversationDto> AddMembersAsync(string token, string conversationId, List<string> members);
+        Task<ConversationDto> UpdateConversationNameAsync(string token, string conversationId, string name);
         Task<JoinLinkDto> CreateJoinLinkAsync(string token, string conversationId, bool requireApproval, string joinRule);
         Task<JoinLinkDto> EditJoinLinkAsync(string token, string conversationId, bool? requireApproval = null, string? joinRule = null);
         Task<JoinLinkDto> EnableJoinLinkAsync(string token, string conversationId);
