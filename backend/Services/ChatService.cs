@@ -54,23 +54,9 @@ public class ChatService : IChatService
             {
                 try 
                 { 
-                    var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor);
-                    
-                    // Merge custom group names from our database
-                    var convoList = proxyConvos.ToList();
-                    foreach (var convo in convoList)
-                    {
-                        var localConvo = await _unitOfWork.Conversations.GetByBlueskyConvoIdAsync(convo.Id);
-                        if (localConvo != null && !string.IsNullOrEmpty(localConvo.GroupName))
-                        {
-                            // Replace the conversation with one that has our custom name
-                            var index = convoList.IndexOf(convo);
-                            convoList[index] = convo with { GroupName = localConvo.GroupName };
-                        }
-                    }
-                    
-                    _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", convoList.Count, cursor, userId);
-                    return convoList;
+                    var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor); 
+                    _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
+                    return proxyConvos;
                 }
                 catch (Exception ex)
                 {
@@ -137,19 +123,7 @@ public class ChatService : IChatService
             var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
-            var convo = await _chatProxy.GetConversationAsync(token, conversationId);
-            
-            // Merge custom group name from our database
-            if (convo != null)
-            {
-                var localConvo = await _unitOfWork.Conversations.GetByBlueskyConvoIdAsync(conversationId);
-                if (localConvo != null && !string.IsNullOrEmpty(localConvo.GroupName))
-                {
-                    convo = convo with { GroupName = localConvo.GroupName };
-                }
-            }
-            
-            return convo;
+            return await _chatProxy.GetConversationAsync(token, conversationId);
         }
 
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
