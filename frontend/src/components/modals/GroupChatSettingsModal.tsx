@@ -297,6 +297,9 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                 isOpen={isInviteLinkOpen}
                 onClose={() => setIsInviteLinkOpen(false)}
                 conversationId={conversation.id}
+                participants={conversation.participants}
+                convoName={conversation.groupName}
+                existingLink={conversation.joinLink}
             />
 
             {/* Lock Confirmation Modal */}
