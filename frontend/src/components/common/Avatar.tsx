@@ -13,6 +13,10 @@ const Avatar: React.FC<AvatarProps> = ({
     className,
 }) => {
     const [hasError, setHasError] = useState(false);
+    
+    // Debug: Log every render with src value
+    console.log('[Avatar] Rendering:', { src, alt, hasError, hasCDN: src?.includes('cdn.bsky.app') });
+    
     const sizeStyles = {
         xs: 'w-6 h-6',
         sm: 'w-8 h-8',
