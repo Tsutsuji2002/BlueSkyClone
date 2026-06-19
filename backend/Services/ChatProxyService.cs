@@ -41,6 +41,8 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("Bluesky chat API response (first 500 chars): {Response}", json.Substring(0, Math.Min(500, json.Length)));
+            
             var data = JsonSerializer.Deserialize<BlueskyConvoListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             return data?.Convos?.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
@@ -66,6 +68,8 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("GetConvo API response for {ConvoId} (first 500 chars): {Response}", conversationId, json.Substring(0, Math.Min(500, json.Length)));
+            
             var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             return data != null ? MapToConversationDto(data.Convo) : null;
@@ -551,6 +555,14 @@ namespace BSkyClone.Services
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {
+            // Log member data for debugging
+            _logger.LogInformation("Mapping conversation {ConvoId} with {MemberCount} members", convo.Id, convo.Members.Count);
+            foreach (var member in convo.Members)
+            {
+                _logger.LogInformation("Member: DID={Did}, Handle={Handle}, DisplayName={DisplayName}, Avatar={Avatar}", 
+                    member.Did, member.Handle, member.DisplayName, member.Avatar);
+            }
+
             return new ConversationDto(
                 convo.Id,
                 convo.Members.Select(m => new UserDto(Guid.Empty, m.Handle, m.Handle, string.Empty, string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did)).ToList(),
@@ -643,11 +655,16 @@ namespace BSkyClone.Services
         private class BlueskyConvoResponse { public BlueskyConvo Convo { get; set; } = new(); }
         private class BlueskyMessageListResponse { public List<BlueskyMessage> Messages { get; set; } = new(); public string? Cursor { get; set; } }
         private class BlueskyConvo 
-        { 
+        {
+            [JsonPropertyName("id")]
             public string Id { get; set; } = string.Empty;
+            [JsonPropertyName("rev")]
             public string Rev { get; set; } = string.Empty;
+            [JsonPropertyName("members")]
             public List<BlueskyMember> Members { get; set; } = new();
+            [JsonPropertyName("lastMessage")]
             public BlueskyMessage? LastMessage { get; set; }
+            [JsonPropertyName("unreadCount")]
             public int UnreadCount { get; set; }
             [JsonPropertyName("joinLink")]
             public BlueskyJoinLink? JoinLink { get; set; }
