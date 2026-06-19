@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiBell, FiBellOff, FiEdit3, FiLink, FiLock, FiUnlock, FiLogOut } from 'react-icons/fi';
-import Modal from '../common/Modal';
+import { FiBell, FiBellOff, FiEdit3, FiLink, FiLock, FiUnlock, FiLogOut, FiX } from 'react-icons/fi';
 import GroupAvatar from '../messages/GroupAvatar';
 import Avatar from '../common/Avatar';
 import { Conversation, User } from '../../types';
@@ -80,10 +79,21 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
         onClose();
     };
 
+    if (!isOpen) return null;
+
     return (
         <>
-            <Modal isOpen={isOpen} onClose={onClose} maxWidth="600px">
-                <div className="flex flex-col max-h-[80vh] overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50" onClick={onClose}>
+                <div className="bg-white dark:bg-dark-bg rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                    {/* Close Button */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors z-10"
+                    >
+                        <FiX size={24} className="text-gray-600 dark:text-dark-text" />
+                    </button>
+
+                    <div className="flex flex-col overflow-y-auto max-h-[80vh]">
                     {/* Header Section */}
                     <div className="flex flex-col items-center justify-center p-8 border-b border-gray-200 dark:border-dark-border">
                         {/* Group Avatar */}
@@ -272,7 +282,8 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                         </div>
                     </div>
                 </div>
-            </Modal>
+            </div>
+            </div>
 
             {/* Sub-modals */}
             <EditGroupNameModal
