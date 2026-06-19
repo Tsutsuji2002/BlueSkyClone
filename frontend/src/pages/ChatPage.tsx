@@ -24,6 +24,7 @@ import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
 import AddPeopleModal from '../components/modals/AddPeopleModal';
 import InviteLinkModal from '../components/modals/InviteLinkModal';
+import GroupChatSettingsModal from '../components/modals/GroupChatSettingsModal';
 
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -123,6 +124,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     // Group Management Modals
     const [isAddPeopleOpen, setIsAddPeopleOpen] = useState(false);
     const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
+    const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
 
     const [dismissedLinks, setDismissedLinks] = useState<Set<string>>(new Set());
     const prevContentRef = useRef('');
@@ -643,55 +645,67 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-1">
-                        <div className="relative">
+                        {isGroup ? (
+                            // Group chat - show settings button
                             <button
-                                id="chat-options-toggle"
-                                onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                                onClick={() => setIsGroupSettingsOpen(true)}
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                                aria-label={t('messages.group_settings', 'Group settings')}
                             >
                                 <FiMoreHorizontal size={20} className="text-gray-600 dark:text-dark-text" />
                             </button>
+                        ) : (
+                            // Direct chat - show options menu
+                            <div className="relative">
+                                <button
+                                    id="chat-options-toggle"
+                                    onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                                >
+                                    <FiMoreHorizontal size={20} className="text-gray-600 dark:text-dark-text" />
+                                </button>
 
-                        {showOptionsMenu && (
-                            <div
-                                ref={menuRef}
-                                className="absolute right-0 mt-2 w-56 bg-white dark:bg-dark-surface rounded-xl shadow-xl border border-gray-100 dark:border-dark-border py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200"
-                            >
-                                <button
-                                    onClick={handleViewProfile}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-gray-700 dark:text-dark-text text-sm"
-                                >
-                                    <FiUser size={18} /> {t('messages.options.view_profile')}
-                                </button>
-                                <button
-                                    onClick={handleMuteConversation}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-gray-700 dark:text-dark-text text-sm"
-                                >
-                                    <FiBellOff size={18} /> {t('messages.options.mute')}
-                                </button>
-                                <div className="h-px bg-gray-100 dark:bg-dark-border my-1" />
-                                <button
-                                    onClick={handleBlockUser}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-red-500 text-sm font-medium"
-                                >
-                                    <FiUserX size={18} /> {t('messages.options.block')}
-                                </button>
-                                <button
-                                    onClick={handleReportUser}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-red-500 text-sm font-medium"
-                                >
-                                    <FiFlag size={18} /> {t('messages.options.report')}
-                                </button>
-                                <button
-                                    onClick={handleLeaveConversation}
-                                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-red-500 text-sm font-medium"
-                                >
-                                    <FiLogOut size={18} /> {t('messages.options.leave')}
-                                </button>
+                                {showOptionsMenu && (
+                                    <div
+                                        ref={menuRef}
+                                        className="absolute right-0 mt-2 w-56 bg-white dark:bg-dark-surface rounded-xl shadow-xl border border-gray-100 dark:border-dark-border py-2 z-20 animate-in fade-in slide-in-from-top-2 duration-200"
+                                    >
+                                        <button
+                                            onClick={handleViewProfile}
+                                            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-gray-700 dark:text-dark-text text-sm"
+                                        >
+                                            <FiUser size={18} /> {t('messages.options.view_profile')}
+                                        </button>
+                                        <button
+                                            onClick={handleMuteConversation}
+                                            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-gray-700 dark:text-dark-text text-sm"
+                                        >
+                                            <FiBellOff size={18} /> {t('messages.options.mute')}
+                                        </button>
+                                        <div className="h-px bg-gray-100 dark:bg-dark-border my-1" />
+                                        <button
+                                            onClick={handleBlockUser}
+                                            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-red-500 text-sm font-medium"
+                                        >
+                                            <FiUserX size={18} /> {t('messages.options.block')}
+                                        </button>
+                                        <button
+                                            onClick={handleReportUser}
+                                            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-red-500 text-sm font-medium"
+                                        >
+                                            <FiFlag size={18} /> {t('messages.options.report')}
+                                        </button>
+                                        <button
+                                            onClick={handleLeaveConversation}
+                                            className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 transition-colors text-red-500 text-sm font-medium"
+                                        >
+                                            <FiLogOut size={18} /> {t('messages.options.leave')}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
-                  </div>
                 </div>
 
                 {/* Chat Area */}
@@ -1272,6 +1286,31 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         convoName={conversation?.groupName}
                         existingLink={conversation?.joinLink}
                     />
+                    {isGroup && conversation && currentUser && (
+                        <GroupChatSettingsModal
+                            isOpen={isGroupSettingsOpen}
+                            onClose={() => setIsGroupSettingsOpen(false)}
+                            conversation={conversation}
+                            currentUser={currentUser}
+                            onMuteToggle={() => {
+                                // TODO: Call API to toggle mute
+                                console.log('Toggle mute');
+                            }}
+                            onLockToggle={(locked) => {
+                                // TODO: Call API to lock/unlock
+                                console.log('Lock/unlock:', locked);
+                            }}
+                            onLeave={() => {
+                                // TODO: Call API to leave group
+                                console.log('Leave group');
+                                navigate('/messages');
+                            }}
+                            onAddMembers={() => {
+                                setIsGroupSettingsOpen(false);
+                                setIsAddPeopleOpen(true);
+                            }}
+                        />
+                    )}
                 </>
             )}
         </>
