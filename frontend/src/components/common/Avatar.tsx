@@ -13,10 +13,6 @@ const Avatar: React.FC<AvatarProps> = ({
     className,
 }) => {
     const [hasError, setHasError] = useState(false);
-    
-    // Debug: Log every render with src value
-    console.log('[Avatar] Rendering:', { src, alt, hasError, hasCDN: src?.includes('cdn.bsky.app') });
-    
     const sizeStyles = {
         xs: 'w-6 h-6',
         sm: 'w-8 h-8',
@@ -61,18 +57,6 @@ const Avatar: React.FC<AvatarProps> = ({
     const baseSrc = src?.startsWith('/') ? `${API_BASE_URL.replace('/api', '')}${src}` : src;
     const computedSrc = getCacheBustingSrc(baseSrc);
 
-    // Debug logging
-    React.useEffect(() => {
-        if (src && src.includes('cdn.bsky.app')) {
-            console.log('[Avatar] Bluesky CDN URL:', {
-                original: src,
-                baseSrc,
-                computedSrc,
-                hasError
-            });
-        }
-    }, [src, baseSrc, computedSrc, hasError]);
-
     useEffect(() => {
         setHasError(false);
     }, [src]);
@@ -84,15 +68,7 @@ const Avatar: React.FC<AvatarProps> = ({
                 <img
                     src={computedSrc}
                     alt={alt}
-                    onError={(e) => {
-                        console.error('[Avatar] Image load failed:', {
-                            src,
-                            computedSrc,
-                            error: e,
-                            alt
-                        });
-                        setHasError(true);
-                    }}
+                    onError={() => setHasError(true)}
                     className={cn(
                         sizeClassName,
                         'rounded-full object-cover',

@@ -19,17 +19,6 @@ const GroupAvatar: React.FC<GroupAvatarProps> = ({
     const visibleUsers = users.slice(0, maxVisible);
     const hasMore = users.length > maxVisible;
 
-    // Debug logging - more detailed
-    console.log('[GroupAvatar] Rendering with users:', users.map(u => ({
-        id: u.id,
-        handle: u.handle,
-        displayName: u.displayName,
-        avatar: u.avatar,
-        avatarUrl: u.avatarUrl,
-        did: u.did,
-        finalSrc: u.avatarUrl || u.avatar // What will be passed to Avatar
-    })));
-
     // Define dimensions based on size
     const containerSizes = {
         xs: 'w-8 h-8',

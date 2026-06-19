@@ -222,23 +222,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const { mode } = useAppSelector((state: RootState) => state.theme);
     const conversation = conversations.find((c: Conversation) => c.id === conversationId);
 
-    // Debug logging for group chat members
-    React.useEffect(() => {
-        if (conversation && conversationId) {
-            console.log('[ChatPage] Conversation data:', {
-                id: conversation.id,
-                participants: conversation.participants?.map(p => ({
-                    id: p.id,
-                    handle: p.handle,
-                    displayName: p.displayName,
-                    avatar: p.avatar,
-                    avatarUrl: p.avatarUrl,
-                    did: p.did
-                }))
-            });
-        }
-    }, [conversation, conversationId]);
-
     // Close picker/menu on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -858,22 +841,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                             {isGroup && !isMe && (
                                                 <div className="flex-shrink-0 mb-1 w-7">
                                                     {showSenderInfo && (
-                                                        <>
-                                                            {/* Debug log */}
-                                                            {console.log('[ChatPage] Message sender data:', {
-                                                                msgId: msg.id,
-                                                                sender: msg.sender,
-                                                                avatarUrl: msg.sender?.avatarUrl,
-                                                                avatar: msg.sender?.avatar,
-                                                                finalSrc: msg.sender?.avatarUrl || msg.sender?.avatar
-                                                            })}
-                                                            <Avatar 
-                                                                src={msg.sender?.avatarUrl || msg.sender?.avatar} 
-                                                                alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
-                                                                size="xs" 
-                                                                className="w-7 h-7"
-                                                            />
-                                                        </>
+                                                        <Avatar 
+                                                            src={msg.sender?.avatarUrl || msg.sender?.avatar} 
+                                                            alt={msg.sender?.displayName || msg.sender?.handle || 'User'}
+                                                            size="xs" 
+                                                            className="w-7 h-7"
+                                                        />
                                                     )}
                                                 </div>
                                             )}

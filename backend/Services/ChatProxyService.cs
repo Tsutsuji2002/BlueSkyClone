@@ -41,8 +41,6 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("Bluesky chat API response (first 500 chars): {Response}", json.Substring(0, Math.Min(500, json.Length)));
-            
             var data = JsonSerializer.Deserialize<BlueskyConvoListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             return data?.Convos?.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
@@ -68,8 +66,6 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("GetConvo API response for {ConvoId} (first 500 chars): {Response}", conversationId, json.Substring(0, Math.Min(500, json.Length)));
-            
             var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             return data != null ? MapToConversationDto(data.Convo) : null;
@@ -559,14 +555,6 @@ namespace BSkyClone.Services
 
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {
-            // Log member data for debugging
-            _logger.LogInformation("Mapping conversation {ConvoId} with {MemberCount} members", convo.Id, convo.Members.Count);
-            foreach (var member in convo.Members)
-            {
-                _logger.LogInformation("Member: DID={Did}, Handle={Handle}, DisplayName={DisplayName}, Avatar={Avatar}", 
-                    member.Did, member.Handle, member.DisplayName, member.Avatar);
-            }
-
             // Create members dictionary for enriching last message sender
             var membersDict = convo.Members.ToDictionary(m => m.Did, m => new UserDto(
                 Guid.Empty, m.Handle, m.Handle, string.Empty, 
@@ -593,20 +581,11 @@ namespace BSkyClone.Services
             if (members != null && members.TryGetValue(msg.Sender?.Did ?? "", out var memberData))
             {
                 sender = memberData;
-                _logger.LogInformation("Enriched message {MsgId} sender from members: DID={Did}, Handle={Handle}, Avatar={Avatar}", 
-                    msg.Id, sender.Did, sender.Handle, sender.AvatarUrl);
             }
             else
             {
                 // Fallback to whatever data we have from the message
                 sender = MapToUserDto(msg.Sender);
-                _logger.LogInformation("Mapping message {MsgId} with limited sender data: DID={Did}, Handle={Handle}, DisplayName={DisplayName}, Avatar={Avatar}", 
-                    msg.Id, msg.Sender?.Did, msg.Sender?.Handle, msg.Sender?.DisplayName, msg.Sender?.Avatar);
-            }
-
-            if (msg.Reactions?.Count > 0)
-            {
-                _logger.LogInformation("Mapping message {Id} with {Count} reactions", msg.Id, msg.Reactions.Count);
             }
 
             return new MessageDto(
