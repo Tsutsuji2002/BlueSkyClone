@@ -97,7 +97,14 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return Enumerable.Empty<MessageDto>();
 
             var json = await response.Content.ReadAsStringAsync();
+            
+            // DEBUG: Log message count
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Raw response length = {Length}", conversationId, json.Length);
+            
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            // DEBUG: Log how many messages were deserialized
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
             
             // Order by CreatedAt to ensure chronological order (oldest first)
             var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
