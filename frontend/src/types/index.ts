@@ -383,6 +383,7 @@ export interface Conversation {
         disabled?: boolean;
     };
     muted?: boolean;
+    locked?: boolean;
 }
 
 export type UserDto = User;

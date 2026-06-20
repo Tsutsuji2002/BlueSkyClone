@@ -12,7 +12,8 @@ public record ConversationDto(
     bool IsAccepted = true,
     string? GroupName = null,
     JoinLinkDto? JoinLink = null,
-    bool Muted = false
+    bool Muted = false,
+    bool Locked = false
 );
 
 public record MessageReactionDto(

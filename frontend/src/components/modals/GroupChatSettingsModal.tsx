@@ -41,8 +41,13 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
     const [isLockConfirmOpen, setIsLockConfirmOpen] = useState(false);
     const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
-    const [isLocked, setIsLocked] = useState(false);
+    const [isLocked, setIsLocked] = useState(conversation.locked || false);
     const [isLockLoading, setIsLockLoading] = useState(false);
+
+    // Update locked state when conversation prop changes
+    React.useEffect(() => {
+        setIsLocked(conversation.locked || false);
+    }, [conversation.locked]);
 
     const otherParticipants = conversation.participants.filter(p => 
         (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
