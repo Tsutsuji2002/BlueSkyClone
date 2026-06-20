@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams, Link, NavLink } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchConversations, fetchChatSettings, updateChatSettings, acceptConversation, deleteConversation } from '../redux/slices/messagesSlice';
+import { fetchConversations, fetchChatSettings, updateChatSettings, acceptConversation, deleteConversation, fetchConversationById } from '../redux/slices/messagesSlice';
 import ConversationItem from '../components/messages/ConversationItem';
 import SkeletonConversationItem from '../components/messages/SkeletonConversationItem';
 import { FiSearch, FiMenu, FiArrowLeft, FiMoreHorizontal } from 'react-icons/fi';
@@ -43,6 +43,13 @@ const MessagesPage: React.FC = () => {
         // Only fetch normal conversations or requests based on the view
         dispatch(fetchConversations({ isRequest: isInboxView }));
     }, [dispatch, isInboxView]);
+
+    // Fetch individual conversation when viewing group settings to ensure latest state (locked, muted, etc.)
+    useEffect(() => {
+        if (isGroupSettingsView && conversationId) {
+            dispatch(fetchConversationById(conversationId));
+        }
+    }, [dispatch, isGroupSettingsView, conversationId]);
 
     useEffect(() => {
         if (isSettingsView) {
