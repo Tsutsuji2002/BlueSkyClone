@@ -1131,8 +1131,56 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                     </div>
                 )}
 
+                {/* Lock Banner */}
+                {conversation?.locked && (
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-dark-surface border-t border-b border-gray-200 dark:border-dark-border">
+                        <div className="flex items-center gap-2">
+                            <svg fill="none" width="16" viewBox="0 0 24 24" height="16" className="text-gray-600 dark:text-gray-400">
+                                <path 
+                                    fill="currentColor" 
+                                    fillRule="evenodd" 
+                                    clipRule="evenodd" 
+                                    d="M7 7a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7Zm-1 4v9h12v-9H6Zm9-2H9V7a3 3 0 1 1 6 0v2Zm-3 4a1 1 0 0 1 1 1v3a1 1 1 1-2 0v-3a1 1 0 0 1 1-1Z"
+                                />
+                            </svg>
+                            <div className="flex flex-col">
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {t('messages.this_chat_is_locked', 'This chat is locked')}
+                                </span>
+                                <span className="text-xs text-gray-600 dark:text-gray-400">
+                                    {t('messages.no_one_can_send_messages', 'No one can send messages')}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/chat/conversations/${conversation.id}/unlock`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include'
+                                    });
+
+                                    if (!response.ok) {
+                                        throw new Error('Failed to unlock conversation');
+                                    }
+
+                                    // Refresh conversation to get updated lock status
+                                    dispatch(fetchConversationById(conversation.id));
+                                    dispatch(showToast({ message: t('messages.chat_unlocked', 'Group chat unlocked'), type: 'success' }));
+                                } catch (error) {
+                                    dispatch(showToast({ message: t('messages.failed_to_unlock', 'Failed to unlock conversation'), type: 'error' }));
+                                }
+                            }}
+                            className="px-4 py-1.5 text-sm font-medium text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors"
+                        >
+                            {t('messages.unlock_chat', 'Unlock chat')}
+                        </button>
+                    </div>
+                )}
+
                 {/* Input Area */}
-                <div className={`p-4 bg-white dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border ${conversation && !conversation.isAccepted ? 'hidden' : ''}`}>
+                <div className={`p-4 bg-white dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border ${conversation && !conversation.isAccepted ? 'hidden' : ''} ${conversation?.locked ? 'hidden' : ''}`}>
                     <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                         <div className="flex flex-1 items-end gap-2 bg-gray-100 dark:bg-dark-surface rounded-[24px] px-3 py-2 border border-transparent focus-within:border-primary-500/30 focus-within:bg-white dark:focus-within:bg-dark-surface transition-all">
                             <div className="flex items-center gap-1 mb-1">

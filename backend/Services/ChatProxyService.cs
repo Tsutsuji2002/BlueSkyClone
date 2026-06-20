@@ -626,7 +626,7 @@ namespace BSkyClone.Services
                 convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null, // Read from Kind.JoinLink as per AT Protocol structure
                 convo.Muted, // Muted status from Bluesky API
-                convo.Locked ?? false // Locked status from Bluesky API
+                convo.LockStatus == "locked" // Locked status from Bluesky API - lockStatus is "locked" or "unlocked"
             );
         }
 
@@ -734,8 +734,8 @@ namespace BSkyClone.Services
             public BlueskyJoinLink? JoinLink { get; set; }
             [JsonPropertyName("muted")]
             public bool Muted { get; set; }
-            [JsonPropertyName("locked")]
-            public bool? Locked { get; set; }
+            [JsonPropertyName("lockStatus")]
+            public string? LockStatus { get; set; }
         }
         
         private class BlueskyConvoKind
