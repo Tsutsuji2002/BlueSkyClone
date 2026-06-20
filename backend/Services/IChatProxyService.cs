@@ -25,5 +25,7 @@ namespace BSkyClone.Services
         Task<bool> DeleteMessageForSelfAsync(string token, string conversationId, string messageId);
         Task<ChatSettingsDto> GetChatDeclarationAsync(string token, string did);
         Task<(bool Success, string? Message)> UpdateChatDeclarationAsync(string token, string did, string allowIncoming, string? allowGroupInvites = null);
+        Task<bool> MuteConversationAsync(string token, string conversationId);
+        Task<bool> UnmuteConversationAsync(string token, string conversationId);
     }
 }

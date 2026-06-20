@@ -11,7 +11,8 @@ public record ConversationDto(
     DateTimeOffset CreatedAt,
     bool IsAccepted = true,
     string? GroupName = null,
-    JoinLinkDto? JoinLink = null
+    JoinLinkDto? JoinLink = null,
+    bool Muted = false
 );
 
 public record MessageReactionDto(

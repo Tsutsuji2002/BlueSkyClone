@@ -247,4 +247,36 @@ public class ChatController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("conversations/{id}/mute")]
+    public async Task<IActionResult> MuteConversation(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var success = await _chatService.MuteConversationAsync(userId, id);
+            if (success) return Ok(new { message = "Conversation muted successfully" });
+            return BadRequest(new { message = "Failed to mute conversation" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("conversations/{id}/unmute")]
+    public async Task<IActionResult> UnmuteConversation(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var success = await _chatService.UnmuteConversationAsync(userId, id);
+            if (success) return Ok(new { message = "Conversation unmuted successfully" });
+            return BadRequest(new { message = "Failed to unmute conversation" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

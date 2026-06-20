@@ -836,7 +836,9 @@ public class ChatService : IChatService
             unreadCount,
             c.CreatedAt.HasValue ? DateTime.SpecifyKind(c.CreatedAt.Value, DateTimeKind.Utc) : DateTimeOffset.UtcNow,
             c.IsAccepted,
-            c.GroupName
+            c.GroupName,
+            null, // JoinLink - not supported for local conversations
+            false // Muted - not supported for local conversations
         );
     }
 
@@ -1074,5 +1076,21 @@ public class ChatService : IChatService
         // Notify via SignalR (optional but recommended)
         var dto = MapToMessageDto(message);
         await _hubContext.Clients.Group(conversationId.ToString()).SendAsync("ReceiveMessage", dto);
+    }
+
+    public async Task<bool> MuteConversationAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.MuteConversationAsync(token, conversationId);
+    }
+
+    public async Task<bool> UnmuteConversationAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.UnmuteConversationAsync(token, conversationId);
     }
 }

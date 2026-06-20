@@ -30,6 +30,8 @@ public interface IChatService
     Task<JoinLinkDto> EditJoinLinkAsync(Guid userId, string conversationId, bool? requireApproval = null, string? joinRule = null);
     Task<JoinLinkDto> EnableInviteLinkAsync(Guid userId, string conversationId);
     Task<JoinLinkDto> DisableInviteLinkAsync(Guid userId, string conversationId);
+    Task<bool> MuteConversationAsync(Guid userId, string conversationId);
+    Task<bool> UnmuteConversationAsync(Guid userId, string conversationId);
 }
 
 public record ChatLogResult(IEnumerable<MessageDto> Messages, string? Cursor);

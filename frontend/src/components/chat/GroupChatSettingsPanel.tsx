@@ -9,6 +9,8 @@ import { format } from 'date-fns';
 import EditGroupNameModal from '../modals/EditGroupNameModal';
 import InviteLinkModal from '../modals/InviteLinkModal';
 import ConfirmModal from '../common/ConfirmModal';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { showToast } from '../../redux/slices/toastSlice';
 
 interface GroupChatSettingsPanelProps {
     conversation: Conversation;
@@ -29,12 +31,16 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
 }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const dispatch = useAppDispatch();
     const [isEditNameOpen, setIsEditNameOpen] = useState(false);
     const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
     const [isLockConfirmOpen, setIsLockConfirmOpen] = useState(false);
     const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(conversation.muted || false);
     const [isLocked, setIsLocked] = useState(false);
+    const [isMuteLoading, setIsMuteLoading] = useState(false);
+
+    const API_URL = process.env.REACT_APP_API_URL || '/api';
 
     const otherParticipants = conversation.participants.filter(p => 
         (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
@@ -45,9 +51,36 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
 
     const createdDate = conversation.createdAt ? format(new Date(conversation.createdAt), 'MMMM d, yyyy') : '';
 
-    const handleMuteClick = () => {
-        setIsMuted(!isMuted);
-        onMuteToggle();
+    const handleMuteClick = async () => {
+        setIsMuteLoading(true);
+        try {
+            const endpoint = isMuted ? 'unmute' : 'mute';
+            const response = await fetch(`${API_URL}/chat/conversations/${conversation.id}/${endpoint}`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to ${endpoint} conversation`);
+            }
+
+            setIsMuted(!isMuted);
+            dispatch(showToast({ 
+                message: isMuted 
+                    ? t('messages.group_chat_unmuted', 'Group chat unmuted') 
+                    : t('messages.group_chat_muted', 'Group chat muted'), 
+                type: 'success' 
+            }));
+            onMuteToggle();
+        } catch (error) {
+            console.error('Error toggling mute:', error);
+            dispatch(showToast({ 
+                message: t('messages.failed_to_toggle_mute', 'Failed to update mute status'), 
+                type: 'error' 
+            }));
+        } finally {
+            setIsMuteLoading(false);
+        }
     };
 
     const handleLockClick = () => {
@@ -123,10 +156,17 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={handleMuteClick}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+                                    disabled={isMuteLoading}
+                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={isMuted ? t('messages.unmute') : t('messages.mute')}
                                 >
-                                    {isMuted ? <FiBellOff size={20} /> : <FiBell size={20} />}
+                                    {isMuteLoading ? (
+                                        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                    ) : isMuted ? (
+                                        <FiBellOff size={20} />
+                                    ) : (
+                                        <FiBell size={20} />
+                                    )}
                                 </button>
                                 <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
                                     {t('messages.mute', 'Mute')}

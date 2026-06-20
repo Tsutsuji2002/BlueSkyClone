@@ -407,6 +407,24 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<bool> MuteConversationAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.muteConvo";
+            var body = new { convoId = conversationId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> UnmuteConversationAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.unmuteConvo";
+            var body = new { convoId = conversationId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
         public async Task<ChatSettingsDto> GetChatDeclarationAsync(string token, string did)
         {
             // Strategy 1: Direct repo getRecord (Authoritative)
@@ -588,7 +606,8 @@ namespace BSkyClone.Services
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
                 convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
-                convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null
+                convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null,
+                convo.Muted // Muted status from Bluesky API
             );
         }
 
@@ -694,6 +713,8 @@ namespace BSkyClone.Services
             public BlueskyConvoKind? Kind { get; set; }
             [JsonPropertyName("joinLink")]
             public BlueskyJoinLink? JoinLink { get; set; }
+            [JsonPropertyName("muted")]
+            public bool Muted { get; set; }
         }
         
         private class BlueskyConvoKind

@@ -382,6 +382,7 @@ export interface Conversation {
         createdAt?: string;
         disabled?: boolean;
     };
+    muted?: boolean;
 }
 
 export type UserDto = User;
