@@ -60,7 +60,6 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                 return;
             }
             // Otherwise, fetch from server to detect pre-existing links
-            const hasSeenIntro = localStorage.getItem(`group_invite_intro_seen_${conversationId}`);
             setIsFetching(true);
             dispatch(fetchInviteLink(conversationId) as any).then((result: any) => {
                 setIsFetching(false);
@@ -71,7 +70,8 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                     setRequireApproval(link.requireApproval || false);
                     setStep(link.disabled ? 'disabled' : 'active');
                 } else {
-                    setStep(hasSeenIntro ? 'generate' : 'intro');
+                    // No link exists, go directly to generate screen
+                    setStep('generate');
                 }
             });
         } else {
@@ -530,6 +530,10 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                     </button>
                     <button 
                         onClick={() => {
+                            // Reset to default settings for new link generation
+                            setRule('anyone');
+                            setRequireApproval(false);
+                            setFetchedLink(null); // Clear the disabled link
                             setStep('generate');
                         }}
                         className="w-full bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-white/10 py-3 rounded-full text-[#405168] dark:text-white font-medium text-[15px] transition-colors"
@@ -548,7 +552,6 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
             
             <div className="relative w-full max-w-[400px] bg-white dark:bg-black rounded-none lg:rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full lg:h-auto max-h-[100vh] lg:max-h-[85vh] lg:min-h-[200px] animate-zoomIn">
-                {step === 'intro' && renderIntro()}
                 {step === 'generate' && renderRules(!!(activeLink))}
                 {step === 'active' && renderActive()}
                 {step === 'confirmDisable' && renderConfirmDisable()}
