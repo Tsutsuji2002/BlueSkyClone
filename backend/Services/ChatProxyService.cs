@@ -66,6 +66,10 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
+            
+            // DEBUG: Log the raw JSON to see what AT Protocol is actually returning
+            _logger.LogInformation("GetConversationAsync RAW JSON for {ConvoId}: {Json}", conversationId, json);
+            
             var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             var dto = data != null ? MapToConversationDto(data.Convo) : null;
