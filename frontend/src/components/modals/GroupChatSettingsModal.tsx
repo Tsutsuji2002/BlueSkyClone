@@ -75,9 +75,27 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
 
     const confirmLock = async () => {
         setIsLockConfirmOpen(false);
-        setIsLocked(true);
-        onLockToggle(true);
-        dispatch(showToast({ message: 'Group chat locked', type: 'success' }));
+        setIsLockLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversation.id}/lock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to lock conversation');
+            }
+
+            setIsLocked(true);
+            onLockToggle(true);
+            dispatch(showToast({ message: 'Group chat locked', type: 'success' }));
+        } catch (error: any) {
+            dispatch(showToast({ message: error.message || 'Failed to lock conversation', type: 'error' }));
+        } finally {
+            setIsLockLoading(false);
+        }
     };
 
     const handleUnlock = async () => {
