@@ -212,7 +212,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={handleMuteClick}
-                                    disabled={isMuteLoading}
+                                    disabled={isMuteLoading || isLocked}
                                     className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={isMuted ? t('messages.unmute') : t('messages.mute')}
                                 >
@@ -233,7 +233,8 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={() => setIsEditNameOpen(true)}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+                                    disabled={isLocked}
+                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={t('messages.edit_name')}
                                 >
                                     <FiEdit3 size={20} />
@@ -247,7 +248,8 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={() => setIsInviteLinkOpen(true)}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+                                    disabled={isLocked}
+                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={t('messages.invite_link')}
                                 >
                                     <FiLink size={20} />
