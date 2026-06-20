@@ -45,6 +45,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
 
     // Update locked state when conversation prop changes
     React.useEffect(() => {
+        console.log('[GroupChatSettingsPanel] conversation.locked:', conversation.locked);
         setIsLocked(conversation.locked || false);
     }, [conversation.locked]);
 
