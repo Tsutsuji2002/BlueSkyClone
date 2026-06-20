@@ -1076,4 +1076,20 @@ public class ChatService : IChatService
 
         return await _chatProxy.UnmuteConversationAsync(token, conversationId);
     }
+
+    public async Task<bool> LockConversationAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.LockConversationAsync(token, conversationId);
+    }
+
+    public async Task<bool> UnlockConversationAsync(Guid userId, string conversationId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
+
+        return await _chatProxy.UnlockConversationAsync(token, conversationId);
+    }
 }

@@ -425,6 +425,24 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<bool> LockConversationAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.lockConvo";
+            var body = new { convoId = conversationId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> UnlockConversationAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.unlockConvo";
+            var body = new { convoId = conversationId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            return response.IsSuccessStatusCode;
+        }
+
         public async Task<ChatSettingsDto> GetChatDeclarationAsync(string token, string did)
         {
             // Strategy 1: Direct repo getRecord (Authoritative)

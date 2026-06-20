@@ -8,6 +8,10 @@ import { format } from 'date-fns';
 import EditGroupNameModal from './EditGroupNameModal';
 import InviteLinkModal from './InviteLinkModal';
 import ConfirmModal from '../common/ConfirmModal';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { showToast } from '../../redux/slices/toastSlice';
+
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 interface GroupChatSettingsModalProps {
     isOpen: boolean;
@@ -31,12 +35,14 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
     onAddMembers
 }) => {
     const { t } = useTranslation();
+    const dispatch = useAppDispatch();
     const [isEditNameOpen, setIsEditNameOpen] = useState(false);
     const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
     const [isLockConfirmOpen, setIsLockConfirmOpen] = useState(false);
     const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
     const [isMuted, setIsMuted] = useState(false);
     const [isLocked, setIsLocked] = useState(false);
+    const [isLockLoading, setIsLockLoading] = useState(false);
 
     const otherParticipants = conversation.participants.filter(p => 
         (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
@@ -58,15 +64,57 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
             setIsLockConfirmOpen(true);
         } else {
             // Unlock directly without confirm
-            setIsLocked(false);
-            onLockToggle(false);
+            handleUnlock();
         }
     };
 
-    const confirmLock = () => {
-        setIsLocked(true);
-        onLockToggle(true);
+    const confirmLock = async () => {
+        setIsLockLoading(true);
         setIsLockConfirmOpen(false);
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversation.id}/lock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to lock conversation');
+            }
+
+            setIsLocked(true);
+            onLockToggle(true);
+            dispatch(showToast({ message: 'Group chat locked', type: 'success' }));
+        } catch (error: any) {
+            dispatch(showToast({ message: error.message || 'Failed to lock conversation', type: 'error' }));
+        } finally {
+            setIsLockLoading(false);
+        }
+    };
+
+    const handleUnlock = async () => {
+        setIsLockLoading(true);
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversation.id}/unlock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to unlock conversation');
+            }
+
+            setIsLocked(false);
+            onLockToggle(false);
+            dispatch(showToast({ message: 'Group chat unlocked', type: 'success' }));
+        } catch (error: any) {
+            dispatch(showToast({ message: error.message || 'Failed to unlock conversation', type: 'error' }));
+        } finally {
+            setIsLockLoading(false);
+        }
     };
 
     const handleLeaveClick = () => {
@@ -163,10 +211,17 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={handleLockClick}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+                                    disabled={isLockLoading}
+                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={isLocked ? t('messages.unlock') : t('messages.lock')}
                                 >
-                                    {isLocked ? <FiUnlock size={20} /> : <FiLock size={20} />}
+                                    {isLockLoading ? (
+                                        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                    ) : isLocked ? (
+                                        <FiUnlock size={20} />
+                                    ) : (
+                                        <FiLock size={20} />
+                                    )}
                                 </button>
                                 <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
                                     {t('messages.lock', 'Lock')}

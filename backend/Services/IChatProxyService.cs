@@ -27,5 +27,7 @@ namespace BSkyClone.Services
         Task<(bool Success, string? Message)> UpdateChatDeclarationAsync(string token, string did, string allowIncoming, string? allowGroupInvites = null);
         Task<bool> MuteConversationAsync(string token, string conversationId);
         Task<bool> UnmuteConversationAsync(string token, string conversationId);
+        Task<bool> LockConversationAsync(string token, string conversationId);
+        Task<bool> UnlockConversationAsync(string token, string conversationId);
     }
 }

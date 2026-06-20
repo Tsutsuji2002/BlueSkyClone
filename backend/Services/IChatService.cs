@@ -32,6 +32,8 @@ public interface IChatService
     Task<JoinLinkDto> DisableInviteLinkAsync(Guid userId, string conversationId);
     Task<bool> MuteConversationAsync(Guid userId, string conversationId);
     Task<bool> UnmuteConversationAsync(Guid userId, string conversationId);
+    Task<bool> LockConversationAsync(Guid userId, string conversationId);
+    Task<bool> UnlockConversationAsync(Guid userId, string conversationId);
 }
 
 public record ChatLogResult(IEnumerable<MessageDto> Messages, string? Cursor);

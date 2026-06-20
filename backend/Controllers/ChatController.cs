@@ -296,4 +296,36 @@ public class ChatController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("conversations/{id}/lock")]
+    public async Task<IActionResult> LockConversation(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var success = await _chatService.LockConversationAsync(userId, id);
+            if (success) return Ok(new { message = "Conversation locked successfully" });
+            return BadRequest(new { message = "Failed to lock conversation" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("conversations/{id}/unlock")]
+    public async Task<IActionResult> UnlockConversation(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var success = await _chatService.UnlockConversationAsync(userId, id);
+            if (success) return Ok(new { message = "Conversation unlocked successfully" });
+            return BadRequest(new { message = "Failed to unlock conversation" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
