@@ -88,11 +88,6 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
         setStep('generate');
     };
 
-    const handleGetStarted = () => {
-        localStorage.setItem(`group_invite_intro_seen_${conversationId}`, 'true');
-        setStep('generate');
-    };
-
     const handleGenerate = async () => {
         setLoading(true);
         setError(null);
@@ -200,46 +195,6 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
 
     // Use fetched link if available, otherwise fall back to prop
     const activeLink = fetchedLink || existingLink;
-
-    const renderIntro = () => (
-        <div className="flex flex-col h-full animate-fadeIn">
-            <div className="px-6 pt-5">
-                <div className="relative overflow-hidden rounded-xl mb-4 w-full aspect-[1.689/1] bg-gray-100 flex items-center justify-center">
-                    <img 
-                        src="https://web-cdn.bsky.app/static/media/chat-invite-friends.bf948a05c6b3621ab98b.webp" 
-                        alt="Invite friends"
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
-                </div>
-                <h2 className="text-[20.6px] font-bold text-black dark:text-white leading-[27px] mb-2 font-sans">
-                    Invite link
-                </h2>
-                <div className="absolute top-3 right-3">
-                    <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                        <FiX size={18} className="text-[#526580]" />
-                    </button>
-                </div>
-            </div>
-            
-            <div className="px-6 pb-6 flex-1">
-                <div className="flex flex-col gap-4 text-[15px] leading-[20px] text-black dark:text-gray-300">
-                    <p>An invite link lets people join this group chat without being added directly. You control who can join the chat. You can disable the link at any time.</p>
-                    <p>Group chats can only have a maximum of 50 people.</p>
-                    <p>Your name, avatar, the name of the group chat, and the number of members will be visible to everyone.</p>
-                </div>
-                
-                <div className="mt-8">
-                    <button 
-                        onClick={handleGetStarted}
-                        className="w-full flex flex-row items-center justify-center gap-1.5 bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors"
-                    >
-                        Get started
-                        <FiArrowRight size={18} />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
 
     const renderRules = (isEdit: boolean) => {
         const options = [
