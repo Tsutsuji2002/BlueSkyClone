@@ -470,8 +470,9 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
     );
 
     const renderDisabled = () => {
-        const link = existingLink?.link || 'https://bsky.app/chat/...';
-        const dateStr = existingLink?.createdAt ? new Date(existingLink.createdAt).toLocaleString() : 'Just now';
+        const activeLink = fetchedLink || existingLink;
+        const link = activeLink?.link || 'https://bsky.app/chat/...';
+        const dateStr = activeLink?.createdAt ? new Date(activeLink.createdAt).toLocaleString() : 'Just now';
 
         return (
             <div className="flex flex-col h-full animate-fadeIn p-6">
@@ -494,15 +495,41 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
 
                 <div className="flex flex-col gap-3">
                     <button 
-                        onClick={handleUpdate} // Re-enable by saving settings again
-                        className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors"
+                        onClick={async () => {
+                            setLoading(true);
+                            setError(null);
+                            try {
+                                const API_URL = process.env.REACT_APP_API_URL || '/api';
+                                const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ 
+                                        requireApproval: activeLink?.requireApproval || false, 
+                                        joinRule: activeLink?.joinRule || 'anyone' 
+                                    })
+                                });
+                                
+                                if (!response.ok) throw new Error('Failed to re-enable link');
+                                
+                                const result = await response.json();
+                                setFetchedLink(result);
+                                setRule(result.joinRule);
+                                setRequireApproval(result.requireApproval);
+                                setStep('active');
+                            } catch (err: any) {
+                                setError(err.message || 'Failed to re-enable link');
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}
+                        disabled={loading}
+                        className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
                     >
-                        Re-enable link
+                        {loading ? 'Re-enabling...' : 'Re-enable link'}
                     </button>
                     <button 
                         onClick={() => {
-                            // Logic to clear and move to generate would go here, 
-                            // but for now re-use generate path
                             setStep('generate');
                         }}
                         className="w-full bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-white/10 py-3 rounded-full text-[#405168] dark:text-white font-medium text-[15px] transition-colors"
@@ -510,6 +537,8 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                         Generate new link
                     </button>
                 </div>
+
+                {error && <p className="mt-2 text-red-500 text-xs text-center">{error}</p>}
             </div>
         );
     };
