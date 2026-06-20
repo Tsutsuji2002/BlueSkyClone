@@ -11,6 +11,7 @@ import InviteLinkModal from '../modals/InviteLinkModal';
 import ConfirmModal from '../common/ConfirmModal';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { showToast } from '../../redux/slices/toastSlice';
+import { fetchConversationById } from '../../redux/slices/messagesSlice';
 
 interface GroupChatSettingsPanelProps {
     conversation: Conversation;
@@ -115,9 +116,11 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                 throw new Error(errorData.message || 'Failed to lock conversation');
             }
 
-            setIsLocked(true);
-            onLockToggle(true);
+            // Refetch conversation to get updated locked status
+            await dispatch(fetchConversationById(conversation.id));
+            
             dispatch(showToast({ message: 'Group chat locked', type: 'success' }));
+            onLockToggle(true);
         } catch (error: any) {
             dispatch(showToast({ message: error.message || 'Failed to lock conversation', type: 'error' }));
         } finally {
@@ -139,9 +142,11 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                 throw new Error(errorData.message || 'Failed to unlock conversation');
             }
 
-            setIsLocked(false);
-            onLockToggle(false);
+            // Refetch conversation to get updated locked status
+            await dispatch(fetchConversationById(conversation.id));
+            
             dispatch(showToast({ message: 'Group chat unlocked', type: 'success' }));
+            onLockToggle(false);
         } catch (error: any) {
             dispatch(showToast({ message: error.message || 'Failed to unlock conversation', type: 'error' }));
         } finally {
