@@ -53,6 +53,7 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
             setError(null);
             // If existingLink is already passed via props, use it directly
             if (existingLink) {
+                console.log('[InviteLinkModal] Using existingLink from props:', existingLink);
                 setFetchedLink(existingLink);
                 setRule(existingLink.joinRule);
                 setRequireApproval(existingLink.requireApproval);
@@ -63,14 +64,20 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
             setIsFetching(true);
             dispatch(fetchInviteLink(conversationId) as any).then((result: any) => {
                 setIsFetching(false);
+                console.log('[InviteLinkModal] fetchInviteLink result:', result);
                 if (fetchInviteLink.fulfilled.match(result) && result.payload) {
                     const link = result.payload;
+                    console.log('[InviteLinkModal] Fetched link:', link);
+                    console.log('[InviteLinkModal] Link disabled?', link.disabled);
                     setFetchedLink(link);
                     setRule(link.joinRule || 'anyone');
                     setRequireApproval(link.requireApproval || false);
-                    setStep(link.disabled ? 'disabled' : 'active');
+                    const targetStep = link.disabled ? 'disabled' : 'active';
+                    console.log('[InviteLinkModal] Setting step to:', targetStep);
+                    setStep(targetStep);
                 } else {
                     // No link exists, go directly to generate screen
+                    console.log('[InviteLinkModal] No link found, going to generate');
                     setStep('generate');
                 }
             });
