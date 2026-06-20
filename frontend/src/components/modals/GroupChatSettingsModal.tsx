@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FiBell, FiBellOff, FiEdit3, FiLink, FiLock, FiUnlock, FiLogOut, FiX } from 'react-icons/fi';
+import { FiBell, FiBellOff, FiEdit3, FiLink, FiLogOut, FiX } from 'react-icons/fi';
 import GroupAvatar from '../messages/GroupAvatar';
 import Avatar from '../common/Avatar';
 import { Conversation, User } from '../../types';
@@ -69,28 +69,10 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
     };
 
     const confirmLock = async () => {
-        setIsLockLoading(true);
         setIsLockConfirmOpen(false);
-        try {
-            const response = await fetch(`${API_URL}/chat/conversations/${conversation.id}/lock`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to lock conversation');
-            }
-
-            setIsLocked(true);
-            onLockToggle(true);
-            dispatch(showToast({ message: 'Group chat locked', type: 'success' }));
-        } catch (error: any) {
-            dispatch(showToast({ message: error.message || 'Failed to lock conversation', type: 'error' }));
-        } finally {
-            setIsLockLoading(false);
-        }
+        setIsLocked(true);
+        onLockToggle(true);
+        dispatch(showToast({ message: 'Group chat locked', type: 'success' }));
     };
 
     const handleUnlock = async () => {
@@ -212,19 +194,28 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
                                 <button
                                     onClick={handleLockClick}
                                     disabled={isLockLoading}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    aria-label={isLocked ? t('messages.unlock') : t('messages.lock')}
+                                    className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                        isLocked 
+                                            ? 'bg-[#FEE7EC] hover:bg-[#FDD8E1]' 
+                                            : 'bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover'
+                                    }`}
+                                    aria-label={isLocked ? t('messages.unlock', 'Unlock this group chat') : t('messages.lock', 'Lock')}
                                 >
                                     {isLockLoading ? (
                                         <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                    ) : isLocked ? (
-                                        <FiUnlock size={20} />
                                     ) : (
-                                        <FiLock size={20} />
+                                        <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className={isLocked ? 'text-[#CA123D]' : 'text-gray-700 dark:text-gray-300'}>
+                                            <path 
+                                                fill="currentColor" 
+                                                fillRule="evenodd" 
+                                                clipRule="evenodd" 
+                                                d="M7 7a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7Zm-1 4v9h12v-9H6Zm9-2H9V7a3 3 0 1 1 6 0v2Zm-3 4a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0v-3a1 1 0 0 1 1-1Z"
+                                            />
+                                        </svg>
                                     )}
                                 </button>
                                 <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
-                                    {t('messages.lock', 'Lock')}
+                                    {isLocked ? t('messages.locked', 'Locked') : t('messages.lock', 'Lock')}
                                 </span>
                             </div>
 
@@ -358,15 +349,43 @@ const GroupChatSettingsModal: React.FC<GroupChatSettingsModalProps> = ({
             />
 
             {/* Lock Confirmation Modal */}
-            <ConfirmModal
-                isOpen={isLockConfirmOpen}
-                onClose={() => setIsLockConfirmOpen(false)}
-                onConfirm={confirmLock}
-                title={t('messages.lock_group_chat', 'Lock group chat?')}
-                message={t('messages.lock_group_chat_message', "Members can still read chat history but can't send new messages.")}
-                confirmLabel={t('messages.lock_group_chat', 'Lock group chat')}
-                variant="primary"
-            />
+            {isLockConfirmOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ minHeight: '60vh' }}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsLockConfirmOpen(false)} />
+                    <div 
+                        className="relative bg-white dark:bg-black rounded-[36px] shadow-2xl max-w-[320px] w-full border border-[#C0CAD8] dark:border-dark-border animate-zoomIn"
+                        style={{ animation: '0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s 1 normal none running zoomIn, 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s 1 normal none running fadeIn' }}
+                    >
+                        <div className="p-6">
+                            <div className="pb-2">
+                                <h2 className="text-[20.6px] font-semibold text-black dark:text-white leading-[27px] pb-1">
+                                    {t('messages.lock_group_chat', 'Lock group chat?')}
+                                </h2>
+                                <p className="text-[15px] text-[#232E3E] dark:text-gray-300 leading-5 pb-4">
+                                    {t('messages.lock_group_chat_message', "Members can still read chat history but can't send new messages.")}
+                                </p>
+                            </div>
+                            <div className="flex flex-col gap-2 w-full">
+                                <button
+                                    onClick={confirmLock}
+                                    disabled={isLockLoading}
+                                    className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-3 px-6 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
+                                    aria-label={t('messages.lock_group_chat', 'Lock group chat')}
+                                >
+                                    {t('messages.lock_group_chat', 'Lock group chat')}
+                                </button>
+                                <button
+                                    onClick={() => setIsLockConfirmOpen(false)}
+                                    className="w-full bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-white/10 py-3 px-6 rounded-full text-[#405168] dark:text-white font-medium text-[15px] transition-colors"
+                                    aria-label={t('common.cancel', 'Cancel')}
+                                >
+                                    {t('common.cancel', 'Cancel')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Leave Confirmation Modal */}
             <ConfirmModal
