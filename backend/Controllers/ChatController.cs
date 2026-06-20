@@ -160,7 +160,9 @@ public class ChatController : ControllerBase
         try
         {
             var link = await _chatService.GetInviteLinkAsync(userId, id);
-            if (link == null) return NotFound(new { message = "No active invite link found." });
+            // Return disabled links too, not just active ones
+            // Frontend needs to know if a link was disabled to show the correct UI
+            if (link == null) return NotFound(new { message = "No invite link found." });
             return Ok(link);
         }
         catch (Exception ex)
