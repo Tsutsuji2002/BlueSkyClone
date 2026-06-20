@@ -68,7 +68,16 @@ namespace BSkyClone.Services
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return data != null ? MapToConversationDto(data.Convo) : null;
+            var dto = data != null ? MapToConversationDto(data.Convo) : null;
+            
+            // DEBUG: Log the lockStatus and mapped Locked value
+            if (dto != null)
+            {
+                _logger.LogInformation("GetConversationAsync - ConvoId: {ConvoId}, LockStatus from AT: '{LockStatus}', Mapped Locked: {Locked}", 
+                    conversationId, data?.Convo?.LockStatus ?? "null", dto.Locked);
+            }
+            
+            return dto;
         }
 
         public async Task<IEnumerable<MessageDto>> GetMessagesAsync(string token, string conversationId, int limit = 50, string? cursor = null)
@@ -616,6 +625,12 @@ namespace BSkyClone.Services
                 m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did
             ));
 
+            var isLocked = convo.LockStatus == "locked";
+            
+            // DEBUG: Log the lockStatus conversion
+            _logger.LogInformation("MapToConversationDto - ConvoId: {ConvoId}, LockStatus: '{LockStatus}', Converted to Locked: {Locked}", 
+                convo.Id, convo.LockStatus ?? "null", isLocked);
+
             return new ConversationDto(
                 convo.Id,
                 membersDict.Values.ToList(),
@@ -626,7 +641,7 @@ namespace BSkyClone.Services
                 convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null, // Read from Kind.JoinLink as per AT Protocol structure
                 convo.Muted, // Muted status from Bluesky API
-                convo.LockStatus == "locked" // Locked status from Bluesky API - lockStatus is "locked" or "unlocked"
+                isLocked // Locked status from Bluesky API - lockStatus is "locked" or "unlocked"
             );
         }
 
