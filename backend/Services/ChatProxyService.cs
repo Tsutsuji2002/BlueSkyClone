@@ -109,9 +109,18 @@ namespace BSkyClone.Services
             // Order by CreatedAt to ensure chronological order (oldest first)
             var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
             
+            // DEBUG: Log first few messages to see content
+            foreach (var msg in messages.Take(5))
+            {
+                _logger.LogInformation("Message {Id}: Content='{Content}', SenderId={SenderId}, Type={Type}", 
+                    msg.Id, msg.Content ?? "(null)", msg.SenderId, msg.Type);
+            }
+            
             // Parallelize enrichment to avoid sequential bottleneck
             var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
             var enriched = await Task.WhenAll(enrichmentTasks);
+            
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} enriched messages", conversationId, enriched.Length);
             
             return enriched;
         }
