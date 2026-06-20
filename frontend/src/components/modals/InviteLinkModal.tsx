@@ -5,6 +5,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import { createInviteLink, updateInviteLink, disableInviteLink, fetchInviteLink } from '../../redux/slices/messagesSlice';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
+import { showToast } from '../../redux/slices/toastSlice';
 
 interface InviteLinkModalProps {
     isOpen: boolean;
@@ -155,11 +156,15 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
 
     const handleDisable = async () => {
         setLoading(true);
+        setError(null);
         try {
             await dispatch(disableInviteLink(conversationId) as any);
+            dispatch(showToast({ message: 'Invite link disabled', type: 'success' }));
             setStep('disabled');
         } catch (err: any) {
-            setError(err.message || 'Failed to disable link');
+            const errorMsg = err.message || 'Failed to disable link';
+            setError(errorMsg);
+            dispatch(showToast({ message: errorMsg, type: 'error' }));
         } finally {
             setLoading(false);
         }
@@ -477,9 +482,12 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                                 setFetchedLink(result);
                                 setRule(result.joinRule);
                                 setRequireApproval(result.requireApproval);
+                                dispatch(showToast({ message: 'Invite link re-enabled', type: 'success' }));
                                 setStep('active');
                             } catch (err: any) {
-                                setError(err.message || 'Failed to re-enable link');
+                                const errorMsg = err.message || 'Failed to re-enable link';
+                                setError(errorMsg);
+                                dispatch(showToast({ message: errorMsg, type: 'error' }));
                             } finally {
                                 setLoading(false);
                             }
