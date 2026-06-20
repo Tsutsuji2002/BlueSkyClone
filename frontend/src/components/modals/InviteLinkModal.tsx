@@ -462,17 +462,16 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                             setError(null);
                             try {
                                 const API_URL = process.env.REACT_APP_API_URL || '/api';
-                                const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link`, {
+                                const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/invite-link/enable`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    credentials: 'include',
-                                    body: JSON.stringify({ 
-                                        requireApproval: activeLink?.requireApproval || false, 
-                                        joinRule: activeLink?.joinRule || 'anyone' 
-                                    })
+                                    credentials: 'include'
                                 });
                                 
-                                if (!response.ok) throw new Error('Failed to re-enable link');
+                                if (!response.ok) {
+                                    const errorData = await response.json();
+                                    throw new Error(errorData.message || 'Failed to re-enable link');
+                                }
                                 
                                 const result = await response.json();
                                 setFetchedLink(result);

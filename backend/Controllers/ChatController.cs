@@ -216,6 +216,21 @@ public class ChatController : ControllerBase
         }
     }
 
+    [HttpPost("conversations/{id}/invite-link/enable")]
+    public async Task<IActionResult> EnableInviteLink(string id)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var link = await _chatService.EnableInviteLinkAsync(userId, id);
+            return Ok(link);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     private Guid GetUserId()
     {
         var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
