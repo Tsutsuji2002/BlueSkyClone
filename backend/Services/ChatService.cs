@@ -986,20 +986,26 @@ public class ChatService : IChatService
         // Fetch the full conversation from the proxy — it contains JoinLink metadata if one exists
         var conversation = await _chatProxy.GetConversationAsync(token, conversationId);
         var linkMeta = conversation?.JoinLink;
+        
+        _logger.LogInformation("GetInviteLinkAsync for {ConvoId}: conversation exists={HasConvo}, joinLink exists={HasLink}, disabled={IsDisabled}", 
+            conversationId, conversation != null, linkMeta != null, linkMeta?.Disabled ?? false);
 
         // AT Protocol's getConvo sometimes omits the joinLink object even if one exists.
         // If we don't see it, try a silent "editJoinLink" to force it to show up.
         if (linkMeta == null || (string.IsNullOrEmpty(linkMeta.Link) && !linkMeta.Disabled))
         {
+            _logger.LogInformation("Attempting to recover/refresh invite link for {ConvoId}", conversationId);
             try
             {
                 // Try to "edit" with defaults if we don't have existing metadata, or refresh if we do
-                return await _chatProxy.EditJoinLinkAsync(
+                var recovered = await _chatProxy.EditJoinLinkAsync(
                     token, 
                     conversationId, 
                     linkMeta?.RequireApproval ?? false, 
                     linkMeta?.JoinRule ?? "anyone"
                 );
+                _logger.LogInformation("Successfully recovered invite link for {ConvoId}, disabled={IsDisabled}", conversationId, recovered?.Disabled ?? false);
+                return recovered;
             }
             catch (Exception ex)
             {
@@ -1009,6 +1015,7 @@ public class ChatService : IChatService
             }
         }
 
+        _logger.LogInformation("Returning existing linkMeta for {ConvoId}, disabled={IsDisabled}", conversationId, linkMeta.Disabled);
         return linkMeta;
     }
 
