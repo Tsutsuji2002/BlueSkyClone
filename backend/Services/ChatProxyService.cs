@@ -78,7 +78,7 @@ namespace BSkyClone.Services
             if (dto != null)
             {
                 _logger.LogInformation("GetConversationAsync - ConvoId: {ConvoId}, LockStatus from AT: '{LockStatus}', Mapped Locked: {Locked}", 
-                    conversationId, data?.Convo?.LockStatus ?? "null", dto.Locked);
+                    conversationId, data?.Convo?.Kind?.LockStatus ?? "null", dto.Locked);
             }
             
             return dto;
@@ -629,11 +629,11 @@ namespace BSkyClone.Services
                 m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did
             ));
 
-            var isLocked = convo.LockStatus == "locked";
+            var isLocked = convo.Kind?.LockStatus == "locked";
             
             // DEBUG: Log the lockStatus conversion
             _logger.LogInformation("MapToConversationDto - ConvoId: {ConvoId}, LockStatus: '{LockStatus}', Converted to Locked: {Locked}", 
-                convo.Id, convo.LockStatus ?? "null", isLocked);
+                convo.Id, convo.Kind?.LockStatus ?? "null", isLocked);
 
             return new ConversationDto(
                 convo.Id,
@@ -645,7 +645,7 @@ namespace BSkyClone.Services
                 convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null, // Read from Kind.JoinLink as per AT Protocol structure
                 convo.Muted, // Muted status from Bluesky API
-                isLocked // Locked status from Bluesky API - lockStatus is "locked" or "unlocked"
+                isLocked // Locked status from Bluesky API - lockStatus is inside Kind object
             );
         }
 
@@ -753,8 +753,6 @@ namespace BSkyClone.Services
             public BlueskyJoinLink? JoinLink { get; set; }
             [JsonPropertyName("muted")]
             public bool Muted { get; set; }
-            [JsonPropertyName("lockStatus")]
-            public string? LockStatus { get; set; }
         }
         
         private class BlueskyConvoKind
@@ -765,6 +763,8 @@ namespace BSkyClone.Services
             public string? Name { get; set; }
             [JsonPropertyName("joinLink")]
             public BlueskyJoinLink? JoinLink { get; set; }
+            [JsonPropertyName("lockStatus")]
+            public string? LockStatus { get; set; }
         }
         private class BlueskyMember
         {
