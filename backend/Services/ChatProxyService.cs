@@ -606,7 +606,7 @@ namespace BSkyClone.Services
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
                 convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
-                convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null,
+                convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null, // Read from Kind.JoinLink as per AT Protocol structure
                 convo.Muted // Muted status from Bluesky API
             );
         }

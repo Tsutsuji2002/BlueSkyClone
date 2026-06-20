@@ -984,38 +984,14 @@ public class ChatService : IChatService
         if (string.IsNullOrEmpty(token)) throw new UnauthorizedAccessException();
 
         // Fetch the full conversation from the proxy — it contains JoinLink metadata if one exists
+        // The JoinLink is now properly parsed from convo.kind.joinLink by ChatProxyService
         var conversation = await _chatProxy.GetConversationAsync(token, conversationId);
         var linkMeta = conversation?.JoinLink;
         
         _logger.LogInformation("GetInviteLinkAsync for {ConvoId}: conversation exists={HasConvo}, joinLink exists={HasLink}, disabled={IsDisabled}", 
             conversationId, conversation != null, linkMeta != null, linkMeta?.Disabled ?? false);
 
-        // AT Protocol's getConvo sometimes omits the joinLink object even if one exists.
-        // If we don't see it, try a silent "editJoinLink" to force it to show up.
-        if (linkMeta == null || (string.IsNullOrEmpty(linkMeta.Link) && !linkMeta.Disabled))
-        {
-            _logger.LogInformation("Attempting to recover/refresh invite link for {ConvoId}", conversationId);
-            try
-            {
-                // Try to "edit" with defaults if we don't have existing metadata, or refresh if we do
-                var recovered = await _chatProxy.EditJoinLinkAsync(
-                    token, 
-                    conversationId, 
-                    linkMeta?.RequireApproval ?? false, 
-                    linkMeta?.JoinRule ?? "anyone"
-                );
-                _logger.LogInformation("Successfully recovered invite link for {ConvoId}, disabled={IsDisabled}", conversationId, recovered?.Disabled ?? false);
-                return recovered;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("Silent invite link recovery failed for {ConvoId}: {Message}", conversationId, ex.Message);
-                // If it really doesn't exist, this might fail too
-                return linkMeta;
-            }
-        }
-
-        _logger.LogInformation("Returning existing linkMeta for {ConvoId}, disabled={IsDisabled}", conversationId, linkMeta.Disabled);
+        // Return the link metadata directly (includes disabled links)
         return linkMeta;
     }
 
