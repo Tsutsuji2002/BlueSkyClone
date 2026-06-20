@@ -587,7 +587,7 @@ namespace BSkyClone.Services
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
-                convo.Name ?? convo.DisplayName, // GroupName from Bluesky API - try "name" first, fallback to "displayName"
+                convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
                 convo.JoinLink != null ? MapToJoinLinkDto(convo.JoinLink) : null
             );
         }
@@ -690,10 +690,18 @@ namespace BSkyClone.Services
             public BlueskyMessage? LastMessage { get; set; }
             [JsonPropertyName("unreadCount")]
             public int UnreadCount { get; set; }
+            [JsonPropertyName("kind")]
+            public BlueskyConvoKind? Kind { get; set; }
+            [JsonPropertyName("joinLink")]
+            public BlueskyJoinLink? JoinLink { get; set; }
+        }
+        
+        private class BlueskyConvoKind
+        {
+            [JsonPropertyName("$type")]
+            public string Type { get; set; } = string.Empty;
             [JsonPropertyName("name")]
             public string? Name { get; set; }
-            [JsonPropertyName("displayName")]
-            public string? DisplayName { get; set; }
             [JsonPropertyName("joinLink")]
             public BlueskyJoinLink? JoinLink { get; set; }
         }
