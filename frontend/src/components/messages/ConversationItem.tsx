@@ -9,6 +9,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BsPatchCheckFill } from 'react-icons/bs';
+import { FiBellOff } from 'react-icons/fi';
 
 interface ConversationItemProps {
     conversation: Conversation;
@@ -51,12 +52,42 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
     const lastMessageText = (() => {
         if (!conversation.lastMessage) return null;
         const lm = conversation.lastMessage;
-        const isMine = lm.senderId === currentUser?.id;
-        const prefix = isMine ? <span className="text-gray-500 dark:text-gray-400">{t('common.you')}: </span> : null;
-        const text = lm.isRecalled
+        const isMine = lm.senderId === currentUser?.id || lm.senderId === currentUser?.did;
+        
+        // Get sender info for group messages
+        let senderHandle = '';
+        if (isGroup && !isMine) {
+            const sender = conversation.participants.find(p => 
+                p.id === lm.senderId || p.did === lm.senderId
+            );
+            if (sender) {
+                senderHandle = sender.handle || sender.username || '';
+            }
+        }
+
+        // Build the message content
+        const content = lm.isRecalled
             ? t('messages.recalled_msg', { name: '' }).trim()
             : lm.content || (lm.imageUrl ? '📷 Photo' : '');
-        return <>{prefix}{text}</>;
+
+        // Format: "You: message" or "@handle: message" or just "message"
+        if (isMine) {
+            return (
+                <>
+                    <span className="text-gray-500 dark:text-gray-400">{t('common.you')}: </span>
+                    <span>{content}</span>
+                </>
+            );
+        } else if (isGroup && senderHandle) {
+            return (
+                <>
+                    <span className="text-gray-500 dark:text-gray-400">@{senderHandle}: </span>
+                    <span>{content}</span>
+                </>
+            );
+        } else {
+            return <span>{content}</span>;
+        }
     })();
 
     return (
@@ -92,7 +123,7 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                    {/* Row 1: Name + time */}
+                    {/* Row 1: Name + time + mute icon */}
                     <div className="flex items-baseline justify-between gap-2">
                         <div className="flex items-center gap-1 min-w-0 flex-1">
                             <span className={cn(
@@ -105,24 +136,52 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
                                 <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />
                             )}
                         </div>
-                        {hasChatted && (
-                            <span className="text-[12px] text-[#647990] dark:text-[#a5b2c5] flex-shrink-0 leading-[20px]">
-                                {formatPostDate(conversation.lastMessage!.createdAt || conversation.createdAt)}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {hasChatted && (
+                                <span className="text-[12px] text-[#647990] dark:text-[#a5b2c5] leading-[20px]">
+                                    {formatPostDate(conversation.lastMessage!.createdAt || conversation.createdAt)}
+                                </span>
+                            )}
+                            {conversation.muted && (
+                                <FiBellOff 
+                                    className="text-[#647990] dark:text-[#a5b2c5]" 
+                                    size={12}
+                                    aria-label="Muted"
+                                />
+                            )}
+                        </div>
                     </div>
 
                     {/* Row 2: last message or handle */}
                     <div className="flex items-center justify-between gap-2 mt-0.5">
                         {hasChatted ? (
-                            <p className={cn(
-                                "text-[13.1px] truncate flex-1 leading-[17px]",
-                                hasUnread
-                                    ? "font-semibold text-gray-900 dark:text-dark-text"
-                                    : "text-[#647990] dark:text-[#a5b2c5]"
-                            )}>
-                                {lastMessageText}
-                            </p>
+                            <div className="flex items-center gap-1 flex-1 min-w-0">
+                                {conversation.muted && (
+                                    <svg 
+                                        fill="none" 
+                                        viewBox="0 0 24 24" 
+                                        width="12" 
+                                        height="12" 
+                                        className="flex-shrink-0"
+                                        style={{ color: '#647990' }}
+                                    >
+                                        <path 
+                                            fill="currentColor" 
+                                            fillRule="evenodd" 
+                                            clipRule="evenodd" 
+                                            d="m19.785 8.815 1.034 7.761L7.595 3.352a7.853 7.853 0 0 1 12.19 5.463ZM4 19h3.354c.904 1.748 2.607 3 4.646 3 2.038 0 3.742-1.252 4.646-3h.94l2.707 2.707a1 1 0 0 0 1.414-1.414l-18-18a1 1 0 0 0-1.414 1.414l2.666 2.666a7.842 7.842 0 0 0-.743 2.442l-1.207 9.053A1 1 0 0 0 4 19Zm8 1c-.823 0-1.613-.363-2.222-1h4.443c-.608.637-1.398 1-2.221 1Z"
+                                        />
+                                    </svg>
+                                )}
+                                <p className={cn(
+                                    "text-[13.1px] truncate flex-1 leading-[17px]",
+                                    hasUnread
+                                        ? "font-semibold text-gray-900 dark:text-dark-text"
+                                        : "text-[#647990] dark:text-[#a5b2c5]"
+                                )}>
+                                    {lastMessageText}
+                                </p>
+                            </div>
                         ) : (
                             <p className="text-[12px] text-[#647990] dark:text-[#a5b2c5] truncate flex-1 leading-[17px]">
                                 @{otherParticipant.handle || otherParticipant.username}
