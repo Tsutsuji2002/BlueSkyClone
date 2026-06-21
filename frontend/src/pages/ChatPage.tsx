@@ -920,7 +920,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                                 </div>
                                                             )}
 
-                                                            {msg.content && (
+                                                            {msg.content && msg.content.trim().length > 0 && (
                                                                 <div className="px-4 py-2.5">
                                                                     <p className="text-[15px] whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
                                                                     {msg.isModified && (
