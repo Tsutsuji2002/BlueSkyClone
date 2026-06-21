@@ -137,13 +137,15 @@ namespace BSkyClone.Services
                     msg.Id, contentPreview, msg.SenderId, msg.Type);
             }
             
-            // Parallelize enrichment to avoid sequential bottleneck
-            var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
-            var enriched = await Task.WhenAll(enrichmentTasks);
+            // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
+            // Link previews were causing 21+ second delays when loading 50 messages
+            // TODO: Implement lazy/on-demand link preview loading in frontend or via separate endpoint
+            // var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
+            // var enriched = await Task.WhenAll(enrichmentTasks);
             
-            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} enriched messages", conversationId, enriched.Length);
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages", conversationId, messages.Count());
             
-            return enriched;
+            return messages;
         }
 
         public async Task<IEnumerable<MessageDto>> GetLogAsync(string token, string? cursor)
@@ -201,21 +203,40 @@ namespace BSkyClone.Services
 
         private async Task<MessageDto> EnrichMessageAsync(MessageDto dto)
         {
+            // Skip enrichment for messages without content or that already have previews
             if (string.IsNullOrEmpty(dto.Content) || dto.LinkPreview != null) return dto;
+
+            // Skip enrichment if content doesn't contain URLs (basic check)
+            if (!dto.Content.Contains("http://") && !dto.Content.Contains("https://"))
+            {
+                return dto;
+            }
 
             try 
             {
-                var preview = await _linkService.GetLinkPreviewAsync(dto.Content);
-                if (preview != null)
+                // Add timeout to prevent hanging on slow websites (2 seconds max per message)
+                var previewTask = _linkService.GetLinkPreviewAsync(dto.Content);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(2));
+                var completedTask = await Task.WhenAny(previewTask, timeoutTask);
+                
+                if (completedTask == previewTask)
                 {
-                    dto = dto with { LinkPreview = new LinkPreviewDto
+                    var preview = await previewTask;
+                    if (preview != null)
                     {
-                        Url = preview.Url,
-                        Title = preview.Title,
-                        Description = preview.Description,
-                        Image = preview.Image,
-                        Domain = preview.Domain
-                    }};
+                        dto = dto with { LinkPreview = new LinkPreviewDto
+                        {
+                            Url = preview.Url,
+                            Title = preview.Title,
+                            Description = preview.Description,
+                            Image = preview.Image,
+                            Domain = preview.Domain
+                        }};
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug("Link preview timeout for message {Id}", dto.Id);
                 }
             }
             catch (Exception ex)
