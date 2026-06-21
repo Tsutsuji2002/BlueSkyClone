@@ -305,4 +305,42 @@ public class UserController : ControllerBase
         
         return dto;
     }
+
+    [HttpPost("batch-follow-status")]
+    public async Task<IActionResult> GetBatchFollowStatus([FromBody] BatchFollowStatusRequest request)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var currentUserId))
+            return Unauthorized();
+
+        if (request?.UserIds == null || request.UserIds.Count == 0)
+            return BadRequest(new { message = "UserIds array is required" });
+
+        // Limit to prevent abuse
+        if (request.UserIds.Count > 100)
+            return BadRequest(new { message = "Maximum 100 users per request" });
+
+        var result = new Dictionary<Guid, bool>();
+        
+        // Check follow status for each user in parallel
+        var tasks = request.UserIds.Select(async targetUserId => {
+            try {
+                var isFollowing = await _userService.IsFollowingAsync(currentUserId, targetUserId);
+                return (targetUserId, isFollowing);
+            } catch {
+                return (targetUserId, false);
+            }
+        });
+
+        var results = await Task.WhenAll(tasks);
+        
+        foreach (var (userId, isFollowing) in results)
+        {
+            result[userId] = isFollowing;
+        }
+
+        return Ok(result);
+    }
 }
+
+public record BatchFollowStatusRequest(List<Guid> UserIds);

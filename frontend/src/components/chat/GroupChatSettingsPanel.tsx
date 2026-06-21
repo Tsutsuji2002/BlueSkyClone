@@ -50,34 +50,47 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
         ((conversation.participants[0].did && currentUser?.did && conversation.participants[0].did === currentUser.did) ||
          (conversation.participants[0].id === currentUser?.id));
 
-    // Fetch follow statuses for all participants
+    // Fetch follow statuses for all participants in parallel
+    // Only fetch for participants we don't already have follow status for
     React.useEffect(() => {
         const fetchFollowStatuses = async () => {
-            const statuses: Record<string, boolean> = {};
+            if (!currentUser?.id) return;
             
-            for (const participant of conversation.participants) {
-                if (participant.did === currentUser?.did || participant.id === currentUser?.id) {
-                    continue; // Skip current user
-                }
+            const participantIds = conversation.participants
+                .filter(p => p.did !== currentUser?.did && p.id !== currentUser?.id)
+                .map(p => p.id)
+                .filter(id => id); // Remove any undefined
+            
+            if (participantIds.length === 0) return;
+            
+            try {
+                // Use a batch endpoint to check follow status for all participants at once
+                // This is much faster than individual profile requests
+                const response = await fetch(`${API_URL}/users/batch-follow-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ userIds: participantIds })
+                });
                 
-                try {
-                    const response = await fetch(`${API_URL}/users/profile/${participant.handle}`, {
-                        credentials: 'include'
+                if (response.ok) {
+                    const data = await response.json();
+                    const statuses: Record<string, boolean> = {};
+                    conversation.participants.forEach(participant => {
+                        const key = participant.did || participant.id;
+                        if (data[participant.id]) {
+                            statuses[key] = data[participant.id];
+                        }
                     });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        // Try both possible locations for isFollowing
-                        const isFollowing = data.isFollowing || data.user?.isFollowing || false;
-                        statuses[participant.did || participant.id] = isFollowing;
-                        console.log(`[GroupChatSettings] Follow status for ${participant.handle}:`, isFollowing, 'from data:', data);
-                    }
-                } catch (error) {
-                    console.error('Error fetching follow status for', participant.handle, error);
+                    setFollowStatuses(statuses);
+                } else {
+                    // Fallback: Check local database only (skip remote resolution)
+                    // This avoids the expensive Bluesky API calls
+                    console.warn('Batch follow status not available, using fallback');
                 }
+            } catch (error) {
+                console.error('Error fetching follow statuses:', error);
             }
-            
-            setFollowStatuses(statuses);
         };
         
         fetchFollowStatuses();
