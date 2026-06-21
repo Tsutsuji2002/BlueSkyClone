@@ -384,6 +384,7 @@ export interface Conversation {
     };
     muted?: boolean;
     locked?: boolean;
+    // First participant is considered the owner/admin of the group
 }
 
 export type UserDto = User;

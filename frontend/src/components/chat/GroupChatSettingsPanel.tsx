@@ -44,6 +44,11 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
 
     const API_URL = process.env.REACT_APP_API_URL || '/api';
 
+    // Determine if current user is the owner/admin (first participant)
+    const isOwner = conversation.participants.length > 0 && 
+        ((conversation.participants[0].did && currentUser?.did && conversation.participants[0].did === currentUser.did) ||
+         (conversation.participants[0].id === currentUser?.id));
+
     // Update locked state when conversation prop changes
     React.useEffect(() => {
         console.log('[GroupChatSettingsPanel] conversation.locked:', conversation.locked);
@@ -233,9 +238,10 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={() => setIsEditNameOpen(true)}
-                                    disabled={isLocked}
+                                    disabled={isLocked || !isOwner}
                                     className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={t('messages.edit_name')}
+                                    title={!isOwner ? t('messages.only_owner_can_edit', 'Only the owner can edit the group name') : ''}
                                 >
                                     <FiEdit3 size={20} />
                                 </button>
@@ -248,9 +254,10 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={() => setIsInviteLinkOpen(true)}
-                                    disabled={isLocked}
+                                    disabled={isLocked || !isOwner}
                                     className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     aria-label={t('messages.invite_link')}
+                                    title={!isOwner ? t('messages.only_owner_can_manage_invite', 'Only the owner can manage invite links') : ''}
                                 >
                                     <FiLink size={20} />
                                 </button>
@@ -263,13 +270,14 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={handleLockClick}
-                                    disabled={isLockLoading}
+                                    disabled={isLockLoading || !isOwner}
                                     className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                         isLocked 
                                             ? 'bg-[#FEE7EC] hover:bg-[#FDD8E1]' 
                                             : 'bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover'
                                     }`}
                                     aria-label={isLocked ? t('messages.unlock', 'Unlock this group chat') : t('messages.lock', 'Lock')}
+                                    title={!isOwner ? t('messages.only_owner_can_lock', 'Only the owner can lock/unlock the group') : ''}
                                 >
                                     {isLockLoading ? (
                                         <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />

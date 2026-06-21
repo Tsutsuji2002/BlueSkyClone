@@ -35,6 +35,12 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
 }) => {
     const dispatch = useAppDispatch();
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
+    
+    // Determine if current user is the owner/admin (first participant)
+    const isOwner = participants.length > 0 && 
+        ((participants[0].did && currentUser?.did && participants[0].did === currentUser.did) ||
+         (participants[0].id === currentUser?.id));
+    
     const [step, setStep] = useState<Step>('intro');
     const [rule, setRule] = useState<string>('anyone');
     const [requireApproval, setRequireApproval] = useState<boolean>(false);
@@ -342,7 +348,9 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                     <div className="mt-4">
                         <button 
                             onClick={goToEditRules}
-                            className="w-full flex flex-row items-center justify-between border border-[#DCE2EA] dark:border-dark-border bg-white dark:bg-black p-2 pl-4 rounded-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                            disabled={!isOwner}
+                            className="w-full flex flex-row items-center justify-between border border-[#DCE2EA] dark:border-dark-border bg-white dark:bg-black p-2 pl-4 rounded-full hover:bg-gray-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={!isOwner ? 'Only the owner can edit invite link rules' : ''}
                         >
                             <span className="text-[13.1px] text-black dark:text-white flex-1 truncate">{currentRuleLabel}</span>
                             <div className="bg-[#EFF2F6] dark:bg-dark-surface py-2 px-2.5 rounded-full text-[11.3px] font-bold text-[#232E3E] dark:text-white shrink-0 ml-2">
@@ -354,8 +362,9 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                     <div className="mt-4 flex flex-row justify-between gap-2 text-center">
                         <button 
                             onClick={() => setStep('confirmDisable')}
-                            disabled={loading}
-                            className="flex-1 flex flex-col items-center justify-center gap-1 bg-[#FEE7EC] dark:bg-red-950 p-2 py-4 rounded-[20px] transition-colors hover:bg-red-100 dark:hover:bg-red-900"
+                            disabled={loading || !isOwner}
+                            className="flex-1 flex flex-col items-center justify-center gap-1 bg-[#FEE7EC] dark:bg-red-950 p-2 py-4 rounded-[20px] transition-colors hover:bg-red-100 dark:hover:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={!isOwner ? 'Only the owner can disable the invite link' : ''}
                         >
                             <div className="p-1 rounded-full"><svg fill="none" width="24" viewBox="0 0 24 24" height="24"><path fill="#CA123D" fillRule="evenodd" clipRule="evenodd" d="M14.3 23v-1.1a1 1 0 0 1 2 0V23a1 1 0 1 1-2 0Zm5.243-3.457a1 1 0 0 1 1.414 0l1.1 1.1a1 1 0 1 1-1.414 1.414l-1.1-1.1a1 1 0 0 1 0-1.414ZM4.788 9.298a1 1 0 0 1 1.424 1.404l-.742.752-.004.005a5.003 5.003 0 1 0 7.075 7.075l.005-.004.752-.742a1 1 0 0 1 1.404 1.424l-.747.736a7.003 7.003 0 1 1-9.904-9.904l.737-.746ZM23 14.3a1 1 0 0 1 0 2h-1.1a1 1 0 1 1 0-2H23ZM10.044 4.05a7.005 7.005 0 0 1 9.905 9.906h0l-.737.746a1 1 0 0 1-1.424-1.404l.742-.752.004-.005a5.003 5.003 0 1 0-7.075-7.075l-.005.004-.752.742a1 1 0 0 1-1.404-1.424l.746-.737ZM2.1 7.7a1 1 0 1 1 0 2H1a1 1 0 0 1 0-2h1.1Zm-.157-5.757a1 1 0 0 1 1.414 0l1.1 1.1a1 1 0 1 1-1.414 1.414l-1.1-1.1a1 1 0 0 1 0-1.414ZM7.7 2.1V1a1 1 0 1 1 2 0v1.1a1 1 0 0 1-2 0Z"></path></svg></div>
                             <span className="text-[11.3px] font-bold text-[#CA123D]">Disable</span>
@@ -492,8 +501,9 @@ const InviteLinkModal: React.FC<InviteLinkModalProps> = ({
                                 setLoading(false);
                             }
                         }}
-                        disabled={loading}
-                        className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50"
+                        disabled={loading || !isOwner}
+                        className="w-full bg-[#006AFF] hover:bg-[#0052cc] py-3 rounded-full text-white font-medium text-[15px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!isOwner ? 'Only the owner can re-enable the invite link' : ''}
                     >
                         {loading ? 'Re-enabling...' : 'Re-enable link'}
                     </button>
