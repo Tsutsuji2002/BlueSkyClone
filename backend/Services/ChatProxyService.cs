@@ -668,13 +668,64 @@ namespace BSkyClone.Services
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)
         {
+            // Check if this is a system message
+            var isSystemMessage = msg.Type != null && msg.Type.Contains("systemMessageView");
+            
+            string messageType = "message";
+            string? content = msg.Text;
+            
+            if (isSystemMessage && msg.Data != null)
+            {
+                // Extract system message type from data.$type
+                var dataType = msg.Data.Value.TryGetProperty("$type", out var typeElement) 
+                    ? typeElement.GetString() 
+                    : "";
+                
+                if (dataType != null)
+                {
+                    if (dataType.Contains("LockConvo"))
+                    {
+                        messageType = "lock";
+                        var lockedBy = msg.Data.Value.TryGetProperty("lockedBy", out var lockedByElement) && 
+                                      lockedByElement.TryGetProperty("did", out var didElement)
+                            ? didElement.GetString()
+                            : "";
+                        content = $"Chat locked by {lockedBy}";
+                    }
+                    else if (dataType.Contains("UnlockConvo"))
+                    {
+                        messageType = "unlock";
+                        var unlockedBy = msg.Data.Value.TryGetProperty("unlockedBy", out var unlockedByElement) && 
+                                        unlockedByElement.TryGetProperty("did", out var didElement)
+                            ? didElement.GetString()
+                            : "";
+                        content = $"Chat unlocked by {unlockedBy}";
+                    }
+                    else if (dataType.Contains("MemberAdd"))
+                    {
+                        messageType = "member_add";
+                        content = "Member added";
+                    }
+                    else if (dataType.Contains("MemberRemove"))
+                    {
+                        messageType = "member_remove";
+                        content = "Member removed";
+                    }
+                    else if (dataType.Contains("ConvoCreate"))
+                    {
+                        messageType = "create";
+                        content = "Chat created";
+                    }
+                }
+            }
+            
             // Try to get full sender data from conversation members if available
             UserDto? sender = null;
-            if (members != null && members.TryGetValue(msg.Sender?.Did ?? "", out var memberData))
+            if (members != null && msg.Sender != null && members.TryGetValue(msg.Sender.Did ?? "", out var memberData))
             {
                 sender = memberData;
             }
-            else
+            else if (msg.Sender != null)
             {
                 // Fallback to whatever data we have from the message
                 sender = MapToUserDto(msg.Sender);
@@ -684,7 +735,7 @@ namespace BSkyClone.Services
                 msg.Id,
                 convoId,
                 msg.Sender?.Did ?? "",
-                msg.Text,
+                content ?? "",
                 null,
                 DateTimeOffset.Parse(msg.SentAt),
                 false,
@@ -697,7 +748,8 @@ namespace BSkyClone.Services
                     r.Sender?.Did ?? "", 
                     r.Emoji, 
                     r.Sender != null ? (string.IsNullOrWhiteSpace(r.Sender.DisplayName) ? r.Sender.Handle : r.Sender.DisplayName) : null
-                )).ToList()
+                )).ToList(),
+                messageType
             );
         }
 
@@ -801,14 +853,20 @@ namespace BSkyClone.Services
             [JsonPropertyName("rev")]
             public string Rev { get; set; } = string.Empty;
             [JsonPropertyName("text")]
-            public string Text { get; set; } = string.Empty;
+            public string? Text { get; set; }
             [JsonPropertyName("sentAt")]
             public string SentAt { get; set; } = string.Empty;
             [JsonPropertyName("sender")]
-            public BlueskyMember Sender { get; set; } = new();
+            public BlueskyMember? Sender { get; set; }
             
             [JsonPropertyName("reactions")]
             public List<BlueskyMessageReaction>? Reactions { get; set; }
+            
+            [JsonPropertyName("$type")]
+            public string? Type { get; set; }
+            
+            [JsonPropertyName("data")]
+            public JsonElement? Data { get; set; }
         }
 
         private class BlueskyMessageReaction
