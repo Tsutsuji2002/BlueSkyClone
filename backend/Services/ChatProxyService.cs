@@ -98,6 +98,9 @@ namespace BSkyClone.Services
 
             var json = await response.Content.ReadAsStringAsync();
             
+            // DEBUG: Log full raw JSON for debugging
+            _logger.LogInformation("GetMessagesAsync FULL RAW JSON for {ConvoId}: {Json}", conversationId, json);
+            
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             // DEBUG: Log how many messages were deserialized
