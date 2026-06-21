@@ -255,7 +255,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     useEffect(() => {
         if (conversationId && isSessionSettled) {
             dispatch(setActiveConversation(conversationId));
-            dispatch(fetchMessages({ conversationId, limit: 10 }));
+            // Fetch 50 messages initially to ensure content is visible
+            dispatch(fetchMessages({ conversationId, limit: 50 }));
             
             if (conversation?.lastMessage) {
                 dispatch(markAsRead({ conversationId, messageId: conversation.lastMessage.id }));
@@ -360,7 +361,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
                 await dispatch(fetchMessages({
                     conversationId,
-                    limit: 15,
+                    limit: 50, // Increased from 15 to 50 for consistent loading
                     before: new Date(firstMessage.createdAt).toISOString()
                 }));
 
