@@ -98,14 +98,20 @@ namespace BSkyClone.Services
 
             var json = await response.Content.ReadAsStringAsync();
             
-            // DEBUG: Log first 2000 chars of raw JSON to see message structure
-            _logger.LogInformation("GetMessagesAsync RAW JSON sample for {ConvoId}: {Json}", 
-                conversationId, json.Length > 2000 ? json.Substring(0, 2000) + "..." : json);
-            
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             // DEBUG: Log how many messages were deserialized
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
+            
+            // DEBUG: Log messages with empty text to see if they have other data
+            if (data?.Messages != null)
+            {
+                foreach (var msg in data.Messages.Where(m => string.IsNullOrEmpty(m.Text) && m.Type == null))
+                {
+                    _logger.LogWarning("Message {Id} has empty text and is regular message type. Raw: {Raw}", 
+                        msg.Id, JsonSerializer.Serialize(msg));
+                }
+            }
             
             // Order by CreatedAt to ensure chronological order (oldest first)
             var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
