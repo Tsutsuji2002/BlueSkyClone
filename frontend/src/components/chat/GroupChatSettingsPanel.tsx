@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiBell, FiBellOff, FiEdit3, FiLink, FiLock, FiUnlock, FiLogOut } from 'react-icons/fi';
+import { FiArrowLeft, FiBell, FiBellOff, FiEdit3, FiLink, FiLogOut } from 'react-icons/fi';
 import GroupAvatar from '../messages/GroupAvatar';
 import Avatar from '../common/Avatar';
 import { Conversation, User } from '../../types';
@@ -61,7 +61,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                 }
                 
                 try {
-                    const response = await fetch(`${API_URL}/profile/${participant.handle}`, {
+                    const response = await fetch(`${API_URL}/users/profile/${participant.handle}`, {
                         credentials: 'include'
                     });
                     
@@ -392,7 +392,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                 const handleFollowToggle = async () => {
                                     try {
                                         const endpoint = isFollowing ? 'unfollow' : 'follow';
-                                        const response = await fetch(`${API_URL}/profile/${participant.handle}/${endpoint}`, {
+                                        const response = await fetch(`${API_URL}/users/${endpoint}/${participant.handle}`, {
                                             method: 'POST',
                                             credentials: 'include'
                                         });
