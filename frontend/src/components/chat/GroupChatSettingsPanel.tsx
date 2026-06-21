@@ -41,6 +41,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
     const [isLocked, setIsLocked] = useState(conversation.locked || false);
     const [isMuteLoading, setIsMuteLoading] = useState(false);
     const [isLockLoading, setIsLockLoading] = useState(false);
+    const [followStatuses, setFollowStatuses] = useState<Record<string, boolean>>({});
 
     const API_URL = process.env.REACT_APP_API_URL || '/api';
 
@@ -48,6 +49,36 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
     const isOwner = conversation.participants.length > 0 && 
         ((conversation.participants[0].did && currentUser?.did && conversation.participants[0].did === currentUser.did) ||
          (conversation.participants[0].id === currentUser?.id));
+
+    // Fetch follow statuses for all participants
+    React.useEffect(() => {
+        const fetchFollowStatuses = async () => {
+            const statuses: Record<string, boolean> = {};
+            
+            for (const participant of conversation.participants) {
+                if (participant.did === currentUser?.did || participant.id === currentUser?.id) {
+                    continue; // Skip current user
+                }
+                
+                try {
+                    const response = await fetch(`${API_URL}/profile/${participant.handle}`, {
+                        credentials: 'include'
+                    });
+                    
+                    if (response.ok) {
+                        const profile = await response.json();
+                        statuses[participant.did || participant.id] = profile.isFollowing || false;
+                    }
+                } catch (error) {
+                    console.error('Error fetching follow status for', participant.handle, error);
+                }
+            }
+            
+            setFollowStatuses(statuses);
+        };
+        
+        fetchFollowStatuses();
+    }, [conversation.participants, currentUser, API_URL]);
 
     // Update locked state when conversation prop changes
     React.useEffect(() => {
@@ -352,6 +383,39 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             {conversation.participants.map((participant) => {
                                 const isCurrentUser = participant.did === currentUser?.did || participant.id === currentUser?.id;
                                 const isAdmin = participant.did === conversation.participants[0]?.did;
+                                const participantKey = participant.did || participant.id;
+                                const isFollowing = followStatuses[participantKey] || false;
+
+                                const handleFollowToggle = async () => {
+                                    try {
+                                        const endpoint = isFollowing ? 'unfollow' : 'follow';
+                                        const response = await fetch(`${API_URL}/profile/${participant.handle}/${endpoint}`, {
+                                            method: 'POST',
+                                            credentials: 'include'
+                                        });
+
+                                        if (response.ok) {
+                                            setFollowStatuses(prev => ({
+                                                ...prev,
+                                                [participantKey]: !isFollowing
+                                            }));
+                                            dispatch(showToast({ 
+                                                message: isFollowing 
+                                                    ? `Unfollowed @${participant.handle}` 
+                                                    : `Following @${participant.handle}`, 
+                                                type: 'success' 
+                                            }));
+                                        } else {
+                                            throw new Error('Failed to update follow status');
+                                        }
+                                    } catch (error) {
+                                        console.error('Error toggling follow:', error);
+                                        dispatch(showToast({ 
+                                            message: 'Failed to update follow status', 
+                                            type: 'error' 
+                                        }));
+                                    }
+                                };
 
                                 return (
                                     <div
@@ -387,9 +451,12 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                                     {t('messages.admin', 'Admin')}
                                                 </span>
                                             )}
-                                            {!isCurrentUser && !participant.isFollowing && (
-                                                <button className="text-sm font-medium text-primary hover:underline">
-                                                    {t('common.follow', 'Follow')}
+                                            {!isCurrentUser && (
+                                                <button 
+                                                    className="text-sm font-medium text-primary hover:underline"
+                                                    onClick={handleFollowToggle}
+                                                >
+                                                    {isFollowing ? t('common.following', 'Following') : t('common.follow', 'Follow')}
                                                 </button>
                                             )}
                                             {!isCurrentUser && (
