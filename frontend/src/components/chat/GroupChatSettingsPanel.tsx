@@ -66,8 +66,11 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                     });
                     
                     if (response.ok) {
-                        const profile = await response.json();
-                        statuses[participant.did || participant.id] = profile.isFollowing || false;
+                        const data = await response.json();
+                        // Try both possible locations for isFollowing
+                        const isFollowing = data.isFollowing || data.user?.isFollowing || false;
+                        statuses[participant.did || participant.id] = isFollowing;
+                        console.log(`[GroupChatSettings] Follow status for ${participant.handle}:`, isFollowing, 'from data:', data);
                     }
                 } catch (error) {
                     console.error('Error fetching follow status for', participant.handle, error);
