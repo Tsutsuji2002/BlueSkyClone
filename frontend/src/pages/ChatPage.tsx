@@ -784,7 +784,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                 // Ensure messages are sorted (redundancy check) and filtered
                                 const filteredMessages = [...activeConversationMessages]
                                     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                    .filter(m => m.type !== 'message' || m.content != null || m.imageUrl || m.isRecalled);
+                                    .filter(m => {
+                                        // Keep system events
+                                        if (m.type !== 'message') return true;
+                                        // Keep regular messages that have content, images, or are recalled
+                                        return (m.content && m.content.trim().length > 0) || m.imageUrl || m.isRecalled;
+                                    });
                                 
                                 // Group consecutive system events
                                 const chunks: (Message | Message[])[] = [];
