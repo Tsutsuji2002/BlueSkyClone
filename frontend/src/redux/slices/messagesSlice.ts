@@ -15,6 +15,9 @@ interface MessagesState {
     isLoadingMoreConversations: boolean;
     hasMore: boolean;
     error: string | null;
+    // Cache
+    messagesByConversationId: Record<string, Message[]>;
+    hasMoreByConversationId: Record<string, boolean>;
 }
 
 const initialState: MessagesState = {
@@ -29,6 +32,8 @@ const initialState: MessagesState = {
     isLoadingMoreConversations: false,
     hasMore: true,
     error: null,
+    messagesByConversationId: {},
+    hasMoreByConversationId: {},
 };
 
 export const fetchConversations = createAsyncThunk(
@@ -320,25 +325,33 @@ const messagesSlice = createSlice({
     reducers: {
         setActiveConversation: (state, action: PayloadAction<string | null>) => {
             state.activeConversationId = action.payload;
-            state.hasMore = true;
-            // Don't clear messages here - let fetchMessages handle it
-            // This prevents messages from disappearing before new ones load
+            
             if (action.payload) {
+                // Instantly hydrate from cache for "immediate" feel
+                state.activeConversationMessages = state.messagesByConversationId[action.payload] || [];
+                state.hasMore = state.hasMoreByConversationId[action.payload] ?? true;
+                
                 const conv = state.conversations.find(c => c.id === action.payload);
                 if (conv) conv.unreadCount = 0;
+            } else {
+                state.activeConversationMessages = [];
             }
         },
         addMessage: (state, action: PayloadAction<{ message: Message; currentUserId: string | null; currentUserDid?: string | null }>) => {
             const { message, currentUserId, currentUserDid } = action.payload;
-            // If it's for the active conversation, add to messages list
+            // Update Cache
+            if (!state.messagesByConversationId[message.conversationId]) {
+                state.messagesByConversationId[message.conversationId] = [];
+            }
+            const cache = state.messagesByConversationId[message.conversationId];
+            if (!cache.find(m => m.id === message.id || (m.tid && message.tid && m.tid === message.tid))) {
+                cache.push(message);
+                cache.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            }
+
+            // Sync with active conversation messages if applicable
             if (state.activeConversationId === message.conversationId) {
-                // Avoid duplicates using Tid or Id
-                if (!state.activeConversationMessages.find(m => m.id === message.id || (m.tid && message.tid && m.tid === message.tid))) {
-                    state.activeConversationMessages.push(message);
-                    state.activeConversationMessages.sort((a, b) => 
-                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                    );
-                }
+                state.activeConversationMessages = [...cache];
             }
 
             // Update the conversation's last message in the list and move to top
@@ -422,6 +435,8 @@ const messagesSlice = createSlice({
             state.isLoadingMoreConversations = false;
             state.hasMore = true;
             state.error = null;
+            state.messagesByConversationId = {};
+            state.hasMoreByConversationId = {};
         }
     },
     extraReducers: (builder) => {
@@ -462,35 +477,44 @@ const messagesSlice = createSlice({
                 // Removed setting activeConversationId from here to avoid unexpected switches
             })
             .addCase(fetchMessages.pending, (state, action) => {
-                if (action.meta.arg.before) {
+                const { conversationId, before } = action.meta.arg;
+                if (before) {
                     state.isLoadingMore = true;
                 } else {
                     state.isMessagesLoading = true;
-                    // Only clear if conversation changed, to prevent flickers on refresh
-                    if (state.activeConversationId !== action.meta.arg.conversationId) {
-                        state.activeConversationMessages = [];
-                    }
+                    // Switch to cached messages immediately to avoid blank screen if we already have some
+                    state.activeConversationMessages = state.messagesByConversationId[conversationId] || [];
+                    state.hasMore = state.hasMoreByConversationId[conversationId] ?? true;
                 }
             })
             .addCase(fetchMessages.fulfilled, (state, action) => {
                 state.isMessagesLoading = false;
                 state.isLoadingMore = false;
                 const { messages, isLoadMore } = action.payload;
+                const conversationId = action.meta.arg.conversationId;
 
+                let finalMessages: Message[] = [];
                 if (isLoadMore) {
-                    const combined = [...messages, ...state.activeConversationMessages];
+                    const currentMessages = state.messagesByConversationId[conversationId] || [];
+                    const combined = [...messages, ...currentMessages];
                     // Unique by id
-                    const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
-                    state.activeConversationMessages = unique.sort((a, b) => 
-                        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-                    );
+                    finalMessages = Array.from(new Map(combined.map(m => [m.id, m])).values())
+                        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
                 } else {
-                    state.activeConversationMessages = [...messages].sort((a, b) => 
+                    finalMessages = [...messages].sort((a, b) => 
                         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                     );
                 }
 
-                state.hasMore = messages.length >= (action.meta.arg.limit || 50);
+                // Update Cache
+                state.messagesByConversationId[conversationId] = finalMessages;
+                state.hasMoreByConversationId[conversationId] = messages.length >= (action.meta.arg.limit || 50);
+
+                // Sync active if applicable
+                if (state.activeConversationId === conversationId) {
+                    state.activeConversationMessages = finalMessages;
+                    state.hasMore = state.hasMoreByConversationId[conversationId];
+                }
             })
             .addCase(fetchMessages.rejected, (state, action) => {
                 state.isMessagesLoading = false;
@@ -517,14 +541,23 @@ const messagesSlice = createSlice({
             })
             .addCase(fetchChatLog.fulfilled, (state, action) => {
                 const { logs } = action.payload;
+                const conversationId = action.meta.arg.conversationId;
+
                 if (logs && logs.length > 0) {
-                    const existingIds = new Set(state.activeConversationMessages.map(m => m.id));
+                    const currentMessages = state.messagesByConversationId[conversationId] || [];
+                    const existingIds = new Set(currentMessages.map(m => m.id));
                     const newMessages = logs.filter((m: Message) => !existingIds.has(m.id));
                     
                     if (newMessages.length > 0) {
-                        state.activeConversationMessages = [...state.activeConversationMessages, ...newMessages].sort((a, b) => 
+                        const finalMessages = [...currentMessages, ...newMessages].sort((a, b) => 
                             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
                         );
+                        
+                        state.messagesByConversationId[conversationId] = finalMessages;
+                        
+                        if (state.activeConversationId === conversationId) {
+                            state.activeConversationMessages = finalMessages;
+                        }
                     }
                 }
             });

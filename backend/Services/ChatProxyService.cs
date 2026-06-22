@@ -107,35 +107,8 @@ namespace BSkyClone.Services
             // DEBUG: Log how many messages were deserialized
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
             
-            // DEBUG: Log ALL messages with their text content to diagnose emoji issue
-            if (data?.Messages != null)
-            {
-                foreach (var msg in data.Messages)
-                {
-                    var textPreview = msg.Text ?? "(null)";
-                    if (!string.IsNullOrEmpty(msg.Text) && msg.Text.Length > 50)
-                    {
-                        textPreview = msg.Text.Substring(0, 50) + "...";
-                    }
-                    _logger.LogInformation("RAW Message {Id}: Text='{Text}', Type={Type}, HasSender={HasSender}", 
-                        msg.Id, textPreview, msg.Type ?? "message", msg.Sender != null);
-                }
-            }
-            
             // Order by CreatedAt to ensure chronological order (oldest first)
             var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
-            
-            // DEBUG: Log all mapped messages to see if content is preserved
-            foreach (var msg in messages)
-            {
-                var contentPreview = msg.Content ?? "(null)";
-                if (!string.IsNullOrEmpty(msg.Content) && msg.Content.Length > 50)
-                {
-                    contentPreview = msg.Content.Substring(0, 50) + "...";
-                }
-                _logger.LogInformation("MAPPED Message {Id}: Content='{Content}', SenderId={SenderId}, Type={Type}", 
-                    msg.Id, contentPreview, msg.SenderId, msg.Type);
-            }
             
             // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
             // Link previews were causing 21+ second delays when loading 50 messages
