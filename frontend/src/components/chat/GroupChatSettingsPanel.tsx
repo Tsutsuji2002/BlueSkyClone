@@ -68,7 +68,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
             try {
                 // Use a batch endpoint to check follow status for all participants at once
                 // This is much faster than individual profile requests
-                const response = await fetch(`${API_URL}/users/batch-follow-status`, {
+                const response = await fetch(`${API_URL}/user/batch-follow-status`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',

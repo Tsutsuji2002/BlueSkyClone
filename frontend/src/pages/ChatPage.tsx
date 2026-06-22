@@ -709,7 +709,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
                 {/* Chat Area */}
                 <div
-                    className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-24 flex flex-col gap-3 scroll-smooth no-scrollbar"
+                    className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-6 flex flex-col gap-3 scroll-smooth no-scrollbar"
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                 >
