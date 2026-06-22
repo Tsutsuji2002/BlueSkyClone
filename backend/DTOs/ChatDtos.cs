@@ -94,3 +94,8 @@ public record JoinLinkDto(
     DateTimeOffset? CreatedAt = null,
     bool Disabled = false
 );
+
+public record ReportConversationRequest(
+    string Reason,
+    string? Details = null
+);

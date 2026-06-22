@@ -15,10 +15,14 @@ namespace BSkyClone.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;
+    private readonly ILabelingService _labelingService;
+    private readonly IUserService _userService;
 
-    public ChatController(IChatService chatService)
+    public ChatController(IChatService chatService, ILabelingService labelingService, IUserService userService)
     {
         _chatService = chatService;
+        _labelingService = labelingService;
+        _userService = userService;
     }
 
     [HttpGet("conversations")]
@@ -327,5 +331,65 @@ public class ChatController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpPost("conversations/{id}/report")]
+    public async Task<IActionResult> ReportConversation(string id, [FromBody] ReportConversationRequest request)
+    {
+        var userId = GetUserId();
+        try
+        {
+            // Verify the user is a participant in this conversation
+            var conversation = await _chatService.GetConversationAsync(userId, id);
+            if (conversation == null)
+            {
+                return NotFound(new { message = "Conversation not found or access denied." });
+            }
+
+            // Get user info for reporter DID/handle
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null) return Unauthorized();
+
+            // Map frontend reason codes to AT Protocol moderation reason types
+            var reasonType = MapReportReasonToAtProto(request.Reason);
+            
+            // Construct conversation URI (format: at://did/chat.bsky.convo.defs/conversationId)
+            var conversationUri = $"at://{user.Did}/chat.bsky.convo.defs/{id}";
+            
+            // Create report using the existing labeling service
+            var report = await _labelingService.CreateReportAsync(
+                userId,
+                "chat.bsky.convo.defs#conversationRef",
+                conversationUri,
+                reasonType,
+                request.Details
+            );
+
+            return Ok(new { 
+                message = "Report submitted successfully",
+                reportId = report.Id,
+                createdAt = report.CreatedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private string MapReportReasonToAtProto(string reason)
+    {
+        return reason switch
+        {
+            "misleading" => "com.atproto.moderation.defs#reasonSpam",
+            "adult-content" => "com.atproto.moderation.defs#reasonSexual",
+            "harassment" => "com.atproto.moderation.defs#reasonRude",
+            "violence" => "com.atproto.moderation.defs#reasonViolation",
+            "child-safety" => "com.atproto.moderation.defs#reasonViolation",
+            "self-harm" => "com.atproto.moderation.defs#reasonViolation",
+            "breaking-rules" => "com.atproto.moderation.defs#reasonViolation",
+            "other" => "com.atproto.moderation.defs#reasonOther",
+            _ => "com.atproto.moderation.defs#reasonOther"
+        };
     }
 }
