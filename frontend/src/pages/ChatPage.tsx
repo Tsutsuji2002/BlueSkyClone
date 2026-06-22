@@ -331,7 +331,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
         // 3. New messages arrived while I was already near the bottom
         // 4. This is the first time messages are populated in an existing view
         if (isNewConversation || sentByMe || (hasNewMessages && isAtBottom) || (prevMessagesLength.current === 0 && activeConversationMessages.length > 0)) {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+            messagesContainerRef.current.scrollTo({
+                top: messagesContainerRef.current.scrollHeight,
+                behavior: isNewConversation ? 'auto' : 'smooth'
+            });
         }
 
         prevMessagesLength.current = activeConversationMessages.length;
@@ -719,7 +722,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
                 {/* Chat Area */}
                 <div
-                    className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-6 flex flex-col gap-3 scroll-smooth no-scrollbar"
+                    className="flex-1 overflow-y-auto overflow-x-hidden p-4 pb-6 flex flex-col gap-3 no-scrollbar"
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                 >
