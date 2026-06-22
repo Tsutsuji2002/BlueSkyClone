@@ -328,8 +328,8 @@ const messagesSlice = createSlice({
                 if (conv) conv.unreadCount = 0;
             }
         },
-        addMessage: (state, action: PayloadAction<{ message: Message; currentUserId: string | null }>) => {
-            const { message, currentUserId } = action.payload;
+        addMessage: (state, action: PayloadAction<{ message: Message; currentUserId: string | null; currentUserDid?: string | null }>) => {
+            const { message, currentUserId, currentUserDid } = action.payload;
             // If it's for the active conversation, add to messages list
             if (state.activeConversationId === message.conversationId) {
                 // Avoid duplicates using Tid or Id
@@ -348,7 +348,12 @@ const messagesSlice = createSlice({
                 conv.lastMessage = message;
 
                 // Only increment unread if it's from someone else AND not the active chat
-                if (state.activeConversationId !== message.conversationId && message.senderId !== currentUserId) {
+                const isMsgFromMe = 
+                    (currentUserId && message.senderId === currentUserId) || 
+                    (currentUserDid && message.sender?.did === currentUserDid) ||
+                    (currentUserDid && message.senderId === currentUserDid);
+
+                if (state.activeConversationId !== message.conversationId && !isMsgFromMe) {
                     conv.unreadCount = (conv.unreadCount || 0) + 1;
                 }
                 // Move to top

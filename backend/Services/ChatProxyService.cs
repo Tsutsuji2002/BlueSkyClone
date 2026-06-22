@@ -771,6 +771,29 @@ namespace BSkyClone.Services
                 // Fallback to whatever data we have from the message
                 sender = MapToUserDto(msg.Sender);
             }
+            else if (!string.IsNullOrEmpty(msg.Sender?.Did)) // Safety check if msg.Sender is somehow not null but Did exists
+            {
+                sender = new UserDto(
+                    Guid.Empty,
+                    "",
+                    "",
+                    "",
+                    "",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "user",
+                    null,
+                    false,
+                    msg.Sender.Did
+                );
+            }
 
             return new MessageDto(
                 msg.Id,

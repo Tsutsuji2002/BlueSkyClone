@@ -292,7 +292,13 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     // Mark as read when new messages arrive
     useEffect(() => {
         if (conversationId && activeConversationMessages.length > 0) {
-            const hasUnread = activeConversationMessages.some((m: Message) => m.senderId !== currentUser?.id && !m.isRead);
+            const hasUnread = activeConversationMessages.some((m: Message) => {
+                const isMsgFromMe = 
+                    m.senderId === currentUser?.id || 
+                    (m.sender?.did && currentUser?.did && m.sender.did.toLowerCase() === currentUser.did.toLowerCase()) ||
+                    (currentUser?.did && m.senderId?.toLowerCase() === currentUser.did.toLowerCase());
+                return !isMsgFromMe && !m.isRead;
+            });
             if (hasUnread) {
                 const lastMsg = activeConversationMessages[activeConversationMessages.length - 1];
                 dispatch(markAsRead({ conversationId, messageId: lastMsg.id }));
@@ -310,7 +316,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
         const isNewConversation = conversationId !== prevConversationId.current;
         const hasNewMessages = activeConversationMessages.length > prevMessagesLength.current;
         const lastMessage = activeConversationMessages[activeConversationMessages.length - 1];
-        const sentByMe = lastMessage?.senderId === currentUser?.id;
+        const sentByMe = lastMessage && (
+            lastMessage.senderId === currentUser?.id || 
+            (lastMessage.sender?.did && currentUser?.did && lastMessage.sender.did.toLowerCase() === currentUser.did.toLowerCase()) ||
+            (currentUser?.did && lastMessage.senderId?.toLowerCase() === currentUser.did.toLowerCase())
+        );
 
         const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
         const isAtBottom = scrollHeight - scrollTop - clientHeight < 150; // Increased threshold for reliability
@@ -585,7 +595,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const isGroup = conversation?.participants && conversation.participants.length > 2;
 
     const otherParticipants = conversation?.participants.filter((p: User) => 
-        (p.did && currentUser?.did) ? p.did !== currentUser.did : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
+        (p.did && currentUser?.did) ? p.did.toLowerCase() !== currentUser.did.toLowerCase() : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
     ) || [];
 
     const otherParticipant = otherParticipants[0];
@@ -839,13 +849,21 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                     }
 
                                     const msg = chunk;
-                                    const isMe = msg.senderId === currentUser?.id || msg.sender?.did === currentUser?.did;
+                                    const senderDid = msg.sender?.did || (msg.senderId?.startsWith('did:') ? msg.senderId : null);
+                                    const currentDid = currentUser?.did;
+                                    
+                                    const isMe = 
+                                        msg.senderId === currentUser?.id || 
+                                        (senderDid && currentDid && senderDid.toLowerCase() === currentDid.toLowerCase()) ||
+                                        (currentDid && msg.senderId?.toLowerCase() === currentDid.toLowerCase());
+
                                     const isGroup = (conversation?.participants?.length ?? 0) > 2 || !!conversation?.groupName;
 
                                     // Check if we should show the sender info
                                     const isSameSender = prevMsg && 
                                         prevMsg.type === 'message' && 
-                                        (prevMsg.senderId === msg.senderId || prevMsg.sender?.did === msg.sender?.did) &&
+                                        (prevMsg.senderId === msg.senderId || 
+                                         (prevMsg.sender?.did && msg.sender?.did && prevMsg.sender.did.toLowerCase() === msg.sender.did.toLowerCase())) &&
                                         !showTimeHeader;
                                     
                                     const showSenderInfo = isGroup && !isMe && !isSameSender;

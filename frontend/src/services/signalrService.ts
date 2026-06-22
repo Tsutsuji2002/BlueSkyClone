@@ -56,18 +56,20 @@ class SignalRService {
 
         this.connection.on('ReceiveMessage', (message: Message) => {
             const state = store.getState();
-            const currentUserId = state.auth.user?.id || null;
+            const currentUser = state.auth.user;
+            const currentUserId = currentUser?.id || null;
+            const currentUserDid = currentUser?.did || null;
             const exists = state.messages.conversations.find(c => c.id === message.conversationId);
 
             if (!exists) {
                 // @ts-ignore
                 store.dispatch(fetchConversationById(message.conversationId)).then((action: any) => {
                     if (action.payload) {
-                        store.dispatch(addMessage({ message, currentUserId }));
+                        store.dispatch(addMessage({ message, currentUserId, currentUserDid }));
                     }
                 });
             } else {
-                store.dispatch(addMessage({ message, currentUserId }));
+                store.dispatch(addMessage({ message, currentUserId, currentUserDid }));
             }
         });
 
