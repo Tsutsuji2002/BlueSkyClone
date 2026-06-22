@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FiArrowLeft, FiBell, FiBellOff, FiEdit3, FiLink, FiLogOut } from 'react-icons/fi';
+import { FiArrowLeft, FiBell, FiBellOff, FiEdit3, FiLink, FiLogOut, FiAlertTriangle } from 'react-icons/fi';
 import GroupAvatar from '../messages/GroupAvatar';
 import Avatar from '../common/Avatar';
 import { Conversation, User } from '../../types';
 import { format } from 'date-fns';
 import EditGroupNameModal from '../modals/EditGroupNameModal';
 import InviteLinkModal from '../modals/InviteLinkModal';
+import ReportConversationModal from '../modals/ReportConversationModal';
 import ConfirmModal from '../common/ConfirmModal';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { showToast } from '../../redux/slices/toastSlice';
@@ -35,6 +36,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
     const dispatch = useAppDispatch();
     const [isEditNameOpen, setIsEditNameOpen] = useState(false);
     const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
+    const [isReportOpen, setIsReportOpen] = useState(false);
     const [isLockConfirmOpen, setIsLockConfirmOpen] = useState(false);
     const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
     const [isMuted, setIsMuted] = useState(conversation.muted || false);
@@ -260,7 +262,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
 
                         {/* Action Buttons */}
                         <div className="flex flex-wrap items-center justify-center gap-6">
-                            {/* Mute Button */}
+                            {/* Mute Button - Always visible */}
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={handleMuteClick}
@@ -281,70 +283,89 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                 </span>
                             </div>
 
-                            {/* Edit Name Button */}
-                            <div className="flex flex-col items-center">
-                                <button
-                                    onClick={() => setIsEditNameOpen(true)}
-                                    disabled={isLocked || !isOwner}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    aria-label={t('messages.edit_name')}
-                                    title={!isOwner ? t('messages.only_owner_can_edit', 'Only the owner can edit the group name') : ''}
-                                >
-                                    <FiEdit3 size={20} />
-                                </button>
-                                <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
-                                    {t('messages.edit_name', 'Edit name')}
-                                </span>
-                            </div>
+                            {/* Edit Name Button - Owner only */}
+                            {isOwner && (
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        onClick={() => setIsEditNameOpen(true)}
+                                        disabled={isLocked}
+                                        className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label={t('messages.edit_name')}
+                                    >
+                                        <FiEdit3 size={20} />
+                                    </button>
+                                    <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
+                                        {t('messages.edit_name', 'Edit name')}
+                                    </span>
+                                </div>
+                            )}
 
-                            {/* Invite Link Button */}
-                            <div className="flex flex-col items-center">
-                                <button
-                                    onClick={() => setIsInviteLinkOpen(true)}
-                                    disabled={isLocked || !isOwner}
-                                    className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    aria-label={t('messages.invite_link')}
-                                    title={!isOwner ? t('messages.only_owner_can_manage_invite', 'Only the owner can manage invite links') : ''}
-                                >
-                                    <FiLink size={20} />
-                                </button>
-                                <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
-                                    {t('messages.invite_link', 'Invite link')}
-                                </span>
-                            </div>
+                            {/* Invite Link Button - Owner only */}
+                            {isOwner && (
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        onClick={() => setIsInviteLinkOpen(true)}
+                                        disabled={isLocked}
+                                        className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        aria-label={t('messages.invite_link')}
+                                    >
+                                        <FiLink size={20} />
+                                    </button>
+                                    <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
+                                        {t('messages.invite_link', 'Invite link')}
+                                    </span>
+                                </div>
+                            )}
 
-                            {/* Lock Button */}
-                            <div className="flex flex-col items-center">
-                                <button
-                                    onClick={handleLockClick}
-                                    disabled={isLockLoading || !isOwner}
-                                    className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                        isLocked 
-                                            ? 'bg-[#FEE7EC] hover:bg-[#FDD8E1]' 
-                                            : 'bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover'
-                                    }`}
-                                    aria-label={isLocked ? t('messages.unlock', 'Unlock this group chat') : t('messages.lock', 'Lock')}
-                                    title={!isOwner ? t('messages.only_owner_can_lock', 'Only the owner can lock/unlock the group') : ''}
-                                >
-                                    {isLockLoading ? (
-                                        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className={isLocked ? 'text-[#CA123D]' : 'text-gray-700 dark:text-gray-300'}>
-                                            <path 
-                                                fill="currentColor" 
-                                                fillRule="evenodd" 
-                                                clipRule="evenodd" 
-                                                d="M7 7a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7Zm-1 4v9h12v-9H6Zm9-2H9V7a3 3 0 1 1 6 0v2Zm-3 4a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0v-3a1 1 0 0 1 1-1Z"
-                                            />
-                                        </svg>
-                                    )}
-                                </button>
-                                <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
-                                    {isLocked ? t('messages.locked', 'Locked') : t('messages.lock', 'Lock')}
-                                </span>
-                            </div>
+                            {/* Lock Button - Owner only */}
+                            {isOwner && (
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        onClick={handleLockClick}
+                                        disabled={isLockLoading}
+                                        className={`flex items-center justify-center w-12 h-12 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                                            isLocked 
+                                                ? 'bg-[#FEE7EC] hover:bg-[#FDD8E1]' 
+                                                : 'bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover'
+                                        }`}
+                                        aria-label={isLocked ? t('messages.unlock', 'Unlock this group chat') : t('messages.lock', 'Lock')}
+                                    >
+                                        {isLockLoading ? (
+                                            <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className={isLocked ? 'text-[#CA123D]' : 'text-gray-700 dark:text-gray-300'}>
+                                                <path 
+                                                    fill="currentColor" 
+                                                    fillRule="evenodd" 
+                                                    clipRule="evenodd" 
+                                                    d="M7 7a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7Zm-1 4v9h12v-9H6Zm9-2H9V7a3 3 0 1 1 6 0v2Zm-3 4a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0v-3a1 1 0 0 1 1-1Z"
+                                                />
+                                            </svg>
+                                        )}
+                                    </button>
+                                    <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
+                                        {isLocked ? t('messages.locked', 'Locked') : t('messages.lock', 'Lock')}
+                                    </span>
+                                </div>
+                            )}
 
-                            {/* Leave Button */}
+                            {/* Report Button - Non-owner only */}
+                            {!isOwner && (
+                                <div className="flex flex-col items-center">
+                                    <button
+                                        onClick={() => setIsReportOpen(true)}
+                                        className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+                                        aria-label={t('messages.report', 'Report')}
+                                    >
+                                        <FiAlertTriangle size={20} />
+                                    </button>
+                                    <span className="text-xs font-medium mt-1 text-gray-900 dark:text-dark-text">
+                                        {t('messages.report', 'Report')}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Leave Button - Always visible */}
                             <div className="flex flex-col items-center">
                                 <button
                                     onClick={handleLeaveClick}
@@ -506,6 +527,13 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                 participants={conversation.participants}
                 convoName={conversation.groupName}
                 existingLink={conversation.joinLink}
+            />
+
+            <ReportConversationModal
+                isOpen={isReportOpen}
+                onClose={() => setIsReportOpen(false)}
+                conversationId={conversation.id}
+                conversationName={groupDisplayName}
             />
 
             <ConfirmModal
