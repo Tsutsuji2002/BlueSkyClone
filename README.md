@@ -74,8 +74,8 @@
 
 ### Key Highlights
 
-- **AT Protocol Integration** — Bridges with the official Bluesky AppView via XRPC proxy for data federation
-- **Real-Time Messaging** — Live chat powered by SignalR WebSocket hubs
+- **High-Performance Threads** — "Shallow-First" loading strategy for near-instant post detail rendering
+- **Real-Time Messaging** — Live chat with message caching and instant conversation switching via SignalR
 - **Smart Feeds** — ML-powered content categorization and recommendation engine using ML.NET
 - **Full-Text Search** — Elasticsearch-backed search for posts and users
 - **Multi-Language Support** — Localized in 64 languages with i18next
@@ -267,15 +267,19 @@ BlueSkyClone/
 │   │   ├── AuthController.cs         #   Authentication & registration
 │   │   ├── PostsController.cs        #   CRUD for posts & threads
 │   │   ├── ProfileController.cs      #   User profiles & follows
-│   │   ├── FeedsController.cs        #   Custom feed management
+│   │   ├── FeedsController.cs        #   Custom feed management & trending
+│   │   ├── UnifiedFeedController.cs  #   Aggregated home/discover feeds
 │   │   ├── ChatController.cs         #   Direct messaging
 │   │   ├── NotificationsController.cs#   Push notifications
 │   │   ├── SearchController.cs       #   Full-text search
 │   │   ├── ListsController.cs        #   User-curated lists
-│   │   ├── TrendingController.cs     #   Trending topics & hashtags
-│   │   ├── AdminController.cs        #   Admin panel operations
+│   │   ├── InterestsController.cs     #   User interests & categorization
+│   │   ├── UserController.cs         #   Account, profile & app settings
 │   │   ├── MediaController.cs        #   Image/video uploads
-│   │   └── XrpcController.cs         #   AT Protocol XRPC proxy
+│   │   ├── IdentityController.cs     #   AT Protocol handle resolution
+│   │   ├── SyncController.cs         #   Repository syncing (CAR export)
+│   │   ├── DidController.cs          #   DID document host
+│   │   └── XrpcController.cs         #   Main AT Protocol XRPC proxy
 │   ├── Models/                       # Entity Framework models
 │   ├── DTOs/                         # Data transfer objects
 │   ├── Services/                     # Business logic layer
@@ -329,6 +333,8 @@ BlueSkyClone/
 │   ├── Dockerfile                    # Frontend container image
 │   └── package.json                  # Dependencies & scripts
 │
+├── scripts/                          # Maintenance & utility scripts
+│   └── database/                     #   Consolidated SQL maintenance & schema fix scripts
 ├── docker-compose.yml                # Development stack
 ├── docker-compose.prod.yml           # Production stack (+ SQL, SSL)
 ├── docker-compose.override.yml       # Local overrides
@@ -365,6 +371,7 @@ BlueSkyClone/
 | `GET` | `/api/posts/{id}/liked-by` | ✗ | List users who liked the post |
 | `GET` | `/api/posts/{id}/reposted-by` | ✗ | List users who reposted |
 | `GET` | `/api/posts/{id}/quotes` | ✗ | List quote posts |
+| `GET` | `/api/posts/replies/{id}` | ✗ | Lazy-load replies for a thread |
 
 ### Profiles & Social Graph
 
@@ -378,16 +385,20 @@ BlueSkyClone/
 | `GET` | `/api/profile/{id}/following` | ✗ | List following |
 | `POST` | `/api/profile/{id}/block` | ✓ | Block a user |
 | `POST` | `/api/profile/{id}/mute` | ✓ | Mute a user |
+| `PATCH` | `/api/user/profile` | ✓ | Update bio, avatar, and metadata |
+| `PATCH` | `/api/user/settings` | ✓ | Update app preferences & filters |
+| `POST` | `/api/user/verify-domain` | ✓ | Verify custom handle via DNS/HTTP |
 
 ### Feeds & Discovery
 
 | Method | Route | Auth | Description |
 |--------|-------|:----:|-------------|
-| `GET` | `/api/feeds` | ✗ | List available custom feeds |
-| `GET` | `/api/feeds/{id}` | ✗ | Get a specific feed's posts |
-| `GET` | `/api/unifiedfeed/following` | ✓ | Chronological following feed |
+| `GET` | `/api/unified-feed` | ✗ | Aggregated timeline (Home, Discover, Following) |
+| `GET` | `/api/feeds/recommended` | ✗ | Get personalized feed suggestions |
+| `GET` | `/api/feeds/trending` | ✗ | Get popular feeds by usage |
+| `GET` | `/api/feeds/{id}` | ✗ | Get posts from a specific custom feed |
+| `POST` | `/api/feeds/save/{uri}` | ✓ | Save a feed to user's library |
 | `GET` | `/api/trending/hashtags` | ✗ | Get trending hashtags |
-| `GET` | `/api/trending/posts` | ✗ | Get trending posts |
 | `GET` | `/api/search` | ✗ | Search posts and users |
 
 ### Chat & Messaging
@@ -416,6 +427,15 @@ BlueSkyClone/
 | `GET` | `/api/admin/users` | Admin | List all users (admin panel) |
 | `PUT` | `/api/admin/users/{id}/ban` | Admin | Ban/unban a user |
 | `GET` | `/api/admin/reports` | Admin | View content reports |
+
+### Identity & AT Protocol (XRPC)
+
+| Method | Route | Auth | Description |
+|--------|-------|:----:|-------------|
+| `GET` | `/xrpc/com.atproto.identity.resolveHandle` | ✗ | Resolve handle to DID |
+| `GET` | `/xrpc/com.atproto.sync.getRepo` | ✗ | Export user repository as CAR |
+| `GET` | `/.well-known/did.json` | ✗ | Serve did:web document |
+| `GET` | `/xrpc/app.bsky.feed.getPostThread` | ✗ | Fetch thread (with shallow optimization) |
 
 > **Note:** Routes marked with `✗` for Auth also support authenticated requests, which return personalized data (e.g., like status, follow state).
 
