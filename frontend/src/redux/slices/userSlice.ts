@@ -698,34 +698,46 @@ const userSlice = createSlice({
         },
         updateProfileLocal: (state: UserState, action: PayloadAction<Partial<User>>) => {
             console.log('[userSlice] updateProfileLocal called with:', action.payload);
-            console.log('[userSlice] Current profile before update:', state.profile);
+            const payload = action.payload;
             
-            // CRITICAL FIX: Always update/create profile, even if null
-            // This ensures handshake updates work after page refresh
+            // CRITICAL FIX: Identity Guard
+            // We only update the profile if:
+            // 1. The profile is null (initial load/handshake)
+            // 2. The profile matches the payload identity (DID or ID)
+            // This prevents the logged-in user's data from overwriting someone else's 
+            // profile during a background handshake/re-sync.
+            
             if (state.profile) {
+                const profileMatches = 
+                    (payload.did && state.profile.did === payload.did) || 
+                    (payload.id && state.profile.id === payload.id) ||
+                    (payload.handle && normalizeIdentifier(state.profile.handle) === normalizeIdentifier(payload.handle));
+                
+                if (!profileMatches) {
+                    console.log('[userSlice] Identity mismatch in updateProfileLocal! Skipping update to prevent data leak.', {
+                        currentProfile: state.profile.handle || state.profile.did,
+                        payloadIdentity: payload.handle || payload.did
+                    });
+                    return;
+                }
+
                 // Merge with existing profile
                 state.profile = {
                     ...state.profile,
-                    ...action.payload,
+                    ...payload,
                     // Ensure avatar fields are properly updated
-                    avatarUrl: action.payload.avatarUrl || action.payload.avatar || state.profile.avatarUrl,
-                    avatar: action.payload.avatar || action.payload.avatarUrl || state.profile.avatar,
+                    avatarUrl: payload.avatarUrl || payload.avatar || state.profile.avatarUrl,
+                    avatar: payload.avatar || payload.avatarUrl || state.profile.avatar,
                 };
-            } else if (action.payload.id || action.payload.did) {
+            } else if (payload.id || payload.did) {
                 // Create new profile from payload if we have enough data
-                // This handles the case where handshake updates profile before fetchUserProfile runs
                 state.profile = {
-                    ...action.payload,
-                    avatarUrl: action.payload.avatarUrl || action.payload.avatar,
-                    avatar: action.payload.avatar || action.payload.avatarUrl,
+                    ...payload,
+                    avatarUrl: payload.avatarUrl || payload.avatar,
+                    avatar: payload.avatar || payload.avatarUrl,
                 } as User;
                 console.log('[userSlice] Created new profile from payload');
-            } else {
-                console.log('[userSlice] Insufficient data to create profile!');
             }
-            
-            console.log('[userSlice] Profile after update:', state.profile);
-            console.log('[userSlice] New avatar URL:', state.profile?.avatarUrl);
         },
         clearUsers: (state: UserState) => {
             state.users = [];

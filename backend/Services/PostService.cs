@@ -446,12 +446,18 @@ public class PostService : IPostService
                     }
                     else
                     {
-                        var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_no_replies";
-                        var queryArgs = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", "100" }, { "filter", filter } };
+                        var filter = type == "replies" ? "posts_with_replies" : type == "media" ? "posts_with_media" : type == "video" ? "posts_with_video" : "posts_and_author_threads";
+                        var queryArgs = new Dictionary<string, string?> 
+                        { 
+                            { "actor", handleOrDid }, 
+                            { "limit", "100" }, 
+                            { "filter", filter },
+                            { "includePins", "true" } // [FIX] Include pinned posts in the feed
+                        };
                         if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
                         var queryStr = string.Join("&", queryArgs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
 
-                        _logger.LogInformation("[GetUserPostsAsync] Fetching remote feed (getAuthorFeed) for {Actor}", handleOrDid);
+                        _logger.LogInformation("[GetUserPostsAsync] Fetching remote feed (getAuthorFeed) for {Actor} with filter={Filter} and includePins=true", handleOrDid, filter);
                         var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{queryStr}", cts.Token);
                         if (!response.IsSuccessStatusCode)
                         {
@@ -534,19 +540,27 @@ public class PostService : IPostService
                 // Map Repost reason
                 if (item.TryGetProperty("reason", out var reasonObj) && reasonObj.ValueKind != System.Text.Json.JsonValueKind.Null)
                 {
-                    if (reasonObj.TryGetProperty("$type", out var typeOut) && typeOut.GetString() == "app.bsky.feed.defs#reasonRepost")
+                    if (reasonObj.TryGetProperty("$type", out var typeOut))
                     {
-                         if (reasonObj.TryGetProperty("by", out var byObj))
-                         {
-                             postDto.RepostedBy = new AuthorDto
+                        string type = typeOut.GetString() ?? "";
+                        if (type == "app.bsky.feed.defs#reasonRepost")
+                        {
+                             if (reasonObj.TryGetProperty("by", out var byObj))
                              {
-                                 Id = Guid.NewGuid(),
-                                 Did = byObj.GetProperty("did").GetString(),
-                                 Handle = byObj.GetProperty("handle").GetString()!,
-                                 DisplayName = byObj.TryGetProperty("displayName", out var rdn) ? rdn.GetString() : null,
-                                 AvatarUrl = byObj.TryGetProperty("avatar", out var rav) ? rav.GetString() : null
-                             };
-                         }
+                                 postDto.RepostedBy = new AuthorDto
+                                 {
+                                     Id = Guid.NewGuid(),
+                                     Did = byObj.GetProperty("did").GetString(),
+                                     Handle = byObj.GetProperty("handle").GetString()!,
+                                     DisplayName = byObj.TryGetProperty("displayName", out var rdn) ? rdn.GetString() : null,
+                                     AvatarUrl = byObj.TryGetProperty("avatar", out var rav) ? rav.GetString() : null
+                                 };
+                             }
+                        }
+                        else if (type == "app.bsky.feed.defs#reasonPin")
+                        {
+                            postDto.IsPinned = true;
+                        }
                     }
                 }
 
