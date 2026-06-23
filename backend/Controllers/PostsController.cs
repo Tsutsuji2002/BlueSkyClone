@@ -244,7 +244,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("details")]
-    public async Task<IActionResult> GetPostDetails([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int take = 20, [FromQuery] int depth = 1, [FromQuery] int parentHeight = 1)
+    public async Task<IActionResult> GetPostDetails([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int take = 20, [FromQuery] int depth = 0, [FromQuery] int parentHeight = 0)
     {
         string identifier = uri ?? id ?? "";
         if (string.IsNullOrEmpty(identifier)) return BadRequest("Post ID or URI required.");
@@ -334,7 +334,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20, [FromQuery] int depth = 1, [FromQuery] int parentHeight = 1)
+    public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20, [FromQuery] int depth = 0, [FromQuery] int parentHeight = 0)
     {
         // Redirect to new query-based logic for robustness if it looks like a URI
         if (id.Contains("at://") || id.Contains("%")) 
@@ -415,7 +415,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("tid/{tid}")]
-    public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20, [FromQuery] int depth = 1, [FromQuery] int parentHeight = 1)
+    public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20, [FromQuery] int depth = 0, [FromQuery] int parentHeight = 0)
     {
         try
         {

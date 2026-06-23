@@ -104,7 +104,7 @@ const PostDetailPage: React.FC = () => {
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
-    const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId!, depth: 1, parentHeight: 4 }, { skip: !postId });
+    const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId!, depth: 0, parentHeight: 0 }, { skip: !postId });
     const threadData = threadDataModel?.allPosts;
     const targetPostFromApi = threadDataModel?.targetPost;
     // Insurance: if the handshake finishes but we don't have data, force a refetch
@@ -265,9 +265,9 @@ const PostDetailPage: React.FC = () => {
     const lastRequestTimeRef = React.useRef<number>(0);
     const hasMoreReplies = React.useMemo(() => {
         if (!post || hasExhaustedReplies) return false;
-        // Use the authoritative hasMore flag from RTK Query instead of
-        // comparing Redux state counts (which caused an infinite loop because
-        // RTK Query results were not reflected in state.posts.threadPosts before this fix).
+        // If we haven't fetched any replies yet via useGetRepliesQuery,
+        // assume there are more if the post's repliesCount > 0.
+        if (repliesData === undefined) return (post.repliesCount || 0) > 0;
         return repliesData?.hasMore ?? false;
     }, [post, repliesData, hasExhaustedReplies]);
 

@@ -724,7 +724,7 @@ namespace BSkyClone.Controllers
 
         [AllowAnonymous]
         [HttpGet("app.bsky.feed.getPostThread")]
-        public async Task<IActionResult> GetPostThread([FromQuery] string uri, [FromQuery] int depth = 6, [FromQuery] int parentHeight = 80, [FromQuery] int take = 20)
+        public async Task<IActionResult> GetPostThread([FromQuery] string uri, [FromQuery] int depth = 0, [FromQuery] int parentHeight = 0, [FromQuery] int take = 20)
         {
             try
             {
