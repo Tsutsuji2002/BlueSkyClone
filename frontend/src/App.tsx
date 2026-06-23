@@ -39,6 +39,7 @@ import { closeAllModals } from './redux/slices/modalsSlice';
 import { SCROLL_STORAGE_PREFIX } from './hooks/useScrollRestoration';
 import LoadingScreen from './components/common/LoadingScreen';
 import { SessionKeeper } from './SessionKeeper';
+import { NetworkStatusBanner } from './components/common/NetworkStatusBanner';
 
 
 
@@ -438,6 +439,7 @@ const AppContent: React.FC = () => {
 
     return (
     <>
+      <NetworkStatusBanner />
       <ScrollToTop subKey={location.pathname === '/search' ? (new URLSearchParams(location.search).get('q') || '') + '_' + (new URLSearchParams(location.search).get('tab') || 'top') : undefined} />
       <AppRoutes />
       <CreatePostModal />

@@ -855,8 +855,8 @@ public class PostsController : ControllerBase
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
             });
             var payload = $"event: {eventName}\ndata: {json}\n\n";
-            await Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(payload));
-            await Response.Body.FlushAsync();
+            await Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(payload), HttpContext.RequestAborted);
+            await Response.Body.FlushAsync(HttpContext.RequestAborted);
         }
 
         try

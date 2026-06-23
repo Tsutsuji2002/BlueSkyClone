@@ -58,10 +58,20 @@ async function fetchWithTimeout(
     try {
         const response = await nativeFetch(input, { ...init, signal: controller.signal });
         return response;
-    } catch (err) {
-        if ((err as Error).name === 'AbortError') {
+    } catch (err: any) {
+        if (err.name === 'AbortError') {
             const url = input instanceof Request ? input.url : input.toString();
             console.warn(`[FetchInterceptor] Request TIMED OUT after ${timeoutMs}ms: ${url}`);
+        } else if (err instanceof TypeError || err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
+            // This is a network-level failure (offline, DNS fail, etc)
+            console.error('[FetchInterceptor] Network failure detected:', err);
+            store.dispatch({
+                type: 'toast/showToast',
+                payload: { 
+                    message: 'common.network.error', 
+                    type: 'error' 
+                }
+            });
         }
         throw err;
     } finally {

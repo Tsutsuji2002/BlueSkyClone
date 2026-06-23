@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services
@@ -8,12 +9,12 @@ namespace BSkyClone.Services
     public class PerformanceMonitoringService
     {
         private readonly ILogger<PerformanceMonitoringService> _logger;
-        private readonly Dictionary<string, PerformanceMetrics> _metrics;
+        private readonly ConcurrentDictionary<string, PerformanceMetrics> _metrics;
 
         public PerformanceMonitoringService(ILogger<PerformanceMonitoringService> logger)
         {
             _logger = logger;
-            _metrics = new Dictionary<string, PerformanceMetrics>();
+            _metrics = new ConcurrentDictionary<string, PerformanceMetrics>();
         }
 
         /// <summary>
@@ -50,21 +51,18 @@ namespace BSkyClone.Services
         public void LogCacheOperation(string operation, string key, bool hit)
         {
             var cacheKey = $"cache_{operation}";
-            if (!_metrics.ContainsKey(cacheKey))
-            {
-                _metrics[cacheKey] = new PerformanceMetrics();
-            }
+            var metrics = _metrics.GetOrAdd(cacheKey, _ => new PerformanceMetrics());
 
-            _metrics[cacheKey].TotalOperations++;
+            Interlocked.Increment(ref metrics.TotalOperations);
             if (hit)
             {
-                _metrics[cacheKey].SuccessfulOperations++;
+                Interlocked.Increment(ref metrics.SuccessfulOperations);
             }
 
             // Log cache hit ratio periodically
-            if (_metrics[cacheKey].TotalOperations % 100 == 0)
+            if (metrics.TotalOperations % 100 == 0)
             {
-                var hitRatio = (double)_metrics[cacheKey].SuccessfulOperations / _metrics[cacheKey].TotalOperations;
+                var hitRatio = (double)metrics.SuccessfulOperations / metrics.TotalOperations;
                 _logger.LogInformation("Cache {Operation} hit ratio: {Ratio:P2}", operation, hitRatio);
             }
         }
@@ -127,34 +125,36 @@ namespace BSkyClone.Services
 
         private void UpdateMetrics(string key, long duration, bool success)
         {
-            if (!_metrics.ContainsKey(key))
-            {
-                _metrics[key] = new PerformanceMetrics();
-            }
+            var metrics = _metrics.GetOrAdd(key, _ => new PerformanceMetrics());
 
-            var metrics = _metrics[key];
-            metrics.TotalOperations++;
-            metrics.TotalDuration += duration;
-            metrics.LastDuration = duration;
+            Interlocked.Increment(ref metrics.TotalOperations);
+            Interlocked.Add(ref metrics.TotalDuration, duration);
+            Interlocked.Exchange(ref metrics.LastDuration, duration);
 
             if (success)
             {
-                metrics.SuccessfulOperations++;
+                Interlocked.Increment(ref metrics.SuccessfulOperations);
             }
             else
             {
-                metrics.FailedOperations++;
+                Interlocked.Increment(ref metrics.FailedOperations);
             }
 
-            // Update min/max
-            if (metrics.MinDuration == 0 || duration < metrics.MinDuration)
+            // [PERF] Optimized comparison for min/max without excessive locking
+            long currentMin = Interlocked.Read(ref metrics.MinDuration);
+            while (duration < currentMin || currentMin == 0)
             {
-                metrics.MinDuration = duration;
+                long prevMin = Interlocked.CompareExchange(ref metrics.MinDuration, duration, currentMin);
+                if (prevMin == currentMin) break;
+                currentMin = prevMin;
             }
 
-            if (duration > metrics.MaxDuration)
+            long currentMax = Interlocked.Read(ref metrics.MaxDuration);
+            while (duration > currentMax)
             {
-                metrics.MaxDuration = duration;
+                long prevMax = Interlocked.CompareExchange(ref metrics.MaxDuration, duration, currentMax);
+                if (prevMax == currentMax) break;
+                currentMax = prevMax;
             }
         }
     }
@@ -164,13 +164,13 @@ namespace BSkyClone.Services
     /// </summary>
     public class PerformanceMetrics
     {
-        public long TotalOperations { get; set; }
-        public long TotalDuration { get; set; }
-        public long SuccessfulOperations { get; set; }
-        public long FailedOperations { get; set; }
-        public long LastDuration { get; set; }
-        public long MinDuration { get; set; }
-        public long MaxDuration { get; set; }
+        public long TotalOperations;
+        public long TotalDuration;
+        public long SuccessfulOperations;
+        public long FailedOperations;
+        public long LastDuration;
+        public long MinDuration;
+        public long MaxDuration;
 
         public double AverageDuration => TotalOperations > 0 ? (double)TotalDuration / TotalOperations : 0;
         public double SuccessRate => TotalOperations > 0 ? (double)SuccessfulOperations / TotalOperations : 0;

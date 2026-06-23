@@ -424,25 +424,22 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
-        // Global handshake cap: 8 seconds.
-        // If tasks take longer, return partial/stale data and let the frontend catch up.
-        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        // Global handshake cap: 3 seconds (was 8s). 
+        // 3 seconds is more than enough for parallel DB queries but short enough to 
+        // prevent the UI from feeling stuck if a remote service is slow.
+        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         using var finalLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(globalCts.Token, ct);
         var globalToken = finalLinkedCts.Token;
 
         // [PERF] Fire the Bluesky token refresh in the background — don't await it before launching
-        // parallel tasks. Each sub-task calls GetOrRefreshBlueskyTokenAsync itself and will get
-        // the cached token (fast path) or wait a short time for the background refresh to complete.
+        // parallel tasks. 
         _ = Task.Run(async () => {
             try
             {
                 using var scope = _scopeFactory.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, globalToken);
             }
-            catch (OperationCanceledException)
-            {
-                // Handshake moved on; callers can still use cached/stale data below.
-            }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Background token refresh failed during handshake for user {UserId}.", userId);
@@ -450,11 +447,11 @@ public class AuthService : IAuthService
         }, globalToken);
 
         // [FIX] Trust local database instead of fetching from Bluesky's remote API during handshake.
-        // Remote API may return stale cached avatar data that would overwrite fresh DB values.
         var profile = MapToAuthResponse(user, "", "");
 
-        // Launch all metadata tasks in parallel immediately
-        // Each sub-task gets its own disposed scope to prevent DB connection pool exhaustion.
+        // Launch metadata tasks
+        // Trending is already cached in memory, no need for Task.Run
+        var trending = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
 
         var feedsTask = Task.Run(async () => {
              using var scope = _scopeFactory.CreateScope();
@@ -466,11 +463,6 @@ public class AuthService : IAuthService
              return await scope.ServiceProvider.GetRequiredService<INotificationService>().GetUnreadCountAsync(userId, globalToken);
         }, globalToken);
 
-        var trendingTask = Task.Run(() => {
-             using var scope = _scopeFactory.CreateScope();
-             return scope.ServiceProvider.GetRequiredService<ITrendingService>().GetTrendingData();
-        }, globalToken);
-
         var mutedWordsTask = Task.Run(async () => {
              using var scope = _scopeFactory.CreateScope();
              return await scope.ServiceProvider.GetRequiredService<IUserService>().GetMutedWordsAsync(userId, globalToken);
@@ -478,44 +470,28 @@ public class AuthService : IAuthService
 
         try
         {
-            var allTasks = Task.WhenAll(feedsTask, countTask, trendingTask, mutedWordsTask);
-            var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(8), ct));
+            var allTasks = Task.WhenAll(feedsTask, countTask, mutedWordsTask);
+            var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(3), ct));
 
             if (completedTask == allTasks)
             {
-                try
-                {
-                    await allTasks;
-                }
-                catch (OperationCanceledException)
-                {
-                    _logger.LogWarning("Handshake partially timed out for user {UserId}. Returning available data.", userId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Handshake sub-task failed for user {UserId}. Returning available data.", userId);
-                }
+                await allTasks;
             }
             else
             {
-                if (ct.IsCancellationRequested)
-                {
-                    throw new OperationCanceledException(ct);
-                }
-
+                if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
                 await globalCts.CancelAsync();
-                _logger.LogWarning("Handshake hard timeout reached for user {UserId}. Returning available data.", userId);
+                _logger.LogWarning("Handshake hard timeout (3s) reached for user {UserId}. Returning partial data.", userId);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            _logger.LogWarning("Handshake partially timed out for user {UserId}. Returning available data.", userId);
+            _logger.LogWarning("Handshake partially timed out for user {UserId}.", userId);
         }
 
         // Extract results safely (using default values if they timed out)
         var allFeeds = feedsTask.IsCompletedSuccessfully ? await feedsTask : new List<FeedDto>();
         var unreadCount = countTask.IsCompletedSuccessfully ? await countTask : 0;
-        var trending = trendingTask.IsCompletedSuccessfully ? await trendingTask : new TrendingData();
         var mutedWordsList = mutedWordsTask.IsCompletedSuccessfully ? await mutedWordsTask : new List<MutedWord>();
 
 
