@@ -824,6 +824,183 @@ public class PostsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// SSE streaming endpoint: fetches thread once, emits each reply as an SSE event immediately,
+    /// allowing the frontend to render replies progressively as they arrive.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("replies/stream")]
+    public async Task GetPostRepliesStream([FromQuery] string? uri, [FromQuery] string? id, [FromQuery] string? identifier)
+    {
+        string inputIdentifier = identifier ?? uri ?? id ?? "";
+        if (string.IsNullOrEmpty(inputIdentifier))
+        {
+            Response.StatusCode = 400;
+            return;
+        }
+
+        Response.Headers["Content-Type"] = "text/event-stream";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no"; // Disable Nginx buffering
+        Response.Headers["Connection"] = "keep-alive";
+        await Response.Body.FlushAsync();
+
+        var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
+
+        async Task SendEvent(string eventName, object data)
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(data, new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            });
+            var payload = $"event: {eventName}\ndata: {json}\n\n";
+            await Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(payload));
+            await Response.Body.FlushAsync();
+        }
+
+        try
+        {
+            // Resolve URI
+            string? threadUri = null;
+            if (inputIdentifier.StartsWith("at://"))
+            {
+                threadUri = inputIdentifier;
+            }
+            else
+            {
+                PostDto? resolvedPost = null;
+                if (inputIdentifier.Contains("did:plc:"))
+                    resolvedPost = await _postService.GetPostByUriAsync(inputIdentifier, viewerId);
+                else
+                    resolvedPost = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
+                threadUri = resolvedPost?.Uri ?? (inputIdentifier.StartsWith("at://") ? inputIdentifier : null);
+            }
+
+            if (string.IsNullOrEmpty(threadUri))
+            {
+                await SendEvent("error", new { message = "Post not found" });
+                return;
+            }
+
+            // Check cache first — emit all cached replies immediately
+            if (_threadReplyCacheService.TryGet(threadUri, out var cachedReplies) && cachedReplies?.Count > 0)
+            {
+                await SendEvent("meta", new { totalCount = cachedReplies.Count });
+                foreach (var reply in cachedReplies)
+                {
+                    if (HttpContext.RequestAborted.IsCancellationRequested) return;
+                    await SendEvent("reply", reply);
+                }
+                await SendEvent("done", new { });
+                return;
+            }
+
+            // Fetch from Bluesky V2
+            _logger.LogInformation("[PostsController] SSE: Fetching V2 thread for {Uri}", threadUri);
+            var xrpcThread = await _postService.GetPostThreadV2Async(threadUri, 4, 0, "top", viewerId);
+
+            // Fallback to V1
+            if (xrpcThread == null)
+            {
+                _logger.LogInformation("[PostsController] SSE: V2 failed, falling back to V1 for {Uri}", threadUri);
+                xrpcThread = await _postService.GetPostThreadAsync(threadUri, 2, 0, viewerId);
+            }
+
+            if (xrpcThread == null)
+            {
+                // Last resort: local DB
+                Guid postId;
+                if (!Guid.TryParse(inputIdentifier, out postId))
+                {
+                    var p = await _postService.GetPostByTidAsync(inputIdentifier, viewerId);
+                    if (p == null) { await SendEvent("done", new { }); return; }
+                    postId = p.Id;
+                }
+                var dbReplies = (await _postService.GetPostRepliesAsync(postId, viewerId, 0, 200)).ToList();
+                await SendEvent("meta", new { totalCount = dbReplies.Count });
+                foreach (var reply in dbReplies)
+                {
+                    if (HttpContext.RequestAborted.IsCancellationRequested) return;
+                    await SendEvent("reply", reply);
+                }
+                await SendEvent("done", new { });
+                return;
+            }
+
+            // Parse thread and stream each reply immediately
+            var allReplies = new List<PostDto>();
+            var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(xrpcThread);
+            var jObject = Newtonsoft.Json.Linq.JObject.Parse(jsonStr);
+            var threadNode = jObject["thread"];
+            int totalReplyCount = 0;
+
+            if (threadNode is Newtonsoft.Json.Linq.JArray threadArray)
+            {
+                // V2: find totalReplyCount first (depth=0 node)
+                foreach (var item in threadArray)
+                {
+                    if ((int)(item["depth"] ?? -1) == 0)
+                    {
+                        totalReplyCount = (int)(item["value"]?["post"]?["replyCount"] ?? 0);
+                        break;
+                    }
+                }
+                await SendEvent("meta", new { totalCount = totalReplyCount });
+
+                foreach (var item in threadArray)
+                {
+                    if (HttpContext.RequestAborted.IsCancellationRequested) break;
+                    if ((int)(item["depth"] ?? -1) == 1)
+                    {
+                        var postNode = item["value"]?["post"];
+                        if (postNode == null) continue;
+                        var postDto = MapBskyPostViewToDto(postNode);
+                        if (postDto == null) continue;
+                        allReplies.Add(postDto);
+                        await SendEvent("reply", postDto);
+                    }
+                }
+            }
+            else if (threadNode is Newtonsoft.Json.Linq.JObject threadObj)
+            {
+                // V1 Tree
+                totalReplyCount = (int)(threadObj["post"]?["replyCount"] ?? 0);
+                await SendEvent("meta", new { totalCount = totalReplyCount });
+
+                if (threadObj["replies"] is Newtonsoft.Json.Linq.JArray repliesArr)
+                {
+                    foreach (var replyNode in repliesArr)
+                    {
+                        if (HttpContext.RequestAborted.IsCancellationRequested) break;
+                        var postNode = replyNode["post"];
+                        if (postNode == null) continue;
+                        var postDto = MapBskyPostViewToDto(postNode);
+                        if (postDto == null) continue;
+                        postDto.RepliesCount = (int)(postNode["replyCount"] ?? postDto.RepliesCount);
+                        allReplies.Add(postDto);
+                        await SendEvent("reply", postDto);
+                    }
+                }
+            }
+
+            // Sort and cache the full list for subsequent paginated calls
+            var sorted = allReplies
+                .OrderByDescending(r => r.LikesCount)
+                .ThenBy(r => r.CreatedAt)
+                .ToList();
+            _threadReplyCacheService.Set(threadUri, sorted);
+
+            await SendEvent("done", new { });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PostsController] SSE GetPostRepliesStream error for {Identifier}", inputIdentifier);
+            try { await SendEvent("error", new { message = "Stream error" }); } catch { /* ignore */ }
+        }
+    }
+
+
     private List<PostDto> ExtractDirectRepliesFromThread(object threadResponse, string rootUri, out int totalReplyCount)
     {
         var results = new List<PostDto>();
