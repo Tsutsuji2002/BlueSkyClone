@@ -76,9 +76,12 @@ import {
     FiExternalLink
 } from 'react-icons/fi';
 
-const ThreadMoreReplies = ({ count, onClick, t }: { count: number, onClick: () => void, t: any }) => (
+const ThreadMoreReplies = ({ count, onClick, t, variant = 'default' }: { count: number, onClick: () => void, t: any, variant?: 'default' | 'minimal' }) => (
     <div
-        className="flex items-center gap-1.5 px-4 pb-3 pt-0 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg group transition-colors"
+        className={cn(
+            "flex items-center gap-1.5 pb-3 pt-0 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/30 bg-white dark:bg-dark-bg group transition-colors",
+            variant === 'default' ? "px-4 border-b border-gray-200 dark:border-dark-border" : "px-0"
+        )}
         onClick={(e) => {
             e.stopPropagation();
             onClick();
@@ -1029,6 +1032,7 @@ const PostDetailPage: React.FC = () => {
                         {(() => {
                             const DEPTH_STEP = 36; // Indentation per depth level
                             const AVATAR_CENTER = 36; // Center of depth=0 avatar (16px padding + 20px half-avatar)
+                            const MAX_REPLY_DEPTH = 5; // Level 6 in user terms (Root is 0, Replies are 1...6)
 
                             const renderTree = (replyList: Post[], depth: number = 0, activeLines: boolean[] = []): React.ReactNode => {
                                 return replyList.map((reply, idx) => {
@@ -1114,7 +1118,7 @@ const PostDetailPage: React.FC = () => {
                                                 </div>
 
                                                 {/* Vertical connector line going from THIS post's avatar DOWN strictly linking to its children */}
-                                                {hasSubReplies && (
+                                                {hasSubReplies && depth < MAX_REPLY_DEPTH && (
                                                     <div
                                                         className="absolute bg-gray-200 dark:bg-dark-border pointer-events-none"
                                                         style={{
@@ -1129,9 +1133,20 @@ const PostDetailPage: React.FC = () => {
 
                                             {/* Render Children separately so their heights don't distort their parent's background layout wrappers */}
                                             {hasSubReplies && (
-                                                <div>
-                                                    {renderTree(subReplies, depth + 1, nextActiveLines)}
-                                                </div>
+                                                depth < MAX_REPLY_DEPTH ? (
+                                                    <div>
+                                                        {renderTree(subReplies, depth + 1, nextActiveLines)}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ paddingLeft: (depth + 1) * DEPTH_STEP }}>
+                                                        <ThreadMoreReplies 
+                                                            count={reply.repliesCount || subReplies.length}
+                                                            onClick={() => navigate(`/profile/${reply.author.handle}/post/${reply.id || reply.uri?.split('/').pop()}`)}
+                                                            t={t}
+                                                            variant="minimal"
+                                                        />
+                                                    </div>
+                                                )
                                             )}
 
                                             {/* Explicit separator after each depth-0 thread group (including all its children).
