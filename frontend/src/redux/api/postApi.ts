@@ -6,13 +6,13 @@ import { hydrateInteractionsAsync } from '../slices/postsSlice';
 export const postApi = apiSlice.injectEndpoints({
     endpoints: (builder) => ({
         getTimeline: builder.query<{ posts: Post[]; skip: number; hasMore: boolean }, { skip?: number; take?: number; refresh?: boolean }>({
-            query: ({ skip = 0, take = 20, refresh = false }) => ({
+            query: ({ skip = 0, take = 30, refresh = false }) => ({
                 url: '/posts/timeline',
                 params: { skip, take, refresh: refresh ? 'true' : undefined },
             }),
             transformResponse: (rawPosts: any[]) => {
                 const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));
-                return { posts, skip: 0, hasMore: rawPosts.length >= 20 };
+                return { posts, skip: 0, hasMore: rawPosts.length >= 30 };
             },
             onQueryStarted: async (arg, { dispatch, queryFulfilled }) => {
                 try {
@@ -31,7 +31,7 @@ export const postApi = apiSlice.injectEndpoints({
                     : [{ type: 'Feed', id: 'TIMELINE' }],
         }),
         getUserPosts: builder.query<{ posts: Post[]; cursor: string | null }, { userId: string; type?: string; take?: number; skip?: number; cursor?: string; refresh?: boolean }>({
-            query: ({ userId, type, take = 20, skip = 0, cursor, refresh = false }) => ({
+            query: ({ userId, type, take = 30, skip = 0, cursor, refresh = false }) => ({
                 url: `/posts/user/${userId}`,
                 params: { type, take, skip, cursor, refresh: refresh ? 'true' : undefined },
             }),

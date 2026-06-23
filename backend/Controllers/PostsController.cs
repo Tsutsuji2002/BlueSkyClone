@@ -30,7 +30,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("timeline")]
-    public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetTimeline([FromQuery] int skip = 0, [FromQuery] int take = 30)
     {
         try
         {
@@ -51,7 +51,7 @@ public class PostsController : ControllerBase
     [HttpGet("trending")]
     [AllowAnonymous]
     [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "skip", "take" })]
-    public async Task<IActionResult> GetTrending([FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetTrending([FromQuery] int skip = 0, [FromQuery] int take = 30)
     {
         try
         {
@@ -70,7 +70,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("discover")]
-    public async Task<IActionResult> GetDiscover([FromQuery] int take = 20, [FromQuery] int skip = 0)
+    public async Task<IActionResult> GetDiscover([FromQuery] int take = 30, [FromQuery] int skip = 0)
     {
         try
         {
@@ -155,7 +155,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 20, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool includePins = false)
+    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool includePins = false)
     {
         try
         {

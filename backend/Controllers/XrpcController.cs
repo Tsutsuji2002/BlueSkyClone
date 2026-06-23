@@ -366,7 +366,7 @@ namespace BSkyClone.Controllers
         [HttpGet("app.bsky.feed.getTimeline")]
         public async Task<IActionResult> GetTimeline(
             [FromQuery] string? algorithm = null, 
-            [FromQuery] int limit = 20, 
+            [FromQuery] int limit = 30, 
             [FromQuery] string? cursor = null)
         {
             try
@@ -389,7 +389,7 @@ namespace BSkyClone.Controllers
                 {
                     Post = new Lexicons.App.Bsky.Feed.PostView
                     {
-                        Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
+                        Uri = p.Uri ?? $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
                         Cid = p.Cid ?? p.Id.ToString(), 
                         Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
                         {
@@ -407,8 +407,25 @@ namespace BSkyClone.Controllers
                         ReplyCount = p.RepliesCount,
                         RepostCount = p.RepostsCount,
                         LikeCount = p.LikesCount,
-                        IndexedAt = p.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o")
-                    }
+                        IndexedAt = p.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                        Viewer = new Lexicons.App.Bsky.Feed.ViewerState
+                        {
+                            Like = p.Viewer?.Like,
+                            Repost = p.Viewer?.Repost
+                        }
+                    },
+                    Reason = p.IsPinned ? new { @type = "app.bsky.feed.defs#reasonPin" } :
+                             (p.RepostedBy != null ? (object)new {
+                                 @type = "app.bsky.feed.defs#reasonRepost",
+                                 by = new {
+                                     did = p.RepostedBy.Did,
+                                     handle = p.RepostedBy.Handle,
+                                     displayName = p.RepostedBy.DisplayName,
+                                     avatar = p.RepostedBy.AvatarUrl,
+                                     indexedAt = DateTime.UtcNow.ToString("o")
+                                 },
+                                 indexedAt = DateTime.UtcNow.ToString("o")
+                             } : null)
                 }).ToList();
 
                 return Ok(new Lexicons.App.Bsky.Feed.GetTimelineResponse
@@ -423,6 +440,7 @@ namespace BSkyClone.Controllers
                 return Ok(new Lexicons.App.Bsky.Feed.GetTimelineResponse { Feed = new List<Lexicons.App.Bsky.Feed.FeedViewPost>() });
             }
         }
+
 
         [Authorize]
         [HttpGet("app.bsky.actor.getPreferences")]

@@ -107,7 +107,7 @@ public class PostService : IPostService
         _httpClientFactory = httpClientFactory;
     }
 
-    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 20, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
+    public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 30, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
         try
         {
@@ -329,7 +329,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null, bool bypassCache = false, bool includePins = false)
+    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 30, string? type = null, string? cursor = null, bool bypassCache = false, bool includePins = false)
     {
         try
         {
@@ -6304,7 +6304,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 20, List<string>? userInterests = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
+    public async Task<IEnumerable<PostDto>> GetTrendingPostsAsync(Guid? viewerId = null, int skip = 0, int take = 30, List<string>? userInterests = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
         var cacheKey = $"posts:trending:v3";
         var now = DateTime.UtcNow;

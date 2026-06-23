@@ -425,7 +425,7 @@ public class FeedsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("{feedId}/posts")]
-    public async Task<IActionResult> GetFeedPosts(string feedId, [FromQuery] string? uri = null, [FromQuery] int skip = 0, [FromQuery] int take = 10)
+    public async Task<IActionResult> GetFeedPosts(string feedId, [FromQuery] string? uri = null, [FromQuery] int skip = 0, [FromQuery] int take = 30)
     {
         try
         {
