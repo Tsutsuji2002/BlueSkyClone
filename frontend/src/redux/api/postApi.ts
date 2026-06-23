@@ -56,18 +56,18 @@ export const postApi = apiSlice.injectEndpoints({
                       ]
                     : [{ type: 'Feed', id: 'USER_POSTS' }],
         }),
-        getPostDetails: builder.query<{ targetPost: Post | null; allPosts: Post[] }, { uri: string; handle?: string; take?: number }>({
-            query: ({ uri, handle, take = 20 }) => {
+        getPostDetails: builder.query<{ targetPost: Post | null; allPosts: Post[] }, { uri: string; handle?: string; take?: number; depth?: number; parentHeight?: number }>({
+            query: ({ uri, handle, take = 20, depth = 1, parentHeight = 1 }) => {
                 const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
                 const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
                 
                 if (uri.startsWith('at://') || isGuid) {
-                    return { url: '/posts/details', params: { uri, take } };
+                    return { url: '/posts/details', params: { uri, take, depth, parentHeight } };
                 } else if (handle && handle !== 'local') {
                     const fullUri = `at://${handle}/app.bsky.feed.post/${postId}`;
-                    return { url: '/xrpc/app.bsky.feed.getPostThread', params: { uri: fullUri } };
+                    return { url: '/xrpc/app.bsky.feed.getPostThread', params: { uri: fullUri, depth, parentHeight } };
                 } else {
-                    return { url: `/posts/tid/${postId}`, params: { take } };
+                    return { url: `/posts/tid/${postId}`, params: { take, depth, parentHeight } };
                 }
             },
             transformResponse: (data: any) => {

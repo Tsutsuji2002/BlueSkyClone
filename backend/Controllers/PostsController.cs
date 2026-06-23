@@ -244,7 +244,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpGet("details")]
-    public async Task<IActionResult> GetPostDetails([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetPostDetails([FromQuery] string? id, [FromQuery] string? uri, [FromQuery] int take = 20, [FromQuery] int depth = 1, [FromQuery] int parentHeight = 1)
     {
         string identifier = uri ?? id ?? "";
         if (string.IsNullOrEmpty(identifier)) return BadRequest("Post ID or URI required.");
@@ -269,7 +269,7 @@ public class PostsController : ControllerBase
             // If it's a remote post (stub), fetch the full thread from AppView
             if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
             {
-                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId, take);
+                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, depth, parentHeight, viewerId, take);
                 if (xrpcThread != null)
                 {
                     return Ok(xrpcThread);
@@ -334,11 +334,11 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetPost(string id, [FromQuery] int take = 20, [FromQuery] int depth = 1, [FromQuery] int parentHeight = 1)
     {
         // Redirect to new query-based logic for robustness if it looks like a URI
         if (id.Contains("at://") || id.Contains("%")) 
-            return await GetPostDetails(null, System.Net.WebUtility.UrlDecode(id), take);
+            return await GetPostDetails(null, System.Net.WebUtility.UrlDecode(id), take, depth, parentHeight);
             
         try
         {
@@ -415,7 +415,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("tid/{tid}")]
-    public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20)
+    public async Task<IActionResult> GetPostByTid(string tid, [FromQuery] int take = 20, [FromQuery] int depth = 1, [FromQuery] int parentHeight = 1)
     {
         try
         {
@@ -434,7 +434,7 @@ public class PostsController : ControllerBase
             // If it's a remote post (stub), fetch the full thread from AppView
             if (!string.IsNullOrEmpty(post.Uri) && post.Uri.StartsWith("at://"))
             {
-                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, 6, 80, viewerId, take);
+                var xrpcThread = await _postService.GetPostThreadAsync(post.Uri, depth, parentHeight, viewerId, take);
                 if (xrpcThread != null)
                 {
                     return Ok(xrpcThread);
