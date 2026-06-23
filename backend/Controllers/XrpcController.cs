@@ -1264,7 +1264,8 @@ namespace BSkyClone.Controllers
             [FromQuery] string actor,
             [FromQuery] int limit = 50,
             [FromQuery] string? cursor = null,
-            [FromQuery] string? filter = null)
+            [FromQuery] string? filter = null,
+            [FromQuery] bool includePins = false)
         {
             try
             {
@@ -1290,7 +1291,7 @@ namespace BSkyClone.Controllers
                 int skip = 0;
                 if (!string.IsNullOrEmpty(cursor) && int.TryParse(cursor, out var skipVal)) skip = skipVal;
 
-                var posts = await _postService.GetUserPostsAsync(actor ?? user.Did ?? user.Handle, viewerId, skip, limit, filter);
+                var posts = await _postService.GetUserPostsAsync(actor ?? user.Did ?? user.Handle, viewerId, skip, limit, filter, cursor, false, includePins);
                 
                 var feed = posts.Posts.Select(p => new Lexicons.App.Bsky.Feed.FeedViewPost
                 {
@@ -1320,7 +1321,19 @@ namespace BSkyClone.Controllers
                             Like = p.Viewer?.Like,
                             Repost = p.Viewer?.Repost
                         }
-                    }
+                    },
+                    Reason = p.IsPinned ? new { @type = "app.bsky.feed.defs#reasonPin" } : 
+                             (p.RepostedBy != null ? new { 
+                                 @type = "app.bsky.feed.defs#reasonRepost",
+                                 by = new {
+                                     did = p.RepostedBy.Did,
+                                     handle = p.RepostedBy.Handle,
+                                     displayName = p.RepostedBy.DisplayName,
+                                     avatar = p.RepostedBy.AvatarUrl,
+                                     indexedAt = DateTime.UtcNow.ToString("o")
+                                 },
+                                 indexedAt = DateTime.UtcNow.ToString("o")
+                             } : null)
                 }).ToList();
 
                 return Ok(new Lexicons.App.Bsky.Feed.GetAuthorFeedResponse

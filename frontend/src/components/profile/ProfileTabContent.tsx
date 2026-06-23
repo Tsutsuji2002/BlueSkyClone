@@ -71,10 +71,12 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
             if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
                 const itemHeight = (type === 'media' || type === 'video') ? 150 : 250;
-                const dynamicTake = getDynamicBatchSize(itemHeight);
+                // [FIX] Align with official spec: use limit=30 and includePins=true for faster/larger loading
+                const requestedTake = (type === 'posts' || type === 'replies') ? 30 : getDynamicBatchSize(itemHeight);
                 const params = new URLSearchParams({
-                    take: dynamicTake.toString(),
+                    take: requestedTake.toString(),
                     type: type,
+                    includePins: 'true'
                 });
                 if (!isInitial && cursor) params.set('cursor', cursor);
                 if (isInitial) params.set('refresh', 'true');

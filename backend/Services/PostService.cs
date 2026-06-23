@@ -329,7 +329,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null, bool bypassCache = false)
+    public async Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 20, string? type = null, string? cursor = null, bool bypassCache = false, bool includePins = false)
     {
         try
         {
@@ -450,9 +450,9 @@ public class PostService : IPostService
                         var queryArgs = new Dictionary<string, string?> 
                         { 
                             { "actor", handleOrDid }, 
-                            { "limit", "100" }, 
+                            { "limit", (take > 0 ? take : 30).ToString() }, 
                             { "filter", filter },
-                            { "includePins", "true" } // [FIX] Include pinned posts in the feed
+                            { "includePins", includePins ? "true" : "false" } 
                         };
                         if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
                         var queryStr = string.Join("&", queryArgs.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
