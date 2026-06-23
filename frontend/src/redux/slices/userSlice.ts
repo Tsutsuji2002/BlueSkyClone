@@ -730,13 +730,27 @@ const userSlice = createSlice({
                     avatar: payload.avatar || payload.avatarUrl || state.profile.avatar,
                 };
             } else if (payload.id || payload.did) {
-                // Create new profile from payload if we have enough data
-                state.profile = {
-                    ...payload,
-                    avatarUrl: payload.avatarUrl || payload.avatar,
-                    avatar: payload.avatar || payload.avatarUrl,
-                } as User;
-                console.log('[userSlice] Created new profile from payload');
+                // [NEW] Guard against populating null profile with wrong user data
+                // If we are currently fetching a profile (profileIdentifier is set), 
+                // only populate if the payload matches that identifier.
+                const matchesIdentifier = state.profileIdentifier ? 
+                    profileMatchesIdentifier(payload as User, state.profileIdentifier) : 
+                    true; // If not fetching anything, allow population (e.g. initial app load)
+
+                if (matchesIdentifier) {
+                    // Create new profile from payload if we have enough data
+                    state.profile = {
+                        ...payload,
+                        avatarUrl: payload.avatarUrl || payload.avatar,
+                        avatar: payload.avatar || payload.avatarUrl,
+                    } as User;
+                    console.log('[userSlice] Created new profile from payload');
+                } else {
+                    console.log('[userSlice] Skipping null profile population: payload does not match active fetch target', {
+                        target: state.profileIdentifier,
+                        payload: payload.handle || payload.did
+                    });
+                }
             }
         },
         clearUsers: (state: UserState) => {
