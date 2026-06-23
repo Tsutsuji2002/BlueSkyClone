@@ -523,17 +523,17 @@ public class PostService : IPostService
                 // Map Reply context
                 if (item.TryGetProperty("reply", out var replyObj) && replyObj.ValueKind != JsonValueKind.Null)
                 {
+                    if (replyObj.TryGetProperty("root", out var rootObj) && rootObj.ValueKind != JsonValueKind.Null)
+                    {
+                        postDto.RootPost = MapBlueskyPost(rootObj);
+                        postDto.RootPostId = postDto.RootPost?.Uri;
+                    }
+
                     if (replyObj.TryGetProperty("parent", out var parentObj) && parentObj.ValueKind != JsonValueKind.Null)
                     {
                         postDto.ParentPost = MapBlueskyPost(parentObj);
-                        if (postDto.ParentPost?.Author?.Handle != null)
-                        {
-                            postDto.ReplyToHandle = postDto.ParentPost.Author.Handle;
-                        }
-                    }
-                    if (replyObj.TryGetProperty("root", out var rootObj) && rootObj.ValueKind != JsonValueKind.Null)
-                    {
-                        // We could map root too, but Parent is enough for the "reply card" line connecting them
+                        postDto.ReplyToPostId = postDto.ParentPost?.Uri;
+                        postDto.ReplyToHandle = postDto.ParentPost?.Author?.Handle;
                     }
                 }
 

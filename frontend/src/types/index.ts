@@ -203,6 +203,7 @@ export interface Post {
     quotePostId?: string;
     quotePost?: Post;
     parentPost?: Post;
+    rootPost?: Post;
     addedByUserId?: string; // For curated lists
     tags?: string[];
     muteInfo?: {

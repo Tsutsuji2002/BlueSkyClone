@@ -48,6 +48,7 @@ public class PostDto
     public string? QuotePostId { get; set; }
     public PostDto? QuotePost { get; set; }
     public PostDto? ParentPost { get; set; }
+    public PostDto? RootPost { get; set; }
     public bool IsLiked { get; set; }
     public bool IsBookmarked { get; set; }
     public bool IsReposted { get; set; }
