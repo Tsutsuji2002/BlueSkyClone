@@ -104,7 +104,7 @@ const PostDetailPage: React.FC = () => {
     const { handleTranslate, handleCopyText, handleCopyLink, handleEmbedPost, openShareModal, primaryLangName } = usePostActions();
 
     const { user: currentUser, settings, isInitializing } = useAppSelector((state: RootState) => state.auth);
-    const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId!, depth: 0, parentHeight: 0 }, { skip: !postId });
+    const { data: threadDataModel, isLoading: isThreadLoading, isFetching: isThreadFetching, isError: isThreadError, error: threadError, refetch: refetchThread } = useGetPostDetailsQuery({ handle: handle!, uri: postId!, depth: 10, parentHeight: 2 }, { skip: !postId });
     const threadData = threadDataModel?.allPosts;
     const targetPostFromApi = threadDataModel?.targetPost;
     // Insurance: if the handshake finishes but we don't have data, force a refetch
@@ -139,12 +139,7 @@ const PostDetailPage: React.FC = () => {
     }, [threadData, targetPostFromApi, postId]) as Post;
 
     const posts = useAppSelector((state: RootState) => state.posts.threadPosts);
-
-    // SSE streaming: start when we have the post URI
-    const { replies: streamedReplies, status: replyStreamStatus } = useStreamingReplies(
-        postData?.uri ?? null
-    );
-    const isRepliesLoading = replyStreamStatus === 'loading' || replyStreamStatus === 'streaming';
+    const isRepliesLoading = isThreadLoading || isThreadFetching;
     
     const [toggleLikeMutation] = useToggleLikeMutation();
     const [repostMutation] = useRepostMutation();
@@ -205,8 +200,8 @@ const PostDetailPage: React.FC = () => {
                 (post.uri && (parentId === post.uri || post.uri.endsWith('/' + parentId)));
         });
 
-        // Merge with streamed replies from Bluesky API
-        const combined = [...filtered, ...(streamedReplies as Post[])];
+        // Use only the posts from the main thread query result
+        const combined = filtered;
 
         // Deduplicate by URI or ID
         const seen = new Set<string>();
@@ -218,7 +213,7 @@ const PostDetailPage: React.FC = () => {
         });
 
         return sortPosts(unique);
-    }, [posts, post, streamedReplies, sortPosts]);
+    }, [posts, post, sortPosts]);
     const ancestors = React.useMemo(() => {
         const list: Post[] = [];
         if (!post) return list;
@@ -260,7 +255,7 @@ const PostDetailPage: React.FC = () => {
         (currentUser.did && post.author.did && currentUser.did === post.author.did) ||
         (currentUser.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
-    const hasMoreReplies = replyStreamStatus === 'loading' || replyStreamStatus === 'streaming';
+    const hasMoreReplies = isRepliesLoading;
     // Track which post IDs we've already fetched replies for to avoid re-fetching
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
 
@@ -1192,12 +1187,11 @@ const PostDetailPage: React.FC = () => {
                         })}
                     </div>
                 )}
-                {/* Streaming Indicator */}
-                {(replyStreamStatus === 'loading' || replyStreamStatus === 'streaming') && (
+                {isRepliesLoading && (
                     <div className="h-20 flex flex-col items-center justify-center border-t border-gray-100 dark:border-dark-border gap-2">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500" />
                         <span className="text-xs text-gray-400">
-                            {replyStreamStatus === 'loading' ? t('common.loading_replies') : t('common.streaming_replies', 'Loading more replies...')}
+                            {t('common.loading_replies')}
                         </span>
                     </div>
                 )}

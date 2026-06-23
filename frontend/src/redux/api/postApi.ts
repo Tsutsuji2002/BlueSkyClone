@@ -57,7 +57,7 @@ export const postApi = apiSlice.injectEndpoints({
                     : [{ type: 'Feed', id: 'USER_POSTS' }],
         }),
         getPostDetails: builder.query<{ targetPost: Post | null; allPosts: Post[] }, { uri: string; handle?: string; take?: number; depth?: number; parentHeight?: number }>({
-            query: ({ uri, handle, take = 20, depth = 1, parentHeight = 1 }) => {
+            query: ({ uri, handle, take = 25, depth = 10, parentHeight = 2 }) => {
                 const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
                 const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(postId);
                 
