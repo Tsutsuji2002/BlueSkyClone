@@ -12,7 +12,7 @@ import {
     useRepostMutation, 
     useDeletePostMutation 
 } from '../redux/api/postApi';
-import { useStreamingReplies } from '../hooks/useStreamingReplies';
+import { useUpdateSettingsMutation } from '../redux/api/authApi';
 import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
@@ -144,6 +144,7 @@ const PostDetailPage: React.FC = () => {
     const [toggleLikeMutation] = useToggleLikeMutation();
     const [repostMutation] = useRepostMutation();
     const [deletePostMutation] = useDeletePostMutation();
+    const [updateSettingsMutation] = useUpdateSettingsMutation();
 
     const interactionTruth = useAppSelector((state: RootState) => {
         const uriStr = postData?.uri?.toLowerCase();
@@ -435,14 +436,22 @@ const PostDetailPage: React.FC = () => {
         {
             id: 'linear',
             label: t('post.linear', 'Linear'),
-            onClick: () => dispatch(updateSettings({ treeView: false })),
+            onClick: () => {
+                const newSettings = { treeView: false };
+                dispatch(updateSettings(newSettings));
+                if (currentUser) updateSettingsMutation(newSettings);
+            },
             type: 'radio',
             selected: !treeViewEnabled,
         },
         {
             id: 'threaded',
             label: t('post.threaded', 'Threaded'),
-            onClick: () => dispatch(updateSettings({ treeView: true })),
+            onClick: () => {
+                const newSettings = { treeView: true };
+                dispatch(updateSettings(newSettings));
+                if (currentUser) updateSettingsMutation(newSettings);
+            },
             type: 'radio',
             selected: treeViewEnabled,
             hasDivider: true,
@@ -462,21 +471,33 @@ const PostDetailPage: React.FC = () => {
         {
             id: 'top',
             label: t('post.top_replies_first', 'Top replies first'),
-            onClick: () => dispatch(updateSettings({ sortReplies: 'top' })),
+            onClick: () => {
+                const newSettings = { sortReplies: 'top' as const };
+                dispatch(updateSettings(newSettings));
+                if (currentUser) updateSettingsMutation(newSettings);
+            },
             type: 'radio',
             selected: sortOrder === 'top',
         },
         {
             id: 'oldest',
             label: t('post.oldest_replies_first', 'Oldest replies first'),
-            onClick: () => dispatch(updateSettings({ sortReplies: 'oldest' })),
+            onClick: () => {
+                const newSettings = { sortReplies: 'oldest' as const };
+                dispatch(updateSettings(newSettings));
+                if (currentUser) updateSettingsMutation(newSettings);
+            },
             type: 'radio',
             selected: sortOrder === 'oldest',
         },
         {
             id: 'newest',
             label: t('post.newest_replies_first', 'Newest replies first'),
-            onClick: () => dispatch(updateSettings({ sortReplies: 'newest' })),
+            onClick: () => {
+                const newSettings = { sortReplies: 'newest' as const };
+                dispatch(updateSettings(newSettings));
+                if (currentUser) updateSettingsMutation(newSettings);
+            },
             type: 'radio',
             selected: sortOrder === 'newest',
         }

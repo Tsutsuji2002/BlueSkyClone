@@ -119,8 +119,9 @@ const DiscussionSettingsPage: React.FC = () => {
                             </div>
                             <button
                                 onClick={() => {
-                                    dispatch(updateSettings({ treeView: !settings?.treeView })); // Optimistic UI
-                                    updateSettingsMutation({ enableTreeView: !settings?.treeView } as any);
+                                    const newValue = !settings?.treeView;
+                                    dispatch(updateSettings({ treeView: newValue })); // Optimistic UI
+                                    updateSettingsMutation({ treeView: newValue });
                                 }}
                                 className={cn(
                                     "w-11 h-6 rounded-full relative transition-colors duration-200 ease-in-out",

@@ -7,6 +7,7 @@ import { setHandshakeSettled } from './userSlice';
 
 const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const SETTINGS_STORAGE_KEY = 'bsky_user_settings';
 
 /**
  * Helper to normalize image URLs to full URLs
@@ -138,6 +139,17 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
     // Handshake will handle actual validation.
     const isValidSession = !!activeAccount?.refreshToken;
 
+    // Load local settings as fallback
+    let localSettings = null;
+    try {
+        const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (stored) {
+            localSettings = normalizeSettings(JSON.parse(stored));
+        }
+    } catch (e) {
+        console.warn('[authSlice] Failed to parse local settings:', e);
+    }
+
     return {
         user: (activeAccount && isValidSession) ? {
             id: activeAccount.id,
@@ -150,7 +162,7 @@ const initialState: AuthState & { savedAccounts: StoredAccount[] } = (() => {
             followingCount: 0,
             postsCount: 0
         } as User : null,
-        settings: null,
+        settings: localSettings,
         isAuthenticated: !!(activeAccount && isValidSession),
         isLoading: !activeAccount,
         isSessionSettled: false, 
@@ -198,7 +210,12 @@ const authSlice = createSlice({
         updateSettings: (state, action: PayloadAction<Partial<UserSettings>>) => {
             if (state.settings) {
                 state.settings = { ...state.settings, ...action.payload };
+            } else {
+                // Initialize if null
+                state.settings = normalizeSettings(action.payload);
             }
+            // Persist to local storage
+            localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
         },
         clearError: (state) => {
             state.error = null;
@@ -227,6 +244,7 @@ const authSlice = createSlice({
                 coverImage: normalizedCover,
             };
             state.settings = normalizeSettings(action.payload.settings);
+            localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
             state.isLoading = false;
             state.isSessionSettled = true;
             state.isInitializing = false;
@@ -312,6 +330,7 @@ const authSlice = createSlice({
             // RTK Query Sync
             .addMatcher(authApi.endpoints.updateSettings.matchFulfilled, (state, { payload }) => {
                 state.settings = normalizeSettings(payload);
+                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
             })
             .addMatcher(authApi.endpoints.updateProfile.matchFulfilled, (state, { payload }) => {
                 // Normalize URLs and update user
@@ -347,6 +366,7 @@ const authSlice = createSlice({
                 state.isAuthenticated = true;
                 state.user = payload.user;
                 state.settings = normalizeSettings(payload.settings);
+                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
                 state.isLoading = false;
                 state.isSessionSettled = true;
                 state.isInitializing = false;
