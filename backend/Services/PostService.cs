@@ -8369,4 +8369,15 @@ public class PostService : IPostService
             Email = $"{did}@remote.bsky.social"
         };
     }
+
+    private Guid CreateDeterministicGuid(string input)
+    {
+        using (var sha256 = System.Security.Cryptography.SHA256.Create())
+        {
+            var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
+            var guidBytes = new byte[16];
+            Array.Copy(hash, guidBytes, 16);
+            return new Guid(guidBytes);
+        }
+    }
 }
