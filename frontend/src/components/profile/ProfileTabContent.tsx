@@ -124,12 +124,8 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     useEffect(() => {
         // Only clear and re-fetch if the userId has TRULY changed.
         if (prevUserIdRef.current && prevUserIdRef.current !== userId) {
-            if (items.length > 0 && (userId.startsWith('did:') || prevUserIdRef.current.startsWith('did:'))) {
-                 // Potentially the same user.
-            } else {
-                setItems([]);
-                setInitialLoading(true);
-            }
+            setItems([]);
+            setInitialLoading(true);
         }
         
         fetchBatch(true);

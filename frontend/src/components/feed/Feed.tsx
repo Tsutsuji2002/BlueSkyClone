@@ -75,14 +75,20 @@ const Feed: React.FC<FeedProps> = ({
         }
     });
 
+    const lastFeedIdRef = useRef<string | null>(feedId || null);
+
     // Force localPosts to sync if it's the first time or if length changes significantly (re-fetch)
     useEffect(() => {
+        const feedIdChanged = feedId !== lastFeedIdRef.current;
+        lastFeedIdRef.current = feedId || null;
+
         // [STABILITY] Only wipe localPosts if the incoming filteredPosts is genuinely empty 
         // AND we are not currently loading (to avoid flicker/scroll jump during background refresh)
-        if (filteredPosts.length > 0 || !isLoading) {
+        // CRITICAL FIX: If the feedId has changed, we MUST reset even if loading to prevent stale data leak.
+        if (filteredPosts.length > 0 || !isLoading || feedIdChanged) {
             setLocalPosts(filteredPosts);
         }
-    }, [filteredPosts, isLoading]);
+    }, [filteredPosts, isLoading, feedId]);
 
 
     // SSE Listener
