@@ -35,7 +35,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const [initialLoading, setInitialLoading] = useState(true);
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const isFetchingRef = useRef(false);
+    const fetchVersionRef = useRef(0);
     const sentinelRef = useRef<HTMLDivElement>(null);
 
     // Feeds and Lists from Redux
@@ -46,8 +46,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
     const fetchBatch = useCallback(async (isInitial = false) => {
         if (!isInitial && (!hasMore || loading)) return;
-        if (isFetchingRef.current) return;
-
+        
         // Skip internal fetch if using Redux-managed lists/feeds
         if (type === 'feeds' || type === 'lists') {
             setInitialLoading(false);
@@ -55,8 +54,8 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             return;
         }
 
+        const currentVersion = ++fetchVersionRef.current;
         setLoading(true);
-        isFetchingRef.current = true;
         if (isInitial) {
             setInitialLoading(true);
             setItems([]);
@@ -81,6 +80,10 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 if (isInitial) params.set('refresh', 'true');
 
                 const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params}`, { headers });
+                
+                // Ignore result if a newer fetch has started
+                if (currentVersion !== fetchVersionRef.current) return;
+
                 if (response.ok) {
                     const data = await response.json();
                     fetchedItems = Array.isArray(data) ? data : (data.posts || []);
@@ -106,16 +109,22 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 dispatch(seedInteractionTruth(fetchedItems));
             }
 
-            setItems(prev => isInitial ? fetchedItems : [...prev, ...fetchedItems]);
-            setCursor(nextCursor);
-            setHasMore(!!nextCursor && fetchedItems.length > 0);
+            // Final safety check before setting state
+            if (currentVersion === fetchVersionRef.current) {
+                setItems(prev => isInitial ? fetchedItems : [...prev, ...fetchedItems]);
+                setCursor(nextCursor);
+                setHasMore(!!nextCursor && fetchedItems.length > 0);
+            }
         } catch (err) {
             console.error(`Failed to fetch profile ${type}:`, err);
-            setHasMore(false);
+            if (currentVersion === fetchVersionRef.current) {
+                setHasMore(false);
+            }
         } finally {
-            setLoading(false);
-            setInitialLoading(false);
-            isFetchingRef.current = false;
+            if (currentVersion === fetchVersionRef.current) {
+                setLoading(false);
+                setInitialLoading(false);
+            }
         }
     }, [userId, type, cursor, hasMore, loading, t, dispatch]);
 

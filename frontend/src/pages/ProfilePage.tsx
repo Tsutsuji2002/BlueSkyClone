@@ -682,7 +682,7 @@ const ProfilePage: React.FC = () => {
                                     style={{ display: activeTab === tab.id ? 'block' : 'none' }}
                                 >
                                     <ProfileTabContent 
-                                        userId={profileUser?.handle || profileUser?.did || profileUser?.id || handle!}
+                                        userId={handle!}
                                         type={tab.id}
                                         isOwnProfile={isOwnProfile}
                                         isActive={activeTab === tab.id}
