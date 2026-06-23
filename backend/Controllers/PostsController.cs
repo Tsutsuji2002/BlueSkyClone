@@ -836,41 +836,176 @@ public class PostsController : ControllerBase
             var threadNode = jObject["thread"];
             if (threadNode == null) return results;
 
-            // Get total reply count from the root post node
-            var rootPostNode = threadNode["post"];
-            if (rootPostNode != null)
+            if (threadNode is Newtonsoft.Json.Linq.JArray threadArray)
             {
-                totalReplyCount = (int)(rootPostNode["replyCount"] ?? 0);
-            }
-
-            if (threadNode["replies"] is Newtonsoft.Json.Linq.JArray repliesArray)
-            {
-                foreach (var replyNode in repliesArray)
+                // Handle V2 Flat Structure (unspecced.getPostThreadV2)
+                // Each item: { depth: int, value: { $type, post: <AppBskyFeedDefs#postView> } }
+                foreach (var item in threadArray)
                 {
-                    var postNode = replyNode["post"];
+                    var depth = (int)(item["depth"] ?? -1);
+                    var valueNode = item["value"];
+                    var postNode = valueNode?["post"];
+
                     if (postNode == null) continue;
 
-                    var postDto = postNode.ToObject<PostDto>();
-                    if (postDto != null)
+                    if (depth == 0)
                     {
-                        postDto.RepliesCount = replyNode["replies"]?.Count() ?? postDto.RepliesCount;
-                        results.Add(postDto);
+                        totalReplyCount = (int)(postNode["replyCount"] ?? 0);
+                    }
+                    else if (depth == 1)
+                    {
+                        var postDto = MapBskyPostViewToDto(postNode);
+                        if (postDto != null) results.Add(postDto);
+                    }
+                }
+            }
+            else if (threadNode is Newtonsoft.Json.Linq.JObject threadObj)
+            {
+                // Handle V1 Tree Structure (app.bsky.feed.getPostThread)
+                // { thread: { $type, post: <postView>, replies: [...] } }
+                var rootPostNode = threadObj["post"];
+                if (rootPostNode != null)
+                {
+                    totalReplyCount = (int)(rootPostNode["replyCount"] ?? 0);
+                }
+
+                if (threadObj["replies"] is Newtonsoft.Json.Linq.JArray repliesArray)
+                {
+                    foreach (var replyNode in repliesArray)
+                    {
+                        var postNode = replyNode["post"];
+                        if (postNode == null) continue;
+                        var postDto = MapBskyPostViewToDto(postNode);
+                        if (postDto != null)
+                        {
+                            postDto.RepliesCount = (int)(postNode["replyCount"] ?? postDto.RepliesCount);
+                            results.Add(postDto);
+                        }
                     }
                 }
             }
             
-            if (results.Count == 0 && threadNode != null)
+            if (results.Count == 0 && totalReplyCount > 0)
             {
-                _logger.LogWarning("[PostsController] No replies extracted from threadNode for {Uri}. Raw JSON first 500 chars: {Raw}", 
-                    rootUri, 
-                    Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse).Substring(0, Math.Min(500, Newtonsoft.Json.JsonConvert.SerializeObject(threadResponse).Length)));
+                _logger.LogWarning("[PostsController] No replies extracted for {Uri} (totalReplyCount={Count}). First 500 chars: {Raw}", 
+                    rootUri, totalReplyCount,
+                    json.Length > 500 ? json.Substring(0, 500) : json);
             }
-    }
-    catch (Exception ex)
+        }
+        catch (Exception ex)
         {
-            _logger.LogError(ex, "[PostsController] Error extracting replies from thread response");
+            _logger.LogError(ex, "[PostsController] Error extracting replies for {Uri}", rootUri);
         }
         return results;
+    }
+
+    /// <summary>
+    /// Maps a Bluesky AppView postView JSON node (camelCase) to our internal PostDto.
+    /// Bluesky fields: uri, cid, author.{did,handle,displayName,avatar}, record.{text,createdAt},
+    ///                 replyCount, repostCount, likeCount, quoteCount, viewer.{like,repost}
+    /// </summary>
+    private PostDto? MapBskyPostViewToDto(Newtonsoft.Json.Linq.JToken postNode)
+    {
+        try
+        {
+            var uri = postNode["uri"]?.ToString();
+            var cid = postNode["cid"]?.ToString();
+            if (string.IsNullOrEmpty(uri)) return null;
+
+            // Extract TID from AT URI: at://did/app.bsky.feed.post/<tid>
+            var tid = uri.Contains('/') ? uri.Split('/').Last() : uri;
+
+            var authorNode = postNode["author"];
+            var author = new AuthorDto
+            {
+                Did = authorNode?["did"]?.ToString(),
+                Handle = authorNode?["handle"]?.ToString() ?? "",
+                Username = authorNode?["handle"]?.ToString() ?? "",
+                DisplayName = authorNode?["displayName"]?.ToString(),
+                AvatarUrl = authorNode?["avatar"]?.ToString(),
+            };
+
+            var recordNode = postNode["record"];
+            var content = recordNode?["text"]?.ToString();
+            var createdAtStr = recordNode?["createdAt"]?.ToString();
+            DateTime? createdAt = DateTime.TryParse(createdAtStr, out var dt) ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : null;
+
+            var replyCount = (int)(postNode["replyCount"] ?? 0);
+            var repostCount = (int)(postNode["repostCount"] ?? 0);
+            var likeCount = (int)(postNode["likeCount"] ?? 0);
+            var quoteCount = (int)(postNode["quoteCount"] ?? 0);
+
+            // Viewer state (requires auth)
+            var viewerNode = postNode["viewer"];
+            var isLiked = viewerNode?["like"] != null;
+            var isReposted = viewerNode?["repost"] != null;
+            var likeUri = viewerNode?["like"]?.ToString();
+            var repostUri = viewerNode?["repost"]?.ToString();
+
+            // Reply parent info
+            var replyRef = recordNode?["reply"];
+            var replyToParentUri = replyRef?["parent"]?["uri"]?.ToString();
+
+            // Images from embed
+            var imageUrls = new List<string>();
+            var media = new List<MediaDto>();
+            var embedNode = postNode["embed"];
+            if (embedNode != null)
+            {
+                var embedType = embedNode["$type"]?.ToString() ?? "";
+                if (embedType.Contains("images"))
+                {
+                    var imagesArr = embedNode["images"] as Newtonsoft.Json.Linq.JArray;
+                    if (imagesArr != null)
+                    {
+                        foreach (var img in imagesArr)
+                        {
+                            var fullUrl = img["fullsize"]?.ToString() ?? img["thumb"]?.ToString();
+                            if (!string.IsNullOrEmpty(fullUrl))
+                            {
+                                imageUrls.Add(fullUrl);
+                                media.Add(new MediaDto { Url = fullUrl, AltText = img["alt"]?.ToString(), Type = "image" });
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Labels
+            var labels = new List<string>();
+            var labelsArr = postNode["labels"] as Newtonsoft.Json.Linq.JArray;
+            if (labelsArr != null)
+            {
+                foreach (var l in labelsArr) { var val = l["val"]?.ToString(); if (!string.IsNullOrEmpty(val)) labels.Add(val); }
+            }
+
+            return new PostDto
+            {
+                Id = Guid.Empty, // No local GUID for remote posts
+                Tid = tid,
+                Uri = uri,
+                Cid = cid,
+                Content = content,
+                CreatedAt = createdAt,
+                Author = author,
+                RepliesCount = replyCount,
+                RepostsCount = repostCount,
+                LikesCount = likeCount,
+                QuotesCount = quoteCount,
+                IsLiked = isLiked,
+                IsReposted = isReposted,
+                ReplyToPostId = replyToParentUri,
+                ImageUrls = imageUrls,
+                Media = media,
+                Labels = labels,
+                Viewer = (likeUri != null || repostUri != null) ? new PostViewerDto { Like = likeUri, Repost = repostUri } : null
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[PostsController] MapBskyPostViewToDto failed for node");
+            return null;
+        }
     }
 
     private async Task<List<PostDto>> FetchMoreRepliesViaSearch(string rootUri, Guid? viewerId)
