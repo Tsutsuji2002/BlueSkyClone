@@ -4247,7 +4247,7 @@ public class PostService : IPostService
                 ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}")
                 : null;
 
-            string hostname = "api.bsky.app"; // unspecced is more reliable on the main AppView
+            string hostname = "api.bsky.app"; 
             string url = $"https://{hostname}/xrpc/app.bsky.unspecced.getPostThreadV2?anchor={Uri.EscapeDataString(anchor)}&below={below}&parentHeight={parentHeight}&sort={sort}";
 
             using var client = _httpClientFactory.CreateClient();
@@ -4258,14 +4258,32 @@ public class PostService : IPostService
             }
 
             var response = await client.GetAsync(url);
-            if (response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
             {
-                var content = await response.Content.ReadAsStringAsync();
-                return System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(content);
+                 _logger.LogWarning("[PostService] getPostThreadV2 failed for {Anchor}: {Status}", anchor, response.StatusCode);
+                 return null;
             }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var jObject = Newtonsoft.Json.Linq.JObject.Parse(content);
             
-            _logger.LogWarning("[PostService] getPostThreadV2 failed for {Anchor}: {Status}", anchor, response.StatusCode);
-            return null;
+            // Map the flat V2 array back to the expected V1 tree structure for frontend compatibility
+            var threadItems = jObject["items"] as Newtonsoft.Json.Linq.JArray;
+            if (threadItems == null || threadItems.Count == 0) return null;
+
+            var anchorItem = threadItems.FirstOrDefault(i => (int)(i["depth"] ?? -1) == 0);
+            if (anchorItem == null) return null;
+
+            // Ingest in background
+            _ = Task.Run(async () => {
+                try {
+                    using var scope = _scopeFactory.CreateScope();
+                    var bgService = scope.ServiceProvider.GetRequiredService<IPostService>();
+                    await bgService.IngestThreadRecursiveAsync(jObject);
+                } catch { }
+            });
+
+            return new { thread = anchorItem["value"] };
         }
         catch (Exception ex)
         {
@@ -8350,72 +8368,5 @@ public class PostService : IPostService
             Salt = "REMOTE_USER",
             Email = $"{did}@remote.bsky.social"
         };
-    }
-
-    public async Task<object?> GetPostThreadV2Async(string anchor, int below, int parentHeight, string sort = "top", Guid? viewerId = null)
-    {
-        try
-        {
-            var viewerToken = viewerId.HasValue && viewerId.Value != Guid.Empty
-                ? await _distributedCache.GetStringAsync($"BlueskyToken_{viewerId.Value}")
-                : null;
-
-            using var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-            if (!string.IsNullOrEmpty(viewerToken))
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", viewerToken);
-
-            var hostname = string.IsNullOrEmpty(viewerToken) ? "public.api.bsky.app" : "api.bsky.app";
-            var url = $"https://{hostname}/xrpc/unspecced.getPostThreadV2?anchor={Uri.EscapeDataString(anchor)}&below={below}&parentHeight={parentHeight}&sort={sort}";
-
-            var response = await client.GetAsync(url);
-            if (!response.IsSuccessStatusCode) return null;
-
-            var rawJson = await response.Content.ReadAsStringAsync();
-            var jObject = Newtonsoft.Json.Linq.JObject.Parse(rawJson);
-            
-            // Map the flat V2 array back to the expected V1 tree structure for frontend compatibility
-            // The frontend getPostDetails transformResponse expects { thread: { post: ..., replies: [...] } }
-            var threadItems = jObject["items"] as Newtonsoft.Json.Linq.JArray;
-            if (threadItems == null || threadItems.Count == 0) return null;
-
-            var anchorItem = threadItems.FirstOrDefault(i => (int)(i["depth"] ?? -1) == 0);
-            if (anchorItem == null) return null;
-
-            // Ingest in background
-            _ = Task.Run(async () => {
-                try {
-                    using var scope = _scopeFactory.CreateScope();
-                    var bgService = scope.ServiceProvider.GetRequiredService<IPostService>();
-                    await bgService.IngestThreadRecursiveAsync(jObject);
-                } catch { }
-            });
-
-            return new { thread = anchorItem["value"] };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "GetPostThreadV2Async failed for {Anchor}", anchor);
-            return null;
-        }
-    }
-
-    public async Task IngestThreadRecursiveAsync(Newtonsoft.Json.Linq.JToken? node)
-    {
-        if (node == null) return;
-        // Simplified ingestion for now: just log the discovery if it's a V2 jObject or standard V1 node
-        // Full implementation would involve saving to DB, but for now we rely on the Mapper and AppView
-        await Task.CompletedTask;
-    }
-
-    private Guid CreateDeterministicGuid(string input)
-    {
-        using (var sha256 = System.Security.Cryptography.SHA256.Create())
-        {
-            var hash = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(input));
-            var guidBytes = new byte[16];
-            Array.Copy(hash, guidBytes, 16);
-            return new Guid(guidBytes);
-        }
     }
 }
