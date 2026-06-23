@@ -928,68 +928,21 @@ public class PostsController : ControllerBase
                 return;
             }
 
-            // Parse thread and stream each reply immediately
-            var allReplies = new List<PostDto>();
-            var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(xrpcThread);
-            var jObject = Newtonsoft.Json.Linq.JObject.Parse(jsonStr);
-            var threadNode = jObject["thread"];
+            // Process extraction using unified method
             int totalReplyCount = 0;
+            var allReplies = ExtractDirectRepliesFromThread(xrpcThread, threadUri, out totalReplyCount);
+            
+            await SendEvent("meta", new { totalCount = totalReplyCount });
+            _logger.LogInformation("[PostsController] SSE: Extracted {Count} replies for {Uri}. (totalCount expected: {Expected})", allReplies.Count, threadUri, totalReplyCount);
 
-            if (threadNode is Newtonsoft.Json.Linq.JArray threadArray)
+            foreach (var postDto in allReplies)
             {
-                // V2: find totalReplyCount first (depth=0 node)
-                foreach (var item in threadArray)
-                {
-                    if ((int)(item["depth"] ?? -1) == 0)
-                    {
-                        totalReplyCount = (int)(item["value"]?["post"]?["replyCount"] ?? 0);
-                        break;
-                    }
-                }
-                await SendEvent("meta", new { totalCount = totalReplyCount });
-
-                foreach (var item in threadArray)
-                {
-                    if (HttpContext.RequestAborted.IsCancellationRequested) break;
-                    if ((int)(item["depth"] ?? -1) == 1)
-                    {
-                        var postNode = item["value"]?["post"];
-                        if (postNode == null) continue;
-                        var postDto = MapBskyPostViewToDto(postNode);
-                        if (postDto == null) continue;
-                        allReplies.Add(postDto);
-                        await SendEvent("reply", postDto);
-                    }
-                }
-            }
-            else if (threadNode is Newtonsoft.Json.Linq.JObject threadObj)
-            {
-                // V1 Tree
-                totalReplyCount = (int)(threadObj["post"]?["replyCount"] ?? 0);
-                await SendEvent("meta", new { totalCount = totalReplyCount });
-
-                if (threadObj["replies"] is Newtonsoft.Json.Linq.JArray repliesArr)
-                {
-                    foreach (var replyNode in repliesArr)
-                    {
-                        if (HttpContext.RequestAborted.IsCancellationRequested) break;
-                        var postNode = replyNode["post"];
-                        if (postNode == null) continue;
-                        var postDto = MapBskyPostViewToDto(postNode);
-                        if (postDto == null) continue;
-                        postDto.RepliesCount = (int)(postNode["replyCount"] ?? postDto.RepliesCount);
-                        allReplies.Add(postDto);
-                        await SendEvent("reply", postDto);
-                    }
-                }
+                if (HttpContext.RequestAborted.IsCancellationRequested) break;
+                await SendEvent("reply", postDto);
             }
 
-            // Sort and cache the full list for subsequent paginated calls
-            var sorted = allReplies
-                .OrderByDescending(r => r.LikesCount)
-                .ThenBy(r => r.CreatedAt)
-                .ToList();
-            _threadReplyCacheService.Set(threadUri, sorted);
+            // Cache the full list for subsequent paginated calls if user refreshes
+            _threadReplyCacheService.Set(threadUri, allReplies);
 
             await SendEvent("done", new { });
         }

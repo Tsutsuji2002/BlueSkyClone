@@ -1139,12 +1139,11 @@ const PostDetailPage: React.FC = () => {
                             const chain: Post[] = [reply];
                             let currentId = reply.id;
                             for (let depth = 0; depth < 5; depth++) {
-                                const cidForClosure = currentId; // Create stable reference for filter
                                 const lastItem = chain[chain.length - 1];
-                                const subReplies = sortPosts(posts.filter((p: Post) => {
+                                // Search in THE COMBINED REPLIES LIST (including streamed ones), not just store 'posts'
+                                const subReplies = sortPosts(replies.filter((p: Post) => {
                                     const pid = p.replyToPostId;
                                     if (!pid || p.id === lastItem.id || p.uri === lastItem.uri) return false;
-                                    // Check against any identifier of the CURRENT chain item
                                     return pid === lastItem.id ||
                                         pid === lastItem.tid ||
                                         (lastItem.uri && (pid === lastItem.uri || lastItem.uri.endsWith('/' + pid)));
