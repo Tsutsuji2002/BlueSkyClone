@@ -336,7 +336,7 @@ export const fetchUserPostsStreaming = (
                 if (!line.trim()) continue;
                 try {
                     const postData = JSON.parse(line);
-                    const mapped = mapAtProtoPostToPost(postData);
+                    const mapped = mapAtProtoPostToPost(postData.post || postData);
                     onPostReceived(mapped);
                     // Ensure the post is seeded in global interaction truth for consistent Like/Repost behavior
                     dispatch(seedInteractionTruth([mapped]));
