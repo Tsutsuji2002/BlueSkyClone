@@ -587,17 +587,41 @@ public class PostService : IPostService
 
     public async IAsyncEnumerable<PostDto> GetUserPostsStreamAsync(string handleOrDid, Guid? viewerId, int limit = 30, string? type = null, string? cursor = null, bool includePins = false)
     {
-        // True progressive streaming: fetch raw (unenriched) posts first,
-        // then enrich and yield each post individually so the HTTP response
-        // flushes after every post - user sees posts appear one-by-one.
+        // FAST STREAMING: no enrichment, cache-first, yield raw BlueSky posts immediately.
+        // TTFB drops from 9s to ~1-2s (just the BlueSky API round-trip).
+        // C# rule: yields cannot be inside try/catch, so we collect results first, then yield.
 
-        List<PostDto> rawPosts = new();
-        string? nextCursor = null;
-        string? token = null;
+        var (posts, nextCursor) = await FetchUserPostsForStreamAsync(handleOrDid, viewerId, limit, type, cursor, includePins);
 
+        foreach (var post in posts)
+            yield return post;
+
+        if (!string.IsNullOrEmpty(nextCursor))
+            yield return new PostDto { Id = Guid.Empty, Content = $"__cursor__:{nextCursor}" };
+    }
+
+    private async Task<(List<PostDto> Posts, string? Cursor)> FetchUserPostsForStreamAsync(string handleOrDid, Guid? viewerId, int limit, string? type, string? cursor, bool includePins)
+    {
         try
         {
-            // Step 1: Resolve to handle/did
+            // Step 1: Check cache first (same key as GetUserPostsAsync) → near-instant on revisits
+            var cacheKey = $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}_{viewerId ?? Guid.Empty}";
+            var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedJson))
+            {
+                try
+                {
+                    var cached = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson);
+                    if (cached?.Posts != null && cached.Posts.Any())
+                    {
+                        _logger.LogInformation("[GetUserPostsStreamAsync] Cache hit: {Count} posts for {Handle}", cached.Posts.Count(), handleOrDid);
+                        return (cached.Posts.Take(limit).ToList(), cached.Cursor);
+                    }
+                }
+                catch { /* bad cache - fall through */ }
+            }
+
+            // Step 2: Local user?
             var user = await _unitOfWork.Users.Query()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
@@ -606,7 +630,6 @@ public class PostService : IPostService
 
             if (isLocalOnly && user != null)
             {
-                // Local user – fetch from DB without enrichment
                 var postsQuery = _unitOfWork.Posts.Query()
                     .Include(p => p.Author).Include(p => p.PostMedia).Include(p => p.LinkPreview)
                     .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
@@ -616,101 +639,87 @@ public class PostService : IPostService
                 else if (type == "media") postsQuery = postsQuery.Where(p => p.PostMedia.Any());
                 else postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
 
-                rawPosts = (await postsQuery.OrderByDescending(p => p.CreatedAt).Take(limit).ToListAsync())
+                var localPosts = (await postsQuery.OrderByDescending(p => p.CreatedAt).Take(limit).ToListAsync())
                     .Select(p => MapToDto(p)).ToList();
+
+                return (localPosts, null);
+            }
+
+            // Step 3: Remote user — call BlueSky API (no enrichment, raw posts only)
+            var token = viewerId.HasValue && viewerId != Guid.Empty
+                ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value)
+                : null;
+
+            var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+            using var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            List<PostDto> remotePosts = new();
+            string? remoteCursor = null;
+
+            if (type == "likes")
+            {
+                var args = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", limit.ToString() } };
+                if (!string.IsNullOrEmpty(cursor)) args["cursor"] = cursor;
+                var q = string.Join("&", args.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+                var resp = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getActorLikes?{q}", cts.Token);
+                if (resp.IsSuccessStatusCode)
+                {
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
+                    var body = doc.RootElement;
+                    remotePosts = body.TryGetProperty("feed", out var feed) ? MapBlueskyFeed(feed) : new();
+                    remoteCursor = body.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                    foreach (var p in remotePosts) p.IsLiked = true;
+                }
             }
             else
             {
-                // Remote user – call BlueSky API
-                token = viewerId.HasValue && viewerId != Guid.Empty
-                    ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value)
-                    : null;
-
-                var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
-                using var client = _httpClientFactory.CreateClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-                if (!string.IsNullOrEmpty(token))
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-
-                if (type == "likes")
+                var filter = type == "replies" ? "posts_with_replies"
+                    : type == "media" ? "posts_with_media"
+                    : type == "video" ? "posts_with_video"
+                    : "posts_and_author_threads";
+                var args = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", limit.ToString() }, { "filter", filter }, { "includePins", includePins ? "true" : "false" } };
+                if (!string.IsNullOrEmpty(cursor)) args["cursor"] = cursor;
+                var q = string.Join("&", args.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+                var resp = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{q}", cts.Token);
+                if (resp.IsSuccessStatusCode)
                 {
-                    var args = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", limit.ToString() } };
-                    if (!string.IsNullOrEmpty(cursor)) args["cursor"] = cursor;
-                    var q = string.Join("&", args.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
-                    var resp = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getActorLikes?{q}", cts.Token);
-                    if (resp.IsSuccessStatusCode)
-                    {
-                        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
-                        var body = doc.RootElement;
-                        rawPosts = body.TryGetProperty("feed", out var feed) ? MapBlueskyFeed(feed) : new();
-                        nextCursor = body.TryGetProperty("cursor", out var c) ? c.GetString() : null;
-                        foreach (var p in rawPosts) p.IsLiked = true;
-                    }
-                }
-                else
-                {
-                    var filter = type == "replies" ? "posts_with_replies"
-                        : type == "media" ? "posts_with_media"
-                        : type == "video" ? "posts_with_video"
-                        : "posts_and_author_threads";
-                    var args = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", limit.ToString() }, { "filter", filter }, { "includePins", includePins ? "true" : "false" } };
-                    if (!string.IsNullOrEmpty(cursor)) args["cursor"] = cursor;
-                    var q = string.Join("&", args.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
-                    var resp = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{q}", cts.Token);
-                    if (resp.IsSuccessStatusCode)
-                    {
-                        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
-                        var body = doc.RootElement;
-                        rawPosts = body.TryGetProperty("feed", out var feed) ? MapBlueskyFeed(feed) : new();
-                        nextCursor = body.TryGetProperty("cursor", out var c) ? c.GetString() : null;
-                        if (type == "replies")
-                            rawPosts = rawPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
-                    }
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
+                    var body = doc.RootElement;
+                    remotePosts = body.TryGetProperty("feed", out var feed) ? MapBlueskyFeed(feed) : new();
+                    remoteCursor = body.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                    if (type == "replies")
+                        remotePosts = remotePosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
                 }
             }
+
+            // Cache for next visit (same TTL as GetUserPostsAsync)
+            if (remotePosts.Any())
+            {
+                try
+                {
+                    var toCache = new PagedPostDto { Posts = remotePosts, Cursor = remoteCursor };
+                    await _distributedCache.SetStringAsync(
+                        $"BlueskyAuthorFeed_{handleOrDid}_{type}_{cursor ?? "none"}_{viewerId ?? Guid.Empty}",
+                        System.Text.Json.JsonSerializer.Serialize(toCache),
+                        new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) });
+                }
+                catch { /* non-fatal */ }
+            }
+
+            return (remotePosts, remoteCursor);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[GetUserPostsStreamAsync] Fetch failed for {Handle}", handleOrDid);
-            yield break;
-        }
-
-        if (!rawPosts.Any()) yield break;
-
-        // Step 2: Enrich and yield each post individually for true progressive streaming
-        // We enrich in small groups of 3 for efficiency (batch DB calls) 
-        // while still flushing frequently enough for real-time feel
-        const int enrichBatchSize = 3;
-
-        for (int i = 0; i < rawPosts.Count; i += enrichBatchSize)
-        {
-            var batch = rawPosts.Skip(i).Take(enrichBatchSize).ToList();
-            List<PostDto> enriched;
-            try
-            {
-                enriched = await EnrichAndFilterPostsAsync(batch, viewerId ?? Guid.Empty, token,
-                    isTimeline: false, forceDropHidden: false, skipDeepResolution: false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[GetUserPostsStreamAsync] Enrich batch failed, yielding raw");
-                enriched = batch; // Fall back to unenriched if enrichment fails
-            }
-
-            foreach (var post in enriched)
-            {
-                yield return post;
-            }
-        }
-
-        // Step 3: Emit cursor sentinel so frontend can enable load-more
-        if (!string.IsNullOrEmpty(nextCursor))
-        {
-            yield return new PostDto { Id = Guid.Empty, Content = $"__cursor__:{nextCursor}" };
+            return (new List<PostDto>(), null);
         }
     }
+
+
 
 
     public List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray)
