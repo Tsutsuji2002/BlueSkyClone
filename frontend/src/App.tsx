@@ -218,7 +218,7 @@ const AppContent: React.FC = () => {
             clearTimeout(signalrTimerRef.current);
         }
     };
-  }, [isAuthenticated, isAppReady, dispatch, t]);
+  }, [isAuthenticated, isAppReady, user?.did, user?.id, dispatch, t]);
 
   // Periodic polling for unread counts (fallback + sync)
   useEffect(() => {

@@ -38,12 +38,16 @@ public class ChatHub : Hub
             var messageDto = await _chatService.SendMessageAsync(userId, conversationId, content, imageUrl, replyToId, linkPreview, replyToRev);
             // Broadcast to the conversation group
             await Clients.Group(conversationId).SendAsync("ReceiveMessage", messageDto);
-            
-            // Still broadcast to participants' personal groups if they are local
-            var participantIds = await _chatService.GetParticipantIdsAsync(conversationId);
-            foreach (var pId in participantIds)
+
+            // ATProto/Bluesky conversation IDs are not local GUIDs. Keep those
+            // messages fully on the proxy path and avoid local EF lookups.
+            if (Guid.TryParse(conversationId, out _))
             {
-                await Clients.Group($"user-{pId}").SendAsync("ReceiveMessage", messageDto);
+                var participantIds = await _chatService.GetParticipantIdsAsync(conversationId);
+                foreach (var pId in participantIds)
+                {
+                    await Clients.Group($"user-{pId}").SendAsync("ReceiveMessage", messageDto);
+                }
             }
         }
         catch (Exception ex) { throw new HubException(ex.Message); }
@@ -57,11 +61,13 @@ public class ChatHub : Hub
         try
         {
             var messageDto = await _chatService.EditMessageAsync(userId, messageId, newContent);
-            var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
-            
-            foreach (var pId in participantIds)
+            if (Guid.TryParse(messageDto.ConversationId, out _))
             {
-                await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
+                var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
+                foreach (var pId in participantIds)
+                {
+                    await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
+                }
             }
             await Clients.Group(messageDto.ConversationId).SendAsync("UpdateMessage", messageDto);
         }
@@ -76,11 +82,13 @@ public class ChatHub : Hub
         try
         {
             var messageDto = await _chatService.RecallMessageAsync(userId, messageId);
-            var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
-            
-            foreach (var pId in participantIds)
+            if (Guid.TryParse(messageDto.ConversationId, out _))
             {
-                await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
+                var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
+                foreach (var pId in participantIds)
+                {
+                    await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
+                }
             }
             await Clients.Group(messageDto.ConversationId).SendAsync("UpdateMessage", messageDto);
         }
@@ -95,11 +103,13 @@ public class ChatHub : Hub
         try
         {
             var messageDto = await _chatService.AddOrUpdateReactionAsync(userId, conversationId, messageId, emoji);
-            var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
-            
-            foreach (var pId in participantIds)
+            if (Guid.TryParse(messageDto.ConversationId, out _))
             {
-                await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
+                var participantIds = await _chatService.GetParticipantIdsAsync(messageDto.ConversationId);
+                foreach (var pId in participantIds)
+                {
+                    await Clients.Group($"user-{pId}").SendAsync("UpdateMessage", messageDto);
+                }
             }
             await Clients.Group(messageDto.ConversationId).SendAsync("UpdateMessage", messageDto);
         }

@@ -766,7 +766,11 @@ public class ChatService : IChatService
 
     public async Task<List<Guid>> GetParticipantIdsAsync(string conversationId)
     {
-        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        if (!Guid.TryParse(conversationId, out var convId))
+        {
+            return new List<Guid>();
+        }
+
         var conversation = await _unitOfWork.Conversations.GetConversationWithParticipantsAsync(convId);
         return conversation?.ConversationParticipants.Select(p => p.UserId).ToList() ?? new List<Guid>();
     }

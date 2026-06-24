@@ -21,6 +21,7 @@ class SignalRService {
     private stopRequested: boolean = false;
     private retryCount: number = 0;
     private retryTimer: NodeJS.Timeout | null = null;
+    private connectedUserKey: string | null = null;
 
     public onStatusChange(callback: (status: HubStatus) => void) {
         this.statusListeners.push(callback);
@@ -95,9 +96,18 @@ class SignalRService {
     }
 
     public async startConnection(): Promise<void> {
+        const state = store.getState();
+        const authUser = state.auth.user;
+        const userKey = authUser?.did || authUser?.id || null;
+
         if (this.connection?.state === signalR.HubConnectionState.Connected) {
-            console.log('[SignalR] Already connected');
-            return;
+            if (this.connectedUserKey !== userKey) {
+                console.log('[SignalR] Auth identity changed; reconnecting chat hub for current session');
+                this.stopConnection();
+            } else {
+                console.log('[SignalR] Already connected');
+                return;
+            }
         }
 
         if (this.isConnecting) {
@@ -105,7 +115,6 @@ class SignalRService {
             return;
         }
 
-        const state = store.getState();
         if ((state.auth as any).isReverifying) {
             console.log('[SignalR] Delaying connection during re-verification...');
             return;
@@ -140,6 +149,7 @@ class SignalRService {
 
             await this.connection.start();
             this.updateStatus(HubStatus.Connected);
+            this.connectedUserKey = userKey;
             this.retryCount = 0;
             console.log('[SignalR] Connected successfully');
         } catch (err: any) {
@@ -260,6 +270,7 @@ class SignalRService {
         }
         this.updateStatus(HubStatus.Disconnected);
         this.retryCount = 0;
+        this.connectedUserKey = null;
     }
 }
 

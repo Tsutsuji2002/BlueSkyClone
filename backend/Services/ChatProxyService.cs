@@ -108,7 +108,9 @@ namespace BSkyClone.Services
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
             
             // Order by CreatedAt to ensure chronological order (oldest first)
-            var messages = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt) ?? Enumerable.Empty<MessageDto>();
+            var messages = HydrateReplyMessages(
+                data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
+                    ?? Enumerable.Empty<MessageDto>()).ToList();
             
             // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
             // Link previews were causing 21+ second delays when loading 50 messages
@@ -247,8 +249,19 @@ namespace BSkyClone.Services
 
             var json = await response.Content.ReadAsStringAsync();
             var messageData = JsonSerializer.Deserialize<BlueskyMessage>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            
-            return MapToMessageDto(messageData!, conversationId);
+            var sentMessage = MapToMessageDto(messageData!, conversationId);
+
+            if (!string.IsNullOrEmpty(replyToId))
+            {
+                var recentMessages = await GetMessagesAsync(token, conversationId, 50);
+                var replyTo = recentMessages.FirstOrDefault(m => m.Id == replyToId);
+                if (replyTo != null)
+                {
+                    sentMessage = sentMessage with { ReplyTo = ToReplyPreview(replyTo) };
+                }
+            }
+
+            return sentMessage;
         }
 
         public async Task<bool> UpdateReadAsync(string token, string conversationId, string? messageId = null)
@@ -695,6 +708,32 @@ namespace BSkyClone.Services
                 convo.Muted, // Muted status from Bluesky API
                 isLocked // Locked status from Bluesky API - lockStatus is inside Kind object
             );
+        }
+
+        private IEnumerable<MessageDto> HydrateReplyMessages(IEnumerable<MessageDto> messages)
+        {
+            var list = messages.ToList();
+            var byId = list.ToDictionary(m => m.Id, m => m);
+
+            return list.Select(message =>
+            {
+                if (message.ReplyTo != null && byId.TryGetValue(message.ReplyTo.Id, out var repliedMessage))
+                {
+                    return message with { ReplyTo = ToReplyPreview(repliedMessage) };
+                }
+
+                return message;
+            });
+        }
+
+        private MessageDto ToReplyPreview(MessageDto message)
+        {
+            return message with
+            {
+                ReplyTo = null,
+                Reactions = null,
+                LinkPreview = null
+            };
         }
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)

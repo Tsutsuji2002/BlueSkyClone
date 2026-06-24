@@ -14,6 +14,9 @@ CREATE TABLE [Conversations] (
     [CreatedAt] datetime2 NULL DEFAULT ((getutcdate())),
     [LastMessageId] uniqueidentifier NULL,
     [IsDeleted] bit NULL DEFAULT CAST(0 AS bit),
+    [IsAccepted] bit NOT NULL DEFAULT CAST(1 AS bit),
+    [GroupName] nvarchar(max) NULL,
+    [BlueskyConvoId] nvarchar(100) NULL,
     CONSTRAINT [PK__Conversa__3214EC0776FD5532] PRIMARY KEY ([Id])
 );
 

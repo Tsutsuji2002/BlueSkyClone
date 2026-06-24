@@ -410,11 +410,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
         if (!editingMessage && currentUser) {
             const tempId = `temp-${Date.now()}`;
+            const optimisticSenderId = isGuid(conversationId) ? currentUser.id : (currentUser.did || currentUser.id);
             const optimisticMsg = {
                 id: tempId,
                 conversationId,
-                senderId: currentUser.id,
-                sender: currentUser as any,
+                senderId: optimisticSenderId,
+                sender: { ...(currentUser as any), did: currentUser.did },
                 content: textToSend,
                 imageUrl: null,
                 linkPreview: capturedLinkPreview,
@@ -426,7 +427,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                 createdAt: new Date().toISOString(),
                 isSending: true,  // flag for pending indicator
             };
-            dispatch(addMessage({ message: optimisticMsg as any, currentUserId: currentUser.id }));
+            dispatch(addMessage({ message: optimisticMsg as any, currentUserId: currentUser.id, currentUserDid: currentUser.did }));
 
             try {
                 console.log('Sending message with replyTo:', { id: capturedReplyTo?.id, rev: capturedReplyTo?.rev });
