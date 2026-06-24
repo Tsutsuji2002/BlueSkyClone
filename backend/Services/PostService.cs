@@ -508,6 +508,31 @@ public class PostService : IPostService
         }
     }
 
+    public async IAsyncEnumerable<PostDto> GetUserPostsStreamAsync(string handleOrDid, Guid? viewerId, int limit = 30, string? type = null, string? cursor = null, bool includePins = false)
+    {
+        PagedPostDto result;
+        try
+        {
+            // Use the existing GetUserPostsAsync to handle the complex coordination (local vs remote, cache, etc)
+            // but we'll take the results and stream them out. 
+            // In a more advanced implementation, we'd refactor GetUserPostsAsync to be stream-native,
+            // but for now, this allows us to reuse the robust resolution logic while providing the stream interface.
+            result = await GetUserPostsAsync(handleOrDid, viewerId, 0, limit, type, cursor, true, includePins);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetUserPostsStreamAsync] Error fetching author feed for {Handle}", handleOrDid);
+            yield break;
+        }
+
+        if (result?.Posts == null) yield break;
+
+        foreach (var post in result.Posts)
+        {
+            yield return post;
+        }
+    }
+
     public List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray)
     {
         var mappedPosts = new List<PostDto>();

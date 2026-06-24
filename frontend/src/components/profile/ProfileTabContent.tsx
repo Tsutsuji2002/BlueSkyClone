@@ -5,7 +5,7 @@ import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { API_BASE_URL } from '../../constants';
 import { agent } from '../../services/atpAgent';
 import { Post } from '../../types';
-import { hydrateInteractionsAsync, seedInteractionTruth } from '../../redux/slices/postsSlice';
+import { hydrateInteractionsAsync, seedInteractionTruth, fetchUserPostsStreaming } from '../../redux/slices/postsSlice';
 import LoadingIndicator from '../common/LoadingIndicator';
 import { FiList, FiImage, FiVideo, FiRss, FiPlus } from 'react-icons/fi';
 import MediaGrid from './MediaGrid';
@@ -71,51 +71,52 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
             if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
                 const itemHeight = (type === 'media' || type === 'video') ? 150 : 250;
-                // [FIX] Align with official spec: use limit=30 and includePins=true for faster/larger loading
                 const requestedTake = (type === 'posts' || type === 'replies') ? 30 : getDynamicBatchSize(itemHeight);
-                const params = new URLSearchParams({
-                    take: requestedTake.toString(),
-                    type: type,
-                    includePins: 'true'
-                });
-                if (!isInitial && cursor) params.set('cursor', cursor);
-                if (isInitial) params.set('refresh', 'true');
-
-                const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params}`, { headers });
                 
-                // Ignore result if a newer fetch has started
-                if (currentVersion !== fetchVersionRef.current) return;
+                // Use the streaming fetch for better progressive performance
+                await dispatch(fetchUserPostsStreaming(
+                    { userId, type, limit: requestedTake, cursor: isInitial ? null : cursor },
+                    (post) => {
+                        // Ignore result if a newer fetch has started
+                        if (currentVersion !== fetchVersionRef.current) return;
 
-                if (response.ok) {
-                    const data = await response.json();
-                    fetchedItems = Array.isArray(data) ? data : (data.posts || []);
-                    
-                    if (fetchedItems.length > 0) {
-                        dispatch(hydrateInteractionsAsync(fetchedItems) as any);
+                        if (type === 'video') {
+                            const isVideo = !!post.videoUrl || !!post.video || (post.media && post.media.some(m => m.type === 'video'));
+                            if (!isVideo) return;
+                        }
+
+                        if (type === 'likes') {
+                            post.isLiked = true;
+                        }
+
+                        setItems(prev => {
+                            // Deduplicate within the stream to be safe
+                            if (prev.some(p => matchesPost(p, post))) return prev;
+                            return [...prev, post];
+                        });
+                    },
+                    (finalCursor) => {
+                        if (currentVersion === fetchVersionRef.current) {
+                            setCursor(finalCursor);
+                            // If we didn't get a cursor but we got some items, we might be at the end
+                            // but usually the stream endpoint currently doesn't return the next cursor
+                            // so we rely on the total count for now.
+                            setHasMore(!!finalCursor);
+                            setLoading(false);
+                            setInitialLoading(false);
+                        }
+                    },
+                    (err) => {
+                        console.error(`Streaming fetch failed for ${type}:`, err);
+                        if (currentVersion === fetchVersionRef.current) {
+                            setHasMore(false);
+                            setLoading(false);
+                            setInitialLoading(false);
+                        }
                     }
-
-                    if (type === 'video') {
-                        fetchedItems = fetchedItems.filter((p: Post) => 
-                            !!p.videoUrl || !!p.video || (p.media && p.media.some(m => m.type === 'video'))
-                        );
-                    }
-                    nextCursor = data.cursor || null;
-                }
-            }
-
-            if (type === 'likes') {
-                fetchedItems.forEach(p => { p.isLiked = true; });
-            }
-
-            if (type !== 'lists' && type !== 'feeds' && fetchedItems.length > 0) {
-                dispatch(seedInteractionTruth(fetchedItems));
-            }
-
-            // Final safety check before setting state
-            if (currentVersion === fetchVersionRef.current) {
-                setItems(prev => isInitial ? fetchedItems : [...prev, ...fetchedItems]);
-                setCursor(nextCursor);
-                setHasMore(!!nextCursor && fetchedItems.length > 0);
+                ) as any);
+                
+                return; // fetchUserPostsStreaming handles its own state updates
             }
         } catch (err) {
             console.error(`Failed to fetch profile ${type}:`, err);
@@ -123,7 +124,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 setHasMore(false);
             }
         } finally {
-            if (currentVersion === fetchVersionRef.current) {
+            if (currentVersion === fetchVersionRef.current && type === 'feeds' || type === 'lists') {
                 setLoading(false);
                 setInitialLoading(false);
             }

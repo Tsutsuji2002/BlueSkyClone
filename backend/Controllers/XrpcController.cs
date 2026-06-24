@@ -1367,6 +1367,87 @@ namespace BSkyClone.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [HttpGet("app.bsky.feed.getAuthorFeed/stream")]
+        public async Task GetAuthorFeedStream(
+            [FromQuery] string actor,
+            [FromQuery] int limit = 50,
+            [FromQuery] string? cursor = null,
+            [FromQuery] string? filter = null,
+            [FromQuery] bool includePins = false)
+        {
+            Response.ContentType = "application/x-ndjson";
+            Response.Headers["Cache-Control"] = "no-cache";
+            Response.Headers["Connection"] = "keep-alive";
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+            try
+            {
+                var viewerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(viewerIdStr, out var vid) ? vid : null;
+
+                // Yield individual posts to the stream
+                await foreach (var p in _postService.GetUserPostsStreamAsync(actor, viewerId, limit, filter, cursor, includePins))
+                {
+                    var feedView = new Lexicons.App.Bsky.Feed.FeedViewPost
+                    {
+                        Post = new Lexicons.App.Bsky.Feed.PostView
+                        {
+                            Uri = $"at://{p.Author?.Did ?? "unknown"}/app.bsky.feed.post/{p.Tid}",
+                            Cid = p.Cid ?? p.Id.ToString(),
+                            Author = new Lexicons.App.Bsky.Actor.Defs.ProfileViewBasic
+                            {
+                                Did = p.Author?.Did ?? "",
+                                Handle = p.Author?.Handle ?? "unknown",
+                                DisplayName = p.Author?.DisplayName,
+                                Avatar = p.Author?.AvatarUrl,
+                            },
+                            Record = new Dictionary<string, object>
+                            {
+                                { "text", p.Content ?? "" },
+                                { "createdAt", p.CreatedAt?.ToString("o") ?? "" },
+                                { "$type", "app.bsky.feed.post" }
+                            },
+                            ReplyCount = p.RepliesCount,
+                            RepostCount = p.RepostsCount,
+                            LikeCount = p.LikesCount,
+                            IndexedAt = p.CreatedAt?.ToString("o") ?? DateTime.UtcNow.ToString("o"),
+                            Viewer = new Lexicons.App.Bsky.Feed.ViewerState
+                            {
+                                Like = p.Viewer?.Like,
+                                Repost = p.Viewer?.Repost
+                            }
+                        },
+                        Reason = p.IsPinned ? new { @type = "app.bsky.feed.defs#reasonPin" } : 
+                                 (p.RepostedBy != null ? new { 
+                                     @type = "app.bsky.feed.defs#reasonRepost",
+                                     by = new {
+                                         did = p.RepostedBy.Did,
+                                         handle = p.RepostedBy.Handle,
+                                         displayName = p.RepostedBy.DisplayName,
+                                         avatar = p.RepostedBy.AvatarUrl,
+                                         indexedAt = DateTime.UtcNow.ToString("o")
+                                     },
+                                     indexedAt = DateTime.UtcNow.ToString("o")
+                                 } : null)
+                    };
+
+                    var json = JsonSerializer.Serialize(feedView, new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+                    });
+
+                    await Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(json + "\n"));
+                    await Response.Body.FlushAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in getAuthorFeed stream for actor {Actor}", actor);
+            }
+        }
+
         [Authorize]
         [HttpPost("com.atproto.repo.deleteRecord")]
         public async Task<IActionResult> DeleteRecord([FromBody] DeleteRecordRequest request)

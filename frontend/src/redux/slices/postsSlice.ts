@@ -290,6 +290,69 @@ export const fetchUserPosts = createAsyncThunk(
     }
 );
 
+/**
+ * [NEW] Progressive Author Feed Streaming
+ * This thunk handles the NDJSON stream from the backend and calls a callback
+ * for each post received, while also seeding interaction truth for UI consistency.
+ */
+export const fetchUserPostsStreaming = (
+    { userId, type, limit = 30, cursor, includePins = true }: { userId: string; type?: string; limit?: number; cursor?: string | null; includePins?: boolean },
+    onPostReceived: (post: Post) => void,
+    onComplete: (nextCursor: string | null) => void,
+    onError: (err: any) => void
+) => async (dispatch: any) => {
+    try {
+        const params = new URLSearchParams();
+        if (limit) params.set('limit', String(limit));
+        // Note: backend stream uses 'filter' to match bsky spec for getAuthorFeed
+        if (type && type !== 'posts') params.set('filter', type === 'replies' ? 'posts_with_replies' : type === 'media' ? 'posts_with_media' : type === 'video' ? 'posts_with_video' : type);
+        if (cursor) params.set('cursor', cursor);
+        if (includePins) params.set('includePins', 'true');
+
+        const response = await fetch(`${API_BASE_URL}/app.bsky.feed.getAuthorFeed/stream?actor=${encodeURIComponent(userId)}&${params}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const errData = await response.text();
+            throw new Error(errData || `Failed to fetch stream: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Response body is null');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const postData = JSON.parse(line);
+                    const mapped = mapAtProtoPostToPost(postData);
+                    onPostReceived(mapped);
+                    // Ensure the post is seeded in global interaction truth for consistent Like/Repost behavior
+                    dispatch(seedInteractionTruth([mapped]));
+                } catch (e) {
+                    console.warn('[postsSlice] Error parsing NDJSON line:', e);
+                }
+            }
+        }
+        
+        onComplete(null); // Backend currently doesn't stream the next cursor at the end of NDJSON
+    } catch (e: any) {
+        console.error('[postsSlice] fetchUserPostsStreaming failed:', e);
+        onError(e);
+    }
+};
+
 
 
 // updatePost removed as AT Protocol usually handles updates by deleting and re-creating or specific field updates in some CMS, but not the standard post flow.

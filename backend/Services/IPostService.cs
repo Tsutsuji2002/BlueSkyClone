@@ -7,6 +7,7 @@ public interface IPostService
 {
     Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 30, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, System.Threading.CancellationToken ct = default);
     Task<PagedPostDto> GetUserPostsAsync(string handleOrDid, Guid? viewerId, int skip = 0, int take = 30, string? type = null, string? cursor = null, bool bypassCache = false, bool includePins = false);
+    IAsyncEnumerable<PostDto> GetUserPostsStreamAsync(string handleOrDid, Guid? viewerId, int limit = 30, string? type = null, string? cursor = null, bool includePins = false);
     Task<PostDto> CreatePostAsync(Guid userId, CreatePostRequest request);
     Task<PostDto?> UpdatePostAsync(Guid userId, Guid postId, CreatePostRequest request);
 
