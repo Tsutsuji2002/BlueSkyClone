@@ -263,6 +263,60 @@ export const fetchTimeline = createAsyncThunk(
     }
 );
 
+/**
+ * [NEW] Progressive Timeline Streaming
+ */
+export const fetchTimelineStreaming = (
+    { skip = 0, take = 30, refresh = false }: { skip?: number; take?: number; refresh?: boolean } = {},
+    onPostReceived: (post: Post) => void,
+    onComplete: (cursor: string | null) => void,
+    onError: (err: any) => void
+) => async (dispatch: any) => {
+    try {
+        const url = new URL(`${API_BASE_URL}/unified-feed`);
+        url.searchParams.set('feedId', 'home');
+        url.searchParams.set('skip', String(skip));
+        url.searchParams.set('take', String(take));
+        url.searchParams.set('stream', 'true');
+        if (refresh) url.searchParams.set('refresh', 'true');
+
+        const response = await fetch(url.toString(), { credentials: 'include' });
+        if (!response.ok) throw new Error(`Timeline stream failed: ${response.status}`);
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Response body is null');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const postData = JSON.parse(line);
+                    const mapped = mapAtProtoPostToPost(postData);
+                    onPostReceived(mapped);
+                    dispatch(seedInteractionTruth([mapped]));
+                } catch (e) {
+                    console.warn('[postsSlice] Timeline stream parse error:', e);
+                }
+            }
+        }
+        onComplete(null);
+    } catch (e: any) {
+        console.error('[postsSlice] fetchTimelineStreaming failed:', e);
+        onError(e);
+    }
+};
+
+
 export const fetchUserPosts = createAsyncThunk(
     'posts/fetchUserPosts',
     async ({ userId, type, take = 20, skip = 0, cursor, refresh = false }: { userId: string; type?: string; take?: number; skip?: number; cursor?: string; refresh?: boolean }, { rejectWithValue }) => {
@@ -303,13 +357,13 @@ export const fetchUserPostsStreaming = (
 ) => async (dispatch: any) => {
     try {
         const params = new URLSearchParams();
-        if (limit) params.set('limit', String(limit));
-        // Note: backend stream uses 'filter' to match bsky spec for getAuthorFeed
-        if (type && type !== 'posts') params.set('filter', type === 'replies' ? 'posts_with_replies' : type === 'media' ? 'posts_with_media' : type === 'video' ? 'posts_with_video' : type);
+        params.set('take', String(limit));
+        params.set('stream', 'true');
+        if (type) params.set('type', type);
         if (cursor) params.set('cursor', cursor);
         if (includePins) params.set('includePins', 'true');
 
-        const response = await fetch(`${API_BASE_URL}/xrpc/app.bsky.feed.getAuthorFeed/stream?actor=${encodeURIComponent(userId)}&${params}`, {
+        const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params.toString()}`, {
             credentials: 'include'
         });
 
@@ -336,7 +390,7 @@ export const fetchUserPostsStreaming = (
                 if (!line.trim()) continue;
                 try {
                     const postData = JSON.parse(line);
-                    const mapped = mapAtProtoPostToPost(postData.post || postData);
+                    const mapped = mapAtProtoPostToPost(postData);
                     onPostReceived(mapped);
                     // Ensure the post is seeded in global interaction truth for consistent Like/Repost behavior
                     dispatch(seedInteractionTruth([mapped]));
@@ -346,12 +400,13 @@ export const fetchUserPostsStreaming = (
             }
         }
         
-        onComplete(null); // Backend currently doesn't stream the next cursor at the end of NDJSON
+        onComplete(null); 
     } catch (e: any) {
         console.error('[postsSlice] fetchUserPostsStreaming failed:', e);
         onError(e);
     }
 };
+
 
 
 

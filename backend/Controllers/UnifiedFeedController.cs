@@ -23,14 +23,26 @@ public class UnifiedFeedController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 5, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false)
+    public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool stream = false)
     {
         try
         {
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
-            _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}, Cursor: {Cursor}", feedId, viewerId, cursor);
+            _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}, Cursor: {Cursor}, Stream: {Stream}", feedId, viewerId, cursor, stream);
+
+            if (stream && (feedId.ToLower() == "home" || feedId.ToLower() == "following"))
+            {
+                Response.ContentType = "application/x-ndjson";
+                await foreach (var post in _postService.GetTimelineStreamAsync(viewerId ?? Guid.Empty, skip, take, cursor, refresh, true, HttpContext.RequestAborted))
+                {
+                    var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+                    await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
+                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                }
+                return new EmptyResult();
+            }
 
             if (!string.IsNullOrEmpty(feedId) &&
                 (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
@@ -94,8 +106,14 @@ public class UnifiedFeedController : ControllerBase
                     posts = await _postService.GetPostsByTagAsync("music", viewerId, take, skip);
                     break;
                 default:
-                    _logger.LogInformation("[UnifiedFeed] Default case for FeedId: {FeedId}", feedId);
-                    if (Guid.TryParse(feedId, out var fGuid))
+                    // Try to resolve custom feed if it's a known identifier or at:// URI
+                    if (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var customResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor, HttpContext.RequestAborted);
+                        posts = customResult.Posts;
+                        outCursor = customResult.Cursor;
+                    }
+                    else if (Guid.TryParse(feedId, out var fGuid))
                     {
                         var guidResult = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take, null, cursor, HttpContext.RequestAborted);
                         posts = guidResult.Posts;
@@ -123,6 +141,24 @@ public class UnifiedFeedController : ControllerBase
                     break;
             }
 
+            if (stream && posts.Any())
+            {
+                Response.ContentType = "application/x-ndjson";
+                const int batchSize = 5;
+                var postList = posts.ToList();
+                for (int i = 0; i < postList.Count; i += batchSize)
+                {
+                    var batch = postList.Skip(i).Take(batchSize);
+                    foreach (var post in batch)
+                    {
+                        var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+                        await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
+                    }
+                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                }
+                return new EmptyResult();
+            }
+
             return Ok(new 
             {
                 feedId = feedId,
@@ -138,4 +174,5 @@ public class UnifiedFeedController : ControllerBase
             return StatusCode(500, new { error = "Internal server error." });
         }
     }
+
 }

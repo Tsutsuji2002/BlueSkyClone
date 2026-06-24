@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
+import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts, fetchFeedPostsStreaming, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
 
 import { fetchPinnedLists, fetchListFeed } from '../redux/slices/listsSlice';
 import { RootState } from '../redux/store';
@@ -112,8 +112,16 @@ const HomePage: React.FC = () => {
             // Hydration is handled post-fetch by handleTabChange and handleLoadMore.
             const isDiscover = activeTab === 'discover';
             const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: initialTake, refresh: false }) as any)
-                .catch(() => {});
+            
+            // [STREAMING] Use progressive fetch for immediate display
+            dispatch(fetchFeedPostsStreaming(
+                { feedId: activeTab, skip: 0, take: initialTake, refresh: false },
+                (post) => {
+                    // Local updates are handled by the thunk dispatching appendStreamedPost
+                },
+                () => {},
+                () => {}
+            ) as any);
         }
     }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading, isSessionSettled]);
 
@@ -178,14 +186,14 @@ const HomePage: React.FC = () => {
             if (currentFeedPosts.length === 0 || (isStale && !isSameTab)) {
                 const isDiscover = tabId === 'discover';
                 const initialTake = (isDiscover && currentFeedPosts.length === 0) ? 6 : getDynamicBatchSize(250);
-                dispatch(fetchFeedPosts({ feedId: tabId, skip: 0, take: initialTake, refresh: true }) as any)
-                    .unwrap()
-                    .then((result: { feedId: string; posts: any[] }) => {
-                        if (result?.posts?.length) {
-                            dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
-                        }
-                    })
-                    .catch(() => {});
+                
+                // [STREAMING] Switch to streaming for tab changes
+                dispatch(fetchFeedPostsStreaming(
+                    { feedId: tabId, skip: 0, take: initialTake, refresh: true },
+                    () => {},
+                    () => {},
+                    () => {}
+                ) as any);
             }
         }
     };
@@ -199,17 +207,17 @@ const HomePage: React.FC = () => {
             const listId = activeTab.replace('list:', '');
             dispatch(fetchListFeed({ id: listId, skip: activeListFeed.length }));
         } else {
-            const currentFeedPosts = feedPosts[activeTab] || [];
             const dynamicTake = getDynamicBatchSize(250);
             const cursor = feedCursors[activeTab];
-            dispatch(fetchFeedPosts({ feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor }) as any)
-                .unwrap()
-                .then((result: { feedId: string; posts: any[] }) => {
-                    if (result?.posts?.length) {
-                        dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
-                    }
-                })
-                .catch(() => {});
+            const currentFeedPosts = feedPosts[activeTab] || [];
+            
+            // [STREAMING] Load more using streaming
+            dispatch(fetchFeedPostsStreaming(
+                { feedId: activeTab, skip: currentFeedPosts.length, take: dynamicTake, cursor },
+                () => {},
+                () => {},
+                () => {}
+            ) as any);
         }
     };
 

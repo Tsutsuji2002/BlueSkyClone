@@ -5,7 +5,7 @@ import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { feedActionKey } from '../../utils/feedKeys';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { hydrateInteractionsAsync } from './postsSlice';
+import { seedInteractionTruth, hydrateInteractionsAsync } from './postsSlice';
 
 const REMOTE_METADATA_FALLBACK_DESCRIPTION = 'Remote feed metadata is temporarily unavailable.';
 
@@ -487,6 +487,63 @@ export const searchFeeds = createAsyncThunk<
     }
 );
 
+/**
+ * [NEW] Unified Feed Streaming
+ */
+export const fetchFeedPostsStreaming = (
+    { feedId, skip = 0, take = 30, refresh = false, cursor }: { feedId: string; skip: number; take?: number; refresh?: boolean; cursor?: string | null },
+    onPostReceived: (post: Post) => void,
+    onComplete: (nextCursor: string | null) => void,
+    onError: (err: any) => void
+) => async (dispatch: any) => {
+    try {
+        const url = new URL(`${API_BASE_URL}/unified-feed`);
+        url.searchParams.set('feedId', feedId);
+        url.searchParams.set('skip', String(skip));
+        url.searchParams.set('take', String(take));
+        url.searchParams.set('stream', 'true');
+        if (refresh) url.searchParams.set('refresh', 'true');
+        if (cursor) url.searchParams.set('cursor', cursor);
+
+        const response = await fetch(url.toString(), { credentials: 'include' });
+        if (!response.ok) throw new Error(`Feed stream failed: ${response.status}`);
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Response body is null');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                    const postData = JSON.parse(line);
+                    const mapped = mapAtProtoPostToPost(postData);
+                    onPostReceived(mapped);
+                    // Also dispatch to Redux if specified, but usually local state is preferred for "current session"
+                    // However, feedsSlice manages the global feedPosts state, so we should update it.
+                    dispatch(feedsSlice.actions.appendStreamedPost({ feedId, post: mapped }));
+                    dispatch(seedInteractionTruth([mapped]));
+                } catch (e) {
+                    console.warn('[feedsSlice] Feed stream parse error:', e);
+                }
+            }
+        }
+        onComplete(null);
+    } catch (e: any) {
+        console.error('[feedsSlice] fetchFeedPostsStreaming failed:', e);
+        onError(e);
+    }
+};
+
 export const fetchFeedPosts = createAsyncThunk<
     { feedId: string; posts: Post[]; isMore: boolean; cursor: string | null },
     { feedId: string; skip: number; take?: number; cursor?: string | null; refresh?: boolean },
@@ -622,6 +679,20 @@ const feedsSlice = createSlice({
             state.lastSubscribedFeedsFetch = 0;
             state.lastFetchDid = '';
             localStorage.removeItem('feeds_last_did');
+        },
+        appendStreamedPost: (state: FeedsState, action: PayloadAction<{ feedId: string; post: Post }>) => {
+            const { feedId, post } = action.payload;
+            if (!state.feedPosts[feedId]) {
+                state.feedPosts[feedId] = [];
+            }
+            // Avoid duplicates
+            if (state.feedPosts[feedId].some(p => matchesPost(p, post))) return;
+            
+            state.feedPosts[feedId].push(post);
+            // Optional: Sort if needed, but streaming usually arrives in order
+        },
+        setFeedHasMore: (state: FeedsState, action: PayloadAction<{ feedId: string; hasMore: boolean }>) => {
+            state.feedHasMore[action.payload.feedId] = action.payload.hasMore;
         }
     },
     extraReducers: (builder: ActionReducerMapBuilder<FeedsState>) => {

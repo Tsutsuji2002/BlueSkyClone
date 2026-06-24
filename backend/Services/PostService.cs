@@ -106,6 +106,83 @@ public class PostService : IPostService
         _distributedCache = distributedCache;
         _httpClientFactory = httpClientFactory;
     }
+    public async IAsyncEnumerable<PostDto> GetTimelineStreamAsync(Guid userId, int skip = 0, int take = 30, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        string? token = null;
+        PagedPostDto? resultDto = null;
+
+        // Note: For true progressive streaming, we don't want to use the large enriched cache (BlueskyTimelineEnriched)
+        // because that waits for the whole list. We can use the raw PDS cache for the initial fetch if it exists.
+        var rawCacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}_{cursor ?? "root"}";
+        
+        if (!bypassCache)
+        {
+            var cachedJson = await _distributedCache.GetStringAsync(rawCacheKey, ct);
+            if (!string.IsNullOrEmpty(cachedJson))
+            {
+                try { resultDto = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch { }
+            }
+        }
+
+        if (resultDto == null)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null || string.IsNullOrEmpty(user.Did))
+            {
+                _logger.LogWarning("[GetTimelineStreamAsync] User or DID not found for {UserId}.", userId);
+                yield break;
+            }
+            token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
+            if (string.IsNullOrEmpty(token))
+            {
+                _logger.LogWarning("[GetTimelineStreamAsync] Failed to refresh/get token for user {UserId}.", userId);
+                yield break;
+            }
+
+            var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(skip + take + 10, 30, 100) : Math.Max(take + 10, 30);
+            var queryArgs = new Dictionary<string, string?> { { "limit", fetchLimit.ToString() } };
+            if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
+
+            var result = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getTimeline", queryArgs, token, "GET", null, userId, ct);
+
+            if (result.Success)
+            {
+                using var doc = JsonDocument.Parse(result.Content);
+                var posts = doc.RootElement.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
+                var nextCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                resultDto = new PagedPostDto { Posts = posts, Cursor = nextCursor };
+
+                // Background cache the raw result for subsequent standard calls
+                _ = _distributedCache.SetStringAsync(rawCacheKey, System.Text.Json.JsonSerializer.Serialize(resultDto), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, ct);
+            }
+            else
+            {
+                yield break;
+            }
+        }
+
+        token ??= userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct) : null;
+        
+        var windowStart = string.IsNullOrEmpty(cursor) ? skip : 0;
+        var rawPosts = resultDto.Posts.Skip(windowStart).Take(take).ToList();
+
+        // [STREAMING ENRICHMENT]
+        // To make it truly progressive, we enrich and yield in smaller batches (e.g. groups of 5)
+        // or individually if we want max responsiveness.
+        const int batchSize = 5;
+        for (int i = 0; i < rawPosts.Count; i += batchSize)
+        {
+            if (ct.IsCancellationRequested) yield break;
+
+            var batch = rawPosts.Skip(i).Take(batchSize).ToList();
+            var enrichedBatch = await EnrichAndFilterPostsAsync(batch, userId, token, true, true, false, skipDeepResolution, ct);
+            
+            foreach (var post in enrichedBatch)
+            {
+                yield return post;
+            }
+        }
+    }
 
     public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 30, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
@@ -510,28 +587,39 @@ public class PostService : IPostService
 
     public async IAsyncEnumerable<PostDto> GetUserPostsStreamAsync(string handleOrDid, Guid? viewerId, int limit = 30, string? type = null, string? cursor = null, bool includePins = false)
     {
-        PagedPostDto result;
+        // For true streaming, we need to fetch the results from GetUserPostsAsync (raw)
+        // and then yield them. Since GetUserPostsAsync currently returns a PagedPostDto with all posts,
+        // we will fetch them once but yield them in small batches to simulate/provide progressive update
+        // (though the real bottleneck is the initial remote fetch).
+        // Future optimization: allow GetUserPostsAsync to return a stream directly.
+        
+        PagedPostDto? result = null;
         try
         {
-            // Use the existing GetUserPostsAsync to handle the complex coordination (local vs remote, cache, etc)
-            // but we'll take the results and stream them out. 
-            // In a more advanced implementation, we'd refactor GetUserPostsAsync to be stream-native,
-            // but for now, this allows us to reuse the robust resolution logic while providing the stream interface.
+            // Fetch raw results (unpaginated for the stream)
             result = await GetUserPostsAsync(handleOrDid, viewerId, 0, limit, type, cursor, true, includePins);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[GetUserPostsStreamAsync] Error fetching author feed for {Handle}", handleOrDid);
+            _logger.LogError(ex, "[GetUserPostsStreamAsync] Error for {Handle}", handleOrDid);
             yield break;
         }
 
         if (result?.Posts == null) yield break;
 
-        foreach (var post in result.Posts)
+        // Yield in batches of 5 to provide progressive UI updates
+        const int batchSize = 5;
+        for (int i = 0; i < result.Posts.Count(); i += batchSize)
         {
-            yield return post;
+            var batch = result.Posts.Skip(i).Take(batchSize);
+            foreach (var post in batch)
+            {
+                yield return post;
+            }
+            // Optional: add a tiny delay or just allow the network to flush
         }
     }
+
 
     public List<PostDto> MapBlueskyFeed(System.Text.Json.JsonElement feedArray)
     {

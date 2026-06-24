@@ -155,7 +155,7 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool includePins = false)
+    public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool includePins = false, [FromQuery] bool stream = false)
     {
         try
         {
@@ -172,6 +172,18 @@ public class PostsController : ControllerBase
                 }
             }
 
+            if (stream)
+            {
+                Response.ContentType = "application/x-ndjson";
+                await foreach (var post in _postService.GetUserPostsStreamAsync(handleOrDid, viewerId, take, type, cursor, includePins))
+                {
+                    var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+                    await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
+                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                }
+                return new EmptyResult();
+            }
+
             var result = await _postService.GetUserPostsAsync(handleOrDid, viewerId, skip, take, type, cursor, refresh, includePins);
             return Ok(result);
         }
@@ -181,6 +193,7 @@ public class PostsController : ControllerBase
             return Ok(new PagedPostDto());
         }
     }
+
 
     [HttpPost]
     public async Task<IActionResult> CreatePost([FromForm] CreatePostRequest request)
