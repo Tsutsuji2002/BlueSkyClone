@@ -364,6 +364,7 @@ export interface Message {
     reactions?: MessageReaction[];
     tid?: string;
     type?: string;
+    rev?: string;
     metadata?: Record<string, string>;
 }
 

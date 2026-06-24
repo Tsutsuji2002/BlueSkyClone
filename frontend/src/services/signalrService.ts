@@ -189,10 +189,10 @@ class SignalRService {
         }
     }
 
-    public async sendMessage(conversationId: string, content?: string | null, imageUrl?: string | null, replyToId?: string | null, linkPreview?: any | null) {
+    public async sendMessage(conversationId: string, content?: string | null, imageUrl?: string | null, replyToId?: string | null, linkPreview?: any | null, replyToRev?: string | null) {
         if (this.connection?.state === signalR.HubConnectionState.Connected) {
             try {
-                await this.connection.invoke('SendMessage', conversationId, content, imageUrl, replyToId, linkPreview);
+                await this.connection.invoke('SendMessage', conversationId, content, imageUrl, replyToId, linkPreview, replyToRev);
             } catch (err) {
                 console.error('Failed to send message:', err);
                 throw err;

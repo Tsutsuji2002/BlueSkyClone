@@ -220,7 +220,7 @@ namespace BSkyClone.Services
             return dto;
         }
 
-        public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null)
+        public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null, string? replyToRev = null)
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
             
@@ -228,11 +228,15 @@ namespace BSkyClone.Services
             if (!string.IsNullOrEmpty(replyToId))
             {
                 // In AT Protocol DMs, a reply needs a message ref (id and rev)
-                // However, the current SendMessageAsync signature only gives us the ID.
-                // We might need to fetch the message first to get its rev, or the proxy might accept just ID (unlikely for strict atproto).
-                // For now, let's assume we need to provide a basic ref if possible.
-                // NOTE: Proper atproto sendMessage requires cid/rev, but bsky chat often handles it with id/rev.
-                reply = new { id = replyToId }; 
+                if (!string.IsNullOrEmpty(replyToRev))
+                {
+                    reply = new { id = replyToId, rev = replyToRev };
+                }
+                else
+                {
+                    // Fallback to just ID if rev is missing, though atproto usually prefers both
+                    reply = new { id = replyToId };
+                }
             }
 
             var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
@@ -809,13 +813,14 @@ namespace BSkyClone.Services
                 false,
                 sender,
                 null, // LinkPreview handled by EnrichMessageAsync
-                msg.Reply != null ? new MessageDto(msg.Reply.Id, convoId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message") : null,
+                msg.Reply != null ? new MessageDto(msg.Reply.Id, convoId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", msg.Reply.Rev) : null,
                 msg.Reactions?.Select(r => new MessageReactionDto(
                     r.Sender?.Did ?? "", 
                     r.Emoji, 
                     r.Sender != null ? (string.IsNullOrWhiteSpace(r.Sender.DisplayName) ? r.Sender.Handle : r.Sender.DisplayName) : null
                 )).ToList(),
-                messageType
+                messageType,
+                msg.Rev
             );
         }
 

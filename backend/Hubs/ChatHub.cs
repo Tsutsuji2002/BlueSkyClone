@@ -28,14 +28,14 @@ public class ChatHub : Hub
         await base.OnConnectedAsync();
     }
 
-    public async Task SendMessage(string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreview = null)
+    public async Task SendMessage(string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreview = null, string? replyToRev = null)
     {
         var userId = GetUserIdFromContext();
         if (userId == Guid.Empty) throw new HubException("Unauthorized");
 
         try
         {
-            var messageDto = await _chatService.SendMessageAsync(userId, conversationId, content, imageUrl, replyToId, linkPreview);
+            var messageDto = await _chatService.SendMessageAsync(userId, conversationId, content, imageUrl, replyToId, linkPreview, replyToRev);
             // Broadcast to the conversation group
             await Clients.Group(conversationId).SendAsync("ReceiveMessage", messageDto);
             

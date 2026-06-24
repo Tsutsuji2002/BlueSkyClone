@@ -11,7 +11,7 @@ public interface IChatService
     Task<ConversationDto?> GetConversationAsync(Guid userId, string conversationId);
     Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, string conversationId, int limit = 50, DateTimeOffset? before = null);
     Task<ConversationDto> GetOrCreateConversationAsync(Guid userId, List<string> participantIds);
-    Task<MessageDto> SendMessageAsync(Guid userId, string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreview = null);
+    Task<MessageDto> SendMessageAsync(Guid userId, string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreview = null, string? replyToRev = null);
     Task<MessageDto> EditMessageAsync(Guid userId, string messageId, string newContent);
     Task<MessageDto> RecallMessageAsync(Guid userId, string messageId);
     Task<MessageDto> AddOrUpdateReactionAsync(Guid userId, string conversationId, string messageId, string emoji);

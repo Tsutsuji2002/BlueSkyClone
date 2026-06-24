@@ -375,12 +375,12 @@ public class ChatService : IChatService
         return MapToConversationDto(created!, userId, 0);
     }
 
-    public async Task<MessageDto> SendMessageAsync(Guid userId, string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreviewDto = null)
+    public async Task<MessageDto> SendMessageAsync(Guid userId, string conversationId, string? content, string? imageUrl = null, string? replyToId = null, LinkPreviewDto? linkPreviewDto = null, string? replyToRev = null)
     {
             var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
-            return await _chatProxy.SendMessageAsync(token, conversationId, content ?? "", replyToId);
+            return await _chatProxy.SendMessageAsync(token, conversationId, content ?? "", replyToId, replyToRev);
         }
 
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
@@ -867,7 +867,8 @@ public class ChatService : IChatService
             },
             m.ReplyTo != null ? MapToMessageDtoSimple(m.ReplyTo) : null,
             m.Reactions?.Select(r => new MessageReactionDto(r.UserId.ToString(), r.Emoji, r.User?.DisplayName)).ToList(),
-            m.Type ?? "message"
+            m.Type ?? "message",
+            m.Tid
         );
     }
 

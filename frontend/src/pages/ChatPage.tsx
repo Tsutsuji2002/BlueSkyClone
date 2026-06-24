@@ -429,7 +429,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
             dispatch(addMessage({ message: optimisticMsg as any, currentUserId: currentUser.id }));
 
             try {
-                await signalrService.sendMessage(conversationId, textToSend, null, capturedReplyTo?.id || null, capturedLinkPreview);
+                await signalrService.sendMessage(conversationId, textToSend, null, capturedReplyTo?.id || null, capturedLinkPreview, capturedReplyTo?.rev || null);
                 // SignalR's ReceiveMessage will deliver the confirmed message back.
                 // Remove the temp message now so it doesn't duplicate.
                 dispatch(removeMessageFromStore(tempId));

@@ -37,6 +37,7 @@ public record MessageDto(
     MessageDto? ReplyTo = null,
     List<MessageReactionDto>? Reactions = null,
     string Type = "message",
+    string? Rev = null,
     Dictionary<string, string>? Metadata = null
 );
 
