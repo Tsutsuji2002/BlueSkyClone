@@ -1116,42 +1116,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                     )}
                 </div>
 
-                {/* Reply/Edit/Link Preview */}
-                {(replyingTo || editingMessage || linkPreview || isLinkLoading) && (
-                    <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/50 border-t border-gray-100 dark:border-dark-border flex items-center justify-between animate-in slide-in-from-bottom duration-200">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                            <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
-                                {replyingTo ? (
-                                    <FiCornerUpLeft className="text-primary-500" size={16} />
-                                ) : editingMessage ? (
-                                    <FiEdit3 className="text-primary-500" size={16} />
-                                ) : (
-                                    <FiGlobe className="text-primary-500" size={16} />
-                                )}
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-xs font-bold text-primary-500 uppercase tracking-wider">
-                                    {replyingTo ? t('messages.reply') : editingMessage ? t('messages.edit') : t('messages.link_preview')}
-                                </span>
-                                <p className="text-sm text-gray-600 dark:text-dark-text-secondary truncate">
-                                    {replyingTo ? (replyingTo.content || (replyingTo.imageUrl ? 'Photo' : '')) : 
-                                     editingMessage ? editingMessage.content : 
-                                     isLinkLoading ? t('common.loading') : linkPreview?.title}
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => {
-                                setReplyingTo(null);
-                                setEditingMessage(null);
-                                setLinkPreview(null);
-                            }}
-                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors text-gray-500"
-                        >
-                            <FiX size={18} />
-                        </button>
-                    </div>
-                )}
 
                 {/* Request Banner */}
                 {conversation && !conversation.isAccepted && (
@@ -1244,67 +1208,100 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
                 {/* Input Area */}
                 <div className={`p-4 bg-white dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border ${conversation && !conversation.isAccepted ? 'hidden' : ''} ${conversation?.locked ? 'hidden' : ''}`}>
-                    <form onSubmit={handleSendMessage} className="flex items-end gap-2">
-                        <div className="flex flex-1 items-end gap-2 bg-gray-100 dark:bg-dark-surface rounded-[24px] px-3 py-2 border border-transparent focus-within:border-primary-500/30 focus-within:bg-white dark:focus-within:bg-dark-surface transition-all">
-                            <div className="flex items-center gap-1 mb-1">
+                    <form onSubmit={handleSendMessage} className="flex items-end gap-2 w-full">
+                        <div className="flex-1 bg-[#eff2f6] dark:bg-dark-surface rounded-[20px] flex flex-col min-h-[40px] transition-all">
+                            {/* Nested Reply/Edit/Link Preview */}
+                            {(replyingTo || editingMessage || linkPreview || isLinkLoading) && (
+                                <div className="flex flex-row items-start border-[#a5b2c5] dark:border-dark-border rounded-[12px] border px-2 py-1.5 m-2 gap-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-[11.3px] font-medium text-[#232e3e] dark:text-dark-text-secondary truncate leading-[15px]">
+                                            {replyingTo ? (replyingTo.sender?.displayName || replyingTo.sender?.handle || t('messages.unknown_user')) : 
+                                             editingMessage ? t('messages.editing') : 
+                                             linkPreview ? linkPreview.title : t('messages.link_preview')}
+                                        </div>
+                                        <div className="text-[13.1px] text-black dark:text-dark-text line-clamp-2 leading-[17px]">
+                                            {replyingTo ? (replyingTo.content || (replyingTo.imageUrl ? 'Photo' : '')) : 
+                                             editingMessage ? editingMessage.content : 
+                                             isLinkLoading ? t('common.loading') : (linkPreview?.description || linkPreview?.title)}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            setReplyingTo(null);
+                                            setEditingMessage(null);
+                                            setLinkPreview(null);
+                                        }}
+                                        className="flex items-center justify-center p-0.5 hover:bg-black/5 dark:hover:bg-white/5 rounded-full transition-colors self-center"
+                                        aria-label="Cancel"
+                                    >
+                                        <FiX size={12} className="text-[#232e3e] dark:text-dark-text" />
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="relative flex-1">
                                 <div className="relative">
                                     <button
                                         type="button"
+                                        id="chat-emoji-toggle"
                                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                        className={`p-2 transition-colors rounded-full ${showEmojiPicker ? 'bg-primary-500/10 text-primary-500' : 'text-primary-500 hover:bg-primary-500/10'}`}
+                                        className="absolute top-[10px] right-[10px] z-[30] w-[20px] h-[20px] flex items-center justify-center rounded-full text-[#232e3e] dark:text-dark-text hover:bg-black/5 dark:hover:bg-white/5 transition-all"
                                         title={t('common.add_emoji')}
                                     >
-                                        <FiSmile size={22} />
+                                        <FiSmile size={20} />
                                     </button>
                                     {showEmojiPicker && (
                                         <div
                                             ref={emojiPickerRef}
-                                            className="absolute bottom-full left-0 mb-4 z-30 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+                                            className="absolute bottom-full right-0 mb-4 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
                                         >
-                                                <React.Suspense fallback={<div className="p-4 bg-white dark:bg-dark-surface rounded-lg shadow-xl"><LoadingIndicator size="sm" /></div>}>
-                                                    <EmojiPicker
-                                                        onEmojiClick={handleEmojiClick}
-                                                        theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
-                                                        lazyLoadEmojis={true}
-                                                        skinTonesDisabled={true}
-                                                        searchPlaceHolder={t('common.search_emojis')}
-                                                    />
-                                                </React.Suspense>
+                                            <React.Suspense fallback={<div className="p-4 bg-white dark:bg-dark-surface rounded-lg shadow-xl"><LoadingIndicator size="sm" /></div>}>
+                                                <EmojiPicker
+                                                    onEmojiClick={handleEmojiClick}
+                                                    theme={mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT}
+                                                    lazyLoadEmojis={true}
+                                                    skinTonesDisabled={true}
+                                                    searchPlaceHolder={t('common.search_emojis')}
+                                                />
+                                            </React.Suspense>
                                         </div>
                                     )}
                                 </div>
+                                <textarea
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendMessage(e);
+                                        }
+                                    }}
+                                    placeholder={t('messages.type_message')}
+                                    className="w-full bg-transparent border-none outline-none py-[10px] pl-[16px] pr-[36px] text-[15px] leading-[20px] text-black dark:text-dark-text placeholder-[#667B99] resize-none max-h-32 min-h-[40px] scrollbar-thin overflow-y-hidden"
+                                    rows={1}
+                                    style={{ height: 'auto' }}
+                                    ref={(el: HTMLTextAreaElement | null) => {
+                                        if (el) {
+                                            el.style.height = 'auto';
+                                            el.style.height = `${el.scrollHeight}px`;
+                                        }
+                                    }}
+                                />
                             </div>
-                            <textarea
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSendMessage(e);
-                                    }
-                                }}
-                                placeholder={t('messages.type_message')}
-                                className="flex-1 bg-transparent border-none outline-none py-2 text-[15px] text-gray-900 dark:text-dark-text placeholder-gray-500 dark:placeholder-dark-text-secondary resize-none max-h-32 min-h-[40px]"
-                                rows={1}
-                                style={{ height: 'auto' }}
-                                ref={(el: HTMLTextAreaElement | null) => {
-                                    if (el) {
-                                        el.style.height = 'auto';
-                                        el.style.height = `${el.scrollHeight}px`;
-                                    }
-                                }}
-                            />
                         </div>
-                        <button
-                            type="submit"
-                            disabled={!message.trim() || hubStatus !== HubStatus.Connected}
-                            className={`p-2 rounded-full transition-all transform active:scale-90 ${message.trim() && hubStatus === HubStatus.Connected
-                                ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
-                                : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
-                                }`}
-                        >
-                            <FiSend size={24} />
-                        </button>
+                        <div className={`rounded-full flex items-center justify-center h-10 w-10 transition-all ${message.trim() && hubStatus === HubStatus.Connected ? 'bg-primary-500 shadow-md shadow-primary-500/10' : 'bg-[#dce2ea] dark:bg-dark-surface'}`}>
+                            <button
+                                type="submit"
+                                disabled={!message.trim() || hubStatus !== HubStatus.Connected}
+                                className={`flex items-center justify-center w-full h-full rounded-full transition-all active:scale-90 ${message.trim() && hubStatus === HubStatus.Connected
+                                    ? 'text-white'
+                                    : 'text-white/50 cursor-not-allowed'
+                                    }`}
+                            >
+                                <FiSend size={20} className="mb-[2px]" />
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>
