@@ -309,7 +309,7 @@ export const fetchUserPostsStreaming = (
         if (cursor) params.set('cursor', cursor);
         if (includePins) params.set('includePins', 'true');
 
-        const response = await fetch(`${API_BASE_URL}/app.bsky.feed.getAuthorFeed/stream?actor=${encodeURIComponent(userId)}&${params}`, {
+        const response = await fetch(`${API_BASE_URL}/xrpc/app.bsky.feed.getAuthorFeed/stream?actor=${encodeURIComponent(userId)}&${params}`, {
             credentials: 'include'
         });
 
