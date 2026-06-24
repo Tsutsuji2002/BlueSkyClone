@@ -739,6 +739,7 @@
         "reply": "Reply",
         "replying_to": "Replying to {{name}}",
         "replying_to_prefix": "Replying to",
+        "link_preview": "Link Preview",
         "modified": "Modified",
         "add_reaction": "Add reaction",
         "delete_for_me": "Delete for me",

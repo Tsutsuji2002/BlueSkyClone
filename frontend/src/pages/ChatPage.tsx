@@ -1119,7 +1119,37 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                 {/* Reply/Edit/Link Preview */}
                 {(replyingTo || editingMessage || linkPreview || isLinkLoading) && (
                     <div className="px-4 py-2 bg-gray-50 dark:bg-dark-surface/50 border-t border-gray-100 dark:border-dark-border flex items-center justify-between animate-in slide-in-from-bottom duration-200">
-                        {/* ... existing reply/edit logic ... */}
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
+                                {replyingTo ? (
+                                    <FiCornerUpLeft className="text-primary-500" size={16} />
+                                ) : editingMessage ? (
+                                    <FiEdit3 className="text-primary-500" size={16} />
+                                ) : (
+                                    <FiGlobe className="text-primary-500" size={16} />
+                                )}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-primary-500 uppercase tracking-wider">
+                                    {replyingTo ? t('messages.reply') : editingMessage ? t('messages.edit') : t('messages.link_preview')}
+                                </span>
+                                <p className="text-sm text-gray-600 dark:text-dark-text-secondary truncate">
+                                    {replyingTo ? (replyingTo.content || (replyingTo.imageUrl ? 'Photo' : '')) : 
+                                     editingMessage ? editingMessage.content : 
+                                     isLinkLoading ? t('common.loading') : linkPreview?.title}
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setReplyingTo(null);
+                                setEditingMessage(null);
+                                setLinkPreview(null);
+                            }}
+                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors text-gray-500"
+                        >
+                            <FiX size={18} />
+                        </button>
                     </div>
                 )}
 
