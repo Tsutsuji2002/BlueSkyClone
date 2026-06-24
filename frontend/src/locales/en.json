@@ -721,7 +721,14 @@
             "mute": "Mute conversation",
             "block": "Block account",
             "report": "Report account",
-            "leave": "Leave conversation"
+            "leave": "Leave conversation",
+            "reply": "Reply",
+            "forward": "Forward",
+            "copy": "Copy text",
+            "translate": "Translate",
+            "edit": "Edit message",
+            "delete_for_me": "Delete for me",
+            "recall": "Recall for everyone"
         },
         "leave_confirm": "Are you sure you want to leave this conversation? This action cannot be undone.",
         "read": "Read",

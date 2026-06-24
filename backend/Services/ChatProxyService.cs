@@ -220,10 +220,22 @@ namespace BSkyClone.Services
             return dto;
         }
 
-        public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content)
+        public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null)
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
-            var body = new { convoId = conversationId, message = new { text = content } };
+            
+            object? reply = null;
+            if (!string.IsNullOrEmpty(replyToId))
+            {
+                // In AT Protocol DMs, a reply needs a message ref (id and rev)
+                // However, the current SendMessageAsync signature only gives us the ID.
+                // We might need to fetch the message first to get its rev, or the proxy might accept just ID (unlikely for strict atproto).
+                // For now, let's assume we need to provide a basic ref if possible.
+                // NOTE: Proper atproto sendMessage requires cid/rev, but bsky chat often handles it with id/rev.
+                reply = new { id = replyToId }; 
+            }
+
+            var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
             
             var response = await CallAsync(token, url, "POST", body);
             if (!response.IsSuccessStatusCode) throw new Exception($"Failed to send message: {response.StatusCode}");
@@ -768,19 +780,36 @@ namespace BSkyClone.Services
                 );
             }
 
+            // Extract Image URL from embed if present
+            string? imageUrl = null;
+            if (msg.Embed != null && msg.Embed.Value.ValueKind == JsonValueKind.Object)
+            {
+                if (msg.Embed.Value.TryGetProperty("$type", out var typeProp) && typeProp.GetString() == "app.bsky.embed.images#view")
+                {
+                    if (msg.Embed.Value.TryGetProperty("images", out var imagesProp) && imagesProp.ValueKind == JsonValueKind.Array && imagesProp.GetArrayLength() > 0)
+                    {
+                        var firstImage = imagesProp[0];
+                        if (firstImage.TryGetProperty("fullsize", out var fullsizeProp))
+                        {
+                            imageUrl = fullsizeProp.GetString();
+                        }
+                    }
+                }
+            }
+
             return new MessageDto(
                 msg.Id,
                 convoId,
                 msg.Sender?.Did ?? "",
                 content ?? "",
-                null,
+                imageUrl,
                 DateTimeOffset.Parse(msg.SentAt),
                 false,
                 false,
                 false,
                 sender,
                 null, // LinkPreview handled by EnrichMessageAsync
-                null, // ReplyTo
+                msg.Reply != null ? new MessageDto(msg.Reply.Id, convoId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message") : null,
                 msg.Reactions?.Select(r => new MessageReactionDto(
                     r.Sender?.Did ?? "", 
                     r.Emoji, 
@@ -904,6 +933,20 @@ namespace BSkyClone.Services
             
             [JsonPropertyName("data")]
             public JsonElement? Data { get; set; }
+            
+            [JsonPropertyName("reply")]
+            public BlueskyMessageRef? Reply { get; set; }
+            
+            [JsonPropertyName("embed")]
+            public JsonElement? Embed { get; set; }
+        }
+
+        private class BlueskyMessageRef
+        {
+            [JsonPropertyName("id")]
+            public string Id { get; set; } = string.Empty;
+            [JsonPropertyName("rev")]
+            public string Rev { get; set; } = string.Empty;
         }
 
         private class BlueskyMessageReaction

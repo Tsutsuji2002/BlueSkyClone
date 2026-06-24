@@ -42,6 +42,12 @@ const extractPostDetails = (content: string) => {
     return { handle: match[1], postId: match[2] };
 };
 
+const isGuid = (val?: string) => {
+    if (!val) return false;
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(val);
+};
+
 // Sub-component for grouping system events
 const ChatActivityGroup = ({ events, t, i18n }: { events: Message[], t: any, i18n: any }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
@@ -1024,14 +1030,14 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                             {!msg.isRecalled && (
                                                                 <>
                                                                     <button onClick={() => handleReply(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiCornerUpLeft size={16}/> {t('messages.options.reply')}</button>
-                                                                    {isMe && <button onClick={() => handleEdit(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiEdit3 size={16}/> {t('messages.options.edit')}</button>}
+                                                                    {isMe && isGuid(conversationId) && <button onClick={() => handleEdit(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiEdit3 size={16}/> {t('messages.options.edit')}</button>}
                                                                     <button onClick={() => handleForward(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiShare2 size={16}/> {t('messages.options.forward')}</button>
                                                                     {msg.content && <button onClick={() => handleCopyText(msg.content!)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiCopy size={16}/> {t('messages.options.copy')}</button>}
                                                                     {msg.content && <button onClick={() => handleTranslate(msg.content!)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiGlobe size={16}/> {t('messages.options.translate')}</button>}
                                                                 </>
                                                             )}
                                                             <button onClick={() => handleDeleteForMe(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiTrash size={16}/> {t('messages.options.delete_for_me')}</button>
-                                                            {isMe && !msg.isRecalled && <button onClick={() => handleRecall(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiBellOff size={16}/> {t('messages.options.recall')}</button>}
+                                                            {isMe && !msg.isRecalled && isGuid(conversationId) && <button onClick={() => handleRecall(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiBellOff size={16}/> {t('messages.options.recall')}</button>}
                                                         </div>
                                                     )}
                                                 </div>
