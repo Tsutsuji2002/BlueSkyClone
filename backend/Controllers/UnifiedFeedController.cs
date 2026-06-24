@@ -21,6 +21,25 @@ public class UnifiedFeedController : ControllerBase
         _logger = logger;
     }
 
+    private static readonly System.Text.Json.JsonSerializerOptions _jsonOpts = new() { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase };
+
+    private async Task WriteNdjsonStreamAsync(IEnumerable<PostDto> posts, string? cursor)
+    {
+        Response.ContentType = "application/x-ndjson";
+        foreach (var post in posts)
+        {
+            if (HttpContext.RequestAborted.IsCancellationRequested) break;
+            var json = System.Text.Json.JsonSerializer.Serialize(post, _jsonOpts);
+            await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
+            await Response.Body.FlushAsync(HttpContext.RequestAborted);
+        }
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            await Response.WriteAsync($"{{\"__cursor__\":\"{cursor}\"}}\n", HttpContext.RequestAborted);
+            await Response.Body.FlushAsync(HttpContext.RequestAborted);
+        }
+    }
+
     [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetFeed([FromServices] IFeedService feedService, [FromQuery] string feedId = "home", [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool stream = false)
@@ -30,75 +49,79 @@ public class UnifiedFeedController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
-            _logger.LogInformation("[UnifiedFeed] Request for FeedId: {FeedId}, ViewerId: {ViewerId}, Cursor: {Cursor}, Stream: {Stream}", feedId, viewerId, cursor, stream);
+            _logger.LogInformation("[UnifiedFeed] FeedId: {FeedId}, ViewerId: {ViewerId}, Cursor: {Cursor}, Stream: {Stream}", feedId, viewerId, cursor, stream);
 
-            if (stream && (feedId.ToLower() == "home" || feedId.ToLower() == "following"))
+            // ── HOME / FOLLOWING ────────────────────────────────────────────────
+            if (feedId.ToLower() == "home" || feedId.ToLower() == "following")
             {
-                Response.ContentType = "application/x-ndjson";
-                await foreach (var post in _postService.GetTimelineStreamAsync(viewerId ?? Guid.Empty, skip, take, cursor, refresh, true, HttpContext.RequestAborted))
+                if (stream && viewerId.HasValue)
                 {
-                    var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
-                    await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
-                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                    // Fast streaming: helper collects raw posts (cache-first, no enrichment)
+                    // The stream ends with a __cursor__ sentinel for load-more support
+                    await foreach (var post in _postService.GetTimelineStreamAsync(viewerId.Value, skip, take, cursor, refresh, true, HttpContext.RequestAborted))
+                    {
+                        if (HttpContext.RequestAborted.IsCancellationRequested) break;
+                        // Sentinel detection: already emitted by GetTimelineStreamAsync
+                        if (post.Id == Guid.Empty && post.Content?.StartsWith("__cursor__:") == true)
+                        {
+                            var cur = post.Content.Substring("__cursor__:".Length);
+                            await Response.WriteAsync($"{{\"__cursor__\":\"{cur}\"}}\n", HttpContext.RequestAborted);
+                        }
+                        else
+                        {
+                            await Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(post, _jsonOpts) + "\n", HttpContext.RequestAborted);
+                        }
+                        await Response.Body.FlushAsync(HttpContext.RequestAborted);
+                    }
+                    return new EmptyResult();
                 }
-                return new EmptyResult();
+
+                // Non-stream fallback
+                if (viewerId == null)
+                {
+                    var trending = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh, skipDeepResolution: true);
+                    return Ok(new { feedId, posts = trending, skip, cursor = (string?)null, hasMore = trending.Any() });
+                }
+                var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
+                return Ok(new { feedId, posts = paged.Posts, skip, cursor = paged.Cursor, hasMore = !string.IsNullOrEmpty(paged.Cursor) || (paged.Posts?.Count() ?? 0) >= take });
             }
 
+            // ── AT:// AND FOLLOWING CUSTOM FEEDS ────────────────────────────────
             if (!string.IsNullOrEmpty(feedId) &&
                 (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase) ||
                  feedId.Equals("following", StringComparison.OrdinalIgnoreCase)))
             {
-                var pagedResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor, HttpContext.RequestAborted);
-                return Ok(new
+                var feedResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor, HttpContext.RequestAborted);
+                if (stream)
                 {
-                    feedId = feedId,
-                    posts = pagedResult.Posts,
-                    skip = skip,
-                    cursor = pagedResult.Cursor,
-                    hasMore = !string.IsNullOrEmpty(pagedResult.Cursor) || (pagedResult.Posts?.Count() ?? 0) >= take
-                });
+                    await WriteNdjsonStreamAsync(feedResult.Posts, feedResult.Cursor);
+                    return new EmptyResult();
+                }
+                return Ok(new { feedId, posts = feedResult.Posts, skip, cursor = feedResult.Cursor, hasMore = !string.IsNullOrEmpty(feedResult.Cursor) || (feedResult.Posts?.Count() ?? 0) >= take });
             }
 
+            // ── ALL OTHER FEEDS ──────────────────────────────────────────────────
             IEnumerable<PostDto> posts = new List<PostDto>();
             string? outCursor = null;
 
             switch (feedId.ToLower())
             {
-                case "home":
-                case "following":
-                    if (viewerId == null)
-                    {
-                        posts = await _postService.GetTrendingPosts24hAsync(null, take, skip, refresh, skipDeepResolution: true);
-                    }
-                    else
-                    {
-                        var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
-                        posts = paged.Posts;
-                        outCursor = paged.Cursor;
-                    }
-                    break;
                 case "discover":
                     if (viewerId == null)
                     {
-                        // Guests get the official "What's Hot" Discover feed
                         var guestResult = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
-                        posts = guestResult.Posts;
-                        outCursor = guestResult.Cursor;
+                        posts = guestResult.Posts; outCursor = guestResult.Cursor;
                     }
                     else
                     {
                         var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
                         var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
                         posts = trendingPosts.ToList();
-
-                        // [NEW] Resilient Fallback: If local trending is empty (due to query timeout or no local data),
-                        // immediately fallback to Bluesky's official "What's Hot" feed.
                         if (!posts.Any() && skip == 0)
                         {
-                            _logger.LogInformation("[UnifiedFeed] Local trending empty for {UserId}. Falling back to Bluesky What's Hot.", viewerId);
+                            _logger.LogInformation("[UnifiedFeed] Local trending empty, falling back to What's Hot.");
                             var remoteResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
-                            posts = remoteResult.Posts;
-                            outCursor = remoteResult.Cursor;
+                            posts = remoteResult.Posts; outCursor = remoteResult.Cursor;
                         }
                     }
                     break;
@@ -106,24 +129,19 @@ public class UnifiedFeedController : ControllerBase
                     posts = await _postService.GetPostsByTagAsync("music", viewerId, take, skip);
                     break;
                 default:
-                    // Try to resolve custom feed if it's a known identifier or at:// URI
                     if (feedId.StartsWith("at://", StringComparison.OrdinalIgnoreCase))
                     {
-                        var customResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor, HttpContext.RequestAborted);
-                        posts = customResult.Posts;
-                        outCursor = customResult.Cursor;
+                        var r = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, feedId, cursor, HttpContext.RequestAborted);
+                        posts = r.Posts; outCursor = r.Cursor;
                     }
                     else if (Guid.TryParse(feedId, out var fGuid))
                     {
-                        var guidResult = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take, null, cursor, HttpContext.RequestAborted);
-                        posts = guidResult.Posts;
-                        outCursor = guidResult.Cursor;
-                        _logger.LogInformation("[UnifiedFeed] Custom GUID feed returned {Count} posts", posts?.Count() ?? 0);
+                        var r = await feedService.GetFeedPostsAsync(fGuid, viewerId, skip, take, null, cursor, HttpContext.RequestAborted);
+                        posts = r.Posts; outCursor = r.Cursor;
                     }
                     else if (feedId.StartsWith("tag-"))
                     {
-                        var tag = feedId.Substring(4);
-                        posts = await _postService.GetPostsByTagAsync(tag, viewerId, take, skip);
+                        posts = await _postService.GetPostsByTagAsync(feedId.Substring(4), viewerId, take, skip);
                     }
                     else
                     {
@@ -133,9 +151,8 @@ public class UnifiedFeedController : ControllerBase
                         }
                         else
                         {
-                            var paged = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
-                            posts = paged.Posts;
-                            outCursor = paged.Cursor;
+                            var r = await _postService.GetTimelineAsync(viewerId.Value, skip, take, cursor, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
+                            posts = r.Posts; outCursor = r.Cursor;
                         }
                     }
                     break;
@@ -143,30 +160,11 @@ public class UnifiedFeedController : ControllerBase
 
             if (stream && posts.Any())
             {
-                Response.ContentType = "application/x-ndjson";
-                const int batchSize = 5;
-                var postList = posts.ToList();
-                for (int i = 0; i < postList.Count; i += batchSize)
-                {
-                    var batch = postList.Skip(i).Take(batchSize);
-                    foreach (var post in batch)
-                    {
-                        var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
-                        await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
-                    }
-                    await Response.Body.FlushAsync(HttpContext.RequestAborted);
-                }
+                await WriteNdjsonStreamAsync(posts, outCursor);
                 return new EmptyResult();
             }
 
-            return Ok(new 
-            {
-                feedId = feedId,
-                posts = posts,
-                skip = skip,
-                cursor = outCursor,
-                hasMore = !string.IsNullOrEmpty(outCursor) || (posts?.Count() ?? 0) > 0
-            });
+            return Ok(new { feedId, posts, skip, cursor = outCursor, hasMore = !string.IsNullOrEmpty(outCursor) || (posts?.Count() ?? 0) > 0 });
         }
         catch (Exception ex)
         {
@@ -176,3 +174,4 @@ public class UnifiedFeedController : ControllerBase
     }
 
 }
+

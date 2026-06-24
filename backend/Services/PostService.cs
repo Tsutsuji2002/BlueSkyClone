@@ -108,35 +108,59 @@ public class PostService : IPostService
     }
     public async IAsyncEnumerable<PostDto> GetTimelineStreamAsync(Guid userId, int skip = 0, int take = 30, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        string? token = null;
-        PagedPostDto? resultDto = null;
+        // FAST STREAMING: cache-first, no enrichment — same approach as GetUserPostsStreamAsync.
+        // C# requires yields outside try/catch, so data collection is delegated to a helper.
+        var (posts, nextCursor) = await FetchTimelineForStreamAsync(userId, skip, take, cursor, bypassCache, ct);
 
-        // Note: For true progressive streaming, we don't want to use the large enriched cache (BlueskyTimelineEnriched)
-        // because that waits for the whole list. We can use the raw PDS cache for the initial fetch if it exists.
-        var rawCacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}_{cursor ?? "root"}";
-        
-        if (!bypassCache)
+        foreach (var post in posts)
         {
-            var cachedJson = await _distributedCache.GetStringAsync(rawCacheKey, ct);
-            if (!string.IsNullOrEmpty(cachedJson))
-            {
-                try { resultDto = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson); } catch { }
-            }
+            if (ct.IsCancellationRequested) yield break;
+            yield return post;
         }
 
-        if (resultDto == null)
+        if (!string.IsNullOrEmpty(nextCursor))
+            yield return new PostDto { Id = Guid.Empty, Content = $"__cursor__:{nextCursor}" };
+    }
+
+    private async Task<(List<PostDto> Posts, string? Cursor)> FetchTimelineForStreamAsync(Guid userId, int skip, int take, string? cursor, bool bypassCache, CancellationToken ct)
+    {
+        try
         {
+            // Step 1: Check raw cache (no enrichment overhead)
+            var rawCacheKey = $"BlueskyTimeline_{userId}_{skip}_{take}_{cursor ?? "root"}";
+            if (!bypassCache)
+            {
+                var cachedJson = await _distributedCache.GetStringAsync(rawCacheKey, ct);
+                if (!string.IsNullOrEmpty(cachedJson))
+                {
+                    try
+                    {
+                        var cached = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson);
+                        if (cached?.Posts != null && cached.Posts.Any())
+                        {
+                            _logger.LogInformation("[GetTimelineStreamAsync] Cache hit: {Count} posts for user {UserId}", cached.Posts.Count(), userId);
+                            var window = cached.Posts.Skip(skip).Take(take).ToList();
+                            return (window, cached.Cursor);
+                        }
+                    }
+                    catch { /* bad cache - fall through */ }
+                }
+            }
+
+            // Step 2: Fetch from BlueSky API
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null || string.IsNullOrEmpty(user.Did))
             {
                 _logger.LogWarning("[GetTimelineStreamAsync] User or DID not found for {UserId}.", userId);
-                yield break;
+                return (new List<PostDto>(), null);
             }
-            token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
+
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
             if (string.IsNullOrEmpty(token))
             {
-                _logger.LogWarning("[GetTimelineStreamAsync] Failed to refresh/get token for user {UserId}.", userId);
-                yield break;
+                _logger.LogWarning("[GetTimelineStreamAsync] No token for {UserId}, falling back to local.", userId);
+                var fallback = await BuildTimelineFallbackFromFollowingAsync(user, skip, take, ct);
+                return (fallback.ToList(), null);
             }
 
             var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(skip + take + 10, 30, 100) : Math.Max(take + 10, 30);
@@ -144,45 +168,28 @@ public class PostService : IPostService
             if (!string.IsNullOrEmpty(cursor)) queryArgs["cursor"] = cursor;
 
             var result = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getTimeline", queryArgs, token, "GET", null, userId, ct);
+            if (!result.Success) return (new List<PostDto>(), null);
 
-            if (result.Success)
-            {
-                using var doc = JsonDocument.Parse(result.Content);
-                var posts = doc.RootElement.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
-                var nextCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
-                resultDto = new PagedPostDto { Posts = posts, Cursor = nextCursor };
+            using var doc = JsonDocument.Parse(result.Content);
+            var posts = doc.RootElement.TryGetProperty("feed", out var feedArray) ? MapBlueskyFeed(feedArray) : new List<PostDto>();
+            var nextCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+            var resultDto = new PagedPostDto { Posts = posts, Cursor = nextCursor };
 
-                // Background cache the raw result for subsequent standard calls
-                _ = _distributedCache.SetStringAsync(rawCacheKey, System.Text.Json.JsonSerializer.Serialize(resultDto), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, ct);
-            }
-            else
-            {
-                yield break;
-            }
+            // Cache raw result for next visit (2 min TTL)
+            _ = _distributedCache.SetStringAsync(rawCacheKey,
+                System.Text.Json.JsonSerializer.Serialize(resultDto),
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, ct);
+
+            var page = posts.Skip(string.IsNullOrEmpty(cursor) ? skip : 0).Take(take).ToList();
+            return (page, nextCursor);
         }
-
-        token ??= userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct) : null;
-        
-        var windowStart = string.IsNullOrEmpty(cursor) ? skip : 0;
-        var rawPosts = resultDto.Posts.Skip(windowStart).Take(take).ToList();
-
-        // [STREAMING ENRICHMENT]
-        // To make it truly progressive, we enrich and yield in smaller batches (e.g. groups of 5)
-        // or individually if we want max responsiveness.
-        const int batchSize = 5;
-        for (int i = 0; i < rawPosts.Count; i += batchSize)
+        catch (Exception ex)
         {
-            if (ct.IsCancellationRequested) yield break;
-
-            var batch = rawPosts.Skip(i).Take(batchSize).ToList();
-            var enrichedBatch = await EnrichAndFilterPostsAsync(batch, userId, token, true, true, false, skipDeepResolution, ct);
-            
-            foreach (var post in enrichedBatch)
-            {
-                yield return post;
-            }
+            _logger.LogError(ex, "[GetTimelineStreamAsync] Fetch failed for user {UserId}", userId);
+            return (new List<PostDto>(), null);
         }
     }
+
 
     public async Task<PagedPostDto> GetTimelineAsync(Guid userId, int skip = 0, int take = 30, string? cursor = null, bool bypassCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
     {
