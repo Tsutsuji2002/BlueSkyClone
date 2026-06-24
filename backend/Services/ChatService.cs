@@ -888,7 +888,8 @@ public class ChatService : IChatService
             null,
             null,
             null,
-            m.Type ?? "message"
+            m.Type ?? "message",
+            m.Tid
         );
     }
 

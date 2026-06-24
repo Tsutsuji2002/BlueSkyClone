@@ -161,8 +161,8 @@ namespace BSkyClone.Services
                             null,
                             null,
                             null,
-                            null,
                             type,
+                            log.Rev,
                             new Dictionary<string, string> { { "rev", log.Rev ?? "" } }
                         );
                     }
