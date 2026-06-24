@@ -61,70 +61,54 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             setItems([]);
         }
 
-        try {
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json'
-            };
+        if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
+            const itemHeight = (type === 'media' || type === 'video') ? 150 : 250;
+            const requestedTake = (type === 'posts' || type === 'replies') ? 30 : getDynamicBatchSize(itemHeight);
+            let receivedCount = 0;
 
-            let fetchedItems: any[] = [];
-            let nextCursor: string | null = null;
+            await dispatch(fetchUserPostsStreaming(
+                { userId, type, limit: requestedTake, cursor: isInitial ? null : cursor },
+                (post) => {
+                    if (currentVersion !== fetchVersionRef.current) return;
 
-            if (type === 'posts' || type === 'replies' || type === 'media' || type === 'video' || type === 'likes') {
-                const itemHeight = (type === 'media' || type === 'video') ? 150 : 250;
-                const requestedTake = (type === 'posts' || type === 'replies') ? 30 : getDynamicBatchSize(itemHeight);
-                
-                // Use the streaming fetch for better progressive performance
-                await dispatch(fetchUserPostsStreaming(
-                    { userId, type, limit: requestedTake, cursor: isInitial ? null : cursor },
-                    (post) => {
-                        // Ignore result if a newer fetch has started
-                        if (currentVersion !== fetchVersionRef.current) return;
-
-                        if (type === 'video') {
-                            const isVideo = !!post.videoUrl || !!post.video || (post.media && post.media.some(m => m.type === 'video'));
-                            if (!isVideo) return;
-                        }
-
-                        if (type === 'likes') {
-                            post.isLiked = true;
-                        }
-
-                        setItems(prev => {
-                            // Deduplicate within the stream to be safe
-                            if (prev.some(p => matchesPost(p, post))) return prev;
-                            return [...prev, post];
-                        });
-                    },
-                    (finalCursor) => {
-                        if (currentVersion === fetchVersionRef.current) {
-                            setCursor(finalCursor);
-                            // If we didn't get a cursor but we got some items, we might be at the end
-                            // but usually the stream endpoint currently doesn't return the next cursor
-                            // so we rely on the total count for now.
-                            setHasMore(!!finalCursor);
-                            setLoading(false);
-                            setInitialLoading(false);
-                        }
-                    },
-                    (err) => {
-                        console.error(`Streaming fetch failed for ${type}:`, err);
-                        if (currentVersion === fetchVersionRef.current) {
-                            setHasMore(false);
-                            setLoading(false);
-                            setInitialLoading(false);
-                        }
+                    if (type === 'video') {
+                        const isVideo = !!post.videoUrl || !!post.video || (post.media && post.media.some((m: any) => m.type === 'video'));
+                        if (!isVideo) return;
                     }
-                ) as any);
-                
-                return; // fetchUserPostsStreaming handles its own state updates
-            }
+                    if (type === 'likes') post.isLiked = true;
+
+                    receivedCount++;
+                    setItems(prev => {
+                        if (prev.some(p => matchesPost(p, post))) return prev;
+                        return [...prev, post];
+                    });
+                },
+                (finalCursor) => {
+                    if (currentVersion !== fetchVersionRef.current) return;
+                    setCursor(finalCursor);
+                    // hasMore = true if we got a cursor OR received a full page
+                    setHasMore(!!finalCursor || receivedCount >= requestedTake);
+                    setLoading(false);
+                    setInitialLoading(false);
+                },
+                (err) => {
+                    console.error(`Streaming fetch failed for ${type}:`, err);
+                    if (currentVersion !== fetchVersionRef.current) return;
+                    setHasMore(false);
+                    setLoading(false);
+                    setInitialLoading(false);
+                }
+            ) as any);
+            return;
+        }
+
+        try {
+            // placeholder for future non-streaming tabs
         } catch (err) {
             console.error(`Failed to fetch profile ${type}:`, err);
-            if (currentVersion === fetchVersionRef.current) {
-                setHasMore(false);
-            }
+            if (currentVersion === fetchVersionRef.current) setHasMore(false);
         } finally {
-            if (currentVersion === fetchVersionRef.current && type === 'feeds' || type === 'lists') {
+            if (currentVersion === fetchVersionRef.current && (type === 'feeds' || type === 'lists')) {
                 setLoading(false);
                 setInitialLoading(false);
             }

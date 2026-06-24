@@ -587,36 +587,128 @@ public class PostService : IPostService
 
     public async IAsyncEnumerable<PostDto> GetUserPostsStreamAsync(string handleOrDid, Guid? viewerId, int limit = 30, string? type = null, string? cursor = null, bool includePins = false)
     {
-        // For true streaming, we need to fetch the results from GetUserPostsAsync (raw)
-        // and then yield them. Since GetUserPostsAsync currently returns a PagedPostDto with all posts,
-        // we will fetch them once but yield them in small batches to simulate/provide progressive update
-        // (though the real bottleneck is the initial remote fetch).
-        // Future optimization: allow GetUserPostsAsync to return a stream directly.
-        
-        PagedPostDto? result = null;
+        // True progressive streaming: fetch raw (unenriched) posts first,
+        // then enrich and yield each post individually so the HTTP response
+        // flushes after every post - user sees posts appear one-by-one.
+
+        List<PostDto> rawPosts = new();
+        string? nextCursor = null;
+        string? token = null;
+
         try
         {
-            // Fetch raw results (unpaginated for the stream)
-            result = await GetUserPostsAsync(handleOrDid, viewerId, 0, limit, type, cursor, true, includePins);
+            // Step 1: Resolve to handle/did
+            var user = await _unitOfWork.Users.Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Handle == handleOrDid || u.Did == handleOrDid);
+
+            bool isLocalOnly = user != null && (string.IsNullOrEmpty(user.Did) || user.Did.StartsWith("did:local:"));
+
+            if (isLocalOnly && user != null)
+            {
+                // Local user – fetch from DB without enrichment
+                var postsQuery = _unitOfWork.Posts.Query()
+                    .Include(p => p.Author).Include(p => p.PostMedia).Include(p => p.LinkPreview)
+                    .Include(p => p.ReplyToPost).ThenInclude(rp => rp!.Author)
+                    .Where(p => p.AuthorId == user.Id && (p.IsDeleted == false || p.IsDeleted == null) && !string.IsNullOrEmpty(p.Content));
+
+                if (type == "replies") postsQuery = postsQuery.Where(p => p.ReplyToPostId != null);
+                else if (type == "media") postsQuery = postsQuery.Where(p => p.PostMedia.Any());
+                else postsQuery = postsQuery.Where(p => p.ReplyToPostId == null);
+
+                rawPosts = (await postsQuery.OrderByDescending(p => p.CreatedAt).Take(limit).ToListAsync())
+                    .Select(p => MapToDto(p)).ToList();
+            }
+            else
+            {
+                // Remote user – call BlueSky API
+                token = viewerId.HasValue && viewerId != Guid.Empty
+                    ? await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value)
+                    : null;
+
+                var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                using var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                if (!string.IsNullOrEmpty(token))
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+
+                if (type == "likes")
+                {
+                    var args = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", limit.ToString() } };
+                    if (!string.IsNullOrEmpty(cursor)) args["cursor"] = cursor;
+                    var q = string.Join("&", args.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+                    var resp = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getActorLikes?{q}", cts.Token);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
+                        var body = doc.RootElement;
+                        rawPosts = body.TryGetProperty("feed", out var feed) ? MapBlueskyFeed(feed) : new();
+                        nextCursor = body.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                        foreach (var p in rawPosts) p.IsLiked = true;
+                    }
+                }
+                else
+                {
+                    var filter = type == "replies" ? "posts_with_replies"
+                        : type == "media" ? "posts_with_media"
+                        : type == "video" ? "posts_with_video"
+                        : "posts_and_author_threads";
+                    var args = new Dictionary<string, string?> { { "actor", handleOrDid }, { "limit", limit.ToString() }, { "filter", filter }, { "includePins", includePins ? "true" : "false" } };
+                    if (!string.IsNullOrEmpty(cursor)) args["cursor"] = cursor;
+                    var q = string.Join("&", args.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value ?? "")}"));
+                    var resp = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getAuthorFeed?{q}", cts.Token);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
+                        var body = doc.RootElement;
+                        rawPosts = body.TryGetProperty("feed", out var feed) ? MapBlueskyFeed(feed) : new();
+                        nextCursor = body.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                        if (type == "replies")
+                            rawPosts = rawPosts.Where(p => p.ParentPost != null || p.ReplyToPostId != null || !string.IsNullOrEmpty(p.ReplyToHandle)).ToList();
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[GetUserPostsStreamAsync] Error for {Handle}", handleOrDid);
+            _logger.LogError(ex, "[GetUserPostsStreamAsync] Fetch failed for {Handle}", handleOrDid);
             yield break;
         }
 
-        if (result?.Posts == null) yield break;
+        if (!rawPosts.Any()) yield break;
 
-        // Yield in batches of 5 to provide progressive UI updates
-        const int batchSize = 5;
-        for (int i = 0; i < result.Posts.Count(); i += batchSize)
+        // Step 2: Enrich and yield each post individually for true progressive streaming
+        // We enrich in small groups of 3 for efficiency (batch DB calls) 
+        // while still flushing frequently enough for real-time feel
+        const int enrichBatchSize = 3;
+
+        for (int i = 0; i < rawPosts.Count; i += enrichBatchSize)
         {
-            var batch = result.Posts.Skip(i).Take(batchSize);
-            foreach (var post in batch)
+            var batch = rawPosts.Skip(i).Take(enrichBatchSize).ToList();
+            List<PostDto> enriched;
+            try
+            {
+                enriched = await EnrichAndFilterPostsAsync(batch, viewerId ?? Guid.Empty, token,
+                    isTimeline: false, forceDropHidden: false, skipDeepResolution: false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetUserPostsStreamAsync] Enrich batch failed, yielding raw");
+                enriched = batch; // Fall back to unenriched if enrichment fails
+            }
+
+            foreach (var post in enriched)
             {
                 yield return post;
             }
-            // Optional: add a tiny delay or just allow the network to flush
+        }
+
+        // Step 3: Emit cursor sentinel so frontend can enable load-more
+        if (!string.IsNullOrEmpty(nextCursor))
+        {
+            yield return new PostDto { Id = Guid.Empty, Content = $"__cursor__:{nextCursor}" };
         }
     }
 

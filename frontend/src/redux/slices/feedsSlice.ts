@@ -526,11 +526,11 @@ export const fetchFeedPostsStreaming = (
                 if (!line.trim()) continue;
                 try {
                     const postData = JSON.parse(line);
+                    if (postData.__cursor__) continue;
                     const mapped = mapAtProtoPostToPost(postData);
                     onPostReceived(mapped);
-                    // Also dispatch to Redux if specified, but usually local state is preferred for "current session"
-                    // However, feedsSlice manages the global feedPosts state, so we should update it.
-                    dispatch(feedsSlice.actions.appendStreamedPost({ feedId, post: mapped }));
+                    // Use plain action object to avoid feedsSlice forward-reference issue
+                    dispatch({ type: 'feeds/appendStreamedPost', payload: { feedId, post: mapped } });
                     dispatch(seedInteractionTruth([mapped]));
                 } catch (e) {
                     console.warn('[feedsSlice] Feed stream parse error:', e);

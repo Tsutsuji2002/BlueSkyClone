@@ -177,8 +177,17 @@ public class PostsController : ControllerBase
                 Response.ContentType = "application/x-ndjson";
                 await foreach (var post in _postService.GetUserPostsStreamAsync(handleOrDid, viewerId, take, type, cursor, includePins))
                 {
-                    var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
-                    await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
+                    // Detect cursor sentinel emitted at the end of the stream
+                    if (post.Id == Guid.Empty && post.Content != null && post.Content.StartsWith("__cursor__:"))
+                    {
+                        var cursorValue = post.Content.Substring("__cursor__:".Length);
+                        await Response.WriteAsync($"{{\"__cursor__\":\"{cursorValue}\"}}\n", HttpContext.RequestAborted);
+                    }
+                    else
+                    {
+                        var json = System.Text.Json.JsonSerializer.Serialize(post, new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+                        await Response.WriteAsync(json + "\n", HttpContext.RequestAborted);
+                    }
                     await Response.Body.FlushAsync(HttpContext.RequestAborted);
                 }
                 return new EmptyResult();

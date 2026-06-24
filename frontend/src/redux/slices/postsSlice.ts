@@ -377,6 +377,7 @@ export const fetchUserPostsStreaming = (
 
         const decoder = new TextDecoder();
         let buffer = '';
+        let nextCursor: string | null = null;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -389,8 +390,13 @@ export const fetchUserPostsStreaming = (
             for (const line of lines) {
                 if (!line.trim()) continue;
                 try {
-                    const postData = JSON.parse(line);
-                    const mapped = mapAtProtoPostToPost(postData);
+                    const parsed = JSON.parse(line);
+                    // Detect cursor sentinel from backend
+                    if (parsed.__cursor__) {
+                        nextCursor = parsed.__cursor__;
+                        continue;
+                    }
+                    const mapped = mapAtProtoPostToPost(parsed);
                     onPostReceived(mapped);
                     // Ensure the post is seeded in global interaction truth for consistent Like/Repost behavior
                     dispatch(seedInteractionTruth([mapped]));
@@ -400,12 +406,13 @@ export const fetchUserPostsStreaming = (
             }
         }
         
-        onComplete(null); 
+        onComplete(nextCursor); 
     } catch (e: any) {
         console.error('[postsSlice] fetchUserPostsStreaming failed:', e);
         onError(e);
     }
 };
+
 
 
 
