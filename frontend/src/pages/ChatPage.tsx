@@ -228,6 +228,29 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const { mode } = useAppSelector((state: RootState) => state.theme);
     const conversation = conversations.find((c: Conversation) => c.id === conversationId);
 
+    const isMessageFromCurrentUser = (msg?: Message | null) => {
+        if (!msg || !currentUser) return false;
+        const senderDid = msg.sender?.did || (msg.senderId?.startsWith('did:') ? msg.senderId : null);
+        return (
+            msg.senderId === currentUser.id ||
+            (!!senderDid && !!currentUser.did && senderDid.toLowerCase() === currentUser.did.toLowerCase()) ||
+            (!!currentUser.did && msg.senderId?.toLowerCase() === currentUser.did.toLowerCase())
+        );
+    };
+
+    const getMessageAuthorLabel = (msg?: Message | null) => {
+        if (!msg) return t('messages.unknown_user');
+        if (isMessageFromCurrentUser(msg)) {
+            return currentUser?.handle || currentUser?.displayName || t('common.you');
+        }
+        return msg.sender?.handle || msg.sender?.displayName || msg.senderId || t('messages.unknown_user');
+    };
+
+    const getResolvedReplyTo = (msg: Message) => {
+        if (!msg.replyTo) return null;
+        return activeConversationMessages.find((candidate: Message) => candidate.id === msg.replyTo?.id) || msg.replyTo;
+    };
+
     // Close picker/menu on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -878,6 +901,19 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                         !showTimeHeader;
                                     
                                     const showSenderInfo = isGroup && !isMe && !isSameSender;
+                                    const resolvedReplyTo = getResolvedReplyTo(msg);
+                                    const replyTargetIsMe = isMessageFromCurrentUser(resolvedReplyTo);
+                                    const replyTargetName = replyTargetIsMe ? t('common.you', 'you') : getMessageAuthorLabel(resolvedReplyTo);
+                                    const replyLabel = isMe
+                                        ? t('messages.you_replied_to', 'You replied to {{name}}', { name: replyTargetName })
+                                        : t('messages.replied_to', '{{name}} replied to {{other}}', {
+                                            name: getMessageAuthorLabel(msg),
+                                            other: replyTargetName
+                                        });
+                                    const replyPreviewAuthor = getMessageAuthorLabel(resolvedReplyTo);
+                                    const replyPreviewText = resolvedReplyTo?.isRecalled
+                                        ? t('messages.recalled_msg', { name: '' }).trim()
+                                        : (resolvedReplyTo?.content || (resolvedReplyTo?.imageUrl ? 'Photo' : t('messages.original_message_unavailable', 'Original message unavailable')));
 
                                     return (
                                         <React.Fragment key={msg.id}>
@@ -907,21 +943,19 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                 )}
 
                                                 <div className="relative group/bubble">
-                                                    {msg.replyTo && !msg.isRecalled && (
+                                                    {resolvedReplyTo && !msg.isRecalled && (
                                                         <button 
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                const target = document.getElementById(`msg-${msg.replyTo?.id}`);
+                                                                const target = document.getElementById(`msg-${resolvedReplyTo.id}`);
                                                                 if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                                             }}
-                                                            className={`flex items-center gap-1 mb-1 opacity-70 hover:opacity-100 transition-opacity w-full ${isMe ? 'justify-end pr-3' : 'justify-start pl-3'}`}
+                                                            className={`flex items-center gap-1 mb-1 text-[11.3px] font-medium text-[#536471] dark:text-dark-text-secondary opacity-90 hover:opacity-100 transition-opacity w-full ${isMe ? 'justify-end pr-3' : 'justify-start pl-3'}`}
                                                         >
-                                                            <svg fill="none" viewBox="0 0 24 24" width="12" height="12" className={isMe ? 'text-primary-200' : 'text-gray-400'}>
+                                                            <svg fill="none" viewBox="0 0 24 24" width="12" height="12" className="text-[#536471] dark:text-dark-text-secondary">
                                                                 <path fill="currentColor" d="M5 5a1 1 0 0 0-2 0v4a7 7 0 0 0 7 7h8.086l-2.293 2.293a1 1 0 0 0 1.414 1.414l2.94-2.94a2.5 2.5 0 0 0 0-3.535l-2.94-2.94a1 1 0 1 0-1.414 1.415L18.086 14H10a5 5 0 0 1-5-5V5Z"></path>
                                                             </svg>
-                                                            <span className={`text-[11.3px] font-medium ${isMe ? 'text-primary-100' : 'text-[#405168] dark:text-dark-text-secondary'}`}>
-                                                                {isMe ? t('messages.you_replied_to', 'You replied to {{name}}', { name: msg.replyTo.sender?.handle || msg.replyTo.senderId }) : t('messages.replied_to', '{{name}} replied to {{other}}', { name: msg.sender?.handle || msg.senderId, other: msg.replyTo.sender?.handle || msg.replyTo.senderId })}
-                                                            </span>
+                                                            <span className="truncate max-w-[260px]">{replyLabel}</span>
                                                         </button>
                                                     )}
 
@@ -930,21 +964,21 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                         : 'bg-gray-100 dark:bg-[#1e1e1e] text-gray-900 dark:text-dark-text rounded-2xl rounded-tl-none border border-gray-100 dark:border-dark-border/50'
                                                         }`}>
                                                         
-                                                        {msg.replyTo && !msg.isRecalled && (
+                                                        {resolvedReplyTo && !msg.isRecalled && (
                                                             <button 
                                                                 type="button"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    const target = document.getElementById(`msg-${msg.replyTo?.id}`);
+                                                                    const target = document.getElementById(`msg-${resolvedReplyTo.id}`);
                                                                     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                                                 }}
-                                                                className={`w-[calc(100%-8px)] mx-1 mt-1 p-2 rounded-xl flex flex-col items-start gap-0.5 border border-white/20 dark:border-white/10 hover:bg-white/10 transition-colors text-left`}
+                                                                className={`w-[calc(100%-8px)] mx-1 mt-1 px-3 py-2 rounded-xl flex flex-col items-start gap-0.5 border text-left transition-colors ${isMe ? 'bg-white/15 border-white/30 hover:bg-white/20' : 'bg-[#f8fafc] dark:bg-white/5 border-[#aebdd0] dark:border-white/15 hover:bg-white dark:hover:bg-white/10'}`}
                                                             >
-                                                                <span className="text-[11.3px] font-bold opacity-80 truncate w-full">
-                                                                    {msg.replyTo.sender?.displayName || msg.replyTo.sender?.handle || t('messages.unknown_user')}
+                                                                <span className={`text-[11.3px] font-medium truncate w-full ${isMe ? 'text-white/90' : 'text-[#344563] dark:text-dark-text-secondary'}`}>
+                                                                    {replyPreviewAuthor}
                                                                 </span>
-                                                                <p className="text-[13.1px] line-clamp-2 opacity-90">
-                                                                    {msg.replyTo.isRecalled ? t('messages.recalled_msg', { name: '' }).trim() : msg.replyTo.content || (msg.replyTo.imageUrl ? '📷 Photo' : '')}
+                                                                <p className={`text-[13.1px] line-clamp-2 ${isMe ? 'text-white' : 'text-[#111827] dark:text-dark-text'}`}>
+                                                                    {replyPreviewText}
                                                                 </p>
                                                             </button>
                                                         )}

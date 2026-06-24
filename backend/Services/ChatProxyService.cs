@@ -230,16 +230,17 @@ namespace BSkyClone.Services
             object? reply = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
-                // In AT Protocol DMs, a reply needs a message ref (id and rev)
-                if (!string.IsNullOrEmpty(replyToRev))
-                {
-                    reply = new { id = replyToId, rev = replyToRev };
-                }
-                else
-                {
-                    // Fallback to just ID if rev is missing, though atproto usually prefers both
-                    reply = new { id = replyToId };
-                }
+                var recentMessages = await GetMessagesAsync(token, conversationId, 50);
+                var parent = recentMessages.FirstOrDefault(m => m.Id == replyToId);
+                var parentDid = parent?.Sender?.Did ?? parent?.SenderId;
+
+                reply = !string.IsNullOrEmpty(parentDid)
+                    ? new
+                    {
+                        root = new { did = parentDid, convoId = conversationId, messageId = replyToId },
+                        parent = new { did = parentDid, convoId = conversationId, messageId = replyToId }
+                    }
+                    : new { id = replyToId, rev = replyToRev };
             }
 
             var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
@@ -736,6 +737,40 @@ namespace BSkyClone.Services
             };
         }
 
+        private MessageDto? MapReplyToDto(BlueskyMessageReply? reply, string fallbackConvoId, Dictionary<string, UserDto>? members)
+        {
+            var replyRef = reply?.Parent ?? reply?.Root ?? reply;
+            if (replyRef == null) return null;
+
+            var messageId = replyRef.MessageId ?? replyRef.Id;
+            if (string.IsNullOrEmpty(messageId)) return null;
+
+            var did = replyRef.Did ?? "";
+            UserDto? sender = null;
+            if (members != null && !string.IsNullOrEmpty(did))
+            {
+                members.TryGetValue(did, out sender);
+            }
+
+            return new MessageDto(
+                messageId,
+                replyRef.ConvoId ?? fallbackConvoId,
+                did,
+                "",
+                null,
+                DateTimeOffset.MinValue,
+                false,
+                false,
+                false,
+                sender,
+                null,
+                null,
+                null,
+                "message",
+                replyRef.Rev
+            );
+        }
+
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)
         {
             // Check if this is a system message
@@ -853,7 +888,7 @@ namespace BSkyClone.Services
                 false,
                 sender,
                 null, // LinkPreview handled by EnrichMessageAsync
-                msg.Reply != null ? new MessageDto(msg.Reply.Id, convoId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", msg.Reply.Rev) : null,
+                MapReplyToDto(msg.Reply, convoId, members),
                 msg.Reactions?.Select(r => new MessageReactionDto(
                     r.Sender?.Did ?? "", 
                     r.Emoji, 
@@ -980,7 +1015,7 @@ namespace BSkyClone.Services
             public JsonElement? Data { get; set; }
             
             [JsonPropertyName("reply")]
-            public BlueskyMessageRef? Reply { get; set; }
+            public BlueskyMessageReply? Reply { get; set; }
             
             [JsonPropertyName("embed")]
             public JsonElement? Embed { get; set; }
@@ -989,9 +1024,23 @@ namespace BSkyClone.Services
         private class BlueskyMessageRef
         {
             [JsonPropertyName("id")]
-            public string Id { get; set; } = string.Empty;
+            public string? Id { get; set; }
             [JsonPropertyName("rev")]
-            public string Rev { get; set; } = string.Empty;
+            public string? Rev { get; set; }
+            [JsonPropertyName("did")]
+            public string? Did { get; set; }
+            [JsonPropertyName("convoId")]
+            public string? ConvoId { get; set; }
+            [JsonPropertyName("messageId")]
+            public string? MessageId { get; set; }
+        }
+
+        private class BlueskyMessageReply : BlueskyMessageRef
+        {
+            [JsonPropertyName("root")]
+            public BlueskyMessageRef? Root { get; set; }
+            [JsonPropertyName("parent")]
+            public BlueskyMessageRef? Parent { get; set; }
         }
 
         private class BlueskyMessageReaction
