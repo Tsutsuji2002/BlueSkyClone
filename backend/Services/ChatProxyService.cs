@@ -158,12 +158,13 @@ namespace BSkyClone.Services
                             true,
                             false,
                             false,
-                            null,
-                            null,
-                            null,
-                            type,
-                            log.Rev,
-                            new Dictionary<string, string> { { "rev", log.Rev ?? "" } }
+                            null, // LinkPreview
+                            null, // LinkPreview
+                            null, // ReplyTo
+                            null, // Reactions
+                            type, // Type
+                            log.Rev, // Rev
+                            new Dictionary<string, string> { { "rev", log.Rev ?? "" } } // Metadata
                         );
                     }
                     return null;
