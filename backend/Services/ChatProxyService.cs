@@ -105,34 +105,11 @@ namespace BSkyClone.Services
             
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            // DEBUG: Log how many messages were deserialized
-            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
-
-            // NUCLEAR DEBUG: Log the first message's raw fields to see structure
-            if (data?.Messages != null && data.Messages.Count > 0)
-            {
-                var first = data.Messages[0];
-                _logger.LogInformation("GetMessagesAsync DEBUG: First message ID={Id}, hasReplyProp={HasReply}", 
-                    first.Id, first.Reply != null);
-                
-                // Log the raw serialized message to see the exact keys from ATProto
-                _logger.LogInformation("GetMessagesAsync RAW MESSAGE 0 JSON: {Json}", 
-                    JsonSerializer.Serialize(first));
-            }
-
-            
-            // Order by CreatedAt to ensure chronological order (oldest first)
-            if (data?.Messages != null)
-            {
-                var atReplies = data.Messages.Count(m => m.Reply != null);
-                _logger.LogInformation("GetMessagesAsync for {ConvoId}: ATProto raw reply property count: {Count}", conversationId, atReplies);
-            }
-
             var mapped = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
                 ?? Enumerable.Empty<MessageDto>();
             var messages = HydrateReplyMessages(mapped).ToList();
             
-            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages. Mapped Replies: {ReplyCount}", 
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages. Replies found: {ReplyCount}", 
                 conversationId, messages.Count, messages.Count(m => m.ReplyTo != null));
             
             // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
@@ -801,19 +778,12 @@ namespace BSkyClone.Services
         {
             if (reply == null) return null;
 
-            var replyRef = reply.Parent ?? reply.Root ?? (BlueskyMessageRef?)reply;
-            if (replyRef == null) 
-            {
-                _logger.LogDebug("MapReplyToDto: No reply reference found in reply object.");
-                return null;
-            }
-
+            // ATProto getMessages returns replyTo as a direct ref/view.
+            // In sendMessage, it might be nested in root/parent.
+            var replyRef = reply.Parent ?? reply.Root ?? (BlueskyMessageRef)reply;
+            
             var messageId = replyRef.MessageId ?? replyRef.Id;
-            if (string.IsNullOrEmpty(messageId)) 
-            {
-                _logger.LogDebug("MapReplyToDto: No message ID found in reply reference.");
-                return null;
-            }
+            if (string.IsNullOrEmpty(messageId)) return null;
             
             _logger.LogInformation("MapReplyToDto: Mapped reply to parent message {ParentId}", messageId);
 
@@ -960,7 +930,7 @@ namespace BSkyClone.Services
                 false,
                 sender,
                 null, // LinkPreview handled by EnrichMessageAsync
-                MapReplyToDto(msg.Reply, convoId, members),
+                MapReplyToDto(msg.ReplyTo ?? msg.Reply, convoId, members),
                 msg.Reactions?.Select(r => new MessageReactionDto(
                     r.Sender?.Did ?? "", 
                     r.Emoji, 
@@ -1088,6 +1058,9 @@ namespace BSkyClone.Services
             
             [JsonPropertyName("reply")]
             public BlueskyMessageReply? Reply { get; set; }
+            
+            [JsonPropertyName("replyTo")]
+            public BlueskyMessageReply? ReplyTo { get; set; }
             
             [JsonPropertyName("embed")]
             public JsonElement? Embed { get; set; }
