@@ -108,9 +108,12 @@ namespace BSkyClone.Services
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
             
             // Order by CreatedAt to ensure chronological order (oldest first)
-            var messages = HydrateReplyMessages(
-                data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
-                    ?? Enumerable.Empty<MessageDto>()).ToList();
+            var mapped = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
+                ?? Enumerable.Empty<MessageDto>();
+            var messages = HydrateReplyMessages(mapped).ToList();
+            
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages. Replies: {ReplyCount}", 
+                conversationId, messages.Count, messages.Count(m => m.ReplyTo != null));
             
             // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
             // Link previews were causing 21+ second delays when loading 50 messages
@@ -776,11 +779,23 @@ namespace BSkyClone.Services
 
         private MessageDto? MapReplyToDto(BlueskyMessageReply? reply, string fallbackConvoId, Dictionary<string, UserDto>? members)
         {
-            var replyRef = reply?.Parent ?? reply?.Root ?? (BlueskyMessageRef?)reply;
-            if (replyRef == null) return null;
+            if (reply == null) return null;
+
+            var replyRef = reply.Parent ?? reply.Root ?? (BlueskyMessageRef?)reply;
+            if (replyRef == null) 
+            {
+                _logger.LogDebug("MapReplyToDto: No reply reference found in reply object.");
+                return null;
+            }
 
             var messageId = replyRef.MessageId ?? replyRef.Id;
-            if (string.IsNullOrEmpty(messageId)) return null;
+            if (string.IsNullOrEmpty(messageId)) 
+            {
+                _logger.LogDebug("MapReplyToDto: No message ID found in reply reference.");
+                return null;
+            }
+            
+            _logger.LogInformation("MapReplyToDto: Mapped reply to parent message {ParentId}", messageId);
 
             var did = replyRef.Did ?? "";
             UserDto? sender = null;

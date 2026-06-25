@@ -340,27 +340,19 @@ const messagesSlice = createSlice({
         addMessage: (state, action: PayloadAction<{ message: any; currentUserId: string | null; currentUserDid?: string | null }>) => {
             const { message: rawMessage, currentUserId, currentUserDid } = action.payload;
             
-            // Defensive mapping: Handle both PascalCase (C#) and camelCase (JS)
-            const message: Message = {
-                id: rawMessage.id || rawMessage.Id,
-                conversationId: rawMessage.conversationId || rawMessage.ConversationId,
-                senderId: rawMessage.senderId || rawMessage.SenderId,
-                content: rawMessage.content !== undefined ? rawMessage.content : rawMessage.Content,
-                facets: rawMessage.facets || rawMessage.Facets,
-                imageUrl: rawMessage.imageUrl || rawMessage.ImageUrl,
-                createdAt: rawMessage.createdAt || rawMessage.CreatedAt,
-                isRead: rawMessage.isRead !== undefined ? rawMessage.isRead : rawMessage.IsRead,
-                isModified: rawMessage.isModified !== undefined ? rawMessage.isModified : rawMessage.IsModified,
-                isRecalled: rawMessage.isRecalled !== undefined ? rawMessage.isRecalled : rawMessage.IsRecalled,
-                sender: rawMessage.sender || rawMessage.Sender,
-                linkPreview: rawMessage.linkPreview || rawMessage.LinkPreview,
-                replyTo: rawMessage.replyTo || rawMessage.ReplyTo,
-                reactions: rawMessage.reactions || rawMessage.Reactions,
-                tid: rawMessage.tid || rawMessage.Tid,
-                type: rawMessage.type || rawMessage.Type,
-                rev: rawMessage.rev || rawMessage.Rev,
-                metadata: rawMessage.metadata || rawMessage.Metadata
-            };
+            const message = normalizeMessage(rawMessage);
+            
+            // Link optimistic reply to content if available in cache
+            if (message.replyTo && !message.replyTo.content) {
+                const cache = state.messagesByConversationId[message.conversationId];
+                if (cache) {
+                    const existing = cache.find(m => m.id === message.replyTo?.id);
+                    if (existing) {
+                        message.replyTo.content = existing.content;
+                        message.replyTo.sender = existing.sender;
+                    }
+                }
+            }
 
             // Update Cache
             if (!state.messagesByConversationId[message.conversationId]) {
@@ -523,8 +515,9 @@ const messagesSlice = createSlice({
             .addCase(fetchMessages.fulfilled, (state, action) => {
                 state.isMessagesLoading = false;
                 state.isLoadingMore = false;
-                const { messages, isLoadMore } = action.payload;
                 const conversationId = action.meta.arg.conversationId;
+                const messages = (action.payload.messages as any[]).map(normalizeMessage);
+                const isLoadMore = action.payload.isLoadMore;
 
                 let finalMessages: Message[] = [];
                 if (isLoadMore) {
@@ -579,7 +572,7 @@ const messagesSlice = createSlice({
                 if (logs && logs.length > 0) {
                     const currentMessages = state.messagesByConversationId[conversationId] || [];
                     const existingIds = new Set(currentMessages.map(m => m.id));
-                    const newMessages = logs.filter((m: Message) => !existingIds.has(m.id));
+                    const newMessages = logs.map(normalizeMessage).filter((m: Message) => !existingIds.has(m.id));
                     
                     if (newMessages.length > 0) {
                         const finalMessages = [...currentMessages, ...newMessages].sort((a, b) => 
@@ -610,5 +603,59 @@ const messagesSlice = createSlice({
     }
 });
 
-export const { setActiveConversation, addMessage, updateMessageInStore, removeMessageFromStore, clearMessages, replaceOptimisticMessage } = messagesSlice.actions;
+const normalizeMessage = (raw: any): Message => {
+    if (!raw) return raw;
+    
+    // DEBUG: Log if this raw object has ReplyTo or replyTo
+    if (raw.ReplyTo || raw.replyTo) {
+        console.log('[normalizeMessage] Mapping reply metadata:', {
+            id: raw.id || raw.Id,
+            hasReplyTo: !!raw.ReplyTo,
+            has_replyTo: !!raw.replyTo
+        });
+    }
+
+    const msg = {
+        id: raw.id || raw.Id,
+        conversationId: raw.conversationId || raw.ConversationId,
+        senderId: raw.senderId || raw.SenderId,
+        content: raw.content !== undefined ? raw.content : raw.Content,
+        facets: raw.facets || raw.Facets,
+        imageUrl: raw.imageUrl || raw.ImageUrl,
+        createdAt: raw.createdAt || raw.CreatedAt,
+        isRead: raw.isRead !== undefined ? raw.isRead : raw.IsRead,
+        isModified: raw.isModified !== undefined ? raw.isModified : raw.IsModified,
+        isRecalled: raw.isRecalled !== undefined ? raw.isRecalled : raw.IsRecalled,
+        sender: raw.sender || raw.Sender,
+        linkPreview: (raw.linkPreview || raw.LinkPreview) ? {
+            title: (raw.linkPreview || raw.LinkPreview).title || (raw.linkPreview || raw.LinkPreview).Title,
+            description: (raw.linkPreview || raw.LinkPreview).description || (raw.linkPreview || raw.LinkPreview).Description,
+            image: (raw.linkPreview || raw.LinkPreview).image || (raw.linkPreview || raw.LinkPreview).Image,
+            url: (raw.linkPreview || raw.LinkPreview).url || (raw.linkPreview || raw.LinkPreview).Url
+        } : undefined,
+        replyTo: (raw.replyTo || raw.ReplyTo) ? normalizeMessage(raw.replyTo || raw.ReplyTo) : undefined,
+        reactions: (raw.reactions || raw.Reactions)?.map((r: any) => ({
+            userId: r.userId || r.UserId,
+            emoji: r.emoji || r.Emoji,
+            displayName: r.displayName || r.DisplayName
+        })),
+        tid: raw.tid || raw.Tid,
+        type: raw.type || raw.Type,
+        rev: raw.rev || raw.Rev,
+        metadata: raw.metadata || raw.Metadata
+    } as Message;
+
+    // After normalization, ensure internal consistency for replies in cache
+    return msg;
+};
+
+export const { 
+    setActiveConversation, 
+    addMessage, 
+    updateMessageInStore, 
+    removeMessageFromStore, 
+    clearMessages, 
+    replaceOptimisticMessage 
+} = messagesSlice.actions;
+
 export default messagesSlice.reducer;
