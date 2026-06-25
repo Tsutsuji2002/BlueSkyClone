@@ -379,7 +379,7 @@ const messagesSlice = createSlice({
             const message = normalizeMessage(rawMessage);
             
             // Link optimistic reply to content if available in cache
-            if (message.replyTo && !message.replyTo.content) {
+            if (message.replyTo && (!message.replyTo.content || message.replyTo.content === '')) {
                 const cache = state.messagesByConversationId[message.conversationId];
                 if (cache) {
                     const existing = cache.find(m => m.id === message.replyTo?.id);

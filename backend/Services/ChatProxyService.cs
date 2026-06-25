@@ -198,7 +198,7 @@ namespace BSkyClone.Services
         {
             try
             {
-                var url = $"{ChatEndpoint}/chat.bsky.convo.getMessages?convoId={conversationId}&limit=10"; 
+                var url = $"{ChatEndpoint}/chat.bsky.convo.getMessages?convoId={conversationId}&limit=50"; 
                 
                 var response = await CallAsync(token, url, "GET");
                 if (response.IsSuccessStatusCode)
@@ -208,7 +208,10 @@ namespace BSkyClone.Services
                     var match = data?.Messages.FirstOrDefault(m => m.Id == messageId);
                     if (match != null)
                     {
-                        return MapToMessageDto(match, conversationId);
+                        // Try to get members for better mapping
+                        var conversation = await GetConversationAsync(token, conversationId);
+                        var members = conversation?.Participants?.ToDictionary(m => m.Did ?? "", m => m) ?? new Dictionary<string, UserDto>();
+                        return MapToMessageDto(match, conversationId, members);
                     }
                 }
             }
@@ -239,20 +242,30 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) throw new Exception($"Failed to send message: {response.StatusCode} - {json}");
 
             var messageData = JsonSerializer.Deserialize<BlueskyMessage>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            var sentMessage = MapToMessageDto(messageData!, conversationId);
+            
+            // Get members to ensure correct sender resolution in the sent message and parent
+            var conversation = await GetConversationAsync(token, conversationId);
+            var members = conversation?.Participants?.ToDictionary(m => m.Did ?? "", m => m) ?? new Dictionary<string, UserDto>();
+            
+            var sentMessage = MapToMessageDto(messageData!, conversationId, members);
 
             _logger.LogInformation("[SendMessageAsync] Sent Message DTO - Id: {Id}, ReplyTo Present: {ReplyToPresent}", sentMessage.Id, sentMessage.ReplyTo != null);
 
             if (!string.IsNullOrEmpty(replyToId))
             {
-                var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
-                if (parent != null)
+                // Even if MapToMessageDto produced a ReplyTo, we try to get a fully hydrated one
+                if (sentMessage.ReplyTo == null || string.IsNullOrEmpty(sentMessage.ReplyTo.Content))
                 {
-                    sentMessage = sentMessage with { ReplyTo = parent };
-                }
-                else
-                {
-                    sentMessage = sentMessage with { ReplyTo = new MessageDto(replyToId, conversationId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", replyToRev) };
+                    var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
+                    if (parent != null)
+                    {
+                        sentMessage = sentMessage with { ReplyTo = parent };
+                    }
+                    else if (sentMessage.ReplyTo == null)
+                    {
+                        // Fallback placeholder if parent not found in latest fetch
+                        sentMessage = sentMessage with { ReplyTo = new MessageDto(replyToId, conversationId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", replyToRev) };
+                    }
                 }
             }
 
