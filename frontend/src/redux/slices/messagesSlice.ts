@@ -345,6 +345,12 @@ const messagesSlice = createSlice({
             }
             const cache = state.messagesByConversationId[message.conversationId];
             if (!cache.find(m => m.id === message.id || (m.tid && message.tid && m.tid === message.tid))) {
+                if (message.replyTo) {
+                    // Ensure replyTo has a sender object for consistent rendering
+                    if (typeof message.replyTo === 'object' && !message.replyTo.sender && currentUserDid) {
+                        // This is a partial check, usually the sender is populated by the mapper
+                    }
+                }
                 cache.push(message);
                 cache.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
             }

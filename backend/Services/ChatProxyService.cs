@@ -227,20 +227,12 @@ namespace BSkyClone.Services
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
             
-            object? reply = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
-                var recentMessages = await GetMessagesAsync(token, conversationId, 50);
-                var parent = recentMessages.FirstOrDefault(m => m.Id == replyToId);
-                var parentDid = parent?.Sender?.Did ?? parent?.SenderId;
-
-                reply = !string.IsNullOrEmpty(parentDid)
-                    ? new
-                    {
-                        root = new { did = parentDid, convoId = conversationId, messageId = replyToId },
-                        parent = new { did = parentDid, convoId = conversationId, messageId = replyToId }
-                    }
-                    : new { id = replyToId, rev = replyToRev };
+                // [OPTIMIZATION] Instead of fetching 50 messages, we use the provided replyToId/rev
+                // The AT Protocol expects either a specific ref object or just the ID/rev.
+                // We'll construct a standard ref object.
+                reply = new { id = replyToId, rev = replyToRev };
             }
 
             var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
@@ -254,12 +246,9 @@ namespace BSkyClone.Services
 
             if (!string.IsNullOrEmpty(replyToId))
             {
-                var recentMessages = await GetMessagesAsync(token, conversationId, 50);
-                var replyTo = recentMessages.FirstOrDefault(m => m.Id == replyToId);
-                if (replyTo != null)
-                {
-                    sentMessage = sentMessage with { ReplyTo = ToReplyPreview(replyTo) };
-                }
+                // We don't fetch recent messages here to save performance. 
+                // The UI will handle the reply link by using the ID.
+                sentMessage = sentMessage with { ReplyTo = new MessageDto(replyToId, conversationId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", replyToRev) };
             }
 
             return sentMessage;
@@ -756,7 +745,7 @@ namespace BSkyClone.Services
                 messageId,
                 replyRef.ConvoId ?? fallbackConvoId,
                 did,
-                "",
+                replyRef.Text ?? "", // Extract text from the ref if available
                 null,
                 DateTimeOffset.MinValue,
                 false,
@@ -1033,6 +1022,8 @@ namespace BSkyClone.Services
             public string? ConvoId { get; set; }
             [JsonPropertyName("messageId")]
             public string? MessageId { get; set; }
+            [JsonPropertyName("text")]
+            public string? Text { get; set; }
         }
 
         private class BlueskyMessageReply : BlueskyMessageRef
