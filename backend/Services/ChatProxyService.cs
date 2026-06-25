@@ -90,12 +90,16 @@ namespace BSkyClone.Services
             
             var mapped = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
                 ?? Enumerable.Empty<MessageDto>();
-            var messages = HydrateReplyMessages(mapped).ToList();
             
-            // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
-            // Link previews were causing 21+ second delays when loading 50 messages
-            
-            return messages;
+            // Enrich with replies and previews in parallel
+            var enrichmentTasks = mapped.Select(m => EnrichMessageAsync(m, token, conversationId));
+            return await Task.WhenAll(enrichmentTasks);
+        }
+
+        private async Task<Dictionary<string, UserDto>> GetConversationMembersAsync(string token, string conversationId)
+        {
+            var conversation = await GetConversationAsync(token, conversationId);
+            return conversation?.Participants?.ToDictionary(m => m.Did ?? "", m => m) ?? new Dictionary<string, UserDto>();
         }
 
         public async Task<IEnumerable<MessageDto>> GetLogAsync(string token, string? cursor)
@@ -117,7 +121,9 @@ namespace BSkyClone.Services
                 {
                     if (log.Type == "chat.bsky.convo.defs#logCreateMessage" && log.Message != null)
                     {
-                        return await EnrichMessageAsync(MapToMessageDto(log.Message!, log.ConvoId ?? ""));
+                        var members = await GetConversationMembersAsync(token, log.ConvoId ?? "");
+                        var msg = MapToMessageDto(log.Message!, log.ConvoId ?? "", members);
+                        return await EnrichMessageAsync(msg, token, log.ConvoId ?? "");
                     }
                     
                     // Handle other log types as system events
@@ -152,8 +158,19 @@ namespace BSkyClone.Services
             return results.Where(m => m != null).Cast<MessageDto>().OrderBy(m => m.CreatedAt);
         }
 
-        private async Task<MessageDto> EnrichMessageAsync(MessageDto dto)
+        private async Task<MessageDto> EnrichMessageAsync(MessageDto dto, string token, string conversationId)
         {
+            // 1. Hydrate Replies recursively if needed
+            if (dto.ReplyTo != null && (string.IsNullOrEmpty(dto.ReplyTo.Content) || dto.ReplyTo.Sender == null))
+            {
+                var parent = await GetMessageByIdAsync(token, conversationId, dto.ReplyTo.Id);
+                if (parent != null)
+                {
+                    dto = dto with { ReplyTo = ToReplyPreview(parent) };
+                }
+            }
+
+            // 2. Link Preview enrichment
             // Skip enrichment for messages without content or that already have previews
             if (string.IsNullOrEmpty(dto.Content) || dto.LinkPreview != null) return dto;
 
@@ -690,23 +707,6 @@ namespace BSkyClone.Services
             );
         }
 
-        private IEnumerable<MessageDto> HydrateReplyMessages(IEnumerable<MessageDto> messages)
-        {
-            var list = messages.ToList();
-            var byId = list.ToDictionary(m => m.Id, m => m);
-
-            return list.Select(message =>
-            {
-                if (message.ReplyTo != null)
-                {
-                    if (byId.TryGetValue(message.ReplyTo.Id, out var repliedMessage))
-                    {
-                        return message with { ReplyTo = ToReplyPreview(repliedMessage) };
-                    }
-                }
-
-                return message;
-            });
         }
 
         private MessageDto ToReplyPreview(MessageDto message)
