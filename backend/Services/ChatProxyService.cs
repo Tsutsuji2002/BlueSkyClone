@@ -66,20 +66,9 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync();
-            
-            // DEBUG: Log the raw JSON to see what AT Protocol is actually returning
-            _logger.LogInformation("GetConversationAsync RAW JSON for {ConvoId}: {Json}", conversationId, json);
-            
             var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             var dto = data != null ? MapToConversationDto(data.Convo) : null;
-            
-            // DEBUG: Log the lockStatus and mapped Locked value
-            if (dto != null)
-            {
-                _logger.LogInformation("GetConversationAsync - ConvoId: {ConvoId}, LockStatus from AT: '{LockStatus}', Mapped Locked: {Locked}", 
-                    conversationId, data?.Convo?.Kind?.LockStatus ?? "null", dto.Locked);
-            }
             
             return dto;
         }
@@ -97,34 +86,14 @@ namespace BSkyClone.Services
             if (!response.IsSuccessStatusCode) return Enumerable.Empty<MessageDto>();
 
             var json = await response.Content.ReadAsStringAsync();
-            
-            // DEBUG: Log a sample of raw JSON with focus on text field
-            // DEBUG: Log a sample of raw JSON with focus on text field
-            var jsonSample = json.Length > 2000 ? json.Substring(0, 2000) + "..." : json;
-            _logger.LogInformation("GetMessagesAsync RAW JSON sample for {ConvoId}: {Json}", conversationId, jsonSample);
-            
             var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
             var mapped = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
                 ?? Enumerable.Empty<MessageDto>();
             var messages = HydrateReplyMessages(mapped).ToList();
             
-            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages. Replies found: {ReplyCount}", 
-                conversationId, messages.Count, messages.Count(m => m.ReplyTo != null));
-            
             // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
             // Link previews were causing 21+ second delays when loading 50 messages
-            // TODO: Implement lazy/on-demand link preview loading in frontend or via separate endpoint
-            // var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
-            // var enriched = await Task.WhenAll(enrichmentTasks);
-            
-            // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
-            // Link previews were causing 21+ second delays when loading 50 messages
-            // TODO: Implement lazy/on-demand link preview loading in frontend or via separate endpoint
-            // var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
-            // var enriched = await Task.WhenAll(enrichmentTasks);
-            
-            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages", conversationId, messages.Count());
             
             return messages;
         }
@@ -216,10 +185,6 @@ namespace BSkyClone.Services
                         }};
                     }
                 }
-                else
-                {
-                    _logger.LogDebug("Link preview timeout for message {Id}", dto.Id);
-                }
             }
             catch (Exception ex)
             {
@@ -233,11 +198,7 @@ namespace BSkyClone.Services
         {
             try
             {
-                // AT Protocol getMessages uses cursor for pagination.
-                // We'll try to fetch a single message by setting the cursor to the ID we want.
-                // Note: Lexicon says 'cursor' is a pagination string. In some implementations it can be a message ID.
-                // If not, we'll have to fetch the latest batch and search (worst case).
-                var url = $"{ChatEndpoint}/chat.bsky.convo.getMessages?convoId={conversationId}&limit=10"; // Fetch small batch
+                var url = $"{ChatEndpoint}/chat.bsky.convo.getMessages?convoId={conversationId}&limit=10"; 
                 
                 var response = await CallAsync(token, url, "GET");
                 if (response.IsSuccessStatusCode)
@@ -266,9 +227,6 @@ namespace BSkyClone.Services
             object? reply = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
-                // [OPTIMIZATION] Instead of fetching 50 messages, we use the provided replyToId/rev
-                // The AT Protocol expects either a specific ref object or just the ID/rev.
-                // We'll construct a standard ref object.
                 reply = new { id = replyToId, rev = replyToRev };
             }
 
@@ -283,8 +241,6 @@ namespace BSkyClone.Services
 
             if (!string.IsNullOrEmpty(replyToId))
             {
-                // Hydrate the reply metadata before returning
-                // We'll try to find the sent message in recent ones or just populate the basics
                 var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
                 if (parent != null)
                 {
@@ -310,7 +266,6 @@ namespace BSkyClone.Services
 
         public async Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members)
         {
-            // chat.bsky.convo.getConvoForMembers is an XRPC query (GET)
             var queryString = string.Join("&", members.Select(m => $"members={Uri.EscapeDataString(m)}"));
             var url = $"{ChatEndpoint}/chat.bsky.convo.getConvoForMembers?{queryString}";
             
@@ -422,7 +377,6 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
             var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             var data = wrapper?.JoinLink;
 
@@ -442,7 +396,6 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
             var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             var data = wrapper?.JoinLink;
 
@@ -462,7 +415,6 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
             var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             var data = wrapper?.JoinLink;
 
@@ -482,7 +434,6 @@ namespace BSkyClone.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("InviteLink Proxy Response: {Json}", json);
             var wrapper = JsonSerializer.Deserialize<BlueskyJoinLinkWrapper>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             var data = wrapper?.JoinLink;
 
@@ -559,7 +510,6 @@ namespace BSkyClone.Services
             {
                 try
                 {
-                    _logger.LogInformation("Attempting direct repo getRecord for chat settings ({Did})", did);
                     var queryParams = new List<KeyValuePair<string, string?>>
                     {
                         new("repo", did),
@@ -576,10 +526,8 @@ namespace BSkyClone.Services
                         var allowIncoming = value.TryGetProperty("allowIncoming", out var ai) ? ai.GetString() : "following";
                         var allowGroupInvites = value.TryGetProperty("allowGroupInvites", out var agi) ? agi.GetString() : null;
                         
-                        _logger.LogInformation("Fetched settings via getRecord: Incoming={Incoming}, Group={Group}", allowIncoming, allowGroupInvites);
                         return new ChatSettingsDto(allowIncoming ?? "following", allowGroupInvites);
                     }
-                    _logger.LogWarning("Direct repo getRecord failed: {Status} - {Content}", repoResponse.StatusCode, repoResponse.Content);
                 }
                 catch (Exception ex)
                 {
@@ -595,8 +543,6 @@ namespace BSkyClone.Services
                 
                 if (!response.IsSuccessStatusCode)
                 {
-                    var errorBody = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("GetChatDeclaration failed: {Status} - {Error}", response.StatusCode, errorBody);
                     return new ChatSettingsDto("following");
                 }
 
@@ -624,8 +570,6 @@ namespace BSkyClone.Services
             // Strategy 1: Direct repo update (putRecord) - This is what official BlueSky uses
             try
             {
-                _logger.LogInformation("Attempting direct repo putRecord for chat settings ({Did})", did);
-                
                 var record = new Dictionary<string, object>
                 {
                     { "$type", "chat.bsky.actor.declaration" },
@@ -638,7 +582,6 @@ namespace BSkyClone.Services
                 }
                 else
                 {
-                    // If null, default to 'following' as per convention if we must send a value
                     record.Add("allowGroupInvites", "following");
                 }
 
@@ -653,10 +596,8 @@ namespace BSkyClone.Services
                 var repoResponse = await _xrpcProxy.ProxyRequestAsync(did, "com.atproto.repo.putRecord", new Dictionary<string, string?>(), token, "POST", putRecordBody);
                 if (repoResponse.Success)
                 {
-                    _logger.LogInformation("Direct repo putRecord succeeded");
                     return (true, null);
                 }
-                _logger.LogWarning("Direct repo putRecord failed: {Status} - {Content}", repoResponse.StatusCode, repoResponse.Content);
             }
             catch (Exception ex)
             {
@@ -667,23 +608,19 @@ namespace BSkyClone.Services
             try
             {
                 var url = $"{ChatEndpoint}/chat.bsky.actor.updateDeclaration";
-                _logger.LogInformation("Attempting fallback UpdateChatDeclaration via ChatEndpoint for {Did}", did);
                 var response = await CallAsync(token, url, "POST", body);
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("UpdateChatDeclaration succeeded via ChatEndpoint");
                     return (true, null);
                 }
                 
                 var content = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("UpdateChatDeclaration failed via ChatEndpoint: {Status} - {Content}", response.StatusCode, content);
                 
                 if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && !content.Contains("MethodNotImplemented"))
                 {
                     if (allowGroupInvites != null && (content.Contains("allowGroupInvites") || content.Contains("extra property")))
                     {
-                        _logger.LogInformation("Retrying UpdateChatDeclaration without allowGroupInvites via ChatEndpoint");
                         var retryBody = new { allowIncoming };
                         var retryResponse = await CallAsync(token, url, "POST", retryBody);
                         if (retryResponse.IsSuccessStatusCode) return (true, null);
@@ -698,11 +635,9 @@ namespace BSkyClone.Services
             // Strategy 3: Attempt via PDS proxy procedure (Last resort)
             try
             {
-                _logger.LogInformation("Attempting UpdateChatDeclaration via PDS Proxy for {Did}", did);
                 var proxyResponse = await _xrpcProxy.ProxyRequestAsync(did, "chat.bsky.actor.updateDeclaration", new Dictionary<string, string?>(), token, "POST", body);
                 if (proxyResponse.Success)
                 {
-                    _logger.LogInformation("UpdateChatDeclaration succeeded via PDS Proxy");
                     return (true, null);
                 }
                 return (false, $"Settings update failed: {proxyResponse.Content}");
@@ -714,11 +649,8 @@ namespace BSkyClone.Services
             }
         }
 
-
-
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {
-            // Create members dictionary for enriching last message sender
             var membersDict = convo.Members.ToDictionary(m => m.Did, m => new UserDto(
                 Guid.Empty, m.Handle, m.Handle, string.Empty, 
                 string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, 
@@ -726,10 +658,6 @@ namespace BSkyClone.Services
             ));
 
             var isLocked = convo.Kind?.LockStatus == "locked";
-            
-            // DEBUG: Log the lockStatus conversion
-            _logger.LogInformation("MapToConversationDto - ConvoId: {ConvoId}, LockStatus: '{LockStatus}', Converted to Locked: {Locked}", 
-                convo.Id, convo.Kind?.LockStatus ?? "null", isLocked);
 
             return new ConversationDto(
                 convo.Id,
@@ -738,10 +666,10 @@ namespace BSkyClone.Services
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
                 true, // IsAccepted
-                convo.Kind?.Name, // GroupName from Bluesky API - read from Kind.Name as per AT Protocol structure
-                convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null, // Read from Kind.JoinLink as per AT Protocol structure
-                convo.Muted, // Muted status from Bluesky API
-                isLocked // Locked status from Bluesky API - lockStatus is inside Kind object
+                convo.Kind?.Name, // GroupName from Bluesky API
+                convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null,
+                convo.Muted, 
+                isLocked
             );
         }
 
@@ -778,14 +706,10 @@ namespace BSkyClone.Services
         {
             if (reply == null) return null;
 
-            // ATProto getMessages returns replyTo as a direct ref/view.
-            // In sendMessage, it might be nested in root/parent.
             var replyRef = reply.Parent ?? reply.Root ?? (BlueskyMessageRef)reply;
             
             var messageId = replyRef.MessageId ?? replyRef.Id;
             if (string.IsNullOrEmpty(messageId)) return null;
-            
-            _logger.LogInformation("MapReplyToDto: Mapped reply to parent message {ParentId}", messageId);
 
             var did = replyRef.Did ?? "";
             UserDto? sender = null;
@@ -798,7 +722,7 @@ namespace BSkyClone.Services
                 messageId,
                 replyRef.ConvoId ?? fallbackConvoId,
                 did,
-                replyRef.Text ?? "", // Extract text from the ref if available
+                replyRef.Text ?? "", 
                 null,
                 DateTimeOffset.MinValue,
                 false,
@@ -815,7 +739,6 @@ namespace BSkyClone.Services
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)
         {
-            // Check if this is a system message
             var isSystemMessage = msg.Type != null && msg.Type.Contains("systemMessageView");
             
             string messageType = "message";
@@ -823,7 +746,6 @@ namespace BSkyClone.Services
             
             if (isSystemMessage && msg.Data != null)
             {
-                // Extract system message type from data.$type
                 var dataType = msg.Data.Value.TryGetProperty("$type", out var typeElement) 
                     ? typeElement.GetString() 
                     : "";
@@ -866,7 +788,6 @@ namespace BSkyClone.Services
                 }
             }
             
-            // Try to get full sender data from conversation members if available
             UserDto? sender = null;
             if (members != null && msg.Sender != null && members.TryGetValue(msg.Sender.Did ?? "", out var memberData))
             {
@@ -874,34 +795,9 @@ namespace BSkyClone.Services
             }
             else if (msg.Sender != null)
             {
-                // Fallback to whatever data we have from the message
                 sender = MapToUserDto(msg.Sender);
             }
-            else if (!string.IsNullOrEmpty(msg.Sender?.Did)) // Safety check if msg.Sender is somehow not null but Did exists
-            {
-                sender = new UserDto(
-                    Guid.Empty,
-                    "",
-                    "",
-                    "",
-                    "",
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    "user",
-                    null,
-                    false,
-                    msg.Sender.Did
-                );
-            }
 
-            // Extract Image URL from embed if present
             string? imageUrl = null;
             if (msg.Embed != null && msg.Embed.Value.ValueKind == JsonValueKind.Object)
             {
@@ -929,7 +825,7 @@ namespace BSkyClone.Services
                 false,
                 false,
                 sender,
-                null, // LinkPreview handled by EnrichMessageAsync
+                null,
                 MapReplyToDto(msg.ReplyTo ?? msg.Reply, convoId, members),
                 msg.Reactions?.Select(r => new MessageReactionDto(
                     r.Sender?.Did ?? "", 
@@ -946,7 +842,6 @@ namespace BSkyClone.Services
             if (link == null) return null!;
 
             var code = link.Code ?? "";
-            // Construct full link URL from code if missing
             var linkUrl = link.Link;
             if (string.IsNullOrEmpty(linkUrl) && !string.IsNullOrEmpty(code))
             {
@@ -954,7 +849,7 @@ namespace BSkyClone.Services
             }
 
             return new JoinLinkDto(
-                code, // Use code as ID
+                code, 
                 link.ConvoId ?? "",
                 link.JoinRule ?? "anyone",
                 link.RequireApproval,
@@ -988,7 +883,6 @@ namespace BSkyClone.Services
             );
         }
 
-        // Inner classes for Bluesky API responses
         private class BlueskyConvoListResponse { public List<BlueskyConvo> Convos { get; set; } = new(); public string? Cursor { get; set; } }
         private class BlueskyConvoResponse { public BlueskyConvo Convo { get; set; } = new(); }
         private class BlueskyMessageListResponse { public List<BlueskyMessage> Messages { get; set; } = new(); public string? Cursor { get; set; } }
@@ -1147,4 +1041,3 @@ namespace BSkyClone.Services
         }
     }
 }
-

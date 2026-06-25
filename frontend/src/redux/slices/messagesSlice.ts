@@ -40,9 +40,6 @@ const initialState: MessagesState = {
 // Must be defined BEFORE the slice so reducers can reference it without TDZ.
 function normalizeMessage(raw: any): Message {
     if (!raw) return raw;
-    if (raw.ReplyTo || raw.replyTo) {
-        console.log('[normalizeMessage] reply metadata found:', { id: raw.id || raw.Id, hasReplyTo: !!(raw.ReplyTo || raw.replyTo) });
-    }
     return {
         id: raw.id || raw.Id,
         conversationId: raw.conversationId || raw.ConversationId,

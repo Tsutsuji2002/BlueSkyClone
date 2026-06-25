@@ -248,7 +248,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
     const getResolvedReplyTo = (msg: Message) => {
         if (!msg.replyTo) return null;
-        console.log(`[REPLY-DEBUG] Message ${msg.id} HAS replyTo metadata:`, msg.replyTo);
+        // Optimized: Link to cached message if available, otherwise use provided metadata
         const resolved = activeConversationMessages.find((candidate: Message) => candidate.id === msg.replyTo?.id) || msg.replyTo;
         return resolved;
     };
