@@ -220,7 +220,7 @@ namespace BSkyClone.Services
             return null;
         }
 
-        public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null, string? replyToRev = null)
+        public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null, string? replyToRev = null, string? imageUrl = null, LinkPreviewDto? linkPreview = null)
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
             
@@ -233,11 +233,15 @@ namespace BSkyClone.Services
             var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
             
             var response = await CallAsync(token, url, "POST", body);
-            if (!response.IsSuccessStatusCode) throw new Exception($"Failed to send message: {response.StatusCode}");
-
             var json = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("[SendMessageAsync] Raw Response: {Json}", json);
+            
+            if (!response.IsSuccessStatusCode) throw new Exception($"Failed to send message: {response.StatusCode} - {json}");
+
             var messageData = JsonSerializer.Deserialize<BlueskyMessage>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             var sentMessage = MapToMessageDto(messageData!, conversationId);
+
+            _logger.LogInformation("[SendMessageAsync] Sent Message DTO - Id: {Id}, ReplyTo Present: {ReplyToPresent}", sentMessage.Id, sentMessage.ReplyTo != null);
 
             if (!string.IsNullOrEmpty(replyToId))
             {

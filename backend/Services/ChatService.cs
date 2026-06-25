@@ -380,7 +380,7 @@ public class ChatService : IChatService
             var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
         if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
         {
-            return await _chatProxy.SendMessageAsync(token, conversationId, content ?? "", replyToId, replyToRev);
+            return await _chatProxy.SendMessageAsync(token, conversationId, content ?? "", replyToId, replyToRev, imageUrl, linkPreviewDto);
         }
 
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
