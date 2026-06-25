@@ -496,6 +496,8 @@ export const fetchFeedPostsStreaming = (
     onComplete: (nextCursor: string | null) => void,
     onError: (err: any) => void
 ) => async (dispatch: any) => {
+    console.log(`[feedsSlice] Starting stream for ${feedId}, skip: ${skip}, take: ${take}`);
+    
     // Mark as loading at the start
     dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: true } });
     
@@ -516,6 +518,7 @@ export const fetchFeedPostsStreaming = (
 
         const decoder = new TextDecoder();
         let buffer = '';
+        let postCount = 0;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -535,14 +538,23 @@ export const fetchFeedPostsStreaming = (
                     // Use plain action object to avoid feedsSlice forward-reference issue
                     dispatch({ type: 'feeds/appendStreamedPost', payload: { feedId, post: mapped } });
                     dispatch(seedInteractionTruth([mapped]));
+                    postCount++;
                 } catch (e) {
                     console.warn('[feedsSlice] Feed stream parse error:', e);
                 }
             }
         }
         
+        console.log(`[feedsSlice] Stream completed for ${feedId}, received ${postCount} posts`);
+        
         // Mark as not loading on success
         dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: false } });
+        
+        // If we got fewer posts than requested, we've reached the end
+        if (postCount < take) {
+            dispatch({ type: 'feeds/setFeedHasMore', payload: { feedId, hasMore: false } });
+        }
+        
         onComplete(null);
     } catch (e: any) {
         console.error('[feedsSlice] fetchFeedPostsStreaming failed:', e);

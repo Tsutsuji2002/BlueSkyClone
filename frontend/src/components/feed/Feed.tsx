@@ -130,7 +130,7 @@ const Feed: React.FC<FeedProps> = ({
         });
     };
 
-    // Reset fetching ref when loading stops
+    // Reset fetching ref when loading stops OR when posts length increases
     useEffect(() => {
         if (!isLoading) {
             isFetchingRef.current = false;
@@ -138,16 +138,54 @@ const Feed: React.FC<FeedProps> = ({
         }
     }, [isLoading]);
 
+    // Additional safety: reset fetching ref when new posts arrive
+    const postsLengthRef = useRef(localPosts.length);
+    useEffect(() => {
+        if (localPosts.length > postsLengthRef.current) {
+            // New posts arrived, allow next load
+            isFetchingRef.current = false;
+            setIsLoadingMore(false);
+        }
+        postsLengthRef.current = localPosts.length;
+    }, [localPosts.length]);
+
+    // Safety timeout: if loading takes more than 30 seconds, reset
+    useEffect(() => {
+        if (isLoadingMore) {
+            const timeout = setTimeout(() => {
+                console.warn('[Feed] Load more timeout - resetting loading state');
+                isFetchingRef.current = false;
+                setIsLoadingMore(false);
+            }, 30000); // 30 seconds timeout
+            
+            return () => clearTimeout(timeout);
+        }
+    }, [isLoadingMore]);
+
     // Debounced load more handler — ensures we can't fire faster than once per 800ms
     const debouncedLoadMore = useCallback(() => {
-        if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) return;
+        if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) {
+            console.log('[Feed] Load more blocked:', { 
+                hasOnLoadMore: !!onLoadMore, 
+                hasMore, 
+                isLoading, 
+                isFetching: isFetchingRef.current 
+            });
+            return;
+        }
         const now = Date.now();
-        if (now - lastLoadMoreRef.current < 800) return; // min 800ms between loads
+        const timeSinceLastLoad = now - lastLoadMoreRef.current;
+        if (timeSinceLastLoad < 800) {
+            console.log('[Feed] Load more debounced, wait:', 800 - timeSinceLastLoad, 'ms');
+            return;
+        }
+        
+        console.log('[Feed] Loading more posts...', { feedId, currentCount: localPosts.length });
         lastLoadMoreRef.current = now;
         isFetchingRef.current = true;
         setIsLoadingMore(true);
         onLoadMore();
-    }, [onLoadMore, hasMore, isLoading]);
+    }, [onLoadMore, hasMore, isLoading, feedId, localPosts.length]);
 
     if (isLoading && localPosts.length === 0) {
         return <PostFeedSkeleton count={5} />;
