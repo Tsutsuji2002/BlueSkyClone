@@ -248,15 +248,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
 
     const getResolvedReplyTo = (msg: Message) => {
         if (!msg.replyTo) return null;
+        console.log(`[REPLY-DEBUG] Message ${msg.id} HAS replyTo metadata:`, msg.replyTo);
         const resolved = activeConversationMessages.find((candidate: Message) => candidate.id === msg.replyTo?.id) || msg.replyTo;
-        if (msg.replyTo && !resolved.content && msg.content?.includes('reply')) {
-            console.log('[ChatDebug] Reply resolution:', { 
-                msgId: msg.id, 
-                replyToId: msg.replyTo.id, 
-                found: !!activeConversationMessages.find(m => m.id === msg.replyTo?.id),
-                resolvedContent: resolved.content
-            });
-        }
         return resolved;
     };
 

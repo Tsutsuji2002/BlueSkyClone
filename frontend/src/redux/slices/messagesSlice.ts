@@ -36,6 +36,45 @@ const initialState: MessagesState = {
     hasMoreByConversationId: {},
 };
 
+// ─── Message Normalizer ────────────────────────────────────────────────────
+// Must be defined BEFORE the slice so reducers can reference it without TDZ.
+function normalizeMessage(raw: any): Message {
+    if (!raw) return raw;
+    if (raw.ReplyTo || raw.replyTo) {
+        console.log('[normalizeMessage] reply metadata found:', { id: raw.id || raw.Id, hasReplyTo: !!(raw.ReplyTo || raw.replyTo) });
+    }
+    return {
+        id: raw.id || raw.Id,
+        conversationId: raw.conversationId || raw.ConversationId,
+        senderId: raw.senderId || raw.SenderId,
+        content: raw.content !== undefined ? raw.content : raw.Content,
+        facets: raw.facets || raw.Facets,
+        imageUrl: raw.imageUrl || raw.ImageUrl,
+        createdAt: raw.createdAt || raw.CreatedAt,
+        isRead: raw.isRead !== undefined ? raw.isRead : raw.IsRead,
+        isModified: raw.isModified !== undefined ? raw.isModified : raw.IsModified,
+        isRecalled: raw.isRecalled !== undefined ? raw.isRecalled : raw.IsRecalled,
+        sender: raw.sender || raw.Sender,
+        linkPreview: (raw.linkPreview || raw.LinkPreview) ? {
+            title: (raw.linkPreview || raw.LinkPreview).title || (raw.linkPreview || raw.LinkPreview).Title,
+            description: (raw.linkPreview || raw.LinkPreview).description || (raw.linkPreview || raw.LinkPreview).Description,
+            image: (raw.linkPreview || raw.LinkPreview).image || (raw.linkPreview || raw.LinkPreview).Image,
+            url: (raw.linkPreview || raw.LinkPreview).url || (raw.linkPreview || raw.LinkPreview).Url
+        } : undefined,
+        replyTo: (raw.replyTo || raw.ReplyTo) ? normalizeMessage(raw.replyTo || raw.ReplyTo) : undefined,
+        reactions: (raw.reactions || raw.Reactions)?.map((r: any) => ({
+            userId: r.userId || r.UserId,
+            emoji: r.emoji || r.Emoji,
+            displayName: r.displayName || r.DisplayName
+        })),
+        tid: raw.tid || raw.Tid,
+        type: raw.type || raw.Type,
+        rev: raw.rev || raw.Rev,
+        metadata: raw.metadata || raw.Metadata
+    } as Message;
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export const fetchConversations = createAsyncThunk(
     'messages/fetchConversations',
     async ({ limit = 50, cursor, isRequest }: { limit?: number; cursor?: string | null; isRequest?: boolean } | undefined = {}, { rejectWithValue }) => {
@@ -603,51 +642,6 @@ const messagesSlice = createSlice({
     }
 });
 
-const normalizeMessage = (raw: any): Message => {
-    if (!raw) return raw;
-    
-    // DEBUG: Log if this raw object has ReplyTo or replyTo
-    if (raw.ReplyTo || raw.replyTo) {
-        console.log('[normalizeMessage] Mapping reply metadata:', {
-            id: raw.id || raw.Id,
-            hasReplyTo: !!raw.ReplyTo,
-            has_replyTo: !!raw.replyTo
-        });
-    }
-
-    const msg = {
-        id: raw.id || raw.Id,
-        conversationId: raw.conversationId || raw.ConversationId,
-        senderId: raw.senderId || raw.SenderId,
-        content: raw.content !== undefined ? raw.content : raw.Content,
-        facets: raw.facets || raw.Facets,
-        imageUrl: raw.imageUrl || raw.ImageUrl,
-        createdAt: raw.createdAt || raw.CreatedAt,
-        isRead: raw.isRead !== undefined ? raw.isRead : raw.IsRead,
-        isModified: raw.isModified !== undefined ? raw.isModified : raw.IsModified,
-        isRecalled: raw.isRecalled !== undefined ? raw.isRecalled : raw.IsRecalled,
-        sender: raw.sender || raw.Sender,
-        linkPreview: (raw.linkPreview || raw.LinkPreview) ? {
-            title: (raw.linkPreview || raw.LinkPreview).title || (raw.linkPreview || raw.LinkPreview).Title,
-            description: (raw.linkPreview || raw.LinkPreview).description || (raw.linkPreview || raw.LinkPreview).Description,
-            image: (raw.linkPreview || raw.LinkPreview).image || (raw.linkPreview || raw.LinkPreview).Image,
-            url: (raw.linkPreview || raw.LinkPreview).url || (raw.linkPreview || raw.LinkPreview).Url
-        } : undefined,
-        replyTo: (raw.replyTo || raw.ReplyTo) ? normalizeMessage(raw.replyTo || raw.ReplyTo) : undefined,
-        reactions: (raw.reactions || raw.Reactions)?.map((r: any) => ({
-            userId: r.userId || r.UserId,
-            emoji: r.emoji || r.Emoji,
-            displayName: r.displayName || r.DisplayName
-        })),
-        tid: raw.tid || raw.Tid,
-        type: raw.type || raw.Type,
-        rev: raw.rev || raw.Rev,
-        metadata: raw.metadata || raw.Metadata
-    } as Message;
-
-    // After normalization, ensure internal consistency for replies in cache
-    return msg;
-};
 
 export const { 
     setActiveConversation, 
