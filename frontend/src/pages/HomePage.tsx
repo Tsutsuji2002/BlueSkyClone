@@ -107,11 +107,24 @@ const HomePage: React.FC = () => {
                 dispatch(fetchListFeed({ id: listId, skip: 0 }));
             }
         } else {
-            if (feedLoading[activeTab]) return;
+            // CRITICAL: Don't fetch if already loading OR if we already have posts for this feed
+            if (feedLoading[activeTab]) {
+                console.log(`[HomePage] Skip fetch for ${activeTab}: already loading`);
+                return;
+            }
+            
+            const currentPosts = feedPosts[activeTab] || [];
+            if (currentPosts.length > 0) {
+                console.log(`[HomePage] Skip fetch for ${activeTab}: already have ${currentPosts.length} posts`);
+                return;
+            }
+            
             // TTL is handled by fetchFeedPosts thunk condition.
             // Hydration is handled post-fetch by handleTabChange and handleLoadMore.
             const isDiscover = activeTab === 'discover';
             const initialTake = (isDiscover && (feedPosts[activeTab]?.length || 0) === 0) ? 6 : getDynamicBatchSize(250);
+            
+            console.log(`[HomePage] Fetching initial content for ${activeTab}, take: ${initialTake}`);
             
             // [STREAMING] Use progressive fetch for immediate display
             dispatch(fetchFeedPostsStreaming(
@@ -123,7 +136,7 @@ const HomePage: React.FC = () => {
                 () => {}
             ) as any);
         }
-    }, [activeTab, activeListFeed.length, dispatch, feedLastFetch, feedLoading, feedPosts, listsLoading, isSessionSettled]);
+    }, [activeTab, isSessionSettled, user?.did, isAuthenticated]);
 
     // Re-trigger refresh when tab becomes visible after being in background
     useEffect(() => {

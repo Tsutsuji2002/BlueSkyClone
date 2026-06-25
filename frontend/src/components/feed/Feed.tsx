@@ -63,8 +63,6 @@ const Feed: React.FC<FeedProps> = ({
     const lastLoadMoreRef = useRef<number>(0);
     // Track if we're actively loading more (separate from initial loading)
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-    // Track if initial content has loaded to prevent premature endReached triggers
-    const hasInitialContentRef = useRef(false);
     
     // Capture state to restore precise scroll positions for Virtuoso
     const [savedState] = React.useState<any>(() => {
@@ -84,21 +82,11 @@ const Feed: React.FC<FeedProps> = ({
         const feedIdChanged = feedId !== lastFeedIdRef.current;
         lastFeedIdRef.current = feedId || null;
 
-        // Reset initial content flag on feed change
-        if (feedIdChanged) {
-            hasInitialContentRef.current = false;
-        }
-
         // [STABILITY] Only wipe localPosts if the incoming filteredPosts is genuinely empty 
         // AND we are not currently loading (to avoid flicker/scroll jump during background refresh)
         // CRITICAL FIX: If the feedId has changed, we MUST reset even if loading to prevent stale data leak.
         if (filteredPosts.length > 0 || !isLoading || feedIdChanged) {
             setLocalPosts(filteredPosts);
-            
-            // Mark that we have initial content if we have at least 3 posts
-            if (filteredPosts.length >= 3 && !hasInitialContentRef.current) {
-                hasInitialContentRef.current = true;
-            }
         }
     }, [filteredPosts, isLoading, feedId]);
 
@@ -176,13 +164,6 @@ const Feed: React.FC<FeedProps> = ({
 
     // Debounced load more handler — ensures we can't fire faster than once per 800ms
     const debouncedLoadMore = useCallback(() => {
-        // CRITICAL: Don't trigger if we don't have initial content yet
-        // This prevents the infinite loop on mount when content doesn't fill viewport
-        if (!hasInitialContentRef.current) {
-            console.log('[Feed] Load more blocked: waiting for initial content');
-            return;
-        }
-        
         if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) {
             console.log('[Feed] Load more blocked:', { 
                 hasOnLoadMore: !!onLoadMore, 
