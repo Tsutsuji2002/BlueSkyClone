@@ -108,11 +108,17 @@ namespace BSkyClone.Services
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
             
             // Order by CreatedAt to ensure chronological order (oldest first)
+            if (data?.Messages != null)
+            {
+                var atReplies = data.Messages.Count(m => m.Reply != null);
+                _logger.LogInformation("GetMessagesAsync for {ConvoId}: ATProto raw reply property count: {Count}", conversationId, atReplies);
+            }
+
             var mapped = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
                 ?? Enumerable.Empty<MessageDto>();
             var messages = HydrateReplyMessages(mapped).ToList();
             
-            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages. Replies: {ReplyCount}", 
+            _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages. Mapped Replies: {ReplyCount}", 
                 conversationId, messages.Count, messages.Count(m => m.ReplyTo != null));
             
             // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
