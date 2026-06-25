@@ -229,6 +229,36 @@ namespace BSkyClone.Services
             return dto;
         }
 
+        private async Task<MessageDto?> GetMessageByIdAsync(string token, string conversationId, string messageId)
+        {
+            try
+            {
+                // AT Protocol getMessages uses cursor for pagination.
+                // We'll try to fetch a single message by setting the cursor to the ID we want.
+                // Note: Lexicon says 'cursor' is a pagination string. In some implementations it can be a message ID.
+                // If not, we'll have to fetch the latest batch and search (worst case).
+                var url = $"{ChatEndpoint}/chat.bsky.convo.getMessages?convoId={conversationId}&limit=10"; // Fetch small batch
+                
+                var response = await CallAsync(token, url, "GET");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var data = JsonSerializer.Deserialize<BlueskyMessageListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    var match = data?.Messages.FirstOrDefault(m => m.Id == messageId);
+                    if (match != null)
+                    {
+                        return MapToMessageDto(match, conversationId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to fetch parent message {MessageId}", messageId);
+            }
+            
+            return null;
+        }
+
         public async Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null, string? replyToRev = null)
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
@@ -253,9 +283,17 @@ namespace BSkyClone.Services
 
             if (!string.IsNullOrEmpty(replyToId))
             {
-                // We don't fetch recent messages here to save performance. 
-                // The UI will handle the reply link by using the ID.
-                sentMessage = sentMessage with { ReplyTo = new MessageDto(replyToId, conversationId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", replyToRev) };
+                // Hydrate the reply metadata before returning
+                // We'll try to find the sent message in recent ones or just populate the basics
+                var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
+                if (parent != null)
+                {
+                    sentMessage = sentMessage with { ReplyTo = parent };
+                }
+                else
+                {
+                    sentMessage = sentMessage with { ReplyTo = new MessageDto(replyToId, conversationId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", replyToRev) };
+                }
             }
 
             return sentMessage;
@@ -714,9 +752,12 @@ namespace BSkyClone.Services
 
             return list.Select(message =>
             {
-                if (message.ReplyTo != null && byId.TryGetValue(message.ReplyTo.Id, out var repliedMessage))
+                if (message.ReplyTo != null)
                 {
-                    return message with { ReplyTo = ToReplyPreview(repliedMessage) };
+                    if (byId.TryGetValue(message.ReplyTo.Id, out var repliedMessage))
+                    {
+                        return message with { ReplyTo = ToReplyPreview(repliedMessage) };
+                    }
                 }
 
                 return message;
@@ -1031,6 +1072,8 @@ namespace BSkyClone.Services
             public string? MessageId { get; set; }
             [JsonPropertyName("text")]
             public string? Text { get; set; }
+            [JsonPropertyName("sender")]
+            public BlueskyMember? Sender { get; set; }
         }
 
         private class BlueskyMessageReply : BlueskyMessageRef

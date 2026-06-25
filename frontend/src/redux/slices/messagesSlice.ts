@@ -346,9 +346,13 @@ const messagesSlice = createSlice({
             const cache = state.messagesByConversationId[message.conversationId];
             if (!cache.find(m => m.id === message.id || (m.tid && message.tid && m.tid === message.tid))) {
                 if (message.replyTo) {
-                    // Ensure replyTo has a sender object for consistent rendering
-                    if (typeof message.replyTo === 'object' && !message.replyTo.sender && currentUserDid) {
-                        // This is a partial check, usually the sender is populated by the mapper
+                    // Ensure replyTo has a sender object for consistent rendering if possible
+                    if (typeof message.replyTo === 'object' && !message.replyTo.sender) {
+                        const existingMsg = cache.find(m => m.id === message.replyTo?.id);
+                        if (existingMsg) {
+                            message.replyTo.sender = existingMsg.sender;
+                            if (!message.replyTo.content) message.replyTo.content = existingMsg.content;
+                        }
                     }
                 }
                 cache.push(message);
