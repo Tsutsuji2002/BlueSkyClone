@@ -496,6 +496,9 @@ export const fetchFeedPostsStreaming = (
     onComplete: (nextCursor: string | null) => void,
     onError: (err: any) => void
 ) => async (dispatch: any) => {
+    // Mark as loading at the start
+    dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: true } });
+    
     try {
         const url = new URL(`${API_BASE_URL}/unified-feed`);
         url.searchParams.set('feedId', feedId);
@@ -537,9 +540,14 @@ export const fetchFeedPostsStreaming = (
                 }
             }
         }
+        
+        // Mark as not loading on success
+        dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: false } });
         onComplete(null);
     } catch (e: any) {
         console.error('[feedsSlice] fetchFeedPostsStreaming failed:', e);
+        // Mark as not loading on error
+        dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: false } });
         onError(e);
     }
 };
@@ -693,6 +701,9 @@ const feedsSlice = createSlice({
         },
         setFeedHasMore: (state: FeedsState, action: PayloadAction<{ feedId: string; hasMore: boolean }>) => {
             state.feedHasMore[action.payload.feedId] = action.payload.hasMore;
+        },
+        setFeedLoading: (state: FeedsState, action: PayloadAction<{ feedId: string; isLoading: boolean }>) => {
+            state.feedLoading[action.payload.feedId] = action.payload.isLoading;
         }
     },
     extraReducers: (builder: ActionReducerMapBuilder<FeedsState>) => {

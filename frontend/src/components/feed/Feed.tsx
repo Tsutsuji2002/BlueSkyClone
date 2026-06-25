@@ -54,8 +54,6 @@ const Feed: React.FC<FeedProps> = ({
     // SSE Queuing - Initialize with filteredPosts to avoid flicker
     const [localPosts, setLocalPosts] = React.useState<Post[]>(filteredPosts);
     const pendingRef = useRef<any[]>([]);
-    const containerRef = useRef<HTMLDivElement>(null);
-    const sentinelRef = useRef<HTMLDivElement>(null);
     const isFetchingRef = useRef(false);
 
     const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -63,6 +61,8 @@ const Feed: React.FC<FeedProps> = ({
     // Debounce ref to prevent endReached from firing too rapidly
     const loadMoreDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastLoadMoreRef = useRef<number>(0);
+    // Track if we're actively loading more (separate from initial loading)
+    const [isLoadingMore, setIsLoadingMore] = React.useState(false);
     
     // Capture state to restore precise scroll positions for Virtuoso
     const [savedState] = React.useState<any>(() => {
@@ -130,41 +130,12 @@ const Feed: React.FC<FeedProps> = ({
         });
     };
 
-    // Viewport-Fill Loop & Observers
-    useEffect(() => {
-        if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) return;
-
-        const checkSentinel = () => {
-            if (!sentinelRef.current || isFetchingRef.current || !hasMore || isLoading) return;
-            const rect = sentinelRef.current.getBoundingClientRect();
-            if (rect.top <= window.innerHeight + 100) {
-                isFetchingRef.current = true;
-                onLoadMore();
-            }
-        };
-
-        // 1. ResizeObserver for feed container
-        const resizeObserver = new ResizeObserver(() => checkSentinel());
-        if (containerRef.current) resizeObserver.observe(containerRef.current);
-
-        // 2. IntersectionObserver for sentinel
-        const intersectionObserver = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting) checkSentinel();
-        }, { rootMargin: '200px' });
-        if (sentinelRef.current) intersectionObserver.observe(sentinelRef.current);
-
-        // Initial check
-        checkSentinel();
-
-        return () => {
-            resizeObserver.disconnect();
-            intersectionObserver.disconnect();
-        };
-    }, [onLoadMore, hasMore, isLoading, localPosts.length]);
-
     // Reset fetching ref when loading stops
     useEffect(() => {
-        if (!isLoading) isFetchingRef.current = false;
+        if (!isLoading) {
+            isFetchingRef.current = false;
+            setIsLoadingMore(false);
+        }
     }, [isLoading]);
 
     // Debounced load more handler — ensures we can't fire faster than once per 800ms
@@ -174,6 +145,7 @@ const Feed: React.FC<FeedProps> = ({
         if (now - lastLoadMoreRef.current < 800) return; // min 800ms between loads
         lastLoadMoreRef.current = now;
         isFetchingRef.current = true;
+        setIsLoadingMore(true);
         onLoadMore();
     }, [onLoadMore, hasMore, isLoading]);
 
@@ -234,10 +206,13 @@ const Feed: React.FC<FeedProps> = ({
             components={{
                 Footer: () => (
                     <div className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border/30">
-                        {isLoading && (
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                        {(isLoading || isLoadingMore) && hasMore && (
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                                <span className="text-xs text-gray-500 dark:text-dark-text-secondary">{t('common.loading', 'Loading...')}</span>
+                            </div>
                         )}
-                        {!isLoading && !hasMore && (
+                        {!isLoading && !isLoadingMore && !hasMore && (
                             <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
                                 <div className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
