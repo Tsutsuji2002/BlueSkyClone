@@ -28,7 +28,7 @@ namespace BSkyClone.Services
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
-            _samplingRate = configuration.GetValue<int>("Firehose:SamplingRate", 5); // Default to 5% instead of 30%
+            _samplingRate = configuration.GetValue<int>("Firehose:SamplingRate", 0); // Default to 0% to avoid overloading VPS by default
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -87,7 +87,7 @@ namespace BSkyClone.Services
             }
         }
 
-        private readonly SemaphoreSlim _throttler = new SemaphoreSlim(5, 5); // Max 5 concurrent DB operations for firehose
+        private readonly SemaphoreSlim _throttler = new SemaphoreSlim(2, 2); // Max 2 concurrent DB operations (reduced from 5 for stability)
 
         private async Task ReceiveLoop(ClientWebSocket webSocket, CancellationToken stoppingToken)
         {
