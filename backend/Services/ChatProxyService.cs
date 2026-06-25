@@ -776,7 +776,7 @@ namespace BSkyClone.Services
 
         private MessageDto? MapReplyToDto(BlueskyMessageReply? reply, string fallbackConvoId, Dictionary<string, UserDto>? members)
         {
-            var replyRef = reply?.Parent ?? reply?.Root ?? reply;
+            var replyRef = reply?.Parent ?? reply?.Root ?? (BlueskyMessageRef?)reply;
             if (replyRef == null) return null;
 
             var messageId = replyRef.MessageId ?? replyRef.Id;

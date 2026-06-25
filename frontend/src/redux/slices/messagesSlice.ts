@@ -337,8 +337,31 @@ const messagesSlice = createSlice({
                 state.activeConversationMessages = [];
             }
         },
-        addMessage: (state, action: PayloadAction<{ message: Message; currentUserId: string | null; currentUserDid?: string | null }>) => {
-            const { message, currentUserId, currentUserDid } = action.payload;
+        addMessage: (state, action: PayloadAction<{ message: any; currentUserId: string | null; currentUserDid?: string | null }>) => {
+            const { message: rawMessage, currentUserId, currentUserDid } = action.payload;
+            
+            // Defensive mapping: Handle both PascalCase (C#) and camelCase (JS)
+            const message: Message = {
+                id: rawMessage.id || rawMessage.Id,
+                conversationId: rawMessage.conversationId || rawMessage.ConversationId,
+                senderId: rawMessage.senderId || rawMessage.SenderId,
+                content: rawMessage.content !== undefined ? rawMessage.content : rawMessage.Content,
+                facets: rawMessage.facets || rawMessage.Facets,
+                imageUrl: rawMessage.imageUrl || rawMessage.ImageUrl,
+                createdAt: rawMessage.createdAt || rawMessage.CreatedAt,
+                isRead: rawMessage.isRead !== undefined ? rawMessage.isRead : rawMessage.IsRead,
+                isModified: rawMessage.isModified !== undefined ? rawMessage.isModified : rawMessage.IsModified,
+                isRecalled: rawMessage.isRecalled !== undefined ? rawMessage.isRecalled : rawMessage.IsRecalled,
+                sender: rawMessage.sender || rawMessage.Sender,
+                linkPreview: rawMessage.linkPreview || rawMessage.LinkPreview,
+                replyTo: rawMessage.replyTo || rawMessage.ReplyTo,
+                reactions: rawMessage.reactions || rawMessage.Reactions,
+                tid: rawMessage.tid || rawMessage.Tid,
+                type: rawMessage.type || rawMessage.Type,
+                rev: rawMessage.rev || rawMessage.Rev,
+                metadata: rawMessage.metadata || rawMessage.Metadata
+            };
+
             // Update Cache
             if (!state.messagesByConversationId[message.conversationId]) {
                 state.messagesByConversationId[message.conversationId] = [];
