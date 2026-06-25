@@ -42,14 +42,21 @@ namespace BSkyClone.Services
             {
                 try
                 {
-                    using (var webSocket = new ClientWebSocket())
-                    {
-                        _logger.LogInformation("Connecting to Relay: {Url}", _relayUrl);
-                        await webSocket.ConnectAsync(new Uri(_relayUrl), stoppingToken);
-                        _logger.LogInformation("Connected to Firehose.");
+                        if (_samplingRate <= 0)
+                        {
+                            _logger.LogInformation("Firehose: Sampling is 0%. Idle waiting...");
+                            await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                            continue;
+                        }
 
-                        await ReceiveLoop(webSocket, stoppingToken);
-                    }
+                        using (var webSocket = new ClientWebSocket())
+                        {
+                            _logger.LogInformation("Connecting to Relay: {Url}", _relayUrl);
+                            await webSocket.ConnectAsync(new Uri(_relayUrl), stoppingToken);
+                            _logger.LogInformation("Connected to Firehose.");
+
+                            await ReceiveLoop(webSocket, stoppingToken);
+                        }
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
