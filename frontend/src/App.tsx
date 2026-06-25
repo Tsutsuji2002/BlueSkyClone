@@ -370,9 +370,9 @@ const AppContent: React.FC = () => {
         // 1. Calculate how long the tab was hidden
         const hiddenDuration = lastHiddenTimeRef.current > 0 ? now - lastHiddenTimeRef.current : 0;
         
-        // 2. Threshold check: 3 minutes (180,000ms)
-        // If the user was away for less than 3 minutes, we don't need a full re-sync.
-        const RE_SYNC_THRESHOLD = 180000; 
+        // 2. Threshold check: 5 minutes (300,000ms)
+        // If the user was away for less than 5 minutes, we don't need a full re-sync.
+        const RE_SYNC_THRESHOLD = 300000; 
         
         if (hiddenDuration < RE_SYNC_THRESHOLD && lastHiddenTimeRef.current > 0) {
             console.log(`[App] Visibility change: Short absence (${Math.round(hiddenDuration/1000)}s). Skipping re-sync.`);
@@ -382,15 +382,15 @@ const AppContent: React.FC = () => {
             return;
         }
 
-        // 3. Cooldown check: 30s 
+        // 3. Cooldown check: 60s 
         // (Ensures we don't spam if they rapidly toggle visibility after a long absence)
-        if (now - lastVisibilityCheckRef.current < 30000) {
+        if (now - lastVisibilityCheckRef.current < 60000) {
             console.log('[App] Visibility change ignored (cooldown)');
             return;
         }
         lastVisibilityCheckRef.current = now;
 
-        if (isAuthenticated) {
+        if (isAuthenticated && !isHandshakeFetching) {
             console.log('[App] Tab visible: Re-syncing session (silent)...');
             dispatch(startSilentBackgroundSync());
             

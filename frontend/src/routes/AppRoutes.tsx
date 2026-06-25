@@ -8,7 +8,8 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import LazyErrorBoundary from '../components/common/LazyErrorBoundary';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 
-import HomePage from '../pages/HomePage';
+// Pages
+const HomePage = React.lazy(() => import('../pages/HomePage'));
 
 // Lazy Load Pages
 const WelcomePage = React.lazy(() => import('../pages/auth/WelcomePage'));

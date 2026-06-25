@@ -3124,7 +3124,7 @@ public class UserService : IUserService
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorBody = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId}. Status: {Status}. Body: {Body}", userId, response.StatusCode, errorBody);
+                    _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Failed to refresh Bluesky token for {UserId} at {PdsUrl}. Status: {Status}. Body: {Body}", userId, pdsUrl, response.StatusCode, errorBody);
                     
                     // If refresh failed with 401, the refresh token is likely invalid/expired.
                     if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.BadRequest)

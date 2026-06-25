@@ -14,6 +14,7 @@ using System.Text.RegularExpressions;
 using BSkyClone.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace BSkyClone.Services;
 
@@ -431,20 +432,24 @@ public class AuthService : IAuthService
         using var finalLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(globalCts.Token, ct);
         var globalToken = finalLinkedCts.Token;
 
-        // [PERF] Fire the Bluesky token refresh in the background — don't await it before launching
-        // parallel tasks. 
+        // [PERF] Fire the Bluesky token refresh in the background.
+        // [FIX] We use CancellationToken.None instead of globalToken to ensure that even if the 
+        // handshake request returns (or times out at 3s), the token refresh continues to completion.
+        // This prevents a cycle where tokens are stale and refreshes are constantly cancelled.
         _ = Task.Run(async () => {
             try
             {
                 using var scope = _scopeFactory.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, globalToken);
+                // Pass None to decouple from the 3s request-scoped timeout
+                await scope.ServiceProvider.GetRequiredService<IUserService>().GetOrRefreshBlueskyTokenAsync(userId, false, CancellationToken.None);
             }
-            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Background token refresh failed during handshake for user {UserId}.", userId);
             }
-        }, globalToken);
+        }, CancellationToken.None);
+
+        var sw = Stopwatch.StartNew();
 
         // [FIX] Trust local database instead of fetching from Bluesky's remote API during handshake.
         var profile = MapToAuthResponse(user, "", "");
@@ -493,6 +498,10 @@ public class AuthService : IAuthService
         var allFeeds = feedsTask.IsCompletedSuccessfully ? await feedsTask : new List<FeedDto>();
         var unreadCount = countTask.IsCompletedSuccessfully ? await countTask : 0;
         var mutedWordsList = mutedWordsTask.IsCompletedSuccessfully ? await mutedWordsTask : new List<MutedWord>();
+
+        sw.Stop();
+        _logger.LogInformation("[HandshakePerf] User {UserId} completed in {ElapsedMs}ms. Tasks: Feeds={Feeds}, Unread={Unread}, Mutes={Mutes}", 
+            userId, sw.ElapsedMilliseconds, feedsTask.IsCompletedSuccessfully, countTask.IsCompletedSuccessfully, mutedWordsTask.IsCompletedSuccessfully);
 
 
         if (profile == null) return null;
