@@ -111,8 +111,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const [showReactionPicker, setShowReactionPicker] = useState(false);
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
-    const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
-    const [forwardSearch, setForwardSearch] = useState('');
     const [selectedReactionMessageId, setSelectedReactionMessageId] = useState<string | null>(null);
     const [activeQuickBarMessageId, setActiveQuickBarMessageId] = useState<string | null>(null);
     const [hubStatus, setHubStatus] = useState<HubStatus>(signalrService.hubStatus);
@@ -537,9 +535,9 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
         }
     };
 
-    const handleForward = (msg: Message) => {
-        if (msg.isRecalled) return;
-        setForwardingMessage(msg);
+    const handleReport = (msg: Message) => {
+        dispatch(showToast({ message: t('messages.report_submitted', 'Report submitted successfully'), type: 'success' }));
+        setSelectedReactionMessageId(null);
     };
 
     const handleTranslate = (text: string) => {
@@ -1084,20 +1082,92 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                     {selectedReactionMessageId === msg.id && !showReactionPicker && menuPosition && (
                                                         <div 
                                                             ref={messageMenuRef}
-                                                            style={{ position: 'fixed', top: menuPosition.top, left: menuPosition.left }}
-                                                            className="w-48 bg-white dark:bg-dark-surface rounded-xl shadow-2xl border border-gray-100 dark:border-dark-border py-2 z-50 animate-in fade-in zoom-in-95 duration-200"
+                                                            style={{ 
+                                                                position: 'fixed', 
+                                                                top: menuPosition.top, 
+                                                                left: menuPosition.left,
+                                                                borderRadius: '8px', 
+                                                                padding: '4px', 
+                                                                borderWidth: '1px', 
+                                                                backgroundColor: mode === 'dark' ? 'rgb(30, 41, 59)' : 'rgb(255, 255, 255)', 
+                                                                boxShadow: 'rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px, rgb(0, 0, 0) 0px 0px 0px', 
+                                                                borderColor: mode === 'dark' ? 'rgb(51, 65, 85)' : 'rgb(220, 226, 234)', 
+                                                                overflow: 'hidden',
+                                                                zIndex: 100
+                                                            }}
+                                                            className="min-w-[200px] animate-in fade-in zoom-in-95 duration-200"
                                                         >
+                                                            <div className="px-3 py-3 text-[11.3px] tracking-[0.25px] text-[#405168] dark:text-dark-text-secondary leading-[15px] font-medium border-b border-gray-50 dark:border-white/5 mb-1">
+                                                                {t('messages.sent_at', 'Sent at')} {format(new Date(msg.createdAt), 'h:mm a')}
+                                                            </div>
+                                                            
                                                             {!msg.isRecalled && (
                                                                 <>
-                                                                    <button onClick={() => handleReply(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiCornerUpLeft size={16}/> {t('messages.options.reply')}</button>
-                                                                    {isMe && isGuid(conversationId) && <button onClick={() => handleEdit(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiEdit3 size={16}/> {t('messages.options.edit')}</button>}
-                                                                    <button onClick={() => handleForward(msg)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiShare2 size={16}/> {t('messages.options.forward')}</button>
-                                                                    {msg.content && <button onClick={() => handleCopyText(msg.content!)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiCopy size={16}/> {t('messages.options.copy')}</button>}
-                                                                    {msg.content && <button onClick={() => handleTranslate(msg.content!)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm"><FiGlobe size={16}/> {t('messages.options.translate')}</button>}
+                                                                    <button 
+                                                                        onClick={() => handleReply(msg)} 
+                                                                        className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
+                                                                    >
+                                                                        <div className="ml-[-2px]">
+                                                                            <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                                                <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M15.793 10.293a1 1 0 0 1 1.338-.068l.076.068 3.293 3.293a2 2 0 0 1 .138 2.677l-.138.151-3.293 3.293a1 1 0 1 1-1.414-1.414L18.086 16H8a5 5 0 0 1-5-5V5a1 1 0 0 1 2 0v6a3 3 0 0 0 3 3h10.086l-2.293-2.293-.068-.076a1 1 0 0 1 .068-1.338Z"></path>
+                                                                            </svg>
+                                                                        </div>
+                                                                        <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.reply')}</div>
+                                                                    </button>
+
+                                                                    {msg.content && (
+                                                                        <button 
+                                                                            onClick={() => handleTranslate(msg.content!)} 
+                                                                            className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
+                                                                        >
+                                                                            <div className="ml-[-2px]">
+                                                                                <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                                                    <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M14.5 8a1 1 0 0 1 .912.59l4.5 10a1 1 0 0 1-1.824.82L16.554 16h-4.108l-1.534 3.41a1 1 0 0 1-1.824-.82l4.5-10A1 1 0 0 1 14.5 8m-1.153 6h2.306L14.5 11.437zM5.053.106a1 1 0 0 1 1.342.447L7.118 2H11a1 1 0 0 1 0 2H9.92C9.64 5.765 8.65 7.24 7.527 8.398a17 17 0 0 0 2.605 1.562q.129.062.197.092l.005.002.049.022.01.005a1 1 0 0 1-.787 1.838h-.002l-.027-.013-.068-.03q-.088-.04-.242-.113A18.878 18.878 0 0 1 6 9.75a19 19 0 0 1-3.509 2.125l-.068.03-.027.013h-.002a1 1 0 0 1-.788-1.838l.011-.005.049-.022.005-.002q.069-.03.197-.092a17.176 17.176 0 0 0 2.604-1.562C3.348 7.239 2.36 5.764 2.08 4H1a1 1 0 0 1 0-2h3.882l-.277-.553A1 1 0 0 1 5.053.106M4.118 4C4.388 5.151 5.098 6.193 6 7.1 6.901 6.193 7.612 5.15 7.882 4z"></path>
+                                                                                </svg>
+                                                                            </div>
+                                                                            <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.translate')}</div>
+                                                                        </button>
+                                                                    )}
+
+                                                                    {msg.content && (
+                                                                        <button 
+                                                                            onClick={() => handleCopyText(msg.content!)} 
+                                                                            className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
+                                                                        >
+                                                                            <div className="ml-[-2px]">
+                                                                                <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                                                    <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M8.17 4A3.001 3.001 0 0 1 11 2h2c1.306 0 2.418.835 2.83 2H17a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1.17ZM8 6H7a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6Zm6 0V5a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v1h4Z"></path>
+                                                                                </svg>
+                                                                            </div>
+                                                                            <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.copy')}</div>
+                                                                        </button>
+                                                                    )}
                                                                 </>
                                                             )}
-                                                            <button onClick={() => handleDeleteForMe(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiTrash size={16}/> {t('messages.options.delete_for_me')}</button>
-                                                            {isMe && !msg.isRecalled && isGuid(conversationId) && <button onClick={() => handleRecall(msg.id)} className="w-full px-4 py-2 text-left flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors text-sm text-red-500 font-medium"><FiBellOff size={16}/> {t('messages.options.recall')}</button>}
+
+                                                            <button 
+                                                                onClick={() => handleDeleteForMe(msg.id)} 
+                                                                className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
+                                                            >
+                                                                <div className="ml-[-2px]">
+                                                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                                        <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M7.416 5H3a1 1 0 0 0 0 2h1.064l.938 14.067A1 1 0 0 0 6 22h12a1 1 0 0 0 .998-.933L19.936 7H21a1 1 0 1 0 0-2h-4.416a5 5 0 0 0-9.168 0Zm2.348 0h4.472c-.55-.614-1.348-1-2.236-1-.888 0-1.687.386-2.236 1Zm6.087 2H6.07l.867 13h10.128l.867-13h-2.036a1 1 0 0 1-.044 0ZM10 10a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1Zm4 0a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1Z"></path>
+                                                                    </svg>
+                                                                </div>
+                                                                <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.delete_for_me')}</div>
+                                                            </button>
+
+                                                            <button 
+                                                                onClick={() => handleReport(msg)} 
+                                                                className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
+                                                            >
+                                                                <div className="ml-[-2px]">
+                                                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                                        <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M4 4a2 2 0 0 1 2-2h13.131c1.598 0 2.55 1.78 1.665 3.11L18.202 9l2.594 3.89c.886 1.33-.067 3.11-1.665 3.11H6v5a1 1 0 1 1-2 0V4Zm2 10h13.131l-2.593-3.89a2 2 0 0 1 0-2.22L19.13 4H6v10Z"></path>
+                                                                    </svg>
+                                                                </div>
+                                                                <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.report', 'Report')}</div>
+                                                            </button>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1366,66 +1436,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                 </div>
             </div>
 
-            {/* Forward Modal */}
-            {forwardingMessage && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-dark-surface w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="p-4 border-b border-gray-100 dark:border-dark-border flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-dark-text">{t('messages.forward')}</h3>
-                            <button onClick={() => setForwardingMessage(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-bg rounded-full transition-colors">
-                                <FiX size={20} />
-                            </button>
-                        </div>
-                        <div className="p-4 bg-gray-50/50 dark:bg-dark-bg/20 border-b border-gray-100 dark:border-dark-border">
-                            <div className="relative">
-                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder={t('common.search')}
-                                    value={forwardSearch}
-                                    onChange={(e) => setForwardSearch(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 bg-white dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-xl text-sm outline-none transition-all"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 no-scrollbar">
-                            {conversations
-                                .filter(c => {
-                                    const other = c.participants.find(p => p.id !== currentUser?.id);
-                                    return other?.displayName.toLowerCase().includes(forwardSearch.toLowerCase()) ||
-                                        other?.handle.toLowerCase().includes(forwardSearch.toLowerCase());
-                                })
-                                .map(conv => {
-                                    const other = conv.participants.find(p => p.id !== currentUser?.id);
-                                    return (
-                                        <button
-                                            key={conv.id}
-                                            onClick={async () => {
-                                                await fetch(`${API_URL}/chat/messages/${forwardingMessage.id}/forward`, {
-                                                    method: 'POST',
-                                                    headers: {
-                                                        'Content-Type': 'application/json'
-                                                    },
-                                                    body: JSON.stringify({ targetConversationIds: [conv.id] }),
-                                                    credentials: 'include'
-                                                });
-                                                setForwardingMessage(null);
-                                            }}
-                                            className="w-full p-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-dark-bg/50 rounded-xl transition-colors group"
-                                        >
-                                            <Avatar src={other?.avatarUrl} alt={other?.displayName || ''} size="md" />
-                                            <div className="text-left min-w-0 flex-1">
-                                                <p className="font-bold text-gray-900 dark:text-dark-text truncate">{other?.displayName}</p>
-                                                <p className="text-xs text-gray-500 truncate">@{other?.handle}</p>
-                                            </div>
-                                            <FiSend size={14} className="text-gray-400" />
-                                        </button>
-                                    );
-                                })}
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <ConfirmModal
                 isOpen={confirmModal.isOpen}
