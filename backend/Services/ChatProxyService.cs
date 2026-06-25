@@ -118,6 +118,12 @@ namespace BSkyClone.Services
             // var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
             // var enriched = await Task.WhenAll(enrichmentTasks);
             
+            // [PERFORMANCE FIX] Disabled automatic link preview enrichment for bulk message loads
+            // Link previews were causing 21+ second delays when loading 50 messages
+            // TODO: Implement lazy/on-demand link preview loading in frontend or via separate endpoint
+            // var enrichmentTasks = messages.Select(EnrichMessageAsync).ToList();
+            // var enriched = await Task.WhenAll(enrichmentTasks);
+            
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Returning {Count} messages", conversationId, messages.Count());
             
             return messages;
@@ -227,6 +233,7 @@ namespace BSkyClone.Services
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
             
+            object? reply = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
                 // [OPTIMIZATION] Instead of fetching 50 messages, we use the provided replyToId/rev
