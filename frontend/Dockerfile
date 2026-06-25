@@ -11,6 +11,7 @@ COPY package*.json ./
 RUN npm install --legacy-peer-deps
 RUN npm install ajv@^8 --legacy-peer-deps --no-save
 COPY . .
+ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 # Production stage
