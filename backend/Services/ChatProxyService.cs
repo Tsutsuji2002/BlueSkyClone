@@ -706,9 +706,7 @@ namespace BSkyClone.Services
                 isLocked
             );
         }
-
-        }
-
+        
         private MessageDto ToReplyPreview(MessageDto message)
         {
             return message with
@@ -1057,4 +1055,5 @@ namespace BSkyClone.Services
             public string? CreatedAt { get; set; }
         }
     }
+}
 }
