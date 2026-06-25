@@ -99,6 +99,7 @@ namespace BSkyClone.Services
             var json = await response.Content.ReadAsStringAsync();
             
             // DEBUG: Log a sample of raw JSON with focus on text field
+            // DEBUG: Log a sample of raw JSON with focus on text field
             var jsonSample = json.Length > 2000 ? json.Substring(0, 2000) + "..." : json;
             _logger.LogInformation("GetMessagesAsync RAW JSON sample for {ConvoId}: {Json}", conversationId, jsonSample);
             
@@ -106,6 +107,19 @@ namespace BSkyClone.Services
             
             // DEBUG: Log how many messages were deserialized
             _logger.LogInformation("GetMessagesAsync for {ConvoId}: Deserialized {Count} messages", conversationId, data?.Messages?.Count ?? 0);
+
+            // NUCLEAR DEBUG: Log the first message's raw fields to see structure
+            if (data?.Messages != null && data.Messages.Count > 0)
+            {
+                var first = data.Messages[0];
+                _logger.LogInformation("GetMessagesAsync DEBUG: First message ID={Id}, hasReplyProp={HasReply}", 
+                    first.Id, first.Reply != null);
+                
+                // Log the raw serialized message to see the exact keys from ATProto
+                _logger.LogInformation("GetMessagesAsync RAW MESSAGE 0 JSON: {Json}", 
+                    JsonSerializer.Serialize(first));
+            }
+
             
             // Order by CreatedAt to ensure chronological order (oldest first)
             if (data?.Messages != null)
