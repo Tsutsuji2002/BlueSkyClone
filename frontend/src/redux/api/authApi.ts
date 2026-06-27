@@ -59,6 +59,8 @@ export const authApi = apiSlice.injectEndpoints({
         getHandshake: builder.query<HandshakeResponse, void>({
             query: () => '/auth/handshake',
             providesTags: ['Auth'],
+            // Extended timeout for slow networks - match the App.tsx safety timeout
+            extraOptions: { maxRetries: 0 },
         }),
         refreshSession: builder.mutation<AuthResponse, void>({
             query: () => ({

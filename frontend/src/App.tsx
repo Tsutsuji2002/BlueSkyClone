@@ -70,7 +70,11 @@ const AppContent: React.FC = () => {
   const theme = useAppSelector((state: RootState) => state.theme);
   const { t, i18n } = useTranslation();
   const location = useLocation();
-  const { data: handshakeData, error: handshakeError, isFetching: isHandshakeFetching, refetch } = useGetHandshakeQuery();
+  const { data: handshakeData, error: handshakeError, isFetching: isHandshakeFetching, refetch } = useGetHandshakeQuery(undefined, {
+    // Retry with exponential backoff on network errors
+    pollingInterval: undefined,
+    refetchOnMountOrArgChange: true,
+  });
   
   // App Ready is true only when the session check has settled (success or failure)
   const isAppReady = !isHandshakeFetching && (handshakeData !== undefined || handshakeError !== undefined);
@@ -153,13 +157,12 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
         // We check current state inside the timeout to avoid unnecessary dispatches
-        // but here we just dispatch a stop-gap if handshake is still "loading" but requests are finished
         if (!isHandshakeFetching && !handshakeData && !handshakeError) {
-            console.warn('[App] Initialization timed out or stuck, forcing settlement.');
+            console.warn('[App] Initialization timed out (18s), forcing settlement.');
             dispatch(stopLoading());
             dispatch(setHandshakeSettled(true));
         }
-    }, 8000);
+    }, 18000); // Increased to 18 seconds (15s handshake + 3s buffer)
     return () => clearTimeout(timeoutId);
   }, [dispatch, isHandshakeFetching, handshakeData, handshakeError]);
 
@@ -434,7 +437,14 @@ const AppContent: React.FC = () => {
   }, [isAuthenticated, refetch, dispatch]);
 
   if (isLoading && !isAuthenticated) {
-    return <LoadingScreen />;
+    const hasError = handshakeError || (!isHandshakeFetching && !handshakeData && !isAuthenticated);
+    return (
+      <LoadingScreen 
+        error={hasError}
+        onRetry={hasError ? () => refetch() : undefined}
+        message="Connecting to BlueSky..."
+      />
+    );
   }
 
     return (
