@@ -437,7 +437,7 @@ const AppContent: React.FC = () => {
   }, [isAuthenticated, refetch, dispatch]);
 
   if (isLoading && !isAuthenticated) {
-    const hasError = handshakeError || (!isHandshakeFetching && !handshakeData && !isAuthenticated);
+    const hasError = !!handshakeError || (!isHandshakeFetching && !handshakeData && !isAuthenticated);
     return (
       <LoadingScreen 
         error={hasError}
