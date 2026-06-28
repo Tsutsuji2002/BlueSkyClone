@@ -320,23 +320,22 @@ namespace BSkyClone.Services
                 sentMessage = sentMessage with { 
                     ReplyTo = new MessageDto(
                         replyToId, 
-                            conversationId, 
-                            "", 
-                            sentMessage.ReplyTo?.Content ?? "[Original message unavailable]", 
-                            null, 
-                            DateTimeOffset.MinValue, 
-                            false, 
-                            false, 
-                            false, 
-                            sentMessage.ReplyTo?.Sender, 
-                            null, 
-                            null, 
-                            null, 
-                            "message", 
-                            replyToRev
-                        ) 
-                    };
-                }
+                        conversationId, 
+                        "", 
+                        sentMessage.ReplyTo?.Content ?? "[Original message unavailable]", 
+                        null, 
+                        DateTimeOffset.MinValue, 
+                        false, 
+                        false, 
+                        false, 
+                        sentMessage.ReplyTo?.Sender, 
+                        null, 
+                        null, 
+                        null, 
+                        "message", 
+                        replyToRev
+                    ) 
+                };
             }
 
             return sentMessage;
