@@ -244,6 +244,22 @@ namespace BSkyClone.Services
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
             
+            // Store reply info BEFORE sending to ensure we can restore it
+            MessageDto? parentMessage = null;
+            if (!string.IsNullOrEmpty(replyToId))
+            {
+                _logger.LogInformation("[SendMessageAsync] Reply requested to {ReplyToId}, fetching parent message first", replyToId);
+                parentMessage = await GetMessageByIdAsync(token, conversationId, replyToId);
+                if (parentMessage != null)
+                {
+                    _logger.LogInformation("[SendMessageAsync] Successfully fetched parent message: {ParentContent}", parentMessage.Content?.Substring(0, Math.Min(50, parentMessage.Content.Length ?? 0)));
+                }
+                else
+                {
+                    _logger.LogWarning("[SendMessageAsync] Could not fetch parent message {ReplyToId} before sending", replyToId);
+                }
+            }
+            
             object? message = null;
             
             if (!string.IsNullOrEmpty(replyToId))
@@ -287,27 +303,23 @@ namespace BSkyClone.Services
             
             var sentMessage = MapToMessageDto(messageData!, conversationId, members);
 
-            _logger.LogInformation("[SendMessageAsync] Sent Message DTO - Id: {Id}, ReplyTo Present: {ReplyToPresent}, ReplyTo Content: {ReplyContent}", 
-                sentMessage.Id, sentMessage.ReplyTo != null, sentMessage.ReplyTo?.Content);
+            _logger.LogInformation("[SendMessageAsync] Mapped message - Id: {Id}, ReplyTo Present: {ReplyToPresent}", 
+                sentMessage.Id, sentMessage.ReplyTo != null);
 
-            // CRITICAL FIX: Always hydrate the reply from the conversation messages
-            // This ensures the reply is preserved even if Bluesky's response doesn't include it
-            if (!string.IsNullOrEmpty(replyToId))
+            // CRITICAL FIX: Force restore the reply from our cached parent message
+            // This ensures the reply is preserved even if Bluesky doesn't return it
+            if (!string.IsNullOrEmpty(replyToId) && parentMessage != null)
             {
-                // Try to get the parent message from recent conversation messages
-                var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
-                if (parent != null)
-                {
-                    _logger.LogInformation("[SendMessageAsync] Successfully hydrated replyTo from conversation messages");
-                    sentMessage = sentMessage with { ReplyTo = parent };
-                }
-                else
-                {
-                    // Fallback: create a minimal reply reference so it's not completely lost
-                    _logger.LogWarning("[SendMessageAsync] Could not find parent message {ReplyToId} in recent messages, creating placeholder", replyToId);
-                    sentMessage = sentMessage with { 
-                        ReplyTo = new MessageDto(
-                            replyToId, 
+                _logger.LogInformation("[SendMessageAsync] Forcing reply restoration from cached parent message");
+                sentMessage = sentMessage with { ReplyTo = parentMessage };
+            }
+            else if (!string.IsNullOrEmpty(replyToId) && parentMessage == null)
+            {
+                // Last resort: create a minimal placeholder
+                _logger.LogWarning("[SendMessageAsync] Creating minimal placeholder for reply {ReplyToId}", replyToId);
+                sentMessage = sentMessage with { 
+                    ReplyTo = new MessageDto(
+                        replyToId, 
                             conversationId, 
                             "", 
                             sentMessage.ReplyTo?.Content ?? "[Original message unavailable]", 
