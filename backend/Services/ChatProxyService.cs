@@ -247,10 +247,18 @@ namespace BSkyClone.Services
             object? reply = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
-                reply = new { root = new { messageId = replyToId, rev = replyToRev }, parent = new { messageId = replyToId, rev = replyToRev } };
+                // Bluesky expects the reply structure with 'root' and 'parent' refs
+                // Both should point to the message being replied to for direct replies
+                reply = new { 
+                    root = new { id = replyToId, rev = replyToRev }, 
+                    parent = new { id = replyToId, rev = replyToRev } 
+                };
             }
 
             var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
+            
+            _logger.LogInformation("[SendMessageAsync] Sending message with reply structure: {ReplyStructure}", 
+                reply != null ? System.Text.Json.JsonSerializer.Serialize(reply) : "null");
             
             var response = await CallAsync(token, url, "POST", body);
             var json = await response.Content.ReadAsStringAsync();
