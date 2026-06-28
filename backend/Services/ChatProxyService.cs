@@ -109,8 +109,6 @@ namespace BSkyClone.Services
                         var replyInfo = JsonSerializer.Deserialize<JsonElement>(cachedReply);
                         var replyToId = replyInfo.GetProperty("replyToId").GetString();
                         
-                        _logger.LogDebug("[GetMessagesAsync] Restoring reply for message {MsgId} -> {ReplyToId}", msg.Id, replyToId);
-                        
                         // Try to find parent in current batch first
                         var parent = mapped.FirstOrDefault(m => m.Id == replyToId);
                         if (parent != null)
@@ -131,7 +129,7 @@ namespace BSkyClone.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "[GetMessagesAsync] Failed to restore reply for message {MsgId}", msg.Id);
+                    _logger.LogDebug(ex, "Could not restore reply for message {MsgId}", msg.Id);
                     messagesWithReplies.Add(msg);
                 }
             }
@@ -293,19 +291,7 @@ namespace BSkyClone.Services
             MessageDto? parentMessage = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
-                _logger.LogInformation("[SendMessageAsync] Reply requested to {ReplyToId}, fetching parent message first", replyToId);
                 parentMessage = await GetMessageByIdAsync(token, conversationId, replyToId);
-                if (parentMessage != null)
-                {
-                    var contentPreview = parentMessage.Content != null && parentMessage.Content.Length > 50 
-                        ? parentMessage.Content.Substring(0, 50) 
-                        : parentMessage.Content ?? "";
-                    _logger.LogInformation("[SendMessageAsync] Successfully fetched parent message: {ParentContent}", contentPreview);
-                }
-                else
-                {
-                    _logger.LogWarning("[SendMessageAsync] Could not fetch parent message {ReplyToId} before sending", replyToId);
-                }
             }
             
             object? message = null;
@@ -330,12 +316,8 @@ namespace BSkyClone.Services
 
             var body = new { convoId = conversationId, message = message };
             
-            var bodyJson = System.Text.Json.JsonSerializer.Serialize(body);
-            _logger.LogInformation("[SendMessageAsync] Sending to Bluesky: {Body}", bodyJson);
-            
             var response = await CallAsync(token, url, "POST", body);
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("[SendMessageAsync] Bluesky Response: {Json}", json);
             
             if (!response.IsSuccessStatusCode) 
             {
@@ -351,38 +333,29 @@ namespace BSkyClone.Services
             
             var sentMessage = MapToMessageDto(messageData!, conversationId, members);
 
-            _logger.LogInformation("[SendMessageAsync] Mapped message - Id: {Id}, ReplyTo Present: {ReplyToPresent}", 
-                sentMessage.Id, sentMessage.ReplyTo != null);
-
-            // CRITICAL FIX: Force restore the reply from our cached parent message
-            // This ensures the reply is preserved even if Bluesky doesn't return it
+            // Force restore the reply from our cached parent message
             if (!string.IsNullOrEmpty(replyToId) && parentMessage != null)
             {
-                _logger.LogInformation("[SendMessageAsync] Forcing reply restoration from cached parent message");
                 sentMessage = sentMessage with { ReplyTo = parentMessage };
                 
-                // SAVE REPLY RELATIONSHIP TO CACHE (Bluesky doesn't persist it)
-                // Using Redis cache - no database changes needed!
+                // Save reply relationship to cache (Bluesky doesn't persist it)
                 try
                 {
                     var cacheKey = $"bluesky_reply:{conversationId}:{sentMessage.Id}";
                     var cacheValue = JsonSerializer.Serialize(new { replyToId, replyToRev });
                     var cacheOptions = new DistributedCacheEntryOptions
                     {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // Keep for 30 days
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30)
                     };
                     await _cache.SetStringAsync(cacheKey, cacheValue, cacheOptions);
-                    _logger.LogInformation("[SendMessageAsync] Saved reply relationship to cache: {MessageId} -> {ReplyToId}", sentMessage.Id, replyToId);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[SendMessageAsync] Failed to save reply relationship to cache");
+                    _logger.LogWarning(ex, "Failed to cache reply relationship for message {MessageId}", sentMessage.Id);
                 }
             }
             else if (!string.IsNullOrEmpty(replyToId) && parentMessage == null)
             {
-                // Last resort: create a minimal placeholder
-                _logger.LogWarning("[SendMessageAsync] Creating minimal placeholder for reply {ReplyToId}", replyToId);
                 sentMessage = sentMessage with { 
                     ReplyTo = new MessageDto(
                         replyToId, 
@@ -872,10 +845,6 @@ namespace BSkyClone.Services
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)
         {
-            // Log the raw message to see if reply data is present
-            _logger.LogDebug("[MapToMessageDto] Mapping message {Id}, HasReply: {HasReply}, HasReplyTo: {HasReplyTo}", 
-                msg.Id, msg.Reply != null, msg.ReplyTo != null);
-            
             var isSystemMessage = msg.Type != null && msg.Type.Contains("systemMessageView");
             
             string messageType = "message";
