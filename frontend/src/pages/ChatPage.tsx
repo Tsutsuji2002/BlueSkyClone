@@ -1157,17 +1157,19 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                                                 <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.delete_for_me')}</div>
                                                             </button>
 
-                                                            <button 
-                                                                onClick={() => handleReport(msg)} 
-                                                                className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
-                                                            >
-                                                                <div className="ml-[-2px]">
-                                                                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
-                                                                        <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M4 4a2 2 0 0 1 2-2h13.131c1.598 0 2.55 1.78 1.665 3.11L18.202 9l2.594 3.89c.886 1.33-.067 3.11-1.665 3.11H6v5a1 1 0 1 1-2 0V4Zm2 10h13.131l-2.593-3.89a2 2 0 0 1 0-2.22L19.13 4H6v10Z"></path>
-                                                                    </svg>
-                                                                </div>
-                                                                <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.report', 'Report')}</div>
-                                                            </button>
+                                                            {!isMe && (
+                                                                <button 
+                                                                    onClick={() => handleReport(msg)} 
+                                                                    className="w-full flex flex-row items-center gap-4 px-2.5 py-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded transition-colors"
+                                                                >
+                                                                    <div className="ml-[-2px]">
+                                                                        <svg fill="none" viewBox="0 0 24 24" width="20" height="20">
+                                                                            <path fill={mode === 'dark' ? '#94a3b8' : '#405168'} d="M4 4a2 2 0 0 1 2-2h13.131c1.598 0 2.55 1.78 1.665 3.11L18.202 9l2.594 3.89c.886 1.33-.067 3.11-1.665 3.11H6v5a1 1 0 1 1-2 0V4Zm2 10h13.131l-2.593-3.89a2 2 0 0 1 0-2.22L19.13 4H6v10Z"></path>
+                                                                        </svg>
+                                                                    </div>
+                                                                    <div className="text-[13.1px] tracking-[0.25px] text-[#232e3e] dark:text-gray-200 font-semibold">{t('messages.options.report', 'Report')}</div>
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
