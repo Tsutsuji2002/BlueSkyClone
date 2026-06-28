@@ -244,27 +244,40 @@ namespace BSkyClone.Services
         {
             var url = $"{ChatEndpoint}/chat.bsky.convo.sendMessage";
             
-            object? reply = null;
+            object? message = null;
+            
             if (!string.IsNullOrEmpty(replyToId))
             {
-                // Bluesky expects the reply structure with 'root' and 'parent' refs
-                // Both should point to the message being replied to for direct replies
-                reply = new { 
-                    root = new { id = replyToId, rev = replyToRev }, 
-                    parent = new { id = replyToId, rev = replyToRev } 
+                // Bluesky AT Protocol format for replies in chat messages
+                message = new 
+                { 
+                    text = content,
+                    reply = new 
+                    {
+                        root = new { id = replyToId, rev = replyToRev },
+                        parent = new { id = replyToId, rev = replyToRev }
+                    }
                 };
             }
+            else
+            {
+                message = new { text = content };
+            }
 
-            var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
+            var body = new { convoId = conversationId, message = message };
             
-            _logger.LogInformation("[SendMessageAsync] Sending message with reply structure: {ReplyStructure}", 
-                reply != null ? System.Text.Json.JsonSerializer.Serialize(reply) : "null");
+            var bodyJson = System.Text.Json.JsonSerializer.Serialize(body);
+            _logger.LogInformation("[SendMessageAsync] Sending to Bluesky: {Body}", bodyJson);
             
             var response = await CallAsync(token, url, "POST", body);
             var json = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("[SendMessageAsync] Raw Response: {Json}", json);
+            _logger.LogInformation("[SendMessageAsync] Bluesky Response: {Json}", json);
             
-            if (!response.IsSuccessStatusCode) throw new Exception($"Failed to send message: {response.StatusCode} - {json}");
+            if (!response.IsSuccessStatusCode) 
+            {
+                _logger.LogError("[SendMessageAsync] Failed with status {Status}: {Json}", response.StatusCode, json);
+                throw new Exception($"Failed to send message: {response.StatusCode} - {json}");
+            }
 
             var messageData = JsonSerializer.Deserialize<BlueskyMessage>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
