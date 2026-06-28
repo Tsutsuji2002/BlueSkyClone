@@ -795,6 +795,10 @@ namespace BSkyClone.Services
 
         private MessageDto MapToMessageDto(BlueskyMessage msg, string convoId, Dictionary<string, UserDto>? members = null)
         {
+            // Log the raw message to see if reply data is present
+            _logger.LogDebug("[MapToMessageDto] Mapping message {Id}, HasReply: {HasReply}, HasReplyTo: {HasReplyTo}", 
+                msg.Id, msg.Reply != null, msg.ReplyTo != null);
+            
             var isSystemMessage = msg.Type != null && msg.Type.Contains("systemMessageView");
             
             string messageType = "message";
