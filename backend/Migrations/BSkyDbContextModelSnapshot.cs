@@ -52,7 +52,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex(new[] { "Uri" }, "IX_BlockedAccounts_Uri");
 
-                    b.ToTable("BlockedAccounts");
+                    b.ToTable("BlockedAccounts", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Bookmark", b =>
@@ -85,7 +85,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Bookmark__C451DB30DF335A92")
                         .IsUnique();
 
-                    b.ToTable("Bookmarks");
+                    b.ToTable("Bookmarks", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Conversation", b =>
@@ -111,7 +111,7 @@ namespace BSkyClone.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Conversa__3214EC0776FD5532");
 
-                    b.ToTable("Conversations");
+                    b.ToTable("Conversations", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.ConversationParticipant", b =>
@@ -132,7 +132,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ConversationParticipants");
+                    b.ToTable("ConversationParticipants", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Feed", b =>
@@ -192,7 +192,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Feeds__C451DB30DDF6B147")
                         .IsUnique();
 
-                    b.ToTable("Feeds");
+                    b.ToTable("Feeds", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Hashtag", b =>
@@ -234,7 +234,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Hashtags");
+                    b.ToTable("Hashtags", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Interest", b =>
@@ -270,7 +270,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Slug" }, "UQ__Interest__BC7B5FB60749EE1D")
                         .IsUnique();
 
-                    b.ToTable("Interests");
+                    b.ToTable("Interests", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Label", b =>
@@ -316,7 +316,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("Uri");
 
-                    b.ToTable("Labels");
+                    b.ToTable("Labels", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Like", b =>
@@ -355,7 +355,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Likes__C451DB30B024EDAB")
                         .IsUnique();
 
-                    b.ToTable("Likes");
+                    b.ToTable("Likes", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.LinkPreview", b =>
@@ -401,7 +401,7 @@ namespace BSkyClone.Migrations
                         .IsUnique()
                         .HasFilter("[PostId] IS NOT NULL");
 
-                    b.ToTable("LinkPreviews");
+                    b.ToTable("LinkPreviews", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.List", b =>
@@ -457,7 +457,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("OwnerId");
 
-                    b.ToTable("Lists");
+                    b.ToTable("Lists", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.ListMember", b =>
@@ -487,7 +487,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ListMembers");
+                    b.ToTable("ListMembers", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.ListPost", b =>
@@ -522,7 +522,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("ListPosts");
+                    b.ToTable("ListPosts", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Message", b =>
@@ -589,7 +589,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Messages__C451DB300D86D8F0")
                         .IsUnique();
 
-                    b.ToTable("Messages");
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.MessageReaction", b =>
@@ -621,7 +621,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("MessageReactions");
+                    b.ToTable("MessageReactions", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.MutedAccount", b =>
@@ -642,7 +642,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("MutedUserId");
 
-                    b.ToTable("MutedAccounts");
+                    b.ToTable("MutedAccounts", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.MutedWord", b =>
@@ -693,7 +693,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("MutedWords");
+                    b.ToTable("MutedWords", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Notification", b =>
@@ -759,7 +759,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Notifica__C451DB3001D0607B")
                         .IsUnique();
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.PageContent", b =>
@@ -780,7 +780,7 @@ namespace BSkyClone.Migrations
 
                     b.HasKey("Slug");
 
-                    b.ToTable("PageContents");
+                    b.ToTable("PageContents", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Post", b =>
@@ -896,7 +896,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Posts__C451DB308F8113F0")
                         .IsUnique();
 
-                    b.ToTable("Posts");
+                    b.ToTable("Posts", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.PostMedium", b =>
@@ -947,7 +947,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("PostId");
 
-                    b.ToTable("PostMedia");
+                    b.ToTable("PostMedia", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.RepoBlock", b =>
@@ -974,7 +974,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("Did");
 
-                    b.ToTable("RepoBlocks");
+                    b.ToTable("RepoBlocks", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Report", b =>
@@ -1025,7 +1025,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("ReporterId");
 
-                    b.ToTable("Reports");
+                    b.ToTable("Reports", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.Repost", b =>
@@ -1064,7 +1064,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Tid" }, "UQ__Reposts__C451DB3010751B4E")
                         .IsUnique();
 
-                    b.ToTable("Reposts");
+                    b.ToTable("Reposts", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.SupportRequest", b =>
@@ -1116,7 +1116,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SupportRequests");
+                    b.ToTable("SupportRequests", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.User", b =>
@@ -1283,7 +1283,7 @@ namespace BSkyClone.Migrations
                     b.HasIndex(new[] { "Handle" }, "UQ__Users__FE5BB31A92C6FE6D")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.UserFeedSubscription", b =>
@@ -1314,7 +1314,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("FeedId");
 
-                    b.ToTable("UserFeedSubscriptions");
+                    b.ToTable("UserFeedSubscriptions", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.UserFollow", b =>
@@ -1350,7 +1350,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex(new[] { "Uri" }, "IX_UserFollows_Uri");
 
-                    b.ToTable("UserFollows");
+                    b.ToTable("UserFollows", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.UserListSubscription", b =>
@@ -1376,7 +1376,7 @@ namespace BSkyClone.Migrations
 
                     b.HasIndex("ListId");
 
-                    b.ToTable("UserListSubscriptions");
+                    b.ToTable("UserListSubscriptions", (string)null);
                 });
 
             modelBuilder.Entity("BSkyClone.Models.UserSetting", b =>
@@ -1652,7 +1652,7 @@ namespace BSkyClone.Migrations
                     b.HasKey("UserId")
                         .HasName("PK__UserSett__1788CC4CA56EF176");
 
-                    b.ToTable("UserSettings");
+                    b.ToTable("UserSettings", (string)null);
                 });
 
             modelBuilder.Entity("PostHashtag", b =>

@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using BSkyClone.DTOs;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services
@@ -17,14 +19,16 @@ namespace BSkyClone.Services
         private readonly IXrpcProxyService _xrpcProxy;
         private readonly ILogger<ChatProxyService> _logger;
         private readonly ILinkService _linkService;
+        private readonly IDistributedCache _cache;
         private const string ChatEndpoint = "https://api.bsky.chat/xrpc";
 
-        public ChatProxyService(HttpClient httpClient, ILogger<ChatProxyService> logger, ILinkService linkService, IXrpcProxyService xrpcProxy)
+        public ChatProxyService(HttpClient httpClient, ILogger<ChatProxyService> logger, ILinkService linkService, IXrpcProxyService xrpcProxy, IDistributedCache cache)
         {
             _httpClient = httpClient;
             _logger = logger;
             _linkService = linkService;
             _xrpcProxy = xrpcProxy;
+            _cache = cache;
         }
 
         public async Task<IEnumerable<ConversationDto>> GetConversationsAsync(string token, int limit = 50, string? cursor = null)
@@ -91,8 +95,49 @@ namespace BSkyClone.Services
             var mapped = data?.Messages.Select(m => MapToMessageDto(m, conversationId, members)).OrderBy(m => m.CreatedAt)
                 ?? Enumerable.Empty<MessageDto>();
             
-            // Enrich with replies and previews in parallel
-            var enrichmentTasks = mapped.Select(m => EnrichMessageAsync(m, token, conversationId));
+            // Load reply relationships from cache (since Bluesky doesn't return them)
+            var messagesWithReplies = new List<MessageDto>();
+            foreach (var msg in mapped)
+            {
+                try
+                {
+                    var cacheKey = $"bluesky_reply:{conversationId}:{msg.Id}";
+                    var cachedReply = await _cache.GetStringAsync(cacheKey);
+                    
+                    if (!string.IsNullOrEmpty(cachedReply))
+                    {
+                        var replyInfo = JsonSerializer.Deserialize<JsonElement>(cachedReply);
+                        var replyToId = replyInfo.GetProperty("replyToId").GetString();
+                        
+                        _logger.LogDebug("[GetMessagesAsync] Restoring reply for message {MsgId} -> {ReplyToId}", msg.Id, replyToId);
+                        
+                        // Try to find parent in current batch first
+                        var parent = mapped.FirstOrDefault(m => m.Id == replyToId);
+                        if (parent != null)
+                        {
+                            messagesWithReplies.Add(msg with { ReplyTo = parent });
+                        }
+                        else
+                        {
+                            // Parent not in current page, fetch it
+                            var fetchedParent = await GetMessageByIdAsync(token, conversationId, replyToId);
+                            messagesWithReplies.Add(msg with { ReplyTo = fetchedParent });
+                        }
+                    }
+                    else
+                    {
+                        messagesWithReplies.Add(msg);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[GetMessagesAsync] Failed to restore reply for message {MsgId}", msg.Id);
+                    messagesWithReplies.Add(msg);
+                }
+            }
+            
+            // Enrich with previews in parallel
+            var enrichmentTasks = messagesWithReplies.Select(m => EnrichMessageAsync(m, token, conversationId));
             return await Task.WhenAll(enrichmentTasks);
         }
 
@@ -315,6 +360,24 @@ namespace BSkyClone.Services
             {
                 _logger.LogInformation("[SendMessageAsync] Forcing reply restoration from cached parent message");
                 sentMessage = sentMessage with { ReplyTo = parentMessage };
+                
+                // SAVE REPLY RELATIONSHIP TO CACHE (Bluesky doesn't persist it)
+                // Using Redis cache - no database changes needed!
+                try
+                {
+                    var cacheKey = $"bluesky_reply:{conversationId}:{sentMessage.Id}";
+                    var cacheValue = JsonSerializer.Serialize(new { replyToId, replyToRev });
+                    var cacheOptions = new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // Keep for 30 days
+                    };
+                    await _cache.SetStringAsync(cacheKey, cacheValue, cacheOptions);
+                    _logger.LogInformation("[SendMessageAsync] Saved reply relationship to cache: {MessageId} -> {ReplyToId}", sentMessage.Id, replyToId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[SendMessageAsync] Failed to save reply relationship to cache");
+                }
             }
             else if (!string.IsNullOrEmpty(replyToId) && parentMessage == null)
             {
