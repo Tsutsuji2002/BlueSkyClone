@@ -252,7 +252,10 @@ namespace BSkyClone.Services
                 parentMessage = await GetMessageByIdAsync(token, conversationId, replyToId);
                 if (parentMessage != null)
                 {
-                    _logger.LogInformation("[SendMessageAsync] Successfully fetched parent message: {ParentContent}", parentMessage.Content?.Substring(0, Math.Min(50, parentMessage.Content.Length ?? 0)));
+                    var contentPreview = parentMessage.Content != null && parentMessage.Content.Length > 50 
+                        ? parentMessage.Content.Substring(0, 50) 
+                        : parentMessage.Content ?? "";
+                    _logger.LogInformation("[SendMessageAsync] Successfully fetched parent message: {ParentContent}", contentPreview);
                 }
                 else
                 {
