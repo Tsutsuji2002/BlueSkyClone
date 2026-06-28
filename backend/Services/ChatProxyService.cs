@@ -247,7 +247,7 @@ namespace BSkyClone.Services
             object? reply = null;
             if (!string.IsNullOrEmpty(replyToId))
             {
-                reply = new { id = replyToId, rev = replyToRev };
+                reply = new { root = new { messageId = replyToId, rev = replyToRev }, parent = new { messageId = replyToId, rev = replyToRev } };
             }
 
             var body = new { convoId = conversationId, message = new { text = content, reply = reply } };
@@ -266,23 +266,43 @@ namespace BSkyClone.Services
             
             var sentMessage = MapToMessageDto(messageData!, conversationId, members);
 
-            _logger.LogInformation("[SendMessageAsync] Sent Message DTO - Id: {Id}, ReplyTo Present: {ReplyToPresent}", sentMessage.Id, sentMessage.ReplyTo != null);
+            _logger.LogInformation("[SendMessageAsync] Sent Message DTO - Id: {Id}, ReplyTo Present: {ReplyToPresent}, ReplyTo Content: {ReplyContent}", 
+                sentMessage.Id, sentMessage.ReplyTo != null, sentMessage.ReplyTo?.Content);
 
+            // CRITICAL FIX: Always hydrate the reply from the conversation messages
+            // This ensures the reply is preserved even if Bluesky's response doesn't include it
             if (!string.IsNullOrEmpty(replyToId))
             {
-                // Even if MapToMessageDto produced a ReplyTo, we try to get a fully hydrated one
-                if (sentMessage.ReplyTo == null || string.IsNullOrEmpty(sentMessage.ReplyTo.Content))
+                // Try to get the parent message from recent conversation messages
+                var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
+                if (parent != null)
                 {
-                    var parent = await GetMessageByIdAsync(token, conversationId, replyToId);
-                    if (parent != null)
-                    {
-                        sentMessage = sentMessage with { ReplyTo = parent };
-                    }
-                    else if (sentMessage.ReplyTo == null)
-                    {
-                        // Fallback placeholder if parent not found in latest fetch
-                        sentMessage = sentMessage with { ReplyTo = new MessageDto(replyToId, conversationId, "", "", null, DateTimeOffset.MinValue, false, false, false, null, null, null, null, "message", replyToRev) };
-                    }
+                    _logger.LogInformation("[SendMessageAsync] Successfully hydrated replyTo from conversation messages");
+                    sentMessage = sentMessage with { ReplyTo = parent };
+                }
+                else
+                {
+                    // Fallback: create a minimal reply reference so it's not completely lost
+                    _logger.LogWarning("[SendMessageAsync] Could not find parent message {ReplyToId} in recent messages, creating placeholder", replyToId);
+                    sentMessage = sentMessage with { 
+                        ReplyTo = new MessageDto(
+                            replyToId, 
+                            conversationId, 
+                            "", 
+                            sentMessage.ReplyTo?.Content ?? "[Original message unavailable]", 
+                            null, 
+                            DateTimeOffset.MinValue, 
+                            false, 
+                            false, 
+                            false, 
+                            sentMessage.ReplyTo?.Sender, 
+                            null, 
+                            null, 
+                            null, 
+                            "message", 
+                            replyToRev
+                        ) 
+                    };
                 }
             }
 
