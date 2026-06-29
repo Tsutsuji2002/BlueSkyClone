@@ -1,24 +1,31 @@
 import { createApi, fetchBaseQuery, retry } from '@reduxjs/toolkit/query/react';
 import { API_BASE_URL } from '../../constants';
 
-// Custom fetch with timeout
+/**
+ * Custom fetch with guaranteed timeout
+ * Ensures requests don't hang indefinitely on slow/bad networks
+ */
 const fetchWithTimeout = async (
     url: string,
     options: RequestInit = {},
-    timeout: number = 10000
+    timeout: number = 15000
 ): Promise<Response> => {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
         const response = await fetch(url, {
             ...options,
             signal: controller.signal,
         });
-        clearTimeout(id);
+        clearTimeout(timeoutId);
         return response;
-    } catch (error) {
-        clearTimeout(id);
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        // Convert AbortError to more user-friendly timeout error
+        if (error.name === 'AbortError') {
+            throw new Error('Request timeout - please check your network connection');
+        }
         throw error;
     }
 };
@@ -31,20 +38,15 @@ export const apiSlice = createApi({
     reducerPath: 'api',
     baseQuery: fetchBaseQuery({
         baseUrl: API_BASE_URL,
-        // REQUIRED: Send HttpOnly cookies (access_token, refresh_token) with every request.
-        // Without this, the browser won't attach cookies and every API call will 401,
-        // which hammers the rate-limited /auth/refresh endpoint and causes 503s.
         credentials: 'include',
         prepareHeaders: (headers) => {
             return headers;
         },
-        timeout: 15000, // 15 second default timeout (increased from 10s for slow networks)
+        // Use our custom fetch with guaranteed timeout for ALL requests
         fetchFn: async (input, init) => {
-            // Use our custom fetch with extended timeout for handshake
-            if (typeof input === 'string' && input.includes('/auth/handshake')) {
-                return fetchWithTimeout(input, init, 15000); // Increased to 15 seconds
-            }
-            return fetch(input, init);
+            const url = typeof input === 'string' ? input : input.url;
+            const timeout = url.includes('/auth/handshake') ? 15000 : 15000; // 15s for all requests
+            return fetchWithTimeout(url, init, timeout);
         },
     }),
     tagTypes: ['Auth', 'Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],
