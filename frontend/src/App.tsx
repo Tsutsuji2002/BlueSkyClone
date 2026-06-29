@@ -447,6 +447,29 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Show error screen if timed out or has error, even after loading stopped
+  if (!isAuthenticated && (hasTimedOut || handshakeError)) {
+    return (
+      <LoadingScreen 
+        error={true}
+        onRetry={() => {
+          setHasTimedOut(false);
+          refetch();
+        }}
+        message="Connecting to BlueSky..."
+      />
+    );
+  }
+
+  // Show loading screen if still fetching handshake
+  if (isHandshakeFetching && !isAuthenticated && !handshakeData) {
+    return (
+      <LoadingScreen 
+        message="Connecting to BlueSky..."
+      />
+    );
+  }
+
     return (
     <>
       <NetworkStatusBanner />
