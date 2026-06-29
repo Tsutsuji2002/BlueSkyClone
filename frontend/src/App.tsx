@@ -450,38 +450,27 @@ const AppContent: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated, refetch, dispatch]);
 
-  if (isLoading && !isAuthenticated) {
-    const hasError = !!handshakeError || (!isHandshakeFetching && !handshakeData && !isAuthenticated);
-    return (
-      <LoadingScreen 
-        error={hasError}
-        onRetry={hasError ? () => refetch() : undefined}
-        message="Connecting to BlueSky..."
-      />
-    );
-  }
-
-  // Show error screen if timed out or has error, even after loading stopped
-  if (!isAuthenticated && (hasTimedOut || handshakeError)) {
-    return (
-      <LoadingScreen 
-        error={true}
-        onRetry={() => {
-          setHasTimedOut(false);
-          refetch();
-        }}
-        message="Connecting to BlueSky..."
-      />
-    );
-  }
-
-  // Show loading screen if still fetching handshake
-  if (isHandshakeFetching && !isAuthenticated && !handshakeData) {
-    return (
-      <LoadingScreen 
-        message="Connecting to BlueSky..."
-      />
-    );
+  // Unified loading screen logic to prevent blank screens
+  // Show loading/error screen if not authenticated and either:
+  // 1. Still loading initial state
+  // 2. Actively fetching handshake
+  // 3. Has timed out or has error
+  if (!isAuthenticated) {
+    const hasError = hasTimedOut || !!handshakeError;
+    const shouldShowLoading = isLoading || isHandshakeFetching || hasError;
+    
+    if (shouldShowLoading) {
+      return (
+        <LoadingScreen 
+          error={hasError}
+          onRetry={hasError ? () => {
+            setHasTimedOut(false);
+            refetch();
+          } : undefined}
+          message="Connecting to BlueSky..."
+        />
+      );
+    }
   }
 
     return (
