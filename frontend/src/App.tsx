@@ -154,6 +154,9 @@ const AppContent: React.FC = () => {
 
 
   // Safety timeout: Ensure the app never stays in "Initializing" state forever
+  // Track if we've timed out to show error screen
+  const [hasTimedOut, setHasTimedOut] = React.useState(false);
+  
   useEffect(() => {
     const timeoutId = setTimeout(() => {
         // We check current state inside the timeout to avoid unnecessary dispatches
@@ -161,10 +164,21 @@ const AppContent: React.FC = () => {
             console.warn('[App] Initialization timed out (18s), forcing settlement.');
             dispatch(stopLoading());
             dispatch(setHandshakeSettled(true));
+            // Mark as timed out if not authenticated
+            if (!isAuthenticated) {
+                setHasTimedOut(true);
+            }
         }
     }, 18000); // Increased to 18 seconds (15s handshake + 3s buffer)
     return () => clearTimeout(timeoutId);
-  }, [dispatch, isHandshakeFetching, handshakeData, handshakeError]);
+  }, [dispatch, isHandshakeFetching, handshakeData, handshakeError, isAuthenticated]);
+
+  // Reset timeout flag when successfully authenticated
+  useEffect(() => {
+    if (isAuthenticated || handshakeData) {
+        setHasTimedOut(false);
+    }
+  }, [isAuthenticated, handshakeData]);
 
   useEffect(() => {
     sessionStorage.removeItem('chunk_reload_count');
