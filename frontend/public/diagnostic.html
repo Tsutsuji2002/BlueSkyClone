@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueSky Diagnostic</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 4px solid #22c55e; }
+        .error { border-left: 4px solid #ef4444; }
+        .warning { border-left: 4px solid #f59e0b; }
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        h1 { color: #0085ff; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 BlueSky Deployment Diagnostic</h1>
+    
+    <div class="test">
+        <h2>1. Static Files Test</h2>
+        <p>If you can see this page, nginx is serving static files correctly.</p>
+        <p class="success">✅ Static file serving works</p>
+    </div>
+
+    <div class="test">
+        <h2>2. API Connectivity Test</h2>
+        <p>Testing connection to backend API...</p>
+        <div id="api-test">⏳ Testing...</div>
+    </div>
+
+    <div class="test">
+        <h2>3. JavaScript Execution Test</h2>
+        <p>If this turns green, JavaScript is executing:</p>
+        <div id="js-test" style="color: red;">❌ JavaScript not running</div>
+    </div>
+
+    <div class="test">
+        <h2>4. Environment Detection</h2>
+        <pre id="env-info">Loading...</pre>
+    </div>
+
+    <div class="test">
+        <h2>5. Bundle Files Check</h2>
+        <p>Checking if main bundle files exist...</p>
+        <div id="bundle-check">⏳ Checking...</div>
+    </div>
+
+    <script>
+        // Test 3: JavaScript execution
+        document.getElementById('js-test').innerHTML = '✅ JavaScript is executing';
+        document.getElementById('js-test').style.color = 'green';
+
+        // Test 4: Environment info
+        document.getElementById('env-info').textContent = JSON.stringify({
+            hostname: window.location.hostname,
+            protocol: window.location.protocol,
+            port: window.location.port,
+            pathname: window.location.pathname,
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+        }, null, 2);
+
+        // Test 2: API connectivity
+        const apiUrl = window.location.protocol + '//' + window.location.hostname + '/api/auth/handshake';
+        fetch(apiUrl, { credentials: 'include' })
+            .then(response => {
+                const status = response.status;
+                const statusText = response.statusText;
+                if (status === 200 || status === 401 || status === 403) {
+                    document.getElementById('api-test').innerHTML = 
+                        `✅ API is accessible (Status: ${status} ${statusText})`;
+                    document.getElementById('api-test').parentElement.classList.add('success');
+                } else {
+                    document.getElementById('api-test').innerHTML = 
+                        `⚠️ API returned status ${status} ${statusText}`;
+                    document.getElementById('api-test').parentElement.classList.add('warning');
+                }
+            })
+            .catch(error => {
+                document.getElementById('api-test').innerHTML = 
+                    `❌ API connection failed: ${error.message}`;
+                document.getElementById('api-test').parentElement.classList.add('error');
+            });
+
+        // Test 5: Check bundle files
+        const checkBundle = async () => {
+            const checks = [];
+            
+            // Try to fetch index.html to see what bundles it references
+            try {
+                const response = await fetch('/index.html');
+                const html = await response.text();
+                
+                // Extract script sources
+                const scriptMatches = html.match(/src="([^"]+\.js)"/g);
+                if (scriptMatches) {
+                    checks.push(`Found ${scriptMatches.length} script tags`);
+                    
+                    // Try to load first script
+                    const firstScript = scriptMatches[0].match(/src="([^"]+)"/)[1];
+                    try {
+                        const scriptResponse = await fetch(firstScript);
+                        if (scriptResponse.ok) {
+                            checks.push(`✅ Main bundle is accessible: ${firstScript}`);
+                        } else {
+                            checks.push(`❌ Main bundle returned ${scriptResponse.status}: ${firstScript}`);
+                        }
+                    } catch (e) {
+                        checks.push(`❌ Failed to load main bundle: ${e.message}`);
+                    }
+                } else {
+                    checks.push('❌ No script tags found in index.html');
+                }
+                
+                // Extract CSS sources
+                const cssMatches = html.match(/href="([^"]+\.css)"/g);
+                if (cssMatches) {
+                    checks.push(`Found ${cssMatches.length} CSS files`);
+                }
+            } catch (e) {
+                checks.push(`❌ Failed to fetch index.html: ${e.message}`);
+            }
+            
+            document.getElementById('bundle-check').innerHTML = '<pre>' + checks.join('\n') + '</pre>';
+        };
+        
+        checkBundle();
+    </script>
+
+    <div class="test">
+        <h2>📋 Instructions</h2>
+        <p><strong>What to do next:</strong></p>
+        <ol>
+            <li>Take a screenshot of this page</li>
+            <li>Check the browser console (F12) for any errors</li>
+            <li>Go back to <a href="/">the main site</a> and check console errors there</li>
+        </ol>
+    </div>
+</body>
+</html>

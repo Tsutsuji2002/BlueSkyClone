@@ -1,5 +1,8 @@
 // API Base URL
-export const API_BASE_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
+// For debugging: log the actual URL being used
+const API_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
+console.log('[Config] API_BASE_URL:', API_URL, '| REACT_APP_API_URL env:', process.env.REACT_APP_API_URL);
+export const API_BASE_URL = API_URL;
 
 // Placeholder images
 export const AVATAR_PLACEHOLDER = '/placeholders/avatar-default.png';
