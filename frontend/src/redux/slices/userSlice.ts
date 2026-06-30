@@ -891,9 +891,20 @@ const userSlice = createSlice({
             })
             .addCase(fetchUserProfile.fulfilled, (state: UserState, action) => {
                 state.isLoading = false;
-                state.profileIdentifier = null;
+
                 const user = action.payload.user;
-                state.profile = user;
+
+                // Protect against out-of-order/race conditions
+                if (!state.profileIdentifier || profileMatchesIdentifier(user, state.profileIdentifier)) {
+                    state.profileIdentifier = null;
+                    state.profile = user;
+                } else {
+                    console.log('[userSlice] Ignoring fetchUserProfile.fulfilled due to identifier mismatch:', {
+                        activeIdentifier: state.profileIdentifier,
+                        fulfilledHandle: user.handle
+                    });
+                    return;
+                }
 
                 // Propagate updated status to all other lists
                 const updateAllLists = (u: User) => {
@@ -925,7 +936,9 @@ const userSlice = createSlice({
             })
             .addCase(fetchUserProfile.rejected, (state: UserState, action) => {
                 state.isLoading = false;
-                state.profileIdentifier = null;
+                if (!state.profileIdentifier || action.meta.arg === state.profileIdentifier) {
+                    state.profileIdentifier = null;
+                }
                 state.error = action.payload as string;
             })
             // Follow User

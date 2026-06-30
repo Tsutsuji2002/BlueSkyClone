@@ -126,11 +126,14 @@ const ProfilePage: React.FC = () => {
     useEffect(() => {
         if (handle && profileUser?.handle && handle !== profileUser.handle) {
             // If the URL handle is a DID and the profile has a real handle, redirect
-            if (handle.startsWith('did:') && !profileUser.handle.startsWith('did:')) {
-                navigate(`/profile/${profileUser.handle}`, { replace: true });
+            // Ensure the profile matches the requested identifier to avoid stale profile redirects
+            if (profileMatchesIdentifier(profileUser, handle)) {
+                if (handle.startsWith('did:') && !profileUser.handle.startsWith('did:')) {
+                    navigate(`/profile/${profileUser.handle}`, { replace: true });
+                }
             }
         }
-    }, [handle, profileUser?.handle, navigate]);
+    }, [handle, profileUser, navigate]);
 
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([activeTab]));
 
@@ -682,7 +685,7 @@ const ProfilePage: React.FC = () => {
                                     style={{ display: activeTab === tab.id ? 'block' : 'none' }}
                                 >
                                     <ProfileTabContent 
-                                        userId={handle!}
+                                        userId={profileUser?.did || handle!}
                                         type={tab.id}
                                         isOwnProfile={isOwnProfile}
                                         isActive={activeTab === tab.id}
