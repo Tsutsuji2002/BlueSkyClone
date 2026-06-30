@@ -6629,22 +6629,7 @@ public class PostService : IPostService
                 .Select(x => x.Post);
         }
 
-        var resultDtos = new List<PostDto>();
-        int mediaCount = 0;
-        foreach (var p in resultPool.Skip(skip).Take(take))
-        {
-            resultDtos.Add(p);
-            bool hasMedia = (p.ImageUrls?.Any() == true) || 
-                            p.VideoUrl != null || 
-                            !string.IsNullOrWhiteSpace(p.VideoUrl) || 
-                            p.LinkPreview != null;
-                            
-            if (hasMedia) 
-                mediaCount++;
-                
-            if (mediaCount >= 3) 
-                break;
-        }
+        var resultDtos = resultPool.Skip(skip).Take(take).ToList();
 
         if (resultDtos.Any())
         {
@@ -6736,22 +6721,7 @@ public class PostService : IPostService
             var rng = new Random();
             var shuffled = allPosts.OrderBy(_ => rng.Next()).Skip(skip).Take(take).ToList();
 
-            var limitedPosts = new List<PostDto>();
-            int mediaCount = 0;
-            foreach (var p in shuffled)
-            {
-                limitedPosts.Add(p);
-                bool hasMedia = (p.ImageUrls?.Any() == true) || 
-                                p.VideoUrl != null || 
-                                !string.IsNullOrWhiteSpace(p.VideoUrl) || 
-                                p.LinkPreview != null;
-                                
-                if (hasMedia) 
-                    mediaCount++;
-                    
-                if (mediaCount >= 3) 
-                    break;
-            }
+            var limitedPosts = shuffled;
 
             return await EnrichAndFilterPostsAsync(limitedPosts, Guid.Empty);
         }
