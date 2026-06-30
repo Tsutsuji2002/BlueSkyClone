@@ -21,6 +21,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000/api}
+        - REACT_APP_HUB_URL=${REACT_APP_HUB_URL:-http://localhost:5000/hubs/chat}
+        - REACT_APP_GIPHY_API_KEY=${REACT_APP_GIPHY_API_KEY}
     ports:
       - "3000:80"
     environment:
