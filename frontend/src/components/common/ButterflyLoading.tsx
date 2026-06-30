@@ -16,32 +16,71 @@ const ButterflyLoading: React.FC<ButterflyLoadingProps> = ({ size = 'md', classN
 
     return (
         <div className={cn("relative flex items-center justify-center", sizeClasses[size], className)}>
-            <svg
-                viewBox="0 0 64 64"
-                className="w-full h-full text-primary-500 loading-butterfly"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{ perspective: '1000px' }}
-            >
-                <defs>
-                    <linearGradient id="loading-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stopColor="currentColor" />
-                        <stop offset="100%" stopColor="currentColor" stopOpacity="0.8" />
-                    </linearGradient>
-                </defs>
-                {/* Left Wing */}
-                <path
-                    className="butterfly-wing-left"
-                    d="M16.892 13.717c-4.41 -3.197 -11.559 -5.672 -11.559 2.203c0 1.574 .934 13.208 1.483 15.096c1.9 6.568 8.347 7.333 14.516 6.317c-10.787 1.774 -13.037 8.555 -7.111 14.427c2.746 2.715 5.101 4.24 7.111 4.24c5.333 0 8.357 -7.384 9.333 -9.333l.435 -0.87V32c-2.413 -4.822 -8.991 -13.851 -15.106 -18.283z"
-                    fill="url(#loading-gradient)"
-                />
-                {/* Right Wing */}
-                <path
-                    className="butterfly-wing-right"
-                    d="M47.108 13.717c4.41 -3.197 11.559 -5.672 11.559 2.203c0 1.574 -.934 13.208 -1.483 15.096c-1.9 6.568 -8.347 7.333 -14.516 6.317c10.787 1.774 13.037 8.555 7.111 14.427c-2.746 2.715 -5.101 4.24 -7.111 4.24c-5.333 0 -8.357 -7.384 -9.333 -9.333l-.435 -0.87V32c2.413 -4.822 8.991 -13.851 15.106 -18.283z"
-                    fill="url(#loading-gradient)"
-                />
-            </svg>
+            {/* Animated butterfly wings */}
+            <div className="butterfly-container">
+                <div className="butterfly-wing butterfly-wing-left"></div>
+                <div className="butterfly-wing butterfly-wing-right"></div>
+                <div className="butterfly-body"></div>
+            </div>
+            
+            <style>{`
+                .butterfly-container {
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .butterfly-wing {
+                    position: absolute;
+                    width: 45%;
+                    height: 60%;
+                    background: linear-gradient(135deg, #0085ff 0%, #0066cc 100%);
+                    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+                    box-shadow: 0 2px 8px rgba(0, 133, 255, 0.3);
+                }
+                
+                .butterfly-wing-left {
+                    left: 5%;
+                    transform-origin: right center;
+                    animation: flap-left 0.6s ease-in-out infinite;
+                }
+                
+                .butterfly-wing-right {
+                    right: 5%;
+                    transform-origin: left center;
+                    animation: flap-right 0.6s ease-in-out infinite;
+                }
+                
+                .butterfly-body {
+                    position: absolute;
+                    width: 10%;
+                    height: 70%;
+                    background: linear-gradient(180deg, #003d7a 0%, #0085ff 100%);
+                    border-radius: 50%;
+                    z-index: 1;
+                }
+                
+                @keyframes flap-left {
+                    0%, 100% {
+                        transform: rotateY(0deg) translateX(0);
+                    }
+                    50% {
+                        transform: rotateY(-25deg) translateX(-2px);
+                    }
+                }
+                
+                @keyframes flap-right {
+                    0%, 100% {
+                        transform: rotateY(0deg) translateX(0);
+                    }
+                    50% {
+                        transform: rotateY(25deg) translateX(2px);
+                    }
+                }
+            `}</style>
         </div>
     );
 };

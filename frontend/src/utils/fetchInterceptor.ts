@@ -269,7 +269,8 @@ export const setupFetchInterceptor = () => {
             }
         }
 
-        // Clone/capture request for potential retry
+        // Clone/capture request for potential retry (currently unused but kept for future retry logic)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         let retryArgs: [RequestInfo | URL, RequestInit?] = [input, fetchOptions];
         if (input instanceof Request) {
             // Re-clone request if needed for retry
@@ -338,6 +339,7 @@ export const setupFetchInterceptor = () => {
                     }
 
                     const state = store.getState();
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const activeDid = state.auth.user?.did;
                     
                     if (state.auth.isAuthenticated && !isSwitchRequest && !isLoginRequest && !isWithinSafetyWindow) {
