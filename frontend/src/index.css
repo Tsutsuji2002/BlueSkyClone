@@ -251,3 +251,30 @@
     transform: rotateY(25deg) translateX(2px);
   }
 }
+
+/* Bluesky Butterfly Flapping (Split vertically) */
+.butterfly-left-wing {
+  animation: flap-left-wing 0.6s ease-in-out infinite;
+}
+
+.butterfly-right-wing {
+  animation: flap-right-wing 0.6s ease-in-out infinite;
+}
+
+@keyframes flap-left-wing {
+  0%, 100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.7);
+  }
+}
+
+@keyframes flap-right-wing {
+  0%, 100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.7);
+  }
+}
