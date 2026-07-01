@@ -364,6 +364,12 @@ using (var scope = app.Services.CreateScope())
         try
         {
             context.Database.ExecuteSqlRaw(@"
+-- Ensure Feeds have IsOfficial (top-priority: referenced by handshake on startup)
+IF COL_LENGTH('Feeds', 'IsOfficial') IS NULL
+BEGIN
+    ALTER TABLE [Feeds] ADD [IsOfficial] bit NOT NULL DEFAULT 0;
+END
+
 -- Ensure IsBanned exists on Users (may be missing after a clean DB reset)
 IF COL_LENGTH('Users', 'IsBanned') IS NULL
 BEGIN
