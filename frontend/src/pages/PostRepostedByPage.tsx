@@ -36,6 +36,7 @@ const PostRepostedByPage: React.FC = () => {
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
 
     const observerTarget = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     const postUri = post?.uri;
 
     useDocumentTitle(post ? `${t('post.reposted_by_title', 'Reposted By')} · ${post.repostsCount} ${t('post.reposts', 'Reposts')}` : t('post.reposted_by_title', 'Reposted By'));
@@ -82,7 +83,9 @@ const PostRepostedByPage: React.FC = () => {
                         .finally(() => setLoading(false));
                 }
             },
-            { rootMargin: '600px', threshold: 0 }
+            // Use the local scroll container as root so IntersectionObserver
+            // fires correctly on mobile (where the parent shell is the scroller).
+            { root: scrollContainerRef.current, rootMargin: '600px', threshold: 0 }
         );
         if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
@@ -107,7 +110,7 @@ const PostRepostedByPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-white dark:bg-dark-bg">
+        <div ref={scrollContainerRef} className="h-screen overflow-y-auto bg-white dark:bg-dark-bg">
             {/* Header */}
             <div className="sticky top-0 z-10 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-sm border-b border-gray-200 dark:border-dark-border">
                 <div className="flex items-center gap-4 px-4 py-3">
