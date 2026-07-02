@@ -58,11 +58,14 @@ const Feed: React.FC<FeedProps> = ({
 
     const virtuosoRef = useRef<VirtuosoHandle>(null);
     const storageKey = feedId ? `virtuoso_state_full_${feedId}` : null;
-    // Debounce ref to prevent endReached from firing too rapidly
+    // Debounce ref to prevent load-more from firing too rapidly
     const loadMoreDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastLoadMoreRef = useRef<number>(0);
     // Track if we're actively loading more (separate from initial loading)
     const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+
+    // IntersectionObserver for reliable end-of-feed detection
+    const observerRef = useRef<IntersectionObserver | null>(null);
     
     // Capture state to restore precise scroll positions for Virtuoso
     const [savedState] = React.useState<any>(() => {
@@ -149,43 +152,50 @@ const Feed: React.FC<FeedProps> = ({
         postsLengthRef.current = localPosts.length;
     }, [localPosts.length]);
 
-    // Safety timeout: if loading takes more than 30 seconds, reset
+    // Safety timeout: if loading takes more than 15 seconds, reset
     useEffect(() => {
         if (isLoadingMore) {
             const timeout = setTimeout(() => {
-                console.warn('[Feed] Load more timeout - resetting loading state');
                 isFetchingRef.current = false;
                 setIsLoadingMore(false);
-            }, 30000); // 30 seconds timeout
-            
+            }, 15000);
             return () => clearTimeout(timeout);
         }
     }, [isLoadingMore]);
 
     // Debounced load more handler — ensures we can't fire faster than once per 800ms
     const debouncedLoadMore = useCallback(() => {
-        if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) {
-            console.log('[Feed] Load more blocked:', { 
-                hasOnLoadMore: !!onLoadMore, 
-                hasMore, 
-                isLoading, 
-                isFetching: isFetchingRef.current 
-            });
-            return;
-        }
+        if (!onLoadMore || !hasMore || isLoading || isFetchingRef.current) return;
         const now = Date.now();
-        const timeSinceLastLoad = now - lastLoadMoreRef.current;
-        if (timeSinceLastLoad < 800) {
-            console.log('[Feed] Load more debounced, wait:', 800 - timeSinceLastLoad, 'ms');
-            return;
-        }
-        
-        console.log('[Feed] Loading more posts...', { feedId, currentCount: localPosts.length });
+        if (now - lastLoadMoreRef.current < 800) return;
+
         lastLoadMoreRef.current = now;
         isFetchingRef.current = true;
         setIsLoadingMore(true);
         onLoadMore();
     }, [onLoadMore, hasMore, isLoading, feedId, localPosts.length]);
+
+    // Sentinel ref callback — wires / tears down IntersectionObserver
+    const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+            observerRef.current = null;
+        }
+        if (!node) return;
+        observerRef.current = new IntersectionObserver(
+            (entries) => { if (entries[0].isIntersecting) debouncedLoadMore(); },
+            { rootMargin: '0px 0px 300px 0px', threshold: 0 }
+        );
+        observerRef.current.observe(node);
+    }, [debouncedLoadMore]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (observerRef.current) observerRef.current.disconnect();
+            if (loadMoreDebounceRef.current) clearTimeout(loadMoreDebounceRef.current);
+        };
+    }, []);
 
     if (isLoading && localPosts.length === 0) {
         return <PostFeedSkeleton count={5} />;
@@ -213,7 +223,7 @@ const Feed: React.FC<FeedProps> = ({
             restoreStateFrom={savedState}
             useWindowScroll
             isScrolling={(scrolling) => {
-                // Safely capture the extremely precise scroll layout state ONLY when the user pauses scrolling
+                // Capture scroll layout state when the user pauses
                 if (!scrolling && virtuosoRef.current && storageKey) {
                     virtuosoRef.current.getState((s) => {
                         sessionStorage.setItem(storageKey, JSON.stringify(s));
@@ -221,10 +231,7 @@ const Feed: React.FC<FeedProps> = ({
                 }
             }}
             data={localPosts}
-            overscan={1000} // Preload items within 1000px of the viewport
-            endReached={() => {
-                debouncedLoadMore();
-            }}
+            overscan={500}
             followOutput={false}
             itemContent={(index, post) => (
                 <div className="relative z-10 bg-white dark:bg-dark-bg">
@@ -243,15 +250,20 @@ const Feed: React.FC<FeedProps> = ({
             )}
             components={{
                 Footer: () => (
-                    <div className="h-20 flex items-center justify-center border-t border-gray-100 dark:border-dark-border/30">
-                        {(isLoading || isLoadingMore) && hasMore && (
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
-                                <span className="text-xs text-gray-500 dark:text-dark-text-secondary">{t('common.loading', 'Loading...')}</span>
+                    <div className="flex flex-col items-center justify-center border-t border-gray-100 dark:border-dark-border/30">
+                        {/* Sentinel div — IntersectionObserver watches this to trigger load-more */}
+                        {hasMore && (
+                            <div ref={sentinelRef} className="h-20 w-full flex items-center justify-center">
+                                {(isLoading || isLoadingMore) && (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+                                        <span className="text-xs text-gray-500 dark:text-dark-text-secondary">{t('common.loading', 'Loading...')}</span>
+                                    </div>
+                                )}
                             </div>
                         )}
                         {!isLoading && !isLoadingMore && !hasMore && (
-                            <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
+                            <div className="h-20 flex flex-col items-center justify-center gap-2 text-gray-400 dark:text-dark-text-secondary select-none px-6 text-center">
                                 <div className="flex items-center gap-3">
                                     <div className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-dark-border/60"></div>
                                     <span className="text-sm font-medium">{endMessage || t('feeds.end', 'End of feed')}</span>

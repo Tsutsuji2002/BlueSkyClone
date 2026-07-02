@@ -547,20 +547,20 @@ export const fetchFeedPostsStreaming = (
         
         console.log(`[feedsSlice] Stream completed for ${feedId}, received ${postCount} posts`);
         
-        // Mark as not loading on success
-        dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: false } });
-        
-        // If we got fewer posts than requested, we've reached the end
-        if (postCount < take) {
+        // Update hasMore: full page received means there is likely more; fewer means end of feed
+        if (postCount >= take) {
+            dispatch({ type: 'feeds/setFeedHasMore', payload: { feedId, hasMore: true } });
+        } else {
             dispatch({ type: 'feeds/setFeedHasMore', payload: { feedId, hasMore: false } });
         }
         
         onComplete(null);
     } catch (e: any) {
         console.error('[feedsSlice] fetchFeedPostsStreaming failed:', e);
-        // Mark as not loading on error
-        dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: false } });
         onError(e);
+    } finally {
+        // Always clear the loading flag so Feed.tsx isFetchingRef can reset
+        dispatch({ type: 'feeds/setFeedLoading', payload: { feedId, isLoading: false } });
     }
 };
 

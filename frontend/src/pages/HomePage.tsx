@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { setActiveTab, fetchSubscribedFeeds, fetchFeedPosts, fetchFeedPostsStreaming, hydrateInteractionStatusForFeed } from '../redux/slices/feedsSlice';
+import { setActiveTab, fetchFeedPostsStreaming } from '../redux/slices/feedsSlice';
 
 import { fetchPinnedLists, fetchListFeed } from '../redux/slices/listsSlice';
 import { RootState } from '../redux/store';
@@ -141,27 +141,35 @@ const HomePage: React.FC = () => {
     // Re-trigger refresh when tab becomes visible after being in background
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && activeTab) {
-                if (activeTab.startsWith('list:')) {
-                    const listId = activeTab.replace('list:', '');
-                    dispatch(fetchListFeed({ id: listId, skip: 0 }));
-                } else {
-                    // fetchFeedPosts handles the 60s TTL check internally
-                    dispatch(fetchFeedPosts({ feedId: activeTab, skip: 0, take: getDynamicBatchSize(250), refresh: false }) as any)
-                        .unwrap()
-                        .then((result: { feedId: string; posts: any[] }) => {
-                            if (result?.posts?.length) {
-                                dispatch(hydrateInteractionStatusForFeed({ feedId: result.feedId, posts: result.posts }) as any);
-                            }
-                        })
-                        .catch(() => {});
-                }
+            if (document.visibilityState !== 'visible' || !activeTab) return;
+
+            if (activeTab.startsWith('list:')) {
+                const listId = activeTab.replace('list:', '');
+                dispatch(fetchListFeed({ id: listId, skip: 0 }));
+                return;
             }
+
+            const now = Date.now();
+            const lastFetch = feedLastFetch[activeTab] || 0;
+            const TTL_MS = 60000;
+            const isStale = now - lastFetch > TTL_MS;
+            const hasPosts = (feedPosts[activeTab]?.length ?? 0) > 0;
+
+            // If data is fresh, don't re-fetch at all — avoids posts appearing below viewport
+            if (hasPosts && !isStale) return;
+
+            // Data is stale (or empty): do a streaming refresh so new posts merge in naturally
+            dispatch(fetchFeedPostsStreaming(
+                { feedId: activeTab, skip: 0, take: getDynamicBatchSize(250), refresh: true },
+                () => {},
+                () => {},
+                () => {}
+            ) as any);
         };
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [dispatch, activeTab]);
+    }, [dispatch, activeTab, feedLastFetch, feedPosts]);
 
 
     // Consolidated scroll management moved to global useScrollRestoration(activeTab)
