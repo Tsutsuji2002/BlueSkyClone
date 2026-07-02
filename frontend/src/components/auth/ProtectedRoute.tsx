@@ -17,11 +17,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     children, 
     redirectPath = '/welcome' 
 }) => {
-    const { isAuthenticated, isLoading } = useAppSelector((state: RootState) => state.auth);
+    const { isAuthenticated, isLoading, isInitializing } = useAppSelector((state: RootState) => state.auth);
     const location = useLocation();
 
-    if (isLoading) {
-        return null; // Or a loading spinner
+    // Return null while loading or while the initial session check hasn't settled.
+    // This prevents <AuthRequiredPage /> from briefly flashing during page load.
+    if (isLoading || isInitializing) {
+        return null;
     }
 
     if (!isAuthenticated) {

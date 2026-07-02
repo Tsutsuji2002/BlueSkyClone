@@ -85,6 +85,7 @@ const AppContent: React.FC = () => {
   const lastHiddenTimeRef = React.useRef<number>(0);
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
   const showSyncOverlay = useAppSelector((state: RootState) => state.auth.showSyncOverlay);
+  const isInitializing = useAppSelector((state: RootState) => state.auth.isInitializing);
 
 
   React.useLayoutEffect(() => {
@@ -450,27 +451,28 @@ const AppContent: React.FC = () => {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated, refetch, dispatch]);
 
-  // Unified loading screen logic to prevent blank screens
-  // Show loading/error screen if not authenticated and either:
-  // 1. Still loading initial state
-  // 2. Actively fetching handshake
-  // 3. Has timed out or has error
-  if (!isAuthenticated) {
-    const hasError = hasTimedOut || !!handshakeError;
-    const shouldShowLoading = isLoading || isHandshakeFetching || hasError;
-    
-    if (shouldShowLoading) {
-      return (
-        <LoadingScreen 
-          error={hasError}
-          onRetry={hasError ? () => {
-            setHasTimedOut(false);
-            refetch();
-          } : undefined}
-          message="Connecting to BlueSky..."
-        />
-      );
-    }
+  // Unified loading screen logic to prevent blank screens and guest-sidebar flash.
+  // Show loading screen in any of these cases:
+  // 1. Still in the initial session-verification phase (isInitializing). This is the most
+  //    important gate — it prevents ANY layout from rendering before the handshake settles,
+  //    eliminating the "guest sidebar flash on reaccess" issue.
+  // 2. Still loading account data from localStorage (isLoading)
+  // 3. Actively fetching handshake (isHandshakeFetching)
+  // 4. Has timed out or hard error and is not authenticated
+  const hasError = hasTimedOut || !!handshakeError;
+  const shouldShowLoading = isInitializing || isLoading || isHandshakeFetching || (hasError && !isAuthenticated);
+
+  if (shouldShowLoading) {
+    return (
+      <LoadingScreen
+        error={hasError && !isAuthenticated}
+        onRetry={(hasError && !isAuthenticated) ? () => {
+          setHasTimedOut(false);
+          refetch();
+        } : undefined}
+        message="Connecting to BlueSky..."
+      />
+    );
   }
 
     return (
