@@ -123,14 +123,19 @@ const AppContent: React.FC = () => {
         dispatch(setHandshakeSettled(true));
     } else if (handshakeError || (!handshakeData && !isHandshakeFetching)) {
         if ((handshakeError as any)?.status === 401) {
-            console.log('[App] Handshake returned 401. Logging out active session due to token expiry.');
-            dispatch(sessionExpiredLogout());
+            if (isAuthenticated) {
+                console.log('[App] Handshake returned 401. Logging out active session due to token expiry.');
+                dispatch(sessionExpiredLogout());
+            } else {
+                console.log('[App] Handshake returned 401 for anonymous/guest. Stop loading.');
+                dispatch(stopLoading());
+            }
         } else {
             dispatch(stopLoading());
         }
         dispatch(setHandshakeSettled(true));
     }
-  }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
+  }, [handshakeData, handshakeError, dispatch, isHandshakeFetching, isAuthenticated]);
 
   // [POST-LOGIN FIX] When the user logs in interactively or switches accounts, 
   // auth/setAuth resets handshakeSettled to false.
