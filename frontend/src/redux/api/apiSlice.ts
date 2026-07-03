@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../../constants';
  * Ensures requests don't hang indefinitely on slow/bad networks
  */
 const fetchWithTimeout = async (
-    url: string,
+    input: RequestInfo | URL,
     options: RequestInit = {},
     timeout: number = 15000
 ): Promise<Response> => {
@@ -14,7 +14,7 @@ const fetchWithTimeout = async (
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(input, {
             ...options,
             signal: controller.signal,
         });
@@ -46,7 +46,7 @@ export const apiSlice = createApi({
         fetchFn: async (input, init) => {
             const url = typeof input === 'string' ? input : input.url;
             const timeout = url.includes('/auth/handshake') ? 15000 : 15000; // 15s for all requests
-            return fetchWithTimeout(url, init, timeout);
+            return fetchWithTimeout(input, init, timeout);
         },
     }),
     tagTypes: ['Auth', 'Post', 'User', 'Feed', 'List', 'Notification', 'Trending'],

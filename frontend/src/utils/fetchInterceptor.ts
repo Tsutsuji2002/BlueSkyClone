@@ -262,10 +262,14 @@ export const setupFetchInterceptor = () => {
 
         // Force credentials: 'include' for same-origin
         let fetchOptions: RequestInit = { ...(init || {}) };
+        if (input instanceof Request) {
+            fetchOptions.method = fetchOptions.method || input.method;
+        }
+
         if (isSameOrigin && !isExternalRequest && !isRefreshRequest) {
             fetchOptions.credentials = 'include';
             if (input instanceof Request && input.credentials !== 'include') {
-                input = new Request(input, { credentials: 'include' });
+                input = new Request(input, { credentials: 'include', method: input.method });
             }
         }
 
