@@ -23,7 +23,7 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { stopLoading, setAuth, logout, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout, sessionExpiredLogout, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } from './redux/slices/authSlice';
 import { setMutedWords, setMutedWordsInitialized, setHandshakeSettled, updateProfileLocal } from './redux/slices/userSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetHandshakeQuery, authApi } from './redux/api/authApi';
@@ -121,7 +121,12 @@ const AppContent: React.FC = () => {
         // Once handshake data is processed, the app is fully hydrated.
         dispatch(setHandshakeSettled(true));
     } else if (handshakeError || (!handshakeData && !isHandshakeFetching)) {
-        dispatch(stopLoading());
+        if ((handshakeError as any)?.status === 401) {
+            console.log('[App] Handshake returned 401. Logging out active session due to token expiry.');
+            dispatch(sessionExpiredLogout());
+        } else {
+            dispatch(stopLoading());
+        }
         dispatch(setHandshakeSettled(true));
     }
   }, [handshakeData, handshakeError, dispatch, isHandshakeFetching]);
@@ -463,10 +468,12 @@ const AppContent: React.FC = () => {
   const shouldShowLoading = isInitializing || isLoading || isHandshakeFetching || (hasError && !isAuthenticated);
 
   if (shouldShowLoading) {
+    const isExpiredError = (handshakeError as any)?.status === 401;
     return (
       <LoadingScreen
-        error={hasError && !isAuthenticated}
-        onRetry={(hasError && !isAuthenticated) ? () => {
+        error={hasError && !isAuthenticated && !isExpiredError}
+        sessionExpired={isExpiredError}
+        onRetry={(hasError && !isAuthenticated && !isExpiredError) ? () => {
           setHasTimedOut(false);
           refetch();
         } : undefined}

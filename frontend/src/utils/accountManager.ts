@@ -102,6 +102,16 @@ export const AccountManager = {
         localStorage.removeItem(ACTIVE_KEY);
     },
 
+    /** Clear tokens for every saved account (used when the server session cookie expires) */
+    clearAllTokens: () => {
+        const accounts = AccountManager.getAccounts().map(a => ({
+            ...a,
+            accessToken: undefined,
+            refreshToken: undefined,
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    },
+
     clear: () => {
         localStorage.removeItem(STORAGE_KEY);
         localStorage.removeItem(ACTIVE_KEY);

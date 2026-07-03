@@ -295,6 +295,23 @@ const authSlice = createSlice({
             AccountManager.clearTokens(action.payload);
             state.savedAccounts = AccountManager.getAccounts();
         },
+        /**
+         * Called when the handshake returns 401 (both access + refresh tokens are expired).
+         * Unlike logout, this does NOT call the server /auth/logout endpoint since the
+         * session cookie is already dead. It just wipes local state and tokens.
+         */
+        sessionExpiredLogout: (state) => {
+            AccountManager.clearAllTokens();
+            AccountManager.clearActiveAccount();
+            state.user = null;
+            state.settings = null;
+            state.isAuthenticated = false;
+            state.isLoading = false;
+            state.isSessionSettled = true;
+            state.isInitializing = false;
+            state.error = 'session_expired';
+            state.savedAccounts = AccountManager.getAccounts();
+        },
         resetSessionStatus: (state) => {
             state.isReverifying = true;
             state.isInitializing = true;
@@ -378,5 +395,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, logoutAll, removeSavedAccount, setSessionExpired, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } = authSlice.actions;
+export const { updateUser, updateSettings, clearError, stopLoading, setAuth, logout, logoutAll, removeSavedAccount, setSessionExpired, sessionExpiredLogout, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } = authSlice.actions;
 export default authSlice.reducer;

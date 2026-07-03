@@ -4,14 +4,54 @@ import ButterflyLoading from './ButterflyLoading';
 interface LoadingScreenProps {
     message?: string;
     error?: boolean;
+    sessionExpired?: boolean;
     onRetry?: () => void;
 }
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({ 
     message = 'BlueSky is loading...', 
     error = false,
+    sessionExpired = false,
     onRetry 
 }) => {
+    // Session expired — distinct from a generic network error
+    if (sessionExpired) {
+        return (
+            <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white dark:bg-dark-bg transition-colors duration-300">
+                <div className="text-center max-w-md px-6">
+                    <div className="mb-6">
+                        <svg className="w-16 h-16 mx-auto text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-dark-text mb-3">
+                        Session Expired
+                    </h2>
+
+                    <p className="text-gray-600 dark:text-dark-text-secondary mb-8">
+                        Your session has expired. Please sign in again to continue.
+                    </p>
+
+                    <div className="flex flex-col items-center gap-3">
+                        <a
+                            href="/login"
+                            className="w-full max-w-xs px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-full transition-colors text-center"
+                        >
+                            Sign In
+                        </a>
+                        <a
+                            href="/"
+                            className="text-sm text-gray-500 dark:text-dark-text-secondary hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+                        >
+                            Continue as guest
+                        </a>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (error) {
         return (
             <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white dark:bg-dark-bg transition-colors duration-300">
@@ -66,3 +106,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
 };
 
 export default LoadingScreen;
+
+
+
