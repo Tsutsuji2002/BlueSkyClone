@@ -6,13 +6,15 @@ interface LoadingScreenProps {
     error?: boolean;
     sessionExpired?: boolean;
     onRetry?: () => void;
+    onContinueAsGuest?: () => void;
 }
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({ 
     message = 'BlueSky is loading...', 
     error = false,
     sessionExpired = false,
-    onRetry 
+    onRetry,
+    onContinueAsGuest
 }) => {
     // Session expired — distinct from a generic network error
     if (sessionExpired) {
@@ -36,16 +38,21 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
                     <div className="flex flex-col items-center gap-3">
                         <a
                             href="/login"
-                            className="w-full max-w-xs px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-full transition-colors text-center"
+                            onClick={() => {
+                                if (onContinueAsGuest) {
+                                    onContinueAsGuest();
+                                }
+                            }}
+                            className="w-full max-w-xs px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-full transition-colors text-center animate-in fade-in duration-300"
                         >
                             Sign In
                         </a>
-                        <a
-                            href="/"
-                            className="text-sm text-gray-500 dark:text-dark-text-secondary hover:text-primary-500 dark:hover:text-primary-400 transition-colors"
+                        <button
+                            onClick={onContinueAsGuest}
+                            className="text-sm font-medium text-gray-500 dark:text-dark-text-secondary hover:text-primary-500 dark:hover:text-primary-400 transition-colors duration-200 cursor-pointer focus:outline-none"
                         >
                             Continue as guest
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>

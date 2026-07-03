@@ -23,7 +23,7 @@ import './index.css';
 import { RootState } from './redux/store';
 
 import { useAppDispatch } from './hooks/useAppDispatch';
-import { stopLoading, setAuth, logout, sessionExpiredLogout, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } from './redux/slices/authSlice';
+import { stopLoading, setAuth, logout, sessionExpiredLogout, clearError, resetSessionStatus, startBackgroundSync, startSilentBackgroundSync, completeReverification } from './redux/slices/authSlice';
 import { setMutedWords, setMutedWordsInitialized, setHandshakeSettled, updateProfileLocal } from './redux/slices/userSlice';
 import { setAppLanguage } from './redux/slices/languageSlice';
 import { useGetHandshakeQuery, authApi } from './redux/api/authApi';
@@ -86,6 +86,7 @@ const AppContent: React.FC = () => {
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
   const showSyncOverlay = useAppSelector((state: RootState) => state.auth.showSyncOverlay);
   const isInitializing = useAppSelector((state: RootState) => state.auth.isInitializing);
+  const authError = useAppSelector((state: RootState) => state.auth.error);
 
 
   React.useLayoutEffect(() => {
@@ -463,12 +464,17 @@ const AppContent: React.FC = () => {
   //    eliminating the "guest sidebar flash on reaccess" issue.
   // 2. Still loading account data from localStorage (isLoading)
   // 3. Actively fetching handshake (isHandshakeFetching)
-  // 4. Has timed out or hard error and is not authenticated
-  const hasError = hasTimedOut || !!handshakeError;
-  const shouldShowLoading = isInitializing || isLoading || isHandshakeFetching || (hasError && !isAuthenticated);
+  // 4. Has timed out or hard error and is not authenticated. Note that 401 is NOT considered
+  //    a hard connection error (the server is functional, we are just a guest).
+  const hasError = hasTimedOut || (!!handshakeError && (handshakeError as any)?.status !== 401);
+  const isExpiredError = (handshakeError as any)?.status === 401 && authError === 'session_expired';
+  const shouldShowLoading = isInitializing || isLoading || isHandshakeFetching || isExpiredError || (hasError && !isAuthenticated);
+
+  const handleContinueAsGuest = () => {
+    dispatch(clearError());
+  };
 
   if (shouldShowLoading) {
-    const isExpiredError = (handshakeError as any)?.status === 401;
     return (
       <LoadingScreen
         error={hasError && !isAuthenticated && !isExpiredError}
@@ -477,6 +483,7 @@ const AppContent: React.FC = () => {
           setHasTimedOut(false);
           refetch();
         } : undefined}
+        onContinueAsGuest={handleContinueAsGuest}
         message="Connecting to BlueSky..."
       />
     );
