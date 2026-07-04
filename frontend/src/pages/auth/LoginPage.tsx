@@ -102,9 +102,6 @@ const LoginPage: React.FC = () => {
         try {
             const data = await loginMutation(formData).unwrap();
             dispatch(setAuth(data));
-            // Invalidate the stale handshake cache (which may hold a 401 error from a prior
-            // expired session). This forces App.tsx to re-fetch and render the authenticated UI.
-            dispatch(authApi.util.invalidateTags(['Auth']));
             navigate('/');
         } catch (err: any) {
             // HTTP 429 = rate limited by the server
@@ -132,7 +129,6 @@ const LoginPage: React.FC = () => {
             try {
                 const data = await switchMutation({ refreshToken: storedAccount.refreshToken }).unwrap();
                 dispatch(setAuth(data));
-                dispatch(authApi.util.invalidateTags(['Auth']));
                 dispatch(showToast({ message: `Signed in as @${account.handle}`, type: 'success' }));
                 navigate('/');
                 return;

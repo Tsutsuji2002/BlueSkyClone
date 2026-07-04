@@ -86,6 +86,7 @@ const AppContent: React.FC = () => {
   const isReverifying = useAppSelector((state: RootState) => state.auth.isReverifying);
   const showSyncOverlay = useAppSelector((state: RootState) => state.auth.showSyncOverlay);
   const isInitializing = useAppSelector((state: RootState) => state.auth.isInitializing);
+  const isSessionSettled = useAppSelector((state: RootState) => state.auth.isSessionSettled);
   const authError = useAppSelector((state: RootState) => state.auth.error);
 
 
@@ -97,7 +98,9 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     // [LOGOUT SAFETY] If the user just logged out (auth state cleared), 
     // ignore any late-arriving handshake data to prevent re-saving ghost accounts.
-    if (!isAuthenticated && !isLoading && handshakeData) {
+    // EXCEPTION: if the server itself returned a valid user in handshakeData, 
+    // this is a fresh post-login handshake and must be processed.
+    if (!isAuthenticated && !isLoading && handshakeData && !handshakeData.user) {
         console.log('[App] Handshake arrived after logout/clear. Ignoring to prevent ghost account persistence.');
         return;
     }
@@ -123,7 +126,13 @@ const AppContent: React.FC = () => {
         dispatch(setHandshakeSettled(true));
     } else if (handshakeError || (!handshakeData && !isHandshakeFetching)) {
         if ((handshakeError as any)?.status === 401) {
-            if (isAuthenticated) {
+            if (isAuthenticated && isSessionSettled) {
+                // [POST-LOGIN GUARD] setAuth was already called (isSessionSettled=true) which means
+                // the user just logged in interactively. A stale 401 in RTK Query cache must not
+                // override our fresh authenticated state. Simply stop the initializing flag.
+                console.log('[App] Ignoring stale 401 handshake error — session is already settled by setAuth.');
+                dispatch(stopLoading());
+            } else if (isAuthenticated) {
                 console.log('[App] Handshake returned 401. Logging out active session due to token expiry.');
                 dispatch(sessionExpiredLogout());
             } else {
@@ -473,7 +482,11 @@ const AppContent: React.FC = () => {
   //    a hard connection error (the server is functional, we are just a guest).
   const hasError = hasTimedOut || (!!handshakeError && (handshakeError as any)?.status !== 401);
   const isExpiredError = (handshakeError as any)?.status === 401 && authError === 'session_expired';
-  const shouldShowLoading = isInitializing || isLoading || isHandshakeFetching || isExpiredError || (hasError && !isAuthenticated);
+  // Only block rendering on isHandshakeFetching during the INITIAL page load (isInitializing).
+  // Once the user is authenticated+settled (e.g. just logged in via setAuth), don't block 
+  // the UI while a background refetch is in progress — render immediately.
+  const isBlockingFetch = isHandshakeFetching && (!isAuthenticated || !isSessionSettled);
+  const shouldShowLoading = isInitializing || isLoading || isBlockingFetch || isExpiredError || (hasError && !isAuthenticated);
 
   const handleContinueAsGuest = () => {
     dispatch(clearError());
