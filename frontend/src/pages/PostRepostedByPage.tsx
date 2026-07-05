@@ -57,7 +57,7 @@ const PostRepostedByPage: React.FC = () => {
             .then(({ users: fetched, cursor: nextCursor }) => {
                 setUsers(fetched);
                 setCursor(nextCursor);
-                setHasMore(!!nextCursor && fetched.length >= INITIAL_LIMIT);
+                setHasMore(!!nextCursor);
             })
             .finally(() => setLoading(false));
     }, [dispatch, postUri]);
@@ -78,7 +78,7 @@ const PostRepostedByPage: React.FC = () => {
                                 return [...prev, ...unique];
                             });
                             setCursor(nextCursor);
-                            setHasMore(!!nextCursor && fetched.length >= NEXT_LIMIT);
+                            setHasMore(!!nextCursor);
                         })
                         .finally(() => setLoading(false));
                 }
