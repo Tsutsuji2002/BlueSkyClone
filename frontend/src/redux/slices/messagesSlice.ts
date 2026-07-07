@@ -537,6 +537,14 @@ const messagesSlice = createSlice({
                 }
                 // Removed setting activeConversationId from here to avoid unexpected switches
             })
+            .addCase(addMembers.fulfilled, (state, action: PayloadAction<Conversation>) => {
+                const index = state.conversations.findIndex(c => c.id === action.payload.id);
+                if (index === -1) {
+                    state.conversations.unshift(action.payload);
+                } else {
+                    state.conversations[index] = action.payload;
+                }
+            })
             .addCase(fetchMessages.pending, (state, action) => {
                 const { conversationId, before } = action.meta.arg;
                 if (before) {

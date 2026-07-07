@@ -113,7 +113,7 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
                 {/* Header */}
                 <div className="relative flex items-center justify-center px-4 pt-4 pb-4 border-b border-gray-200 dark:border-dark-border bg-white dark:bg-black">
                     <h2 className="text-[16.9px] font-bold text-[#232e3e] dark:text-white leading-[19px] tracking-[0.25px] z-10 px-10 text-center flex-grow">
-                        Add people
+                        Add members
                     </h2>
                     
                     <button 

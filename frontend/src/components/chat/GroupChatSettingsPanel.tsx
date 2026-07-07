@@ -10,6 +10,7 @@ import EditGroupNameModal from '../modals/EditGroupNameModal';
 import InviteLinkModal from '../modals/InviteLinkModal';
 import ReportConversationModal from '../modals/ReportConversationModal';
 import ConfirmModal from '../common/ConfirmModal';
+import AddPeopleModal from '../modals/AddPeopleModal';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { showToast } from '../../redux/slices/toastSlice';
 import { fetchConversationById } from '../../redux/slices/messagesSlice';
@@ -39,6 +40,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
     const [isReportOpen, setIsReportOpen] = useState(false);
     const [isLockConfirmOpen, setIsLockConfirmOpen] = useState(false);
     const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+    const [isAddPeopleOpen, setIsAddPeopleOpen] = useState(false);
     const [isMuted, setIsMuted] = useState(conversation.muted || false);
     const [isLocked, setIsLocked] = useState(conversation.locked || false);
     const [isMuteLoading, setIsMuteLoading] = useState(false);
@@ -407,24 +409,26 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                         </div>
 
                         {/* Add Members Button */}
-                        <button
-                            onClick={onAddMembers}
-                            className="flex items-center justify-between w-full px-5 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface">
-                                    <svg className="w-5 h-5 text-gray-900 dark:text-dark-text" fill="currentColor" viewBox="0 0 24 24">
-                                        <path fillRule="evenodd" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z" clipRule="evenodd" />
-                                    </svg>
+                        {isOwner && (
+                            <button
+                                onClick={() => setIsAddPeopleOpen(true)}
+                                className="flex items-center justify-between w-full px-5 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-surface">
+                                        <svg className="w-5 h-5 text-gray-900 dark:text-dark-text" fill="currentColor" viewBox="0 0 24 24">
+                                            <path fillRule="evenodd" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <span className="font-semibold text-gray-900 dark:text-dark-text">
+                                        {t('messages.add_members', 'Add members')}
+                                    </span>
                                 </div>
-                                <span className="font-semibold text-gray-900 dark:text-dark-text">
-                                    {t('messages.add_members', 'Add members')}
-                                </span>
-                            </div>
-                            <svg className="w-5 h-5 text-gray-500 dark:text-dark-text-secondary" fill="currentColor" viewBox="0 0 24 24">
-                                <path fillRule="evenodd" d="M8.293 3.293a1 1 0 0 1 1.414 0l8 8a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414-1.414L15.586 12 8.293 4.707a1 1 0 0 1 0-1.414Z" clipRule="evenodd" />
-                            </svg>
-                        </button>
+                                <svg className="w-5 h-5 text-gray-500 dark:text-dark-text-secondary" fill="currentColor" viewBox="0 0 24 24">
+                                    <path fillRule="evenodd" d="M8.293 3.293a1 1 0 0 1 1.414 0l8 8a1 1 0 0 1 0 1.414l-8 8a1 1 0 0 1-1.414-1.414L15.586 12 8.293 4.707a1 1 0 0 1 0-1.414Z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        )}
 
                         {/* Members List */}
                         <div className="flex flex-col">
@@ -633,6 +637,13 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                 participants={conversation.participants}
                 convoName={conversation.groupName}
                 existingLink={conversation.joinLink}
+            />
+
+            <AddPeopleModal
+                isOpen={isAddPeopleOpen}
+                onClose={() => setIsAddPeopleOpen(false)}
+                conversationId={conversation.id}
+                existingParticipants={conversation.participants}
             />
 
             <ReportConversationModal
