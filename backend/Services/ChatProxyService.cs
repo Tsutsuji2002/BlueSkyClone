@@ -777,7 +777,7 @@ namespace BSkyClone.Services
         private ConversationDto MapToConversationDto(BlueskyConvo convo)
         {
             var membersDict = convo.Members.ToDictionary(m => m.Did, m => new UserDto(
-                Guid.Empty, m.Handle, m.Handle, string.Empty, 
+                !string.IsNullOrEmpty(m.Did) ? CreateDeterministicGuid(m.Did) : Guid.Empty, m.Handle, m.Handle, string.Empty, 
                 string.IsNullOrEmpty(m.DisplayName) ? m.Handle : m.DisplayName, 
                 m.Avatar, null, null, null, null, null, 0, 0, 0, "user", null, false, m.Did
             ));
@@ -968,7 +968,7 @@ namespace BSkyClone.Services
         private UserDto MapToUserDto(BlueskyMember m)
         {
             return new UserDto(
-                Guid.Empty,
+                !string.IsNullOrEmpty(m.Did) ? CreateDeterministicGuid(m.Did) : Guid.Empty,
                 m.Handle,
                 m.Handle,
                 null,
@@ -987,6 +987,13 @@ namespace BSkyClone.Services
                 false,
                 m.Did
             );
+        }
+
+        private static Guid CreateDeterministicGuid(string value)
+        {
+            using var md5 = System.Security.Cryptography.MD5.Create();
+            var bytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(value));
+            return new Guid(bytes);
         }
 
         private class BlueskyConvoListResponse { public List<BlueskyConvo> Convos { get; set; } = new(); public string? Cursor { get; set; } }
