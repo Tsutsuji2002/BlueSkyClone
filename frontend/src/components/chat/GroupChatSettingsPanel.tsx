@@ -67,43 +67,39 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
         ((conversation.participants[0].did && currentUser?.did && conversation.participants[0].did === currentUser.did) ||
          (conversation.participants[0].id === currentUser?.id));
 
-    // Fetch follow statuses for all participants in parallel
-    // Only fetch for participants we don't already have follow status for
+    // Fetch follow statuses for all participants using DID-based AT Protocol lookup.
+    // This ensures remote Bluesky follow states (not just local DB) are reflected.
     React.useEffect(() => {
         const fetchFollowStatuses = async () => {
             if (!currentUser?.id) return;
             
-            const participantIds = conversation.participants
+            const participantDids = conversation.participants
                 .filter(p => p.did !== currentUser?.did && p.id !== currentUser?.id)
-                .map(p => p.id)
-                .filter(id => id); // Remove any undefined
+                .map(p => p.did)
+                .filter((did): did is string => !!did);
             
-            if (participantIds.length === 0) return;
+            if (participantDids.length === 0) return;
             
             try {
-                // Use a batch endpoint to check follow status for all participants at once
-                // This is much faster than individual profile requests
-                const response = await fetch(`${API_URL}/user/batch-follow-status`, {
+                // Use AT Protocol-aware endpoint so follow state is always accurate
+                // for remote Bluesky participants (not just local DB users)
+                const response = await fetch(`${API_URL}/user/batch-follow-status-by-did`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
-                    body: JSON.stringify({ userIds: participantIds })
+                    body: JSON.stringify({ dids: participantDids })
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
+                    const data: Record<string, boolean> = await response.json();
+                    // Store statuses keyed by DID (lowercase) for consistent lookup
                     const statuses: Record<string, boolean> = {};
-                    conversation.participants.forEach(participant => {
-                        const key = participant.did || participant.id;
-                        if (data[participant.id]) {
-                            statuses[key] = data[participant.id];
-                        }
-                    });
+                    for (const [did, isFollowing] of Object.entries(data)) {
+                        statuses[did.toLowerCase()] = isFollowing;
+                    }
                     setFollowStatuses(statuses);
                 } else {
-                    // Fallback: Check local database only (skip remote resolution)
-                    // This avoids the expensive Bluesky API calls
-                    console.warn('Batch follow status not available, using fallback');
+                    console.warn('Batch follow status by DID not available');
                 }
             } catch (error) {
                 console.error('Error fetching follow statuses:', error);
@@ -435,7 +431,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                             {conversation.participants.map((participant) => {
                                 const isCurrentUser = participant.did === currentUser?.did || participant.id === currentUser?.id;
                                 const isAdmin = participant.did === conversation.participants[0]?.did;
-                                const participantKey = participant.did || participant.id;
+                                const participantKey = (participant.did || participant.id).toLowerCase();
                                 const isFollowing = followStatuses[participantKey] || false;
 
                                 const handleFollowToggle = async () => {

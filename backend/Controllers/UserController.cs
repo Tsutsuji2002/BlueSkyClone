@@ -341,6 +341,33 @@ public class UserController : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpPost("batch-follow-status-by-did")]
+    public async Task<IActionResult> GetBatchFollowStatusByDid([FromBody] BatchFollowStatusByDidRequest request)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var currentUserId))
+            return Unauthorized();
+
+        if (request?.Dids == null || request.Dids.Count == 0)
+            return BadRequest(new { message = "Dids array is required" });
+
+        if (request.Dids.Count > 100)
+            return BadRequest(new { message = "Maximum 100 users per request" });
+
+        // Use AT Protocol-aware lookup so remote Bluesky follow state is included
+        var statuses = await _userService.GetInteractionStatusesByDidsAsync(currentUserId, request.Dids);
+
+        // Map DID -> bool (isFollowing)
+        var result = statuses.ToDictionary(
+            kv => kv.Key,
+            kv => kv.Value.IsFollowing == true,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        return Ok(result);
+    }
 }
 
 public record BatchFollowStatusRequest(List<Guid> UserIds);
+public record BatchFollowStatusByDidRequest(List<string> Dids);
