@@ -487,7 +487,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                                 <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
                                                     @{participant.handle}
                                                 </span>
-                                                {!isCurrentUser && (
+                                                {!isCurrentUser && !isAdmin && (
                                                     <span className="text-xs text-gray-500 dark:text-dark-text-secondary">
                                                         {t('messages.added_by', 'Added by {{name}}', { 
                                                             name: conversation.participants[0]?.displayName || conversation.participants[0]?.handle 
@@ -503,12 +503,12 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                                     {t('messages.admin', 'Admin')}
                                                 </span>
                                             )}
-                                            {!isCurrentUser && (
+                                            {!isCurrentUser && !isFollowing && (
                                                 <button 
                                                     className="text-sm font-medium text-primary hover:underline whitespace-nowrap"
                                                     onClick={handleFollowToggle}
                                                 >
-                                                    {isFollowing ? t('common.following', 'Following') : t('common.follow', 'Follow')}
+                                                    {t('common.follow', 'Follow')}
                                                 </button>
                                             )}
                                             {!isCurrentUser && (
@@ -528,7 +528,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                                     {openMenuId === participantKey && (
                                                         <div
                                                             role="menu"
-                                                            className="absolute right-0 bottom-full mb-1 z-50 min-w-[180px] rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-xl overflow-hidden"
+                                                            className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-surface shadow-xl overflow-hidden"
                                                             style={{ animation: '0.2s cubic-bezier(0.16,1,0.3,1) both zoomIn' }}
                                                         >
                                                             {/* Go to profile */}
@@ -543,7 +543,8 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                                                 <span className="text-[13px] font-semibold text-gray-800 dark:text-dark-text">{t('common.go_to_profile', 'Go to profile')}</span>
                                                             </button>
 
-                                                            {/* Message */}
+                                                            {/* Message - Owner only */}
+                                                            {isOwner && (
                                                             <button
                                                                 role="menuitem"
                                                                 className="flex items-center gap-4 w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
@@ -554,9 +555,10 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                                                 </svg>
                                                                 <span className="text-[13px] font-semibold text-gray-800 dark:text-dark-text">{t('common.message', 'Message')}</span>
                                                             </button>
+                                                            )}
 
-                                                            {/* Separator */}
-                                                            <div role="separator" className="my-1 h-px bg-gray-200 dark:bg-dark-border" />
+                                                            {/* Separator - only shown when owner (so Message option is visible) */}
+                                                            {isOwner && <div role="separator" className="my-1 h-px bg-gray-200 dark:bg-dark-border" />}
 
                                                             {/* Block */}
                                                             <button
