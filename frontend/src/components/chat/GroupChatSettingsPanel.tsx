@@ -470,14 +470,17 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                         key={participant.did || participant.id}
                                         className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors"
                                     >
-                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <div 
+                                            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer hover:opacity-85 transition-opacity"
+                                            onClick={() => navigate(`/profile/${participant.handle}`)}
+                                        >
                                             <Avatar
                                                 src={participant.avatarUrl || participant.avatar}
                                                 alt={participant.displayName || participant.handle}
                                                 size="md"
                                             />
                                             <div className="flex flex-col min-w-0 flex-1">
-                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate">
+                                                <span className="font-semibold text-gray-900 dark:text-dark-text truncate hover:underline">
                                                     {participant.displayName || participant.handle}
                                                 </span>
                                                 <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate">
