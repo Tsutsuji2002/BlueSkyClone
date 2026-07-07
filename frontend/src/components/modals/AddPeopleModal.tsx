@@ -243,7 +243,7 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
                     <button
                         onClick={handleAddPeople}
                         disabled={selectedUsers.length === 0 || loading}
-                        className={`px-4 py-2 rounded-full font-medium text-[13.1px] transition-all ${selectedUsers.length > 0 ? 'bg-[#A8CCFF] text-white hover:bg-[#006aff]' : 'bg-[#A8CCFF] text-white/70 cursor-not-allowed'}`}
+                        className={`px-4 py-2 rounded-full font-medium text-[13.1px] transition-all ${selectedUsers.length > 0 ? 'bg-[#006AFF] text-white hover:bg-[#005cdb]' : 'bg-[#A8CCFF] text-white/70 cursor-not-allowed'}`}
                     >
                         {loading ? 'Adding...' : 'Next'}
                     </button>
