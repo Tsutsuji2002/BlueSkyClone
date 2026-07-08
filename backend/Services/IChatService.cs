@@ -34,6 +34,7 @@ public interface IChatService
     Task<bool> UnmuteConversationAsync(Guid userId, string conversationId);
     Task<bool> LockConversationAsync(Guid userId, string conversationId);
     Task<bool> UnlockConversationAsync(Guid userId, string conversationId);
+    Task<ConversationDto> RemoveMemberAsync(Guid userId, string conversationId, string memberId);
 }
 
 public record ChatLogResult(IEnumerable<MessageDto> Messages, string? Cursor);

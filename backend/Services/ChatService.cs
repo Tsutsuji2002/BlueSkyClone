@@ -1098,4 +1098,94 @@ public class ChatService : IChatService
 
         return await _chatProxy.UnlockConversationAsync(token, conversationId);
     }
+
+    public async Task<ConversationDto> RemoveMemberAsync(Guid userId, string conversationId, string memberId)
+    {
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        {
+            // Resolve handle/did for memberId
+            string resolvedMemberId = memberId;
+            if (!memberId.StartsWith("did:") && Guid.TryParse(memberId, out var memberGuid))
+            {
+                var pUser = await _unitOfWork.Users.GetByIdAsync(memberGuid);
+                resolvedMemberId = pUser?.Did ?? pUser?.Handle ?? memberId;
+            }
+
+            return await _chatProxy.RemoveMembersAsync(token, conversationId, new List<string> { resolvedMemberId });
+        }
+
+        // Fallback to local conversation
+        if (!Guid.TryParse(conversationId, out var convId))
+        {
+            throw new ArgumentException("Invalid conversation ID");
+        }
+
+        var conversation = await _unitOfWork.Conversations.Query()
+            .Include(c => c.ConversationParticipants).ThenInclude(p => p.User)
+            .Include(c => c.Messages)
+            .FirstOrDefaultAsync(c => c.Id == convId);
+
+        if (conversation == null)
+        {
+            throw new Exception("Conversation not found");
+        }
+
+        // Check if current user is owner (first participant who has joined)
+        var owner = conversation.ConversationParticipants.OrderBy(p => p.JoinedAt).FirstOrDefault();
+        if (owner == null || owner.UserId != userId)
+        {
+            throw new UnauthorizedAccessException("Only the group administrator can remove members");
+        }
+
+        // Find participant to remove
+        Guid memberGuidToRemove;
+        if (Guid.TryParse(memberId, out var guid))
+        {
+            memberGuidToRemove = guid;
+        }
+        else if (memberId.StartsWith("did:"))
+        {
+            var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == memberId);
+            if (user == null) throw new Exception("User not found");
+            memberGuidToRemove = user.Id;
+        }
+        else
+        {
+            var user = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Handle == memberId);
+            if (user == null) throw new Exception("User not found");
+            memberGuidToRemove = user.Id;
+        }
+
+        var participantToRemove = conversation.ConversationParticipants.FirstOrDefault(p => p.UserId == memberGuidToRemove);
+        if (participantToRemove != null)
+        {
+            conversation.ConversationParticipants.Remove(participantToRemove);
+
+            // Log a system message about the removal
+            var targetUser = participantToRemove.User;
+            var name = targetUser != null ? (string.IsNullOrWhiteSpace(targetUser.DisplayName) ? targetUser.Handle : targetUser.DisplayName) : memberId;
+            await LogSystemEventAsync(convId, userId, "member_remove", name);
+
+            await _cacheService.RemoveAsync($"user:{memberGuidToRemove}:conversations");
+            await _cacheService.RemoveAsync($"user:{memberGuidToRemove}:conv:{conversationId}");
+        }
+
+        await _unitOfWork.CompleteAsync();
+
+        // Invalidate caches for remaining participants
+        foreach (var p in conversation.ConversationParticipants)
+        {
+            await _cacheService.RemoveAsync($"user:{p.UserId}:conversations");
+            await _cacheService.RemoveAsync($"user:{p.UserId}:conv:{conversationId}");
+        }
+
+        var updated = await _unitOfWork.Conversations.Query()
+            .Include(c => c.ConversationParticipants).ThenInclude(p => p.User)
+            .Include(c => c.Messages)
+            .FirstOrDefaultAsync(c => c.Id == convId);
+
+        var unreadCount = await _unitOfWork.Messages.GetUnreadCountAsync(convId, userId);
+        return MapToConversationDto(updated!, userId, unreadCount);
+    }
 }

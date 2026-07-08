@@ -29,5 +29,6 @@ namespace BSkyClone.Services
         Task<bool> UnmuteConversationAsync(string token, string conversationId);
         Task<bool> LockConversationAsync(string token, string conversationId);
         Task<bool> UnlockConversationAsync(string token, string conversationId);
+        Task<ConversationDto> RemoveMembersAsync(string token, string conversationId, List<string> members);
     }
 }

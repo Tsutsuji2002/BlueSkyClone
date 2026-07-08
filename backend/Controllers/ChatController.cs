@@ -269,6 +269,22 @@ public class ChatController : ControllerBase
         }
     }
 
+    [HttpDelete("conversations/{id}/members/{memberId}")]
+    public async Task<IActionResult> RemoveMember(string id, string memberId)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var conversation = await _chatService.RemoveMemberAsync(userId, id, memberId);
+            return Ok(conversation);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+
     [HttpPost("conversations/{id}/mute")]
     public async Task<IActionResult> MuteConversation(string id)
     {

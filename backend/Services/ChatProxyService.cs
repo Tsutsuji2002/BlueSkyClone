@@ -471,6 +471,25 @@ namespace BSkyClone.Services
             return MapToConversationDto(data!.Convo);
         }
 
+        public async Task<ConversationDto> RemoveMembersAsync(string token, string conversationId, List<string> members)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.group.removeMembers";
+            var body = new { convoId = conversationId, members = members };
+
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorJson = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to remove members: {errorJson}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var data = JsonSerializer.Deserialize<BlueskyConvoResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return MapToConversationDto(data!.Convo);
+        }
+
+
         public async Task<ConversationDto> EditGroupAsync(string token, string conversationId, string displayName)
         {
             var url = $"{ChatEndpoint}/chat.bsky.group.editGroup";
