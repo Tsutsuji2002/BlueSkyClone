@@ -111,13 +111,7 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
         }
     }
 
-    const SUGGESTED_USERS = [
-        { did: 'did:plc:2uueinkgzwo3lnlvlt5rvecv', handle: 'hrosenborg.bsky.social', displayName: 'Henrik Rosenborg (Open for work)', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:2uueinkgzwo3lnlvlt5rvecv/bafkreigvxqek6oeeccoj4cmdkyhebzc3uerxj662vh2aodvdse3pbc4ku4' },
-        { did: 'did:plc:pb7gp4lz3cslvw4oha36b4fa', handle: 'aidenr0.bsky.social', displayName: 'SPiNDLE', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:pb7gp4lz3cslvw4oha36b4fa/bafkreiehuo4rch6qe6dyt4zrj3tsejhkgalrzqhklhehizsp2hnwnx6aie' },
-        { did: 'did:plc:w4ngtpcrryag6omeu63mlj3l', handle: 'darkcurtain.bsky.social', displayName: 'darkcurtain.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:w4ngtpcrryag6omeu63mlj3l/bafkreihx4434pppsqv2cgnlla4xpldhcykbpqendqh55wc6j6dzjy7evru' },
-        { did: 'did:plc:6h7zo2yvfexpm52p3mi7uwoc', handle: 'komiflo.com', displayName: 'Komiflo', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:6h7zo2yvfexpm52p3mi7uwoc/bafkreigti2zn2gol3ugju6jikqeaqshe3uhazoinitx2sokwhmkehgeeve' },
-        { did: 'did:plc:ry3hbexak5ytsum7aazhpkbv', handle: 'jp.bsky.app', displayName: 'Bluesky日本語（公式）', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:ry3hbexak5ytsum7aazhpkbv/bafkreienc27b7pfsjflwvh645zh7ywb3ruwgshwqziv3ilo5mqsksjnl3i', verified: true },
-    ].filter(user => user.did !== currentUser?.did && user.did !== currentUser?.id);
+    const SUGGESTED_USERS: any[] = [];
 
     if (!isOpen) return null;
 
@@ -263,52 +257,6 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                                     </svg>
                                 </button>
                             )}
-
-                            {/* Suggested Labels Section */}
-                            <div className="px-4 pt-4 pb-2">
-                                <span className="text-[11.3px] font-medium tracking-[0.25px] text-[#232e3e] dark:text-[#667b99] uppercase">Suggested</span>
-                            </div>
-
-                            {/* Suggested Users List */}
-                            <div className="flex flex-col">
-                                {SUGGESTED_USERS.map((user) => (
-                                    <button
-                                        key={user.did}
-                                        onClick={() => handleStartChat(user)}
-                                        className={`w-full flex flex-row items-center gap-3 px-4 py-2 transition-colors text-left ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && isGroupMode ? 'bg-[#f1f3f5] dark:bg-white/5' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
-                                    >
-                                        <div className="relative w-11 h-11 shrink-0">
-                                            <Avatar src={user.avatar} alt={user.displayName} size="lg" />
-                                            <div className="absolute inset-0 border border-black/10 dark:border-white/10 rounded-full"></div>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex flex-row items-center gap-1">
-                                                <span className="text-[15px] font-semibold text-black dark:text-white truncate leading-5">
-                                                    {user.displayName}
-                                                </span>
-                                                {user.verified && (
-                                                    <svg fill="none" width="14" viewBox="0 0 24 24" height="14">
-                                                        <circle cx="12" cy="12" r="11.5" fill="#006AFF"></circle>
-                                                        <path fill="#fff" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
-                                                    </svg>
-                                                )}
-                                            </div>
-                                            <span className="text-[13.1px] text-[#526580] dark:text-[#a5b2c5] truncate block leading-4">
-                                                @{user.handle}
-                                            </span>
-                                        </div>
-                                        {isGroupMode && (
-                                            <div className={`w-[22px] h-[22px] rounded-[6px] shrink-0 flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF]' : 'border-[2px] border-[#DCE2EA] dark:border-[#2E3C4D]'}`}>
-                                                {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
-                                                    <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
-                                                        <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
-                                                    </svg>
-                                                )}
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
                         </>
                     )}
 
