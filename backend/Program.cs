@@ -187,7 +187,7 @@ else
     {
         var redisConn = builder.Configuration["Redis:ConnectionString"] ?? "localhost:6379";
         // [STABILITY] Prevent app from crashing or losing all session context if Redis is temporarily unreachable
-        options.Configuration = $"{redisConn},abortConnect=false";
+        options.Configuration = $"{redisConn},abortConnect=false,keepAlive=60";
         options.InstanceName = "BSky_";
     });
 }
