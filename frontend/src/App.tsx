@@ -238,6 +238,7 @@ const AppContent: React.FC = () => {
             
             // Initial fetch of background data
             // fetchUnreadCount is now handled by Handshake on startup
+            dispatch(fetchUnreadCount());
             dispatch(fetchConversations());
             signalrTimerRef.current = null;
         }, signalrGracePeriod);
