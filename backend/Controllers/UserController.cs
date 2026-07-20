@@ -367,6 +367,79 @@ public class UserController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// GET /api/user/verify-follow?dids=did1,did2,...
+    /// Batch-resolve profiles and viewer follow state for a comma-separated list of DIDs or handles.
+    /// Returns { profiles: [...] } matching the shape expected by useVerifiedFollowStatuses.ts.
+    /// </summary>
+    [HttpGet("verify-follow")]
+    public async Task<IActionResult> VerifyFollow([FromQuery] string dids)
+    {
+        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var currentUserId))
+            return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(dids))
+            return Ok(new { profiles = Array.Empty<object>() });
+
+        var actors = dids.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                         .Take(25) // cap at BSky standard batch size
+                         .ToList();
+
+        if (actors.Count == 0)
+            return Ok(new { profiles = Array.Empty<object>() });
+
+        var profiles = new List<object>();
+
+        var tasks = actors.Select(async actor =>
+        {
+            try
+            {
+                User? user = null;
+                if (actor.StartsWith("did:"))
+                    user = await _userService.GetUserByDidAsync(actor);
+                else
+                    user = await _userService.GetUserByHandleAsync(actor);
+
+                if (user == null)
+                    (user, _) = await _userService.ResolveRemoteProfileAsync(actor, viewerId: currentUserId);
+
+                if (user == null) return (object?)null;
+
+                var follow = await _userService.GetFollowAsync(currentUserId, user.Id);
+                var isMuted = await _userService.IsMutedAsync(currentUserId, user.Id);
+                var isBlockedBy = await _userService.IsBlockedByAsync(currentUserId, user.Id);
+                var block = await _userService.GetBlockAsync(currentUserId, user.Id);
+
+                return (object?)new
+                {
+                    did = user.Did ?? "",
+                    handle = user.Handle ?? user.Did ?? "unknown",
+                    displayName = user.DisplayName,
+                    avatar = user.AvatarUrl,
+                    isFollowing = follow != null,
+                    followingReference = follow?.Uri,
+                    viewer = new
+                    {
+                        following = follow?.Uri,
+                        muted = isMuted,
+                        blockedBy = isBlockedBy,
+                        blocking = block?.Uri
+                    }
+                };
+            }
+            catch
+            {
+                return (object?)null;
+            }
+        });
+
+        var results = await Task.WhenAll(tasks);
+        profiles.AddRange(results.Where(r => r != null)!);
+
+        return Ok(new { profiles });
+    }
 }
 
 public record BatchFollowStatusRequest(List<Guid> UserIds);
