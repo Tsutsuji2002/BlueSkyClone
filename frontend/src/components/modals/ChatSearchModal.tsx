@@ -22,7 +22,9 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
+    const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isGroupMode, setIsGroupMode] = useState(false);
     const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
@@ -31,9 +33,22 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     useEffect(() => {
         if (isOpen) {
             setTimeout(() => searchInputRef.current?.focus(), 100);
+            // Fetch real suggested users when modal opens
+            setLoadingSuggestions(true);
+            fetch('/xrpc/app.bsky.actor.getSuggestions?limit=10', { credentials: 'include' })
+                .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                .then(data => {
+                    const actors = (data?.actors ?? []).filter(
+                        (u: any) => u.did !== currentUser?.did && u.did !== currentUser?.id
+                    );
+                    setSuggestedUsers(actors);
+                })
+                .catch(() => setSuggestedUsers([]))
+                .finally(() => setLoadingSuggestions(false));
         } else {
             setSearchQuery('');
             setResults([]);
+            setSuggestedUsers([]);
             setIsGroupMode(false);
             setSelectedUsers([]);
         }
@@ -111,7 +126,7 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
         }
     }
 
-    const SUGGESTED_USERS: any[] = [];
+
 
     if (!isOpen) return null;
 
@@ -257,6 +272,51 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                                     </svg>
                                 </button>
                             )}
+
+                            {/* Suggested People */}
+                            {loadingSuggestions ? (
+                                <div className="py-8 flex justify-center"><LoadingIndicator size="sm" /></div>
+                            ) : suggestedUsers.length > 0 ? (
+                                <div className="flex flex-col">
+                                    <p className="px-4 pt-3 pb-1 text-[13px] font-semibold text-[#526580] dark:text-[#a5b2c5] uppercase tracking-wide">
+                                        {t('messages.suggested', 'Suggested')}
+                                    </p>
+                                    {suggestedUsers.map((user) => (
+                                        <button
+                                            key={user.did}
+                                            onClick={() => handleStartChat(user)}
+                                            className={`w-full flex flex-row items-center gap-3 px-4 py-2 transition-colors text-left ${
+                                                selectedUsers.some(u => (u.did || u.id) === (user.did || user.id)) && isGroupMode
+                                                    ? 'bg-[#f1f3f5] dark:bg-white/5'
+                                                    : 'hover:bg-gray-50 dark:hover:bg-white/5'
+                                            }`}
+                                        >
+                                            <Avatar src={user.avatar || user.avatarUrl} alt={user.displayName} size="md" />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate leading-5">
+                                                    {user.displayName || user.handle}
+                                                </p>
+                                                <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate leading-4">
+                                                    @{user.handle}
+                                                </p>
+                                            </div>
+                                            {isGroupMode && (
+                                                <div className={`w-[22px] h-[22px] rounded-[6px] shrink-0 flex items-center justify-center transition-colors ${
+                                                    selectedUsers.some(u => (u.did || u.id) === (user.did || user.id))
+                                                        ? 'bg-[#006AFF]'
+                                                        : 'border-[2px] border-[#DCE2EA] dark:border-[#2E3C4D]'
+                                                }`}>
+                                                    {selectedUsers.some(u => (u.did || u.id) === (user.did || user.id)) && (
+                                                        <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
+                                                            <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : null}
                         </>
                     )}
 
