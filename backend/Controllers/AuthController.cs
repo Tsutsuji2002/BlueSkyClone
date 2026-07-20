@@ -108,8 +108,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            // [TEMP FOR DEBUG] Expose error to help fix production 500
-            return StatusCode(500, new { message = ex.Message, details = ex.StackTrace });
+            _logger.LogError(ex, "[AuthController] Unexpected login error for {Identifier}", request.Identifier);
+            return StatusCode(500, new { message = "An unexpected error occurred. Please try again." });
         }
     }
 
