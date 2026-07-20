@@ -213,6 +213,7 @@
     },
     "moderation": {
         "title": "Moderation",
+        "interaction_settings": "Interaction settings",
         "interaction_title": "Interaction Settings",
         "interaction_info": "These settings will be used as the default when you create a new post. You can edit them post-by-post from the composer.",
         "muted_words_tags": "Muted words & tags",
