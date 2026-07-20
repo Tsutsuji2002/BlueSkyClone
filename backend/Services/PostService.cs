@@ -1072,28 +1072,46 @@ public class PostService : IPostService
                 
                 if (p.ParentPost != null) CollectIdentifiersRecursive(p.ParentPost);
                 if (p.QuotePost != null) CollectIdentifiersRecursive(p.QuotePost);
+                if (p.RootPost != null) CollectIdentifiersRecursive(p.RootPost);
             }
 
             foreach (var p in posts) CollectIdentifiersRecursive(p);
 
-            // [NEW] Batch-sync local IDs for remote posts to ensure matching works correctly
-            // This is critical because MapBlueskyPost assigns random GUIDs to remote posts.
-            var postUrisForSync = posts.Select(p => p.Uri).Where(u => !string.IsNullOrEmpty(u)).ToList();
+            // [NEW] Batch-sync local IDs and soft-deletion status for remote/synced posts to ensure matching/filtering works correctly.
+            // This is critical because MapBlueskyPost assigns random GUIDs to remote posts and external feeds can return recently deleted posts due to eventual consistency.
+            var postUrisForSync = postUris.ToList();
             if (postUrisForSync.Any())
             {
-                var uriToIdMap = await _unitOfWork.Posts.Query()
+                var localPostsInfo = await _unitOfWork.Posts.Query()
                     .AsNoTracking()
                     .Where(p => postUrisForSync.Contains(p.Uri))
-                    .Select(p => new { p.Uri, p.Id })
-                    .ToDictionaryAsync(x => x.Uri!.ToLower(), x => x.Id, ctsTotal.Token);
+                    .Select(p => new { Uri = p.Uri!.ToLower(), p.Id, IsDeleted = p.IsDeleted == true })
+                    .ToListAsync(ctsTotal.Token);
 
-                foreach (var p in posts)
+                var uriToIdMap = localPostsInfo.ToDictionary(x => x.Uri, x => x.Id);
+                var deletedLocalUris = localPostsInfo.Where(x => x.IsDeleted).Select(x => x.Uri).ToHashSet();
+
+                void SyncDatabaseStateRecursive(PostDto? p)
                 {
-                    if (p.Uri != null && uriToIdMap.TryGetValue(p.Uri.ToLower(), out var localId))
+                    if (p == null) return;
+                    if (p.Uri != null)
                     {
-                        p.Id = localId;
+                        var uriLower = p.Uri.ToLower();
+                        if (uriToIdMap.TryGetValue(uriLower, out var localId))
+                        {
+                            p.Id = localId;
+                        }
+                        if (deletedLocalUris.Contains(uriLower))
+                        {
+                            p.IsDeleted = true;
+                        }
                     }
+                    if (p.ParentPost != null) SyncDatabaseStateRecursive(p.ParentPost);
+                    if (p.QuotePost != null) SyncDatabaseStateRecursive(p.QuotePost);
+                    if (p.RootPost != null) SyncDatabaseStateRecursive(p.RootPost);
                 }
+
+                foreach (var p in posts) SyncDatabaseStateRecursive(p);
             }
 
             // [PHASE 2] Synchronize Author.Id with local database IDs to ensure relationship lookups match correctly.
