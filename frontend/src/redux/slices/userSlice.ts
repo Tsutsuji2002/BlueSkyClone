@@ -519,6 +519,7 @@ export const fetchBlockedAccounts = createAsyncThunk<{ users: User[], cursor: st
                 displayName: u.displayName || '',
                 avatarUrl: u.avatar || u.avatarUrl,
                 isBlocking: true,
+                blockingReference: u.viewer?.blocking,
             } as User));
 
             return { users, cursor: data.cursor || null };
@@ -1093,19 +1094,46 @@ const userSlice = createSlice({
             // Block User
             .addCase(blockUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
+                const updateState = (u: User) => {
+                    u.isBlocking = true;
+                    u.blockingReference = action.payload.uri;
+                    u.isFollowing = false;
+                };
                 if (state.profile && state.profile.id === userId) {
                     state.profile.isBlocking = true;
                     state.profile.blockingReference = action.payload.uri;
                     state.profile.isFollowing = false;
                 }
+                updateUsersByIdentifier(state.users, userId, updateState);
+                updateUsersByIdentifier(state.followers, userId, updateState);
+                updateUsersByIdentifier(state.followingUsers, userId, updateState);
+                updateUsersByIdentifier(state.searchResults, userId, updateState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, updateState);
+                updateUsersByIdentifier(state.blockedUsers, userId, updateState);
+                updateUsersByIdentifier(state.mutedUsers, userId, updateState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, updateState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, updateState);
             })
             // Unblock User
             .addCase(unblockUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg.userId;
+                const updateState = (u: User) => {
+                    u.isBlocking = false;
+                    u.blockingReference = undefined;
+                };
                 if (state.profile && state.profile.id === userId) {
                     state.profile.isBlocking = false;
                     state.profile.blockingReference = undefined;
                 }
+                updateUsersByIdentifier(state.users, userId, updateState);
+                updateUsersByIdentifier(state.followers, userId, updateState);
+                updateUsersByIdentifier(state.followingUsers, userId, updateState);
+                updateUsersByIdentifier(state.searchResults, userId, updateState);
+                updateUsersByIdentifier(state.suggestedUsers, userId, updateState);
+                updateUsersByIdentifier(state.blockedUsers, userId, updateState);
+                updateUsersByIdentifier(state.mutedUsers, userId, updateState);
+                updateCachedUsersByIdentifier(state.followersCache, userId, updateState);
+                updateCachedUsersByIdentifier(state.followingCache, userId, updateState);
             })
             // Mute User
             .addCase(muteUserAsync.fulfilled, (state: UserState, action) => {

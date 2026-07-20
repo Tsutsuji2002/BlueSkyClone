@@ -31,8 +31,8 @@ const BlockedAccountsPage: React.FC = () => {
     };
 
     const confirmUnblock = () => {
-        if (!confirmModal.user || !confirmModal.user.blockingReference) return;
-        dispatch(unblockUserAsync({ userId: confirmModal.user.id, blockUri: confirmModal.user.blockingReference })).then(() => {
+        if (!confirmModal.user) return;
+        dispatch(unblockUserAsync({ userId: confirmModal.user.id, blockUri: confirmModal.user.blockingReference || '' })).then(() => {
             dispatch(fetchBlockedAccounts());
         });
     };
