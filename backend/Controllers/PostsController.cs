@@ -1281,6 +1281,30 @@ public class PostsController : ControllerBase
         }
     }
 
+    [HttpPost("interactions/settings")]
+    public async Task<IActionResult> UpdateInteractionSettingsGlobal([FromBody] UpdateInteractionSettingsRequest request)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            if (string.IsNullOrEmpty(request.Uri)) return BadRequest("Post URI is required.");
+
+            var post = await _postService.GetPostByUriAsync(request.Uri, userId);
+            if (post == null) return NotFound("Post not found.");
+
+            var postResult = await _postService.UpdateInteractionSettingsAsync(userId, post.Id, request);
+            if (postResult == null) return NotFound("Post not found or you are not authorized to edit it.");
+            return Ok(postResult);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PostsController] UpdateInteractionSettingsGlobal error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("pin")]
     public async Task<IActionResult> PinPost([FromQuery] string uri)
     {
