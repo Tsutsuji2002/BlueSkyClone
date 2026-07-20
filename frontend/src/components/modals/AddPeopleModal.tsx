@@ -5,6 +5,8 @@ import LoadingIndicator from '../common/LoadingIndicator';
 import api from '../../utils/api';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { useAppSelector } from '../../hooks/useAppSelector';
+import { RootState } from '../../redux/store';
 import { addMembers } from '../../redux/slices/messagesSlice';
 
 interface AddPeopleModalProps {
@@ -22,6 +24,7 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -46,7 +49,8 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
                 setLoading(true);
                 try {
                     const response = await api.search.users(searchQuery);
-                    setResults(response.data || []);
+                    const filteredData = (response.data || []).filter((user: any) => user.did !== currentUser?.did && user.did !== currentUser?.id);
+                    setResults(filteredData);
                 } catch (err) {
                     console.error('Failed to search users:', err);
                 } finally {
@@ -101,7 +105,7 @@ const AddPeopleModal: React.FC<AddPeopleModalProps> = ({
         { did: 'did:plc:pb7gp4lz3cslvw4oha36b4fa', handle: 'aidenr0.bsky.social', displayName: 'SPiNDLE', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:pb7gp4lz3cslvw4oha36b4fa/bafkreiehuo4rch6qe6dyt4zrj3tsejhkgalrzqhklhehizsp2hnwnx6aie' },
         { did: 'did:plc:w4ngtpcrryag6omeu63mlj3l', handle: 'darkcurtain.bsky.social', displayName: 'darkcurtain.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:w4ngtpcrryag6omeu63mlj3l/bafkreihx4434pppsqv2cgnlla4xpldhcykbpqendqh55wc6j6dzjy7evru' },
         { did: 'did:plc:6h7zo2yvfexpm52p3mi7uwoc', handle: 'komiflo.com', displayName: 'Komiflo', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:6h7zo2yvfexpm52p3mi7uwoc/bafkreigti2zn2gol3ugju6jikqeaqshe3uhazoinitx2sokwhmkehgeeve' },
-    ];
+    ].filter(user => user.did !== currentUser?.did && user.did !== currentUser?.id);
 
     if (!isOpen) return null;
 
