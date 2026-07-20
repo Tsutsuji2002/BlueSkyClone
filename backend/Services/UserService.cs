@@ -2316,7 +2316,15 @@ public class UserService : IUserService
                         foreach (var actor in mutes.EnumerateArray())
                         {
                             var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: userId);
-                            if (u != null) users.Add(u);
+                            if (u != null)
+                            {
+                                var isMutedLocally = await _unitOfWork.Mutes.Query()
+                                    .AnyAsync(m => m.UserId == userId && m.MutedUserId == u.Id);
+                                if (isMutedLocally)
+                                {
+                                    users.Add(u);
+                                }
+                            }
                         }
                         await _unitOfWork.CompleteAsync();
                         return (users, nextCursor);
@@ -2368,7 +2376,15 @@ public class UserService : IUserService
                         foreach (var actor in blocks.EnumerateArray())
                         {
                             var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: userId);
-                            if (u != null) users.Add(u);
+                            if (u != null)
+                            {
+                                var isBlockedLocally = await _unitOfWork.Blocks.Query()
+                                    .AnyAsync(b => b.UserId == userId && b.BlockedUserId == u.Id);
+                                if (isBlockedLocally)
+                                {
+                                    users.Add(u);
+                                }
+                            }
                         }
                         await _unitOfWork.CompleteAsync();
                         return (users, nextCursor);
