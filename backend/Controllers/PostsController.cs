@@ -1289,7 +1289,11 @@ public class PostsController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
 
-            if (string.IsNullOrEmpty(request.Uri)) return BadRequest("Post URI is required.");
+            if (string.IsNullOrEmpty(request.Uri))
+            {
+                // Gracefully return Ok for client draft configurations when no post URI is provided yet
+                return Ok(new { message = "Local settings configured." });
+            }
 
             var post = await _postService.GetPostByUriAsync(request.Uri, userId);
             if (post == null) return NotFound("Post not found.");

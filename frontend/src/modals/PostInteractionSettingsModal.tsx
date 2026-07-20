@@ -97,18 +97,23 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
         setIsUpdating(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/posts/interactions/settings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uri: postUri, replyRestriction: finalRestriction, allowQuotes: localQuotes }),
-                credentials: 'include'
-            });
-            
-            if (!response.ok) throw new Error('Failed to update');
+            if (postUri) {
+                // Editing an existing post: persist to backend (updates ATProto threadgate)
+                const response = await fetch(`${API_BASE_URL}/posts/interactions/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uri: postUri, replyRestriction: finalRestriction, allowQuotes: localQuotes }),
+                    credentials: 'include'
+                });
+                if (!response.ok) throw new Error('Failed to update');
+            }
+            // For new posts (no postUri): settings are draft-local only, applied when creating the post.
 
+            // Update parent compose / post state
             setReplyRestriction(finalRestriction);
             setAllowQuotes(localQuotes);
 
+            // Optionally persist as the user's default for future posts
             if (saveForNextTime) {
                 await updateSettings({
                     defaultReplyRestriction: finalRestriction,
