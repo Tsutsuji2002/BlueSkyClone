@@ -33,18 +33,21 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     useEffect(() => {
         if (isOpen) {
             setTimeout(() => searchInputRef.current?.focus(), 100);
-            // Fetch real suggested users when modal opens
-            setLoadingSuggestions(true);
-            fetch('/xrpc/app.bsky.actor.getSuggestions?limit=10', { credentials: 'include' })
-                .then(r => r.ok ? r.json() : Promise.reject(r.status))
-                .then(data => {
-                    const actors = (data?.actors ?? []).filter(
-                        (u: any) => u.did !== currentUser?.did && u.did !== currentUser?.id
-                    );
-                    setSuggestedUsers(actors);
-                })
-                .catch(() => setSuggestedUsers([]))
-                .finally(() => setLoadingSuggestions(false));
+            // Fetch first 5 accounts the current user is following
+            if (currentUser?.handle || currentUser?.did) {
+                setLoadingSuggestions(true);
+                const actor = encodeURIComponent(currentUser.did || currentUser.handle || '');
+                fetch(`/xrpc/app.bsky.graph.getFollows?actor=${actor}&limit=5`, { credentials: 'include' })
+                    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+                    .then(data => {
+                        const actors = (data?.follows ?? []).filter(
+                            (u: any) => u.did !== currentUser?.did && u.did !== currentUser?.id
+                        );
+                        setSuggestedUsers(actors);
+                    })
+                    .catch(() => setSuggestedUsers([]))
+                    .finally(() => setLoadingSuggestions(false));
+            }
         } else {
             setSearchQuery('');
             setResults([]);
