@@ -164,6 +164,38 @@ namespace BSkyClone.Controllers
                 if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
                 {
                     var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+
+                    // Sync real email from PDS getAccount info on-the-fly if needed
+                    var getAccountResult = await _xrpcProxy
+                        .ProxyRequestAsync(user.Did, "com.atproto.server.getAccount",
+                            new Dictionary<string, string?>(), token, "GET", null, userId);
+
+                    if (getAccountResult.Success)
+                    {
+                        using var doc = JsonDocument.Parse(getAccountResult.Content);
+                        var root = doc.RootElement;
+                        var pdsEmail = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+                        var pdsEmailConfirmed = root.TryGetProperty("emailConfirmed", out var confProp) && confProp.GetBoolean();
+
+                        bool changed = false;
+                        if (!string.IsNullOrEmpty(pdsEmail) && pdsEmail != user.Email)
+                        {
+                            user.Email = pdsEmail;
+                            changed = true;
+                        }
+                        if (pdsEmailConfirmed != user.EmailConfirmed)
+                        {
+                            user.EmailConfirmed = pdsEmailConfirmed;
+                            changed = true;
+                        }
+
+                        if (changed)
+                        {
+                            _unitOfWork.Users.Update(user);
+                            await _unitOfWork.CompleteAsync();
+                        }
+                    }
+
                     var proxyResult = await _xrpcProxy
                         .ProxyRequestAsync(user.Did, "com.atproto.server.requestEmailConfirmation",
                             new Dictionary<string, string?>(), token, "POST", null, userId);
@@ -203,15 +235,51 @@ namespace BSkyClone.Controllers
                 {
                     var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
 
-                    // Forward the body as-is (contains { token, email })
+                    // Sync real email from PDS getAccount info on-the-fly to get the authoritative address
+                    string realEmail = user.Email;
+                    var getAccountResult = await _xrpcProxy
+                        .ProxyRequestAsync(user.Did, "com.atproto.server.getAccount",
+                            new Dictionary<string, string?>(), token, "GET", null, userId);
+
+                    if (getAccountResult.Success)
+                    {
+                        using var doc = JsonDocument.Parse(getAccountResult.Content);
+                        var root = doc.RootElement;
+                        var pdsEmail = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+                        var pdsEmailConfirmed = root.TryGetProperty("emailConfirmed", out var confProp) && confProp.GetBoolean();
+
+                        bool changed = false;
+                        if (!string.IsNullOrEmpty(pdsEmail) && pdsEmail != user.Email)
+                        {
+                            user.Email = pdsEmail;
+                            realEmail = pdsEmail!;
+                            changed = true;
+                        }
+                        if (pdsEmailConfirmed != user.EmailConfirmed)
+                        {
+                            user.EmailConfirmed = pdsEmailConfirmed;
+                            changed = true;
+                        }
+
+                        if (changed)
+                        {
+                            _unitOfWork.Users.Update(user);
+                            await _unitOfWork.CompleteAsync();
+                        }
+                    }
+
+                    // Forward the body, but overwrite "email" with the real/authoritative email
                     object? requestBody = null;
+                    var dict = new Dictionary<string, object?>();
                     if (body.ValueKind == JsonValueKind.Object)
                     {
-                        var dict = new Dictionary<string, object?>();
                         foreach (var prop in body.EnumerateObject())
                             dict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : (object?)prop.Value.GetRawText();
-                        requestBody = dict;
                     }
+                    
+                    // Force the actual real email in the request payload
+                    dict["email"] = realEmail;
+                    requestBody = dict;
 
                     var proxyResult = await _xrpcProxy
                         .ProxyRequestAsync(user.Did, "com.atproto.server.confirmEmail",
