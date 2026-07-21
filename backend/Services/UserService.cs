@@ -1324,8 +1324,8 @@ public class UserService : IUserService
                     }
                 }
 
-                await _unitOfWork.CompleteAsync();
-
+                // REMOVED: await _unitOfWork.CompleteAsync(); - This is a read operation, don't save changes
+                
                 cached = new RemoteFollowsResult
                 {
                     Users = users,
