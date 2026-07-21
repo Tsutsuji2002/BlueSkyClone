@@ -82,10 +82,49 @@ namespace BSkyClone.Controllers
                 var user = await _userService.GetUserByIdAsync(userId);
                 if (user == null) return NotFound(new { error = "AccountNotFound" });
 
+                // For Bluesky/ATProto users, proxy to their PDS to get actual real values
+                if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
+                {
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    var proxyResult = await _xrpcProxy
+                        .ProxyRequestAsync(user.Did, "com.atproto.server.getAccount",
+                            new Dictionary<string, string?>(), token, "GET", null, userId);
+
+                    if (proxyResult.Success)
+                    {
+                        using var doc = JsonDocument.Parse(proxyResult.Content);
+                        var root = doc.RootElement;
+                        var pdsEmail = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+                        var pdsEmailConfirmed = root.TryGetProperty("emailConfirmed", out var confProp) && confProp.GetBoolean();
+
+                        bool changed = false;
+                        if (!string.IsNullOrEmpty(pdsEmail) && pdsEmail != user.Email)
+                        {
+                            user.Email = pdsEmail;
+                            changed = true;
+                        }
+                        if (pdsEmailConfirmed != user.EmailConfirmed)
+                        {
+                            user.EmailConfirmed = pdsEmailConfirmed;
+                            changed = true;
+                        }
+
+                        if (changed)
+                        {
+                            _unitOfWork.Users.Update(user);
+                            await _unitOfWork.CompleteAsync();
+                        }
+
+                        return Content(proxyResult.Content, "application/json");
+                    }
+
+                    _logger.LogWarning("[GetAccount] PDS returned {Status}: {Content}", proxyResult.StatusCode, proxyResult.Content);
+                }
+
                 return Ok(new GetAccountResponse
                 {
                     Email = user.Email ?? "",
-                    EmailConfirmed = true,
+                    EmailConfirmed = user.EmailConfirmed,
                     Handle = user.Handle,
                     Did = user.Did ?? ""
                 });

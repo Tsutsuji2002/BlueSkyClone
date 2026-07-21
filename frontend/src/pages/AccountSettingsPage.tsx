@@ -366,9 +366,12 @@ const AccountSettingsPage: React.FC = () => {
             const response = await (agent.com.atproto.server as any).getAccount();
             if (response.success) {
                 setAccountInfo(response.data);
-                // Also sync email back to Redux if it's different (optional but helps consistency)
-                if (response.data.email !== user?.email) {
-                    dispatch(updateUser({ email: response.data.email }));
+                // Also sync email and confirmation status back to Redux if different
+                if (response.data.email !== user?.email || response.data.emailConfirmed !== user?.emailConfirmed) {
+                    dispatch(updateUser({ 
+                        email: response.data.email,
+                        emailConfirmed: response.data.emailConfirmed
+                    }));
                 }
             }
         } catch (error) {

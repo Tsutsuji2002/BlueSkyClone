@@ -216,6 +216,12 @@ public class AuthService : IAuthService
             user.BlueskyAccessToken = accessJwt;
             user.BlueskyRefreshToken = refreshJwt;
             user.EmailConfirmed = emailConfirmed;
+            // Sync real email from PDS session (overwrite any fake placeholder)
+            if (!string.IsNullOrEmpty(email) && 
+                (string.IsNullOrEmpty(user.Email) || user.Email.EndsWith("@remote.bsky.social") || user.Email.StartsWith("did:")))
+            {
+                user.Email = email;
+            }
             _unitOfWork.Users.Update(user);
         }
 

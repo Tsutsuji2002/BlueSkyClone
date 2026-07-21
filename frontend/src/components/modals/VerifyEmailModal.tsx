@@ -23,7 +23,6 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
 
     const [step, setStep] = useState<'send' | 'code'>('send');
     const [code, setCode] = useState('');
-    const [emailInput, setEmailInput] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
     const [sendError, setSendError] = useState('');
@@ -31,11 +30,7 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
 
     if (!isOpen) return null;
 
-    const rawEmail = currentUser?.email ?? '';
-    // Bluesky/ATProto users have a placeholder `did:...@remote.bsky.social` stored as their email.
-    // We should NOT show this raw DID string—instead show a generic prompt.
-    const isFakeEmail = rawEmail.endsWith('@remote.bsky.social') || rawEmail.startsWith('did:');
-    const email = isFakeEmail ? '' : rawEmail;
+    const email = currentUser?.email ?? '';
 
     const handleSendEmail = async () => {
         setIsSending(true);
@@ -59,17 +54,9 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
         }
     };
 
-    // The ATProto confirmEmail lexicon requires both `token` AND `email` matching PDS record.
-    // For Bluesky users whose real email we don't have stored, we ask them to enter it.
-    const emailForConfirm = isFakeEmail ? emailInput.trim() : rawEmail;
-
     const handleConfirmCode = async () => {
         if (!code.trim()) {
             setConfirmError('Please enter the verification code.');
-            return;
-        }
-        if (isFakeEmail && !emailForConfirm) {
-            setConfirmError('Please enter your Bluesky account email address.');
             return;
         }
         setIsConfirming(true);
@@ -79,7 +66,7 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: code.trim(), email: emailForConfirm }),
+                body: JSON.stringify({ token: code.trim(), email }),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
@@ -98,15 +85,16 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
     const handleClose = () => {
         setStep('send');
         setCode('');
-        setEmailInput('');
         setSendError('');
         setConfirmError('');
         onClose();
     };
 
-    const emailDisplay = email
-        ? <span className="font-semibold text-black dark:text-white">{email}</span>
-        : <span className="font-semibold text-black dark:text-white">your Bluesky-registered email address</span>;
+    const emailDisplay = email ? (
+        <span className="font-semibold text-black dark:text-white">{email}</span>
+    ) : (
+        <span className="font-semibold text-black dark:text-white">your Bluesky-registered email address</span>
+    );
 
     return (
         <div
@@ -146,7 +134,7 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
                                     We'll send an email to {emailDisplay}{' '}
                                     containing a link. Please click on it to complete the email verification process.
                                 </p>
-                                {!isFakeEmail && (
+                                {email && (
                                     <p className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary leading-[17px]">
                                         If you need to update your email,{' '}
                                         <button
@@ -204,22 +192,6 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
                                     An email was sent to {emailDisplay}. Enter the code from the email below.
                                 </p>
                             </div>
-
-                            {/* When the stored email is a fake placeholder, ask for the real one */}
-                            {isFakeEmail && (
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-[13px] text-[#405168] dark:text-dark-text-secondary font-medium">
-                                        Your Bluesky email address
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={emailInput}
-                                        onChange={(e) => setEmailInput(e.target.value)}
-                                        placeholder="you@example.com"
-                                        className="w-full border border-[#c0cad8] dark:border-dark-border rounded-xl px-4 py-3 text-[15px] dark:text-white dark:bg-dark-bg focus:outline-none focus:border-[#006aff] transition-colors"
-                                    />
-                                </div>
-                            )}
 
                             <input
                                 type="text"
