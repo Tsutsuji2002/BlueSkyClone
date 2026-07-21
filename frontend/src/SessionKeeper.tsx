@@ -47,25 +47,16 @@ export const SessionKeeper: React.FC = () => {
                 // Acquire lock
                 localStorage.setItem(lockKey, now.toString());
 
-                // If it's the active account, use regular refresh
+                // If it's the active account, use regular refresh.
+                // We do NOT background-refresh dormant (non-active) accounts here because that requires
+                // calling switchMutation which writes HTTPOnly cookies, corrupting the active user's session.
+                // Instead, dormant accounts will refresh safely on demand when manually switched.
                 if (isAuthenticated && activeUser?.did === account.did) {
                     try {
                         const result = await refreshActive().unwrap();
                         dispatch(setAuth(result));
                     } catch (err) {
                         console.error(`Failed to background refresh active account ${account.handle}:`, err);
-                    }
-                } 
-                // If it's a background account, use switch (refresh) mutation with its stored token
-                else if (account.refreshToken) {
-                    try {
-                        // We use the switch mutation secretly to get fresh tokens for background accounts
-                        // We DON'T dispatch setAuth here because we don't want to change the visual active user
-                        const result = await switchMutation({ refreshToken: account.refreshToken }).unwrap();
-                        AccountManager.updateTokens(account.did, result.token, result.refreshToken);
-                        console.log(`Successfully refreshed background session for ${account.handle}`);
-                    } catch (err) {
-                        console.warn(`Background refresh failed for ${account.handle}:`, err);
                     }
                 }
 

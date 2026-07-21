@@ -301,7 +301,9 @@ const authSlice = createSlice({
          * session cookie is already dead. It just wipes local state and tokens.
          */
         sessionExpiredLogout: (state) => {
-            AccountManager.clearAllTokens();
+            if (state.user?.did) {
+                AccountManager.clearTokens(state.user.did);
+            }
             AccountManager.clearActiveAccount();
             state.user = null;
             state.settings = null;
