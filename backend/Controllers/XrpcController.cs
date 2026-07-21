@@ -163,7 +163,9 @@ namespace BSkyClone.Controllers
                 // For Bluesky/ATProto users, proxy this to their PDS
                 if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
                 {
-                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    // forceRefresh: true ensures a PDS refreshSession call fires,
+                    // which returns the real email and our UserService fix saves it to the DB
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
 
                     // Sync real email from PDS getAccount info on-the-fly if needed
                     var getAccountResult = await _xrpcProxy
@@ -233,8 +235,9 @@ namespace BSkyClone.Controllers
                 // For Bluesky/ATProto users, proxy this to their PDS
                 if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
                 {
-                    // GetOrRefreshBlueskyTokenAsync also syncs the real email from the PDS refreshSession response
-                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    // forceRefresh: true forces a PDS refreshSession call which returns the real email;
+                    // UserService captures and saves it to DB before we re-fetch the user below
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
 
                     // Re-fetch user from DB to get any email that was synced during token refresh
                     user = await _userService.GetUserByIdAsync(userId) ?? user;
