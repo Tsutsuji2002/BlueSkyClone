@@ -1770,7 +1770,11 @@ namespace BSkyClone.Controllers
         {
             try
             {
+                _logger.LogInformation("GetFollows XRPC called for actor: {Actor}, limit: {Limit}, cursor: {Cursor}", actor, limit, cursor);
+                
                 var (users, nextCursor) = await _userService.GetFollowingAsync(actor, limit, cursor);
+                
+                _logger.LogInformation("GetFollowingAsync returned {Count} users", users.Count);
                 
                 // Fetch the subject profile
                 User? subjectUser = null;
@@ -1779,7 +1783,11 @@ namespace BSkyClone.Controllers
                 else subjectUser = await _userService.GetUserByHandleAsync(actor);
 
                 if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor);
-                if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
+                if (subjectUser == null)
+                {
+                    _logger.LogWarning("Subject user not found for actor: {Actor}", actor);
+                    return NotFound(new { error = "AccountNotFound" });
+                }
 
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
                 Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
@@ -1787,7 +1795,15 @@ namespace BSkyClone.Controllers
                 var mappedFollows = new List<ProfileView>();
                 foreach (var u in users)
                 {
-                    mappedFollows.Add(await MapUserToProfileView(u, viewerId));
+                    try
+                    {
+                        mappedFollows.Add(await MapUserToProfileView(u, viewerId));
+                    }
+                    catch (Exception mapEx)
+                    {
+                        _logger.LogError(mapEx, "Error mapping user {UserId} to ProfileView", u.Id);
+                        throw;
+                    }
                 }
 
                 var response = new GetFollowsResponse
@@ -1801,8 +1817,8 @@ namespace BSkyClone.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "XRPC GetFollows error");
-                return StatusCode(500, new { error = "InternalError" });
+                _logger.LogError(ex, "XRPC GetFollows error for actor: {Actor}", actor);
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
             }
         }
 
