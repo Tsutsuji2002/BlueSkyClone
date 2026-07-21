@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAppSelector } from '../../hooks/useAppSelector';
-import agent from '../../services/atpAgent';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { updateUser } from '../../redux/slices/authSlice';
@@ -15,6 +14,8 @@ interface Props {
 /**
  * Verify Email Modal – matches the real Bluesky app design.
  * Shows a code-entry step after the verification email is sent.
+ * For Bluesky (ATProto) users, requests go through our backend XRPC proxy
+ * which forwards the request to the user's actual PDS with the correct token.
  */
 const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) => {
     const dispatch = useAppDispatch();
@@ -29,13 +30,26 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
 
     if (!isOpen) return null;
 
-    const email = currentUser?.email ?? '';
+    const rawEmail = currentUser?.email ?? '';
+    // Bluesky/ATProto users have a placeholder `did:...@remote.bsky.social` stored as their email.
+    // We should NOT show this raw DID string—instead show a generic prompt.
+    const isFakeEmail = rawEmail.endsWith('@remote.bsky.social') || rawEmail.startsWith('did:');
+    const email = isFakeEmail ? '' : rawEmail;
 
     const handleSendEmail = async () => {
         setIsSending(true);
         setSendError('');
         try {
-            await (agent.com.atproto.server as any).requestEmailConfirmation();
+            // Use the backend XRPC proxy route which forwards to the user's PDS with the correct token
+            const res = await fetch('/xrpc/com.atproto.server.requestEmailConfirmation', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
+            }
             setStep('code');
         } catch (err: any) {
             setSendError(err?.message || 'Failed to send verification email. Please try again.');
@@ -52,7 +66,16 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
         setIsConfirming(true);
         setConfirmError('');
         try {
-            await (agent.com.atproto.server as any).confirmEmail({ token: code.trim() });
+            const res = await fetch('/xrpc/com.atproto.server.confirmEmail', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: code.trim(), email: rawEmail }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data?.message || data?.error || `Verification failed (${res.status})`);
+            }
             dispatch(updateUser({ emailConfirmed: true }));
             dispatch(showToast({ message: 'Email verified successfully!', type: 'success' }));
             onClose();
@@ -70,6 +93,10 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
         setConfirmError('');
         onClose();
     };
+
+    const emailDisplay = email
+        ? <span className="font-semibold text-black dark:text-white">{email}</span>
+        : <span className="font-semibold text-black dark:text-white">your Bluesky-registered email address</span>;
 
     return (
         <div
@@ -106,20 +133,21 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
                                     Before you can message another user, you must first verify your email.
                                 </p>
                                 <p className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary leading-[17px]">
-                                    We'll send an email to{' '}
-                                    <span className="font-semibold text-black dark:text-white">{email}</span>{' '}
+                                    We'll send an email to {emailDisplay}{' '}
                                     containing a link. Please click on it to complete the email verification process.
                                 </p>
-                                <p className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary leading-[17px]">
-                                    If you need to update your email,{' '}
-                                    <button
-                                        className="text-[#006aff] hover:underline text-[13.1px]"
-                                        onClick={() => { handleClose(); onUpdateEmail?.(); }}
-                                    >
-                                        click here
-                                    </button>
-                                    .
-                                </p>
+                                {!isFakeEmail && (
+                                    <p className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary leading-[17px]">
+                                        If you need to update your email,{' '}
+                                        <button
+                                            className="text-[#006aff] hover:underline text-[13.1px]"
+                                            onClick={() => { handleClose(); onUpdateEmail?.(); }}
+                                        >
+                                            click here
+                                        </button>
+                                        .
+                                    </p>
+                                )}
                             </div>
 
                             {sendError && (
@@ -163,9 +191,7 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
                                     Enter your code
                                 </h2>
                                 <p className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary leading-[17px]">
-                                    An email was sent to{' '}
-                                    <span className="font-semibold text-black dark:text-white">{email}</span>
-                                    . Enter the code from the email below.
+                                    An email was sent to {emailDisplay}. Enter the code from the email below.
                                 </p>
                             </div>
 

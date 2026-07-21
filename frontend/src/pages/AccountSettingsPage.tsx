@@ -382,15 +382,18 @@ const AccountSettingsPage: React.FC = () => {
         fetchAccountInfo();
     }, []);
 
+    // Remote/Bluesky users: did:plc:... with a fake @remote.bsky.social placeholder email
     const isRemoteUser = React.useMemo(() => {
-        if (!user?.did) return false;
-        // Basic heuristic: if DID is not did:local and doesn't contain our domain, it's likely remote
-        // For BSkyClone, we assume local users have did:local:... or a specific domain.
-        // If it's did:plc:... it might be a migrated user or a remote one.
-        // However, a stronger check is if the agent service URL matches the PDS of the DID.
-        // For now, let's look for 'did:local' as the 'native' indicator.
-        return user.did.startsWith('did:plc') && !user.email?.includes('bskyclone');
+        const email = user?.email ?? '';
+        return email.endsWith('@remote.bsky.social') || (user?.did?.startsWith('did:plc') && !email.includes('@') === false && email.split('@')[0] === user?.did);
     }, [user?.did, user?.email]);
+
+    // Display email – hide fake placeholder emails from remote users
+    const displayEmail = React.useMemo(() => {
+        const email = accountInfo?.email || user?.email || '';
+        if (email.endsWith('@remote.bsky.social')) return null; // hide fake email
+        return email || null;
+    }, [accountInfo?.email, user?.email]);
 
     useDocumentTitle(t('settings.account'));
 
@@ -413,46 +416,52 @@ const AccountSettingsPage: React.FC = () => {
                 {/* Content */}
                 <div className="flex flex-col">
                     {/* Access / Security Group */}
-                    {!isRemoteUser && (
-                        <div className="py-2">
-                            <button
-                                onClick={() => setActiveModal('email')}
-                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <FiMail size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
-                                    <div className="flex flex-col items-start">
-                                        <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.email')}</span>
+                    <div className="py-2">
+                        {/* Email row – shown for all users */}
+                        <button
+                            onClick={() => !isRemoteUser && setActiveModal('email')}
+                            className={`w-full flex items-center justify-between px-4 py-4 transition-colors border-b border-gray-100 dark:border-dark-border/50 ${!isRemoteUser ? 'hover:bg-gray-50 dark:hover:bg-dark-surface/50' : 'cursor-default'}`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <FiMail size={22} className="text-gray-900 dark:text-dark-text opacity-80" />
+                                <div className="flex flex-col items-start">
+                                    <span className="text-[15px] font-medium text-gray-900 dark:text-dark-text">{t('settings.email')}</span>
+                                    {displayEmail && (
                                         <span className="text-sm text-gray-500 dark:text-dark-text-secondary">
-                                            {isLoadingAccount ? '...' : (accountInfo?.email || user?.email)}
+                                            {isLoadingAccount ? '...' : displayEmail}
                                         </span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {user?.emailConfirmed ? (
-                                        <div className="flex items-center gap-1 bg-green-500/10 text-green-500 text-xs px-2 py-0.5 rounded-full font-semibold">
-                                            <FiCheck size={12} />
-                                            <span>Verified</span>
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs text-orange-500 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full">Unverified</span>
                                     )}
                                 </div>
-                            </button>
-
-                            {!user?.emailConfirmed && (
-                                <button
-                                    onClick={() => setIsVerifyEmailOpen(true)}
-                                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50 text-[#006aff]"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <FiAlertCircle size={22} className="text-[#006aff] opacity-80" />
-                                        <span className="text-[15px] font-medium text-[#006aff]">Verify your email</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {user?.emailConfirmed ? (
+                                    <div className="flex items-center gap-1 bg-green-500/10 text-green-500 text-xs px-2 py-0.5 rounded-full font-semibold">
+                                        <FiCheck size={12} />
+                                        <span>Verified</span>
                                     </div>
-                                    <FiChevronRight className="text-[#006aff]" />
-                                </button>
-                            )}
+                                ) : (
+                                    <span className="text-xs text-orange-500 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full">Unverified</span>
+                                )}
+                            </div>
+                        </button>
 
+                        {!user?.emailConfirmed && (
+                            <button
+                                onClick={() => setIsVerifyEmailOpen(true)}
+                                className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50 text-[#006aff]"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <FiAlertCircle size={22} className="text-[#006aff] opacity-80" />
+                                    <span className="text-[15px] font-medium text-[#006aff]">Verify your email</span>
+                                </div>
+                                <FiChevronRight className="text-[#006aff]" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Local-only settings: update email, password, handle */}
+                    {!isRemoteUser && (
+                        <div className="py-2">
                             <button
                                 onClick={() => setActiveModal('email')}
                                 className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50"

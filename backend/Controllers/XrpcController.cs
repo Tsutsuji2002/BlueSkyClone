@@ -36,6 +36,7 @@ namespace BSkyClone.Controllers
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IDistributedCache _cache;
         private readonly IFeedService _feedService;
+        private readonly IXrpcProxyService _xrpcProxy;
         private readonly ILogger<XrpcController> _logger;
 
         public XrpcController(
@@ -50,6 +51,7 @@ namespace BSkyClone.Controllers
             IHttpClientFactory httpClientFactory,
             IDistributedCache cache,
             IFeedService feedService,
+            IXrpcProxyService xrpcProxy,
             ILogger<XrpcController> logger)
         {
             _authService = authService;
@@ -63,6 +65,7 @@ namespace BSkyClone.Controllers
             _httpClientFactory = httpClientFactory;
             _cache = cache;
             _feedService = feedService;
+            _xrpcProxy = xrpcProxy;
             _logger = logger;
         }
 
@@ -103,6 +106,101 @@ namespace BSkyClone.Controllers
             // or just allow direct updates if we want to skip the "email verify" complexity for now.
             // The lexicon says it returns { tokenRequired: boolean }
             return Ok(new RequestEmailUpdateResponse { TokenRequired = false });
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.server.requestEmailConfirmation")]
+        public async Task<IActionResult> RequestEmailConfirmation()
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null) return NotFound(new { error = "AccountNotFound" });
+
+                // For Bluesky/ATProto users, proxy this to their PDS
+                if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
+                {
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    var proxyResult = await _xrpcProxy
+                        .ProxyRequestAsync(user.Did, "com.atproto.server.requestEmailConfirmation",
+                            new Dictionary<string, string?>(), token, "POST", null, userId);
+
+                    if (proxyResult.Success)
+                        return Ok();
+
+                    _logger.LogWarning("[RequestEmailConfirmation] PDS returned {Status}: {Content}", proxyResult.StatusCode, proxyResult.Content);
+                    return StatusCode(proxyResult.StatusCode, proxyResult.Content);
+                }
+
+                // For local users: no email sending infrastructure — return a stub OK
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in requestEmailConfirmation XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("com.atproto.server.confirmEmail")]
+        public async Task<IActionResult> ConfirmEmail([FromBody] JsonElement body)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                var user = await _userService.GetUserByIdAsync(userId);
+                if (user == null) return NotFound(new { error = "AccountNotFound" });
+
+                // For Bluesky/ATProto users, proxy this to their PDS
+                if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
+                {
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+
+                    // Forward the body as-is (contains { token, email })
+                    object? requestBody = null;
+                    if (body.ValueKind == JsonValueKind.Object)
+                    {
+                        var dict = new Dictionary<string, object?>();
+                        foreach (var prop in body.EnumerateObject())
+                            dict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : (object?)prop.Value.GetRawText();
+                        requestBody = dict;
+                    }
+
+                    var proxyResult = await _xrpcProxy
+                        .ProxyRequestAsync(user.Did, "com.atproto.server.confirmEmail",
+                            new Dictionary<string, string?>(), token, "POST", requestBody, userId);
+
+                    if (proxyResult.Success)
+                    {
+                        // Mark locally as confirmed using UnitOfWork
+                        user.EmailConfirmed = true;
+                        _unitOfWork.Users.Update(user);
+                        await _unitOfWork.CompleteAsync();
+                        return Ok();
+                    }
+
+                    return StatusCode(proxyResult.StatusCode, proxyResult.Content);
+                }
+
+                // Local user: just mark confirmed
+                user.EmailConfirmed = true;
+                _unitOfWork.Users.Update(user);
+                await _unitOfWork.CompleteAsync();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in confirmEmail XRPC");
+                return StatusCode(500, new { error = "InternalError" });
+            }
         }
 
         [Authorize]
