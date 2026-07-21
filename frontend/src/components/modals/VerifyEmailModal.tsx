@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { showToast } from '../../redux/slices/toastSlice';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
@@ -28,11 +28,27 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
     const [sendError, setSendError] = useState('');
     const [confirmError, setConfirmError] = useState('');
 
-    if (!isOpen) return null;
-
     const rawEmail = currentUser?.email ?? '';
     const isFakeEmail = rawEmail.endsWith('@remote.bsky.social') || rawEmail.startsWith('did:');
     const email = isFakeEmail ? '' : rawEmail;
+
+    useEffect(() => {
+        if (isOpen && isFakeEmail) {
+            fetch('/xrpc/com.atproto.server.getAccount', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data?.email) {
+                        dispatch(updateUser({ 
+                            email: data.email,
+                            emailConfirmed: data.emailConfirmed
+                        }));
+                    }
+                })
+                .catch(err => console.error("Failed to sync account info:", err));
+        }
+    }, [isOpen, isFakeEmail, dispatch]);
+
+    if (!isOpen) return null;
 
     const handleSendEmail = async () => {
         setIsSending(true);
