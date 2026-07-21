@@ -3162,6 +3162,7 @@ public class UserService : IUserService
 
                 string? nextAccessJwt = session.TryGetProperty("accessJwt", out var aj) ? aj.GetString() : null;
                 string? nextRefreshJwt = session.TryGetProperty("refreshJwt", out var rj) ? rj.GetString() : null;
+                string? sessionEmail = session.TryGetProperty("email", out var eml) ? eml.GetString() : null;
 
                 if (string.IsNullOrEmpty(nextAccessJwt) || string.IsNullOrEmpty(nextRefreshJwt))
                 {
@@ -3187,6 +3188,13 @@ public class UserService : IUserService
                 {
                     userUpdate.BlueskyAccessToken = nextAccessJwt;
                     userUpdate.BlueskyRefreshToken = nextRefreshJwt;
+                    // Sync real email from session if PDS provided it and local record is a placeholder
+                    if (!string.IsNullOrEmpty(sessionEmail) &&
+                        (string.IsNullOrEmpty(userUpdate.Email) || userUpdate.Email.EndsWith("@remote.bsky.social") || userUpdate.Email.StartsWith("did:")))
+                    {
+                        _logger.LogInformation("[GetOrRefreshBlueskyTokenAsync] Syncing real email {Email} for {UserId} from refreshSession.", sessionEmail, userId);
+                        userUpdate.Email = sessionEmail;
+                    }
                     await _unitOfWork.CompleteAsync();
                 }
 

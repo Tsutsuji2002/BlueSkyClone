@@ -233,68 +233,60 @@ namespace BSkyClone.Controllers
                 // For Bluesky/ATProto users, proxy this to their PDS
                 if (!string.IsNullOrEmpty(user.Did) && !string.IsNullOrEmpty(user.BlueskyAccessToken))
                 {
+                    // GetOrRefreshBlueskyTokenAsync also syncs the real email from the PDS refreshSession response
                     var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
 
-                    // Sync real email from PDS getAccount info on-the-fly to get the authoritative address
-                    string realEmail = user.Email;
-                    var getAccountResult = await _xrpcProxy
-                        .ProxyRequestAsync(user.Did, "com.atproto.server.getAccount",
-                            new Dictionary<string, string?>(), token, "GET", null, userId);
+                    // Re-fetch user from DB to get any email that was synced during token refresh
+                    user = await _userService.GetUserByIdAsync(userId) ?? user;
+                    string realEmail = user.Email ?? "";
 
-                    if (getAccountResult.Success)
+                    // If still a placeholder, do a direct getAccount call as last resort
+                    if (string.IsNullOrEmpty(realEmail) || realEmail.EndsWith("@remote.bsky.social") || realEmail.StartsWith("did:"))
                     {
-                        using var doc = JsonDocument.Parse(getAccountResult.Content);
-                        var root = doc.RootElement;
-                        var pdsEmail = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
-                        var pdsEmailConfirmed = root.TryGetProperty("emailConfirmed", out var confProp) && confProp.GetBoolean();
+                        _logger.LogWarning("[ConfirmEmail] Email is still a placeholder after token refresh. Attempting getAccount lookup.");
+                        var getAccountResult = await _xrpcProxy
+                            .ProxyRequestAsync(user.Did!, "com.atproto.server.getAccount",
+                                new Dictionary<string, string?>(), token, "GET", null, userId);
 
-                        _logger.LogInformation("[ConfirmEmail] parsed PDS email: {Email}, confirmed: {Confirmed}", pdsEmail, pdsEmailConfirmed);
-
-                        bool changed = false;
-                        if (!string.IsNullOrEmpty(pdsEmail) && pdsEmail != user.Email)
+                        if (getAccountResult.Success)
                         {
-                            user.Email = pdsEmail;
-                            realEmail = pdsEmail!;
-                            changed = true;
+                            using var doc = JsonDocument.Parse(getAccountResult.Content);
+                            var root = doc.RootElement;
+                            var pdsEmail = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
+                            if (!string.IsNullOrEmpty(pdsEmail))
+                            {
+                                realEmail = pdsEmail;
+                                user.Email = pdsEmail;
+                                _unitOfWork.Users.Update(user);
+                                await _unitOfWork.CompleteAsync();
+                                _logger.LogInformation("[ConfirmEmail] Resolved email via getAccount: {Email}", pdsEmail);
+                            }
                         }
-                        if (pdsEmailConfirmed != user.EmailConfirmed)
+                        else
                         {
-                            user.EmailConfirmed = pdsEmailConfirmed;
-                            changed = true;
-                        }
-
-                        if (changed)
-                        {
-                            _unitOfWork.Users.Update(user);
-                            await _unitOfWork.CompleteAsync();
-                            _logger.LogInformation("[ConfirmEmail] Updated local user email to {Email}", user.Email);
+                            _logger.LogWarning("[ConfirmEmail] getAccount also failed: {Status} {Content}", getAccountResult.StatusCode, getAccountResult.Content);
                         }
                     }
 
                     // Forward the body, but overwrite "email" with the real/authoritative email
-                    object? requestBody = null;
                     var dict = new Dictionary<string, object?>();
                     if (body.ValueKind == JsonValueKind.Object)
                     {
                         foreach (var prop in body.EnumerateObject())
                             dict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : (object?)prop.Value.GetRawText();
                     }
-                    
-                    // Force the actual real email in the request payload
-                    _logger.LogInformation("[ConfirmEmail] Overwriting email in proxy payload: original={Original}, final={Final}", dict.ContainsKey("email") ? dict["email"] : "none", realEmail);
                     dict["email"] = realEmail;
-                    requestBody = dict;
+                    _logger.LogInformation("[ConfirmEmail] Final email in proxy payload: {Email}", realEmail);
 
                     var proxyResult = await _xrpcProxy
-                        .ProxyRequestAsync(user.Did, "com.atproto.server.confirmEmail",
-                            new Dictionary<string, string?>(), token, "POST", requestBody, userId);
+                        .ProxyRequestAsync(user.Did!, "com.atproto.server.confirmEmail",
+                            new Dictionary<string, string?>(), token, "POST", (object?)dict, userId);
 
-                    _logger.LogInformation("[ConfirmEmail] confirmEmail PDS result success: {Success}, status: {Status}, content: {Content}",
+                    _logger.LogInformation("[ConfirmEmail] PDS result: {Success} {Status} {Content}",
                         proxyResult.Success, proxyResult.StatusCode, proxyResult.Content);
 
                     if (proxyResult.Success)
                     {
-                        // Mark locally as confirmed using UnitOfWork
                         user.EmailConfirmed = true;
                         _unitOfWork.Users.Update(user);
                         await _unitOfWork.CompleteAsync();
