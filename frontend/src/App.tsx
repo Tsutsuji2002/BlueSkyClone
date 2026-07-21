@@ -240,6 +240,7 @@ const AppContent: React.FC = () => {
             // fetchUnreadCount is now handled by Handshake on startup
             dispatch(fetchUnreadCount());
             dispatch(fetchConversations());
+            dispatch(fetchSubscribedFeeds());
             signalrTimerRef.current = null;
         }, signalrGracePeriod);
     } else {
@@ -275,6 +276,7 @@ const AppContent: React.FC = () => {
             lastFetchRef.current = now;
             dispatch(fetchUnreadCount());
             dispatch(fetchConversations());
+            dispatch(fetchSubscribedFeeds());
         }
     };
 

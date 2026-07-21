@@ -163,7 +163,10 @@ const getHydratedState = (initial: FeedsState): FeedsState => {
             ...initial,
             subscribedFeeds: JSON.parse(localStorage.getItem(getAccountKey('feeds_subscribed', did)) || '[]'),
             pinnedFeedIds: JSON.parse(localStorage.getItem(getAccountKey('feeds_pinned_ids', did)) || '[]'),
-            lastSubscribedFeedsFetch: Number(localStorage.getItem(getAccountKey('feeds_last_fetch', did)) || '0'),
+            // NOTE: Do NOT restore lastSubscribedFeedsFetch from localStorage.
+            // This ensures that on fresh app load (e.g. returning after a day), we always
+            // re-fetch from the backend rather than treating stale localStorage data as fresh.
+            lastSubscribedFeedsFetch: 0,
             lastFetchDid: did,
         };
     } catch (e) {
@@ -247,9 +250,11 @@ export const fetchSubscribedFeeds = createAsyncThunk<
             const currentDid = state.auth.user?.did;
             const now = Date.now();
 
-            // Throttle: don't fetch more than once every 10 seconds unless explicitly bypassed OR account changed
+            // Throttle: don't fetch more than once every 5 minutes unless explicitly bypassed OR account changed
+            // Using 5 min (not 10s) ensures that after a day away, the feeds are always re-fetched on page load.
+            const THROTTLE_MS = 5 * 60 * 1000; // 5 minutes
             const isSameAccount = currentDid && state.feeds.lastFetchDid === currentDid;
-            const isFresh = state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < 10000);
+            const isFresh = state.feeds.lastSubscribedFeedsFetch && (now - state.feeds.lastSubscribedFeedsFetch < THROTTLE_MS);
             const isPending = state.feeds.isFetchingSubscribed;
 
             if (!bypassThrottle && isSameAccount && (isFresh || isPending)) {
