@@ -24,6 +24,7 @@ import { getLinkMetadata } from '../utils/linkMetadata';
 import { LinkPreview } from '../types';
 import AddPeopleModal from '../components/modals/AddPeopleModal';
 import InviteLinkModal from '../components/modals/InviteLinkModal';
+import VerifyEmailModal from '../components/modals/VerifyEmailModal';
 
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -127,6 +128,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     // Group Management Modals
     const [isAddPeopleOpen, setIsAddPeopleOpen] = useState(false);
     const [isInviteLinkOpen, setIsInviteLinkOpen] = useState(false);
+    const [isVerifyEmailOpen, setIsVerifyEmailOpen] = useState(false);
 
     const [dismissedLinks, setDismissedLinks] = useState<Set<string>>(new Set());
     const prevContentRef = useRef('');
@@ -1339,9 +1341,25 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                 )}
 
                 {/* Input Area */}
-                <div className={`p-4 bg-white dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border ${conversation && !conversation.isAccepted ? 'hidden' : ''} ${conversation?.locked ? 'hidden' : ''}`}>
-                    <form onSubmit={handleSendMessage} className="flex items-end gap-2 w-full">
-                        <div className="flex-1 bg-[#eff2f6] dark:bg-dark-surface rounded-[20px] flex flex-col min-h-[40px] transition-all">
+                {currentUser && !currentUser.emailConfirmed ? (
+                    <div className="p-4 bg-white dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border flex flex-col items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsVerifyEmailOpen(true)}
+                            className="w-full flex items-center gap-3 bg-[#006aff]/10 hover:bg-[#006aff]/15 transition-colors px-4 py-3 border border-[#006aff]/20 rounded-xl text-left"
+                        >
+                            <svg fill="none" viewBox="0 0 24 24" width="16" height="16" stroke="#006aff" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                            </svg>
+                            <p className="text-[13px] text-[#006aff] font-medium flex-1">
+                                Confirm your email address on Bluesky to send messages.
+                            </p>
+                        </button>
+                    </div>
+                ) : (
+                    <div className={`p-4 bg-white dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border ${conversation && !conversation.isAccepted ? 'hidden' : ''} ${conversation?.locked ? 'hidden' : ''}`}>
+                        <form onSubmit={handleSendMessage} className="flex items-end gap-2 w-full">
+                            <div className="flex-1 bg-[#eff2f6] dark:bg-dark-surface rounded-[20px] flex flex-col min-h-[40px] transition-all">
                             {/* Nested Reply/Edit/Link Preview */}
                             {(replyingTo || editingMessage || linkPreview || isLinkLoading) && (
                                 <div className="flex flex-row items-start border-[#a5b2c5] dark:border-dark-border rounded-[12px] border px-2 py-1.5 m-2 gap-1 animate-in fade-in slide-in-from-top-1 duration-200">
@@ -1436,6 +1454,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         </div>
                     </form>
                 </div>
+                )}
             </div>
 
 
@@ -1466,6 +1485,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                     />
                 </>
             )}
+
+            <VerifyEmailModal 
+                isOpen={isVerifyEmailOpen} 
+                onClose={() => setIsVerifyEmailOpen(false)} 
+            />
         </>
     );
 };

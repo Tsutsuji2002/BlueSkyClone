@@ -11,6 +11,7 @@ import { showToast } from '../redux/slices/toastSlice';
 import ChangeHandleModal from '../modals/ChangeHandleModal';
 import agent, { SERVICE_URL } from '../services/atpAgent';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import VerifyEmailModal from '../components/modals/VerifyEmailModal';
 
 // Functional Modal Components for updating account settings
 const UpdateEmailModal: React.FC<{ isOpen: boolean; onClose: () => void; email: string }> = ({ isOpen, onClose, email }) => {
@@ -352,6 +353,7 @@ const AccountSettingsPage: React.FC = () => {
     const [isLoadingAccount, setIsLoadingAccount] = useState(true);
 
     const [activeModal, setActiveModal] = useState<'email' | 'password' | 'handle' | 'birthdate' | 'export' | 'deactivate' | 'delete' | null>(null);
+    const [isVerifyEmailOpen, setIsVerifyEmailOpen] = useState(false);
 
     const closeModal = () => {
         setActiveModal(null);
@@ -427,9 +429,29 @@ const AccountSettingsPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {user?.isVerified && <FiCheck className="text-blue-500" />}
+                                    {user?.emailConfirmed ? (
+                                        <div className="flex items-center gap-1 bg-green-500/10 text-green-500 text-xs px-2 py-0.5 rounded-full font-semibold">
+                                            <FiCheck size={12} />
+                                            <span>Verified</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-xs text-orange-500 font-semibold bg-orange-500/10 px-2 py-0.5 rounded-full">Unverified</span>
+                                    )}
                                 </div>
                             </button>
+
+                            {!user?.emailConfirmed && (
+                                <button
+                                    onClick={() => setIsVerifyEmailOpen(true)}
+                                    className="w-full flex items-center justify-between px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors border-b border-gray-100 dark:border-dark-border/50 text-[#006aff]"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <FiAlertCircle size={22} className="text-[#006aff] opacity-80" />
+                                        <span className="text-[15px] font-medium text-[#006aff]">Verify your email</span>
+                                    </div>
+                                    <FiChevronRight className="text-[#006aff]" />
+                                </button>
+                            )}
 
                             <button
                                 onClick={() => setActiveModal('email')}
@@ -533,6 +555,7 @@ const AccountSettingsPage: React.FC = () => {
             <ExportDataModal isOpen={activeModal === 'export'} onClose={closeModal} did={user?.did} />
             <DeactivateAccountModal isOpen={activeModal === 'deactivate'} onClose={closeModal} />
             <DeleteAccountModal isOpen={activeModal === 'delete'} onClose={closeModal} username={user?.username || 'user'} />
+            <VerifyEmailModal isOpen={isVerifyEmailOpen} onClose={() => setIsVerifyEmailOpen(false)} onUpdateEmail={() => setActiveModal('email')} />
         </>
     );
 };
