@@ -237,9 +237,13 @@ namespace BSkyClone.Controllers
 
                     // Sync real email from PDS getAccount info on-the-fly to get the authoritative address
                     string realEmail = user.Email;
+                    _logger.LogInformation("[ConfirmEmail] Calling com.atproto.server.getAccount on PDS for User {UserId} with email {Email}", userId, user.Email);
                     var getAccountResult = await _xrpcProxy
                         .ProxyRequestAsync(user.Did, "com.atproto.server.getAccount",
                             new Dictionary<string, string?>(), token, "GET", null, userId);
+
+                    _logger.LogInformation("[ConfirmEmail] getAccount success: {Success}, status: {Status}, content: {Content}", 
+                        getAccountResult.Success, getAccountResult.StatusCode, getAccountResult.Content);
 
                     if (getAccountResult.Success)
                     {
@@ -247,6 +251,8 @@ namespace BSkyClone.Controllers
                         var root = doc.RootElement;
                         var pdsEmail = root.TryGetProperty("email", out var emailProp) ? emailProp.GetString() : null;
                         var pdsEmailConfirmed = root.TryGetProperty("emailConfirmed", out var confProp) && confProp.GetBoolean();
+
+                        _logger.LogInformation("[ConfirmEmail] parsed PDS email: {Email}, confirmed: {Confirmed}", pdsEmail, pdsEmailConfirmed);
 
                         bool changed = false;
                         if (!string.IsNullOrEmpty(pdsEmail) && pdsEmail != user.Email)
@@ -265,6 +271,7 @@ namespace BSkyClone.Controllers
                         {
                             _unitOfWork.Users.Update(user);
                             await _unitOfWork.CompleteAsync();
+                            _logger.LogInformation("[ConfirmEmail] Updated local user email to {Email}", user.Email);
                         }
                     }
 
@@ -278,12 +285,16 @@ namespace BSkyClone.Controllers
                     }
                     
                     // Force the actual real email in the request payload
+                    _logger.LogInformation("[ConfirmEmail] Overwriting email in proxy payload: original={Original}, final={Final}", dict.ContainsKey("email") ? dict["email"] : "none", realEmail);
                     dict["email"] = realEmail;
                     requestBody = dict;
 
                     var proxyResult = await _xrpcProxy
                         .ProxyRequestAsync(user.Did, "com.atproto.server.confirmEmail",
                             new Dictionary<string, string?>(), token, "POST", requestBody, userId);
+
+                    _logger.LogInformation("[ConfirmEmail] confirmEmail PDS result success: {Success}, status: {Status}, content: {Content}",
+                        proxyResult.Success, proxyResult.StatusCode, proxyResult.Content);
 
                     if (proxyResult.Success)
                     {
