@@ -201,14 +201,14 @@ namespace BSkyClone.Controllers
                             new Dictionary<string, string?>(), token, "POST", null, userId);
 
                     if (proxyResult.Success)
-                        return Ok();
+                        return Ok(new { email = user.Email });
 
                     _logger.LogWarning("[RequestEmailConfirmation] PDS returned {Status}: {Content}", proxyResult.StatusCode, proxyResult.Content);
                     return StatusCode(proxyResult.StatusCode, proxyResult.Content);
                 }
 
                 // For local users: no email sending infrastructure — return a stub OK
-                return Ok();
+                return Ok(new { email = user.Email });
             }
             catch (Exception ex)
             {
@@ -237,13 +237,9 @@ namespace BSkyClone.Controllers
 
                     // Sync real email from PDS getAccount info on-the-fly to get the authoritative address
                     string realEmail = user.Email;
-                    _logger.LogInformation("[ConfirmEmail] Calling com.atproto.server.getAccount on PDS for User {UserId} with email {Email}", userId, user.Email);
                     var getAccountResult = await _xrpcProxy
                         .ProxyRequestAsync(user.Did, "com.atproto.server.getAccount",
                             new Dictionary<string, string?>(), token, "GET", null, userId);
-
-                    _logger.LogInformation("[ConfirmEmail] getAccount success: {Success}, status: {Status}, content: {Content}", 
-                        getAccountResult.Success, getAccountResult.StatusCode, getAccountResult.Content);
 
                     if (getAccountResult.Success)
                     {
@@ -302,7 +298,7 @@ namespace BSkyClone.Controllers
                         user.EmailConfirmed = true;
                         _unitOfWork.Users.Update(user);
                         await _unitOfWork.CompleteAsync();
-                        return Ok();
+                        return Ok(new { email = user.Email });
                     }
 
                     return StatusCode(proxyResult.StatusCode, proxyResult.Content);
@@ -312,7 +308,7 @@ namespace BSkyClone.Controllers
                 user.EmailConfirmed = true;
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.CompleteAsync();
-                return Ok();
+                return Ok(new { email = user.Email });
             }
             catch (Exception ex)
             {

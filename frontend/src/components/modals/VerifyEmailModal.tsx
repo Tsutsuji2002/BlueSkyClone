@@ -30,7 +30,9 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
 
     if (!isOpen) return null;
 
-    const email = currentUser?.email ?? '';
+    const rawEmail = currentUser?.email ?? '';
+    const isFakeEmail = rawEmail.endsWith('@remote.bsky.social') || rawEmail.startsWith('did:');
+    const email = isFakeEmail ? '' : rawEmail;
 
     const handleSendEmail = async () => {
         setIsSending(true);
@@ -45,6 +47,10 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data?.message || data?.error || `Request failed (${res.status})`);
+            }
+            const data = await res.json().catch(() => ({}));
+            if (data?.email) {
+                dispatch(updateUser({ email: data.email }));
             }
             setStep('code');
         } catch (err: any) {
@@ -66,13 +72,17 @@ const VerifyEmailModal: React.FC<Props> = ({ isOpen, onClose, onUpdateEmail }) =
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: code.trim(), email }),
+                body: JSON.stringify({ token: code.trim(), email: email || rawEmail }),
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 throw new Error(data?.message || data?.error || `Verification failed (${res.status})`);
             }
-            dispatch(updateUser({ emailConfirmed: true }));
+            const data = await res.json().catch(() => ({}));
+            dispatch(updateUser({ 
+                emailConfirmed: true,
+                ...(data?.email ? { email: data.email } : {})
+            }));
             dispatch(showToast({ message: 'Email verified successfully!', type: 'success' }));
             onClose();
         } catch (err: any) {
