@@ -51,6 +51,9 @@ public class ListService : IListService
 
         var rkey = ProtocolUtils.GenerateTid();
         
+        // Check if remote AT Protocol user (not local)
+        bool isRemoteUser = !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+        
         // Convert to Dictionary<string, object> for CBOR encoding
         var listRecord = new Dictionary<string, object>
         {
@@ -58,15 +61,18 @@ public class ListService : IListService
             ["name"] = dto.Name,
             ["purpose"] = dto.Purpose ?? "app.bsky.graph.defs#curatelist",
             ["description"] = dto.Description ?? "",
-            ["avatar"] = dto.Avatar ?? "",
             ["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         };
 
+        // For remote users, skip avatar for now (it needs to be uploaded as a blob first)
+        // For local users, we can store the URL directly
+        if (!isRemoteUser && !string.IsNullOrEmpty(dto.Avatar))
+        {
+            listRecord["avatar"] = dto.Avatar;
+        }
+
         string cid;
         string uri = $"at://{user.Did}/app.bsky.graph.list/{rkey}";
-
-        // Check if remote AT Protocol user (not local)
-        bool isRemoteUser = !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
 
         if (isRemoteUser)
         {
@@ -120,7 +126,7 @@ public class ListService : IListService
             Name = dto.Name,
             Description = dto.Description,
             Purpose = listRecord["purpose"].ToString(),
-            AvatarUrl = dto.Avatar,
+            AvatarUrl = isRemoteUser ? null : dto.Avatar, // Only store avatar URL for local users
             CreatedAt = DateTime.UtcNow,
             IsDeleted = false,
             Uri = uri,
@@ -313,6 +319,7 @@ public class ListService : IListService
             if (user != null && !string.IsNullOrEmpty(user.Did))
             {
                 var rkey = list.Uri.Split('/').Last();
+                bool isRemoteUser = !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
                 
                 // Convert to Dictionary<string, object> for CBOR encoding
                 var listRecord = new Dictionary<string, object>
@@ -321,11 +328,14 @@ public class ListService : IListService
                     ["name"] = list.Name,
                     ["purpose"] = list.Purpose ?? "app.bsky.graph.defs#curatelist",
                     ["description"] = list.Description ?? "",
-                    ["avatar"] = list.AvatarUrl ?? "",
                     ["createdAt"] = list.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o")
                 };
-                
-                bool isRemoteUser = !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+                // Only include avatar for local users (remote users need blob upload)
+                if (!isRemoteUser && !string.IsNullOrEmpty(list.AvatarUrl))
+                {
+                    listRecord["avatar"] = list.AvatarUrl;
+                }
 
                 if (isRemoteUser)
                 {
