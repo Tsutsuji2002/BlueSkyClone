@@ -54,6 +54,7 @@ public class ListService : IListService
         // Convert to Dictionary<string, object> for CBOR encoding
         var listRecord = new Dictionary<string, object>
         {
+            ["$type"] = "app.bsky.graph.list",
             ["name"] = dto.Name,
             ["purpose"] = dto.Purpose ?? "app.bsky.graph.defs#curatelist",
             ["description"] = dto.Description ?? "",
@@ -61,9 +62,55 @@ public class ListService : IListService
             ["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         };
 
-        // 1. Create record in Repository
-        var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
-        var uri = $"at://{user.Did}/app.bsky.graph.list/{rkey}";
+        string cid;
+        string uri = $"at://{user.Did}/app.bsky.graph.list/{rkey}";
+
+        // Check if remote AT Protocol user (not local)
+        bool isRemoteUser = !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (isRemoteUser)
+        {
+            // Remote user - proxy to their PDS via AT Protocol
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new Exception("Bluesky session expired. Please log out and back in.");
+            }
+
+            var requestBody = new Dictionary<string, object?>
+            {
+                ["repo"] = user.Did,
+                ["collection"] = "app.bsky.graph.list",
+                ["rkey"] = rkey,
+                ["record"] = listRecord
+            };
+
+            var result = await _xrpcProxy.ProxyRequestAsync(
+                user.Did,
+                "com.atproto.repo.createRecord",
+                new Dictionary<string, string?>(),
+                token,
+                "POST",
+                requestBody,
+                userId
+            );
+
+            if (!result.Success)
+            {
+                throw new Exception($"Failed to create list on remote PDS: {result.Content}");
+            }
+
+            // Parse response to get CID and URI
+            using var doc = JsonDocument.Parse(result.Content);
+            var root = doc.RootElement;
+            cid = root.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() ?? "" : "";
+            uri = root.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() ?? uri : uri;
+        }
+        else
+        {
+            // Local user - create in local repository
+            cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
+        }
 
         // 2. Mirror to Local Database
         var list = new List
@@ -270,6 +317,7 @@ public class ListService : IListService
                 // Convert to Dictionary<string, object> for CBOR encoding
                 var listRecord = new Dictionary<string, object>
                 {
+                    ["$type"] = "app.bsky.graph.list",
                     ["name"] = list.Name,
                     ["purpose"] = list.Purpose ?? "app.bsky.graph.defs#curatelist",
                     ["description"] = list.Description ?? "",
@@ -277,9 +325,46 @@ public class ListService : IListService
                     ["createdAt"] = list.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o")
                 };
                 
-                //putRecord behavior
-                var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
-                list.Cid = cid;
+                bool isRemoteUser = !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+                if (isRemoteUser)
+                {
+                    // Remote user - proxy putRecord to their PDS
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    if (!string.IsNullOrWhiteSpace(token))
+                    {
+                        var requestBody = new Dictionary<string, object?>
+                        {
+                            ["repo"] = user.Did,
+                            ["collection"] = "app.bsky.graph.list",
+                            ["rkey"] = rkey,
+                            ["record"] = listRecord
+                        };
+
+                        var result = await _xrpcProxy.ProxyRequestAsync(
+                            user.Did,
+                            "com.atproto.repo.putRecord",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            requestBody,
+                            userId
+                        );
+
+                        if (result.Success)
+                        {
+                            using var doc = JsonDocument.Parse(result.Content);
+                            var root = doc.RootElement;
+                            list.Cid = root.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : list.Cid;
+                        }
+                    }
+                }
+                else
+                {
+                    // Local user - putRecord behavior (update in local repo)
+                    var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
+                    list.Cid = cid;
+                }
             }
         }
 
@@ -337,13 +422,59 @@ public class ListService : IListService
         // Convert to Dictionary<string, object> for CBOR encoding
         var listItemRecord = new Dictionary<string, object>
         {
+            ["$type"] = "app.bsky.graph.listitem",
             ["subject"] = targetUser.Did,
             ["list"] = list.Uri,
             ["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         };
 
-        var cid = await _repoManager.CreateRecordAsync(owner.Did, "app.bsky.graph.listitem", listItemRecord, rkey);
-        var uri = $"at://{owner.Did}/app.bsky.graph.listitem/{rkey}";
+        string cid;
+        string uri;
+        bool isRemoteOwner = !owner.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (isRemoteOwner)
+        {
+            // Remote owner - proxy to their PDS
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(ownerId);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw new Exception("Bluesky session expired. Please log out and back in.");
+            }
+
+            var requestBody = new Dictionary<string, object?>
+            {
+                ["repo"] = owner.Did,
+                ["collection"] = "app.bsky.graph.listitem",
+                ["rkey"] = rkey,
+                ["record"] = listItemRecord
+            };
+
+            var result = await _xrpcProxy.ProxyRequestAsync(
+                owner.Did,
+                "com.atproto.repo.createRecord",
+                new Dictionary<string, string?>(),
+                token,
+                "POST",
+                requestBody,
+                ownerId
+            );
+
+            if (!result.Success)
+            {
+                throw new Exception($"Failed to add user to list on remote PDS: {result.Content}");
+            }
+
+            using var doc = JsonDocument.Parse(result.Content);
+            var root = doc.RootElement;
+            cid = root.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() ?? "" : "";
+            uri = root.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() ?? "" : $"at://{owner.Did}/app.bsky.graph.listitem/{rkey}";
+        }
+        else
+        {
+            // Local owner - create in local repo
+            cid = await _repoManager.CreateRecordAsync(owner.Did, "app.bsky.graph.listitem", listItemRecord, rkey);
+            uri = $"at://{owner.Did}/app.bsky.graph.listitem/{rkey}";
+        }
 
         // 3. Mirror to Local Database
         if (existing != null)
