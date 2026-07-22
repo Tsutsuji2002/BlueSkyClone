@@ -1092,18 +1092,33 @@ public class ListService : IListService
                     .ToDictionary(g => g.Key, g => (int?)g.First().Status);
             }
 
+            var currentUser = await _userService.GetUserByIdAsync(userId);
+            if (currentUser == null) return new List<UserDto>();
+
+            bool isRemoteUser = !string.IsNullOrEmpty(currentUser.Did) && 
+                               !currentUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
             List<User> users;
 
             if (string.IsNullOrWhiteSpace(query))
             {
-                // Get top 5 follows (matching group chat creation pattern)
-                var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
-                users = allFollows
-                    .Where(f => f.Following != null)
-                    .OrderByDescending(f => f.CreatedAt)
-                    .Take(5)
-                    .Select(f => f.Following)
-                    .ToList();
+                if (isRemoteUser)
+                {
+                    // For remote users, fetch following from AT Protocol
+                    var (followingUsers, _) = await _userService.GetFollowingAsync(currentUser.Did, limit: 5, cursor: null, viewerId: userId);
+                    users = followingUsers.Take(5).ToList();
+                }
+                else
+                {
+                    // For local users, get from database
+                    var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
+                    users = allFollows
+                        .Where(f => f.Following != null)
+                        .OrderByDescending(f => f.CreatedAt)
+                        .Take(5)
+                        .Select(f => f.Following)
+                        .ToList();
+                }
                 
                 // If user follows no one, get some suggested users (recent)
                 if (!users.Any())
