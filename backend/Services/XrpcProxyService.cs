@@ -128,7 +128,8 @@ namespace BSkyClone.Services
 
                 if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && body != null)
                 {
-                    var json = System.Text.Json.JsonSerializer.Serialize(body);
+                    var json = System.Text.Json.JsonSerializer.Serialize(body, new JsonSerializerOptions { WriteIndented = true });
+                    _logger.LogInformation("[XrpcProxy] ===== HTTP POST BODY =====\n{Body}\n===== END =====", json);
                     request.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
                 }
 

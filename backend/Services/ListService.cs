@@ -91,6 +91,12 @@ public class ListService : IListService
                 ["record"] = listRecord
             };
 
+            // Log the request body for debugging
+            var jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+            Console.WriteLine($"[CreateList] ===== REQUEST BODY =====");
+            Console.WriteLine(jsonBody);
+            Console.WriteLine($"[CreateList] ===== END REQUEST =====");
+
             var result = await _xrpcProxy.ProxyRequestAsync(
                 user.Did,
                 "com.atproto.repo.createRecord",
@@ -100,6 +106,13 @@ public class ListService : IListService
                 requestBody,
                 userId
             );
+
+            // Log the response
+            Console.WriteLine($"[CreateList] ===== PDS RESPONSE =====");
+            Console.WriteLine($"Success: {result.Success}");
+            Console.WriteLine($"Status: {result.StatusCode}");
+            Console.WriteLine($"Content: {result.Content}");
+            Console.WriteLine($"[CreateList] ===== END RESPONSE =====");
 
             if (!result.Success)
             {
