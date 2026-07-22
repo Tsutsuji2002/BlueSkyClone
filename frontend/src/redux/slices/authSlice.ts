@@ -276,15 +276,17 @@ const authSlice = createSlice({
             // Actually, the best way is to do it in the App.tsx or use a listener.
         },
         logoutAll: (state) => {
-            // [MULTI-ACCOUNT] Complete global logout — wipes all accounts from local storage
-            AccountManager.clear();
+            // [MULTI-ACCOUNT] Complete global logout — clear all tokens but keep account records
+            // This allows users to see their account list and quickly sign back in
+            AccountManager.clearAllTokens();
+            AccountManager.clearActiveAccount();
             state.user = null;
             state.settings = null;
             state.isAuthenticated = false;
             state.isLoading = false;
             state.error = null;
             localStorage.removeItem('home_active_tab');
-            state.savedAccounts = [];
+            state.savedAccounts = AccountManager.getAccounts();
         },
 
         removeSavedAccount: (state, action: PayloadAction<string>) => {
