@@ -30,7 +30,7 @@ public class CreateListDto
 
     public string? Description { get; set; }
 
-    public string? Purpose { get; set; } = "social"; // e.g., 'social', 'mod'
+    public string? Purpose { get; set; } = "app.bsky.graph.defs#curatelist"; // Must be full lexicon reference
 
     public string? Avatar { get; set; }
 }
