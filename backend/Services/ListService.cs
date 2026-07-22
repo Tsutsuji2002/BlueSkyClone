@@ -118,29 +118,154 @@ public class ListService : IListService
             cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
         }
 
-        // 2. Mirror to Local Database
-        var list = new List
+        // 2. For local users only: Save to local database
+        if (!isRemoteUser)
         {
-            Id = Guid.NewGuid(), // Keep local ID for relational consistency
+            var list = new List
+            {
+                Id = Guid.NewGuid(),
+                OwnerId = userId,
+                Name = dto.Name,
+                Description = dto.Description,
+                Purpose = listRecord["purpose"].ToString(),
+                AvatarUrl = dto.Avatar,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false,
+                Uri = uri,
+                Cid = cid
+            };
+
+            await _unitOfWork.Lists.AddAsync(list);
+            await _unitOfWork.CompleteAsync();
+
+            return await MapToListDto(list, userId);
+        }
+
+        // 3. For remote users: Return DTO directly from PDS response (no local storage)
+        return new ListDto
+        {
+            Id = Guid.NewGuid(), // Temporary ID for UI
             OwnerId = userId,
+            Owner = new UserDto(
+                user.Id,
+                user.Username,
+                user.Handle,
+                user.DisplayName,
+                user.AvatarUrl,
+                user.CoverImageUrl,
+                user.Bio,
+                user.FollowersCount ?? 0,
+                user.FollowingCount ?? 0,
+                user.PostsCount ?? 0,
+                user.Role,
+                null,
+                user.IsVerified,
+                user.Did
+            ),
             Name = dto.Name,
             Description = dto.Description,
             Purpose = listRecord["purpose"].ToString(),
-            AvatarUrl = isRemoteUser ? null : dto.Avatar, // Only store avatar URL for local users
+            AvatarUrl = null, // No avatar for now
+            MembersCount = 0,
+            PostsCount = 0,
             CreatedAt = DateTime.UtcNow,
-            IsDeleted = false,
-            Uri = uri,
-            Cid = cid
+            IsPinned = false,
+            IsOwner = true,
+            Cid = cid,
+            Uri = uri
         };
-
-        await _unitOfWork.Lists.AddAsync(list);
-        await _unitOfWork.CompleteAsync();
-
-        return await MapToListDto(list, userId);
     }
 
     public async Task<IEnumerable<ListDto>> GetMyListsAsync(Guid userId, string? purpose = null)
     {
+        var user = await _userService.GetUserByIdAsync(userId);
+        if (user == null) return new List<ListDto>();
+
+        bool isRemoteUser = !string.IsNullOrEmpty(user.Did) && !user.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+        if (isRemoteUser)
+        {
+            // Fetch from AT Protocol for remote users
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return new List<ListDto>();
+            }
+
+            var queryParams = new Dictionary<string, string?>
+            {
+                ["actor"] = user.Did,
+                ["limit"] = "100"
+            };
+
+            if (!string.IsNullOrEmpty(purpose))
+            {
+                queryParams["purpose"] = purpose;
+            }
+
+            var result = await _xrpcProxy.ProxyRequestAsync(
+                user.Did,
+                "app.bsky.graph.getLists",
+                queryParams,
+                token,
+                "GET",
+                null,
+                userId
+            );
+
+            if (!result.Success)
+            {
+                return new List<ListDto>();
+            }
+
+            // Parse response
+            using var doc = JsonDocument.Parse(result.Content);
+            var root = doc.RootElement;
+            var lists = new List<ListDto>();
+
+            if (root.TryGetProperty("lists", out var listsArray))
+            {
+                foreach (var listItem in listsArray.EnumerateArray())
+                {
+                    lists.Add(new ListDto
+                    {
+                        Id = Guid.NewGuid(), // Temporary ID
+                        OwnerId = userId,
+                        Owner = new UserDto(
+                            user.Id,
+                            user.Username,
+                            user.Handle,
+                            user.DisplayName,
+                            user.AvatarUrl,
+                            user.CoverImageUrl,
+                            user.Bio,
+                            user.FollowersCount ?? 0,
+                            user.FollowingCount ?? 0,
+                            user.PostsCount ?? 0,
+                            user.Role,
+                            null,
+                            user.IsVerified,
+                            user.Did
+                        ),
+                        Name = listItem.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "",
+                        Description = listItem.TryGetProperty("description", out var descProp) ? descProp.GetString() : null,
+                        Purpose = listItem.TryGetProperty("purpose", out var purposeProp) ? purposeProp.GetString() : null,
+                        AvatarUrl = listItem.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null,
+                        MembersCount = listItem.TryGetProperty("listItemCount", out var countProp) ? countProp.GetInt32() : 0,
+                        PostsCount = 0,
+                        CreatedAt = listItem.TryGetProperty("indexedAt", out var createdProp) ? DateTime.Parse(createdProp.GetString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
+                        IsPinned = false, // Would need separate endpoint
+                        IsOwner = true,
+                        Cid = listItem.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null,
+                        Uri = listItem.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : null
+                    });
+                }
+            }
+
+            return lists;
+        }
+
+        // Local users: Query from database
         var query = _unitOfWork.Lists.Query()
             .Where(l => l.OwnerId == userId && l.IsDeleted != true);
 
@@ -149,16 +274,16 @@ public class ListService : IListService
             query = query.Where(l => l.Purpose == purpose || (purpose == "app.bsky.graph.defs#modlist" && l.Purpose == "mod"));
         }
 
-        var lists = await query
+        var localLists = await query
             .OrderByDescending(l => l.CreatedAt)
             .ToListAsync();
 
-        var result = new List<ListDto>();
-        foreach (var list in lists)
+        var dtos = new List<ListDto>();
+        foreach (var list in localLists)
         {
-            result.Add(await MapToListDto(list, userId));
+            dtos.Add(await MapToListDto(list, userId));
         }
-        return result;
+        return dtos;
     }
 
     public async Task<IEnumerable<ListDto>> GetUserListsAsync(string actor, Guid? viewerId)
