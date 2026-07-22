@@ -14,10 +14,12 @@ namespace BSkyClone.Controllers;
 public class ListsController : ControllerBase
 {
     private readonly IListService _listService;
+    private readonly ListMigrationService _migrationService;
 
-    public ListsController(IListService listService)
+    public ListsController(IListService listService, ListMigrationService migrationService)
     {
         _listService = listService;
+        _migrationService = migrationService;
     }
 
     private Guid? GetUserId()
@@ -241,5 +243,39 @@ public class ListsController : ControllerBase
         if (userId == null) return Unauthorized();
         var success = await _listService.RejectInvitationAsync(userId.Value, id);
         return success ? Ok() : BadRequest("Failed to reject invitation");
+    }
+
+    /// <summary>
+    /// Migration endpoint: Preview cleanup stats for remote user lists
+    /// </summary>
+    [HttpGet("migration/stats")]
+    public async Task<IActionResult> GetMigrationStats()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        
+        var stats = await _migrationService.GetCleanupStatsAsync();
+        return Ok(stats);
+    }
+
+    /// <summary>
+    /// Migration endpoint: Clean up old local list data for remote users
+    /// Remote users should have their lists stored entirely on their PDS
+    /// </summary>
+    [HttpPost("migration/cleanup")]
+    public async Task<IActionResult> CleanupRemoteUserLists()
+    {
+        var userId = GetUserId();
+        if (userId == null) return Unauthorized();
+        
+        try
+        {
+            var totalRemoved = await _migrationService.CleanupRemoteUserListsAsync();
+            return Ok(new { success = true, recordsRemoved = totalRemoved, message = $"Successfully cleaned up {totalRemoved} records for remote user lists" });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
     }
 }
