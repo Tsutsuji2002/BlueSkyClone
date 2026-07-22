@@ -150,15 +150,19 @@ public class ListService : IListService
                 user.Id,
                 user.Username,
                 user.Handle,
+                user.Email ?? "",
                 user.DisplayName,
                 user.AvatarUrl,
                 user.CoverImageUrl,
                 user.Bio,
+                null, // Location
+                null, // Website
+                null, // DateOfBirth
                 user.FollowersCount ?? 0,
                 user.FollowingCount ?? 0,
                 user.PostsCount ?? 0,
                 user.Role,
-                null,
+                null, // ListMembershipStatus
                 user.IsVerified,
                 user.Did
             ),
@@ -235,15 +239,19 @@ public class ListService : IListService
                             user.Id,
                             user.Username,
                             user.Handle,
+                            user.Email ?? "",
                             user.DisplayName,
                             user.AvatarUrl,
                             user.CoverImageUrl,
                             user.Bio,
+                            null, // Location
+                            null, // Website
+                            null, // DateOfBirth
                             user.FollowersCount ?? 0,
                             user.FollowingCount ?? 0,
                             user.PostsCount ?? 0,
                             user.Role,
-                            null,
+                            null, // ListMembershipStatus
                             user.IsVerified,
                             user.Did
                         ),
