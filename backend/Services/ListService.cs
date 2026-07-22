@@ -1089,7 +1089,7 @@ public class ListService : IListService
 
                 existingMembers = membersList
                     .GroupBy(lm => lm.UserId)
-                    .ToDictionary(g => g.Key, g => g.First().Status);
+                    .ToDictionary(g => g.Key, g => (int?)g.First().Status);
             }
 
             List<User> users;
