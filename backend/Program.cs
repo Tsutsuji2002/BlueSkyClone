@@ -471,6 +471,10 @@ IF COL_LENGTH('Lists', 'Cid') IS NULL
 BEGIN
     ALTER TABLE [Lists] ADD [Cid] nvarchar(max) NULL;
 END
+IF COL_LENGTH('ListMembers', 'Status') IS NULL
+BEGIN
+    ALTER TABLE [ListMembers] ADD [Status] int NOT NULL DEFAULT 0;
+END
 IF COL_LENGTH('ListMembers', 'Uri') IS NULL
 BEGIN
     ALTER TABLE [ListMembers] ADD [Uri] nvarchar(max) NULL;
