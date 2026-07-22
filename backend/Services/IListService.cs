@@ -15,6 +15,7 @@ public interface IListService
     Task<bool> DeleteListAsync(Guid userId, Guid listId); // Only owner
     
     // Members
+    Task<bool> AddMemberByIdOrUriAsync(Guid ownerId, string listIdOrUri, Guid targetUserId);
     Task<bool> AddMemberAsync(Guid ownerId, Guid listId, Guid targetUserId);
     Task<bool> RemoveMemberAsync(Guid requestingUserId, Guid listId, Guid targetUserId);
     Task<IEnumerable<ListItemDto>> GetListMembersAsync(Guid listId);

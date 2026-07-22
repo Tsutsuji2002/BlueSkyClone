@@ -218,20 +218,30 @@ public class ListsController : ControllerBase
     }
 
     [HttpPost("{id}/members")]
-    public async Task<IActionResult> AddMember(Guid id, [FromBody] AddListMemberDto dto)
+    public async Task<IActionResult> AddMember(string id, [FromBody] AddListMemberDto dto)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
-        var success = await _listService.AddMemberAsync(userId.Value, id, dto.UserId);
+        
+        // For remote lists, the frontend should pass the AT URI or rkey
+        // We'll handle both GUID (local) and rkey/URI (remote)
+        var success = await _listService.AddMemberByIdOrUriAsync(userId.Value, id, dto.UserId);
         return success ? Ok() : BadRequest("Failed to add member");
     }
 
     [HttpDelete("{id}/members/{targetId}")]
-    public async Task<IActionResult> RemoveMember(Guid id, Guid targetId)
+    public async Task<IActionResult> RemoveMember(string id, Guid targetId)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
-        var success = await _listService.RemoveMemberAsync(userId.Value, id, targetId);
+        
+        // Try to parse as GUID for local lists
+        if (!Guid.TryParse(id, out var listGuid))
+        {
+            return BadRequest("Invalid list ID format for remove operation");
+        }
+        
+        var success = await _listService.RemoveMemberAsync(userId.Value, listGuid, targetId);
         return success ? Ok() : BadRequest("Failed to remove member");
     }
 

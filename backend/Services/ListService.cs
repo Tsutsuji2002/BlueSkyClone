@@ -645,6 +645,76 @@ public class ListService : IListService
 
     // Members
 
+    public async Task<bool> AddMemberByIdOrUriAsync(Guid ownerId, string listIdOrUri, Guid targetUserId)
+    {
+        // Try to parse as GUID first (local list)
+        if (Guid.TryParse(listIdOrUri, out var listGuid))
+        {
+            return await AddMemberAsync(ownerId, listGuid, targetUserId);
+        }
+
+        // For remote lists (rkey or AT URI), construct the list URI and add member directly via AT Protocol
+        var owner = await _userService.GetUserByIdAsync(ownerId);
+        if (owner == null || string.IsNullOrEmpty(owner.Did)) return false;
+
+        var targetUser = await _userService.GetUserByIdAsync(targetUserId);
+        if (targetUser == null || string.IsNullOrEmpty(targetUser.Did)) return false;
+
+        // Construct full AT URI if only rkey is provided
+        string listUri;
+        if (listIdOrUri.StartsWith("at://"))
+        {
+            listUri = listIdOrUri;
+        }
+        else
+        {
+            // It's an rkey, construct the full URI
+            listUri = $"at://{owner.Did}/app.bsky.graph.list/{listIdOrUri}";
+        }
+
+        // Create listitem via AT Protocol
+        var rkey = ProtocolUtils.GenerateTid();
+        var listItemRecord = new Dictionary<string, object>
+        {
+            ["$type"] = "app.bsky.graph.listitem",
+            ["subject"] = targetUser.Did,
+            ["list"] = listUri,
+            ["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        };
+
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(ownerId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("Bluesky session expired. Please log out and back in.");
+        }
+
+        var requestBody = new Dictionary<string, object?>
+        {
+            ["repo"] = owner.Did,
+            ["collection"] = "app.bsky.graph.listitem",
+            ["rkey"] = rkey,
+            ["record"] = listItemRecord
+        };
+
+        var result = await _xrpcProxy.ProxyRequestAsync(
+            owner.Did,
+            "com.atproto.repo.createRecord",
+            new Dictionary<string, string?>(),
+            token,
+            "POST",
+            requestBody,
+            ownerId
+        );
+
+        if (!result.Success)
+        {
+            _logger.LogError("[AddMemberByIdOrUriAsync] Failed to add member to remote list: {Content}", result.Content);
+            return false;
+        }
+
+        return true;
+    }
+
     public async Task<bool> AddMemberAsync(Guid ownerId, Guid listId, Guid targetUserId)
     {
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
