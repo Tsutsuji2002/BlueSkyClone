@@ -328,14 +328,30 @@ const ListDetailPage: React.FC = () => {
                 {/* Content */}
                 <div className="min-h-[200px]">
                     {activeTab === 'posts' ? (
-                        <Feed
-                            feedId={`list_detail_${id}`}
-                            posts={activeListFeed}
-                            isLoading={isLoading}
-                            hasMore={hasMoreFeed}
-                            onLoadMore={handleLoadMore}
-                            emptyMessage={t('lists.empty_post_tab')}
-                        />
+                        activeListFeed && activeListFeed.length > 0 ? (
+                            <Feed
+                                feedId={`list_detail_${id}`}
+                                posts={activeListFeed}
+                                isLoading={isLoading}
+                                hasMore={hasMoreFeed}
+                                onLoadMore={handleLoadMore}
+                                emptyMessage={t('lists.empty_post_tab')}
+                            />
+                        ) : (
+                            <div className="p-12 text-center text-gray-500">
+                                {activeList.isOwner ? t('lists.start_adding_people') : t('lists.empty_post_tab')}
+                                {activeList.isOwner && (
+                                    <div className="mt-4">
+                                        <button
+                                            onClick={() => setIsAddMemberModalOpen(true)}
+                                            className="bg-primary-500 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-600"
+                                        >
+                                            {t('lists.start_adding_people_button')}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )
                     ) : (
                         <div className="divide-y divide-gray-200 dark:divide-dark-border">
                             {activeList.isOwner && (
@@ -375,14 +391,14 @@ const ListDetailPage: React.FC = () => {
                             )) : (
 
                                 <div className="p-12 text-center text-gray-500">
-                                    {t('lists.start_adding_people')}
+                                    {activeList.isOwner ? t('lists.start_adding_people') : t('lists.no_members_yet')}
                                     {activeList.isOwner && (
                                         <div className="mt-4">
                                             <button
                                                 onClick={() => setIsAddMemberModalOpen(true)}
                                                 className="bg-primary-500 text-white px-6 py-2 rounded-full font-bold hover:bg-primary-600"
                                             >
-                                                {t('lists.add_people')}
+                                                {t('lists.start_adding_people_button')}
                                             </button>
                                         </div>
                                     )}

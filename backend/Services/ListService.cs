@@ -1091,12 +1091,12 @@ public class ListService : IListService
 
             if (string.IsNullOrWhiteSpace(query))
             {
-                // Get follows
+                // Get top 5 follows (matching group chat creation pattern)
                 var allFollows = await _unitOfWork.Follows.GetFollowingAsync(userId);
                 users = allFollows
                     .Where(f => f.Following != null)
                     .OrderByDescending(f => f.CreatedAt)
-                    .Take(20)
+                    .Take(5)
                     .Select(f => f.Following)
                     .ToList();
                 
@@ -1106,7 +1106,7 @@ public class ListService : IListService
                     users = await _unitOfWork.Users.Query()
                         .Where(u => u.Id != userId && u.IsDeleted != true)
                         .OrderByDescending(u => u.CreatedAt)
-                        .Take(10)
+                        .Take(5)
                         .ToListAsync();
                 }
             }
