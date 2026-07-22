@@ -678,8 +678,9 @@ public class ListService : IListService
         bool pinned = isPinned ?? await _unitOfWork.UserListSubscriptions.Query()
             .AnyAsync(uls => uls.UserId == currentUserId && uls.ListId == list.Id);
 
+        // Count all list members (AT Protocol lists don't have approval status)
         int membersCount = preMembersCount ?? await _unitOfWork.ListMembers.Query()
-            .CountAsync(lm => lm.ListId == list.Id && lm.Status == 1);
+            .CountAsync(lm => lm.ListId == list.Id);
 
         int postsCount = prePostsCount ?? await _unitOfWork.ListPosts.Query()
             .Where(lp => lp.ListId == list.Id)
