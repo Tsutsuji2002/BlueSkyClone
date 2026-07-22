@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using BSkyClone.Utilities;
 using System.Text.Json;
 using System.Net.Http;
+using Microsoft.Extensions.Logging;
 
 namespace BSkyClone.Services;
 
@@ -23,6 +24,7 @@ public class ListService : IListService
     private readonly IUserService _userService;
     private readonly IXrpcProxyService _xrpcProxy;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<ListService> _logger;
 
     public ListService(
         IUnitOfWork unitOfWork, 
@@ -32,7 +34,8 @@ public class ListService : IListService
         IRepoManager repoManager,
         IUserService userService,
         IXrpcProxyService xrpcProxy,
-        IHttpClientFactory httpClientFactory) 
+        IHttpClientFactory httpClientFactory,
+        ILogger<ListService> logger) 
     {
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
@@ -42,6 +45,7 @@ public class ListService : IListService
         _userService = userService;
         _xrpcProxy = xrpcProxy;
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<ListDto> CreateListAsync(Guid userId, CreateListDto dto)
@@ -98,9 +102,9 @@ public class ListService : IListService
 }}";
 
             // Log the request body for debugging
-            Console.WriteLine($"[CreateList] ===== REQUEST BODY (raw JSON string) =====");
-            Console.WriteLine(requestBodyJson);
-            Console.WriteLine($"[CreateList] ===== END REQUEST =====");
+            _logger.LogInformation("[CreateList] ===== REQUEST BODY (raw JSON string) =====");
+            _logger.LogInformation(requestBodyJson);
+            _logger.LogInformation("[CreateList] ===== END REQUEST =====");
 
             // Parse to object for the proxy (it will re-serialize)
             var requestBody = JsonSerializer.Deserialize<object>(requestBodyJson);
@@ -116,11 +120,11 @@ public class ListService : IListService
             );
 
             // Log the response
-            Console.WriteLine($"[CreateList] ===== PDS RESPONSE =====");
-            Console.WriteLine($"Success: {result.Success}");
-            Console.WriteLine($"Status: {result.StatusCode}");
-            Console.WriteLine($"Content: {result.Content}");
-            Console.WriteLine($"[CreateList] ===== END RESPONSE =====");
+            _logger.LogInformation("[CreateList] ===== PDS RESPONSE =====");
+            _logger.LogInformation("Success: {Success}", result.Success);
+            _logger.LogInformation("Status: {StatusCode}", result.StatusCode);
+            _logger.LogInformation("Content: {Content}", result.Content);
+            _logger.LogInformation("[CreateList] ===== END RESPONSE =====");
 
             if (!result.Success)
             {
