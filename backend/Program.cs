@@ -549,6 +549,29 @@ END
         {
             logger.LogError(ex, "An error occurred during AI feed seeding.");
         }
+
+        // --- CLEANUP REMOTE USER LISTS (MIGRATION) ---
+        try
+        {
+            logger.LogInformation("Starting automatic cleanup of remote user lists...");
+            var migrationService = services.GetRequiredService<ListMigrationService>();
+            var stats = await migrationService.GetCleanupStatsAsync();
+            
+            if (stats.TotalRecordsToRemove > 0)
+            {
+                logger.LogInformation($"Found {stats.TotalRecordsToRemove} remote user list records to clean up (Lists: {stats.ListsToRemove}, Members: {stats.MembersToRemove}, Subscriptions: {stats.SubscriptionsToRemove}, Posts: {stats.PostsToRemove})");
+                var totalRemoved = await migrationService.CleanupRemoteUserListsAsync();
+                logger.LogInformation($"Successfully cleaned up {totalRemoved} remote user list records from local database.");
+            }
+            else
+            {
+                logger.LogInformation("No remote user list records found to clean up.");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred during remote user lists cleanup. This is non-critical.");
+        }
     }
     catch (Exception ex)
     {
