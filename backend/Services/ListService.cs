@@ -83,19 +83,35 @@ public class ListService : IListService
                 throw new Exception("Bluesky session expired. Please log out and back in.");
             }
 
-            var requestBody = new Dictionary<string, object?>
+            // Use anonymous type to ensure proper JSON serialization
+            // System.Text.Json handles anonymous types better than nested dictionaries
+            var requestBody = new
             {
-                ["repo"] = user.Did,
-                ["collection"] = "app.bsky.graph.list",
-                ["rkey"] = rkey,
-                ["record"] = listRecord
+                repo = user.Did,
+                collection = "app.bsky.graph.list",
+                rkey = rkey,
+                record = new
+                {
+                    __type = "app.bsky.graph.list", // Use __type temporarily
+                    name = dto.Name,
+                    purpose = dto.Purpose ?? "app.bsky.graph.defs#curatelist",
+                    description = dto.Description ?? "",
+                    createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+                }
             };
 
+            // Convert to JSON string, then replace __type with $type
+            var jsonBody = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
+            jsonBody = jsonBody.Replace("\"__type\"", "\"$type\"");
+
             // Log the request body for debugging
-            var jsonBody = System.Text.Json.JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine($"[CreateList] ===== REQUEST BODY =====");
+            Console.WriteLine($"[CreateList] ===== REQUEST BODY (string) =====");
             Console.WriteLine(jsonBody);
             Console.WriteLine($"[CreateList] ===== END REQUEST =====");
+
+            // Parse to JsonElement for proper structure
+            using var jsonDoc = JsonDocument.Parse(jsonBody);
+            var bodyElement = jsonDoc.RootElement;
 
             var result = await _xrpcProxy.ProxyRequestAsync(
                 user.Did,
@@ -103,7 +119,7 @@ public class ListService : IListService
                 new Dictionary<string, string?>(),
                 token,
                 "POST",
-                requestBody,
+                bodyElement,
                 userId
             );
 
