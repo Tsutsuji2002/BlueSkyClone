@@ -83,35 +83,27 @@ public class ListService : IListService
                 throw new Exception("Bluesky session expired. Please log out and back in.");
             }
 
-            // Use anonymous type to ensure proper JSON serialization
-            // System.Text.Json handles anonymous types better than nested dictionaries
-            var requestBody = new
-            {
-                repo = user.Did,
-                collection = "app.bsky.graph.list",
-                rkey = rkey,
-                record = new
-                {
-                    __type = "app.bsky.graph.list", // Use __type temporarily
-                    name = dto.Name,
-                    purpose = dto.Purpose ?? "app.bsky.graph.defs#curatelist",
-                    description = dto.Description ?? "",
-                    createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                }
-            };
-
-            // Convert to JSON string, then replace __type with $type
-            var jsonBody = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions { WriteIndented = true });
-            jsonBody = jsonBody.Replace("\"__type\"", "\"$type\"");
+            // Build the complete JSON body as a string first to ensure proper serialization
+            var requestBodyJson = $@"{{
+  ""repo"": ""{user.Did}"",
+  ""collection"": ""app.bsky.graph.list"",
+  ""rkey"": ""{rkey}"",
+  ""record"": {{
+    ""$type"": ""app.bsky.graph.list"",
+    ""name"": {JsonSerializer.Serialize(dto.Name)},
+    ""purpose"": {JsonSerializer.Serialize(dto.Purpose ?? "app.bsky.graph.defs#curatelist")},
+    ""description"": {JsonSerializer.Serialize(dto.Description ?? "")},
+    ""createdAt"": ""{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffZ}""
+  }}
+}}";
 
             // Log the request body for debugging
-            Console.WriteLine($"[CreateList] ===== REQUEST BODY (string) =====");
-            Console.WriteLine(jsonBody);
+            Console.WriteLine($"[CreateList] ===== REQUEST BODY (raw JSON string) =====");
+            Console.WriteLine(requestBodyJson);
             Console.WriteLine($"[CreateList] ===== END REQUEST =====");
 
-            // Parse to JsonElement for proper structure
-            using var jsonDoc = JsonDocument.Parse(jsonBody);
-            var bodyElement = jsonDoc.RootElement;
+            // Parse to object for the proxy (it will re-serialize)
+            var requestBody = JsonSerializer.Deserialize<object>(requestBodyJson);
 
             var result = await _xrpcProxy.ProxyRequestAsync(
                 user.Did,
@@ -119,7 +111,7 @@ public class ListService : IListService
                 new Dictionary<string, string?>(),
                 token,
                 "POST",
-                bodyElement,
+                requestBody,
                 userId
             );
 
