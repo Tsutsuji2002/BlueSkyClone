@@ -50,7 +50,7 @@ public class ListService : IListService
         if (user == null || string.IsNullOrEmpty(user.Did)) throw new Exception("User DID not found");
 
         var rkey = ProtocolUtils.GenerateTid();
-        var listRecord = new
+        var listRecordAnonymous = new
         {
             name = dto.Name,
             purpose = dto.Purpose ?? "app.bsky.graph.defs#curatelist",
@@ -58,6 +58,10 @@ public class ListService : IListService
             avatar = dto.Avatar,
             createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         };
+
+        // Convert anonymous type to proper object for CBOR encoding
+        var listRecord = JsonSerializer.Deserialize<object>(JsonSerializer.Serialize(listRecordAnonymous))
+            ?? throw new Exception("Failed to serialize list record.");
 
         // 1. Create record in Repository
         var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
@@ -70,7 +74,7 @@ public class ListService : IListService
             OwnerId = userId,
             Name = dto.Name,
             Description = dto.Description,
-            Purpose = listRecord.purpose,
+            Purpose = listRecordAnonymous.purpose,
             AvatarUrl = dto.Avatar,
             CreatedAt = DateTime.UtcNow,
             IsDeleted = false,
@@ -264,7 +268,7 @@ public class ListService : IListService
             if (user != null && !string.IsNullOrEmpty(user.Did))
             {
                 var rkey = list.Uri.Split('/').Last();
-                var listRecord = new
+                var listRecordAnonymous = new
                 {
                     name = list.Name,
                     purpose = list.Purpose ?? "app.bsky.graph.defs#curatelist",
@@ -272,6 +276,10 @@ public class ListService : IListService
                     avatar = list.AvatarUrl,
                     createdAt = list.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ") ?? DateTime.UtcNow.ToString("o")
                 };
+                
+                // Convert anonymous type to proper object for CBOR encoding
+                var listRecord = JsonSerializer.Deserialize<object>(JsonSerializer.Serialize(listRecordAnonymous))
+                    ?? throw new Exception("Failed to serialize list record.");
                 
                 //putRecord behavior
                 var cid = await _repoManager.CreateRecordAsync(user.Did, "app.bsky.graph.list", listRecord, rkey);
@@ -329,12 +337,16 @@ public class ListService : IListService
 
         // 2. Create listitem Record in Repository
         var rkey = ProtocolUtils.GenerateTid();
-        var listItemRecord = new
+        var listItemRecordAnonymous = new
         {
             subject = targetUser.Did,
             list = list.Uri,
             createdAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         };
+
+        // Convert anonymous type to proper object for CBOR encoding
+        var listItemRecord = JsonSerializer.Deserialize<object>(JsonSerializer.Serialize(listItemRecordAnonymous))
+            ?? throw new Exception("Failed to serialize list item record.");
 
         var cid = await _repoManager.CreateRecordAsync(owner.Did, "app.bsky.graph.listitem", listItemRecord, rkey);
         var uri = $"at://{owner.Did}/app.bsky.graph.listitem/{rkey}";
