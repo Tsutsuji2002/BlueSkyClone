@@ -452,6 +452,84 @@ public class ListService : IListService
 
     public async Task<ListDto?> GetListByIdAsync(Guid userId, Guid listId)
     {
+        // Check if listId parameter is actually an AT URI disguised as string
+        // This happens when navigating from list page where we use URI as ID
+        var listIdStr = listId.ToString();
+        
+        // If it looks like an AT URI, handle it as remote list
+        if (listIdStr.StartsWith("at://", StringComparison.OrdinalIgnoreCase))
+        {
+            var user = await _userService.GetUserByIdAsync(userId);
+            if (user == null) return null;
+
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            if (string.IsNullOrWhiteSpace(token)) return null;
+
+            var queryParams = new Dictionary<string, string?>
+            {
+                ["list"] = listIdStr,
+                ["limit"] = "1"
+            };
+
+            var result = await _xrpcProxy.ProxyRequestAsync(
+                user.Did,
+                "app.bsky.graph.getList",
+                queryParams,
+                token,
+                "GET",
+                null,
+                userId
+            );
+
+            if (!result.Success) return null;
+
+            using var doc = JsonDocument.Parse(result.Content);
+            var root = doc.RootElement;
+            
+            if (root.TryGetProperty("list", out var listElem))
+            {
+                return new ListDto
+                {
+                    Id = Guid.NewGuid(), // Temporary ID
+                    OwnerId = userId,
+                    Owner = new UserDto(
+                        user.Id,
+                        user.Username,
+                        user.Handle,
+                        user.Email ?? "",
+                        user.DisplayName,
+                        user.AvatarUrl,
+                        user.CoverImageUrl,
+                        user.Bio,
+                        null,
+                        null,
+                        null,
+                        user.FollowersCount ?? 0,
+                        user.FollowingCount ?? 0,
+                        user.PostsCount ?? 0,
+                        user.Role,
+                        null,
+                        user.IsVerified,
+                        user.Did
+                    ),
+                    Name = listElem.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "",
+                    Description = listElem.TryGetProperty("description", out var descProp) ? descProp.GetString() : null,
+                    Purpose = listElem.TryGetProperty("purpose", out var purposeProp) ? purposeProp.GetString() : null,
+                    AvatarUrl = listElem.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null,
+                    MembersCount = listElem.TryGetProperty("listItemCount", out var countProp) ? countProp.GetInt32() : 0,
+                    PostsCount = 0,
+                    CreatedAt = listElem.TryGetProperty("indexedAt", out var createdProp) ? DateTime.Parse(createdProp.GetString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
+                    IsPinned = false,
+                    IsOwner = true, // Since we're fetching via app.bsky.graph.getList with user's token, they must be the owner
+                    Cid = listElem.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null,
+                    Uri = listElem.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : null
+                };
+            }
+
+            return null;
+        }
+
+        // Local database lookup for local users
         var list = await _unitOfWork.Lists.Query()
             .Include(l => l.Owner)
             .FirstOrDefaultAsync(l => l.Id == listId && l.IsDeleted != true);

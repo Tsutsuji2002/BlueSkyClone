@@ -68,15 +68,16 @@ const getAuthHeaders = (): Record<string, string> => {
     return {};
 };
 
-const mapListFromXrpc = (list: any): ListDto => {
+const mapListFromXrpc = (list: any, currentUserDid?: string): ListDto => {
     const id = list.id || (list.uri ? list.uri.split('/').pop() : '');
     const creator = list.creator || list.owner;
+    const creatorDid = creator?.did || '';
     
     return {
         id: id || '',
         uri: list.uri || '',
         cid: list.cid || '',
-        ownerId: creator?.did || '',
+        ownerId: creatorDid,
         owner: creator ? {
             id: creator.did || '',
             did: creator.did || '',
@@ -97,7 +98,7 @@ const mapListFromXrpc = (list: any): ListDto => {
         postsCount: list.postsCount || 0,
         createdAt: list.indexedAt || list.createdAt,
         isPinned: list.isPinned || false,
-        isOwner: list.isOwner || false
+        isOwner: currentUserDid ? creatorDid === currentUserDid : (list.isOwner || false)
     };
 };
 
@@ -123,7 +124,7 @@ export const fetchMyLists = createAsyncThunk(
             }
             const data = await res.json();
             const lists: any[] = data.lists || data.items || [];
-            return lists.map(mapListFromXrpc);
+            return lists.map(list => mapListFromXrpc(list, did));
         } catch (error: any) {
             console.error('Error in fetchMyLists:', error);
             // Fallback to internal REST API
@@ -182,15 +183,17 @@ export const createList = createAsyncThunk(
 
 export const fetchListById = createAsyncThunk(
     'lists/fetchListById',
-    async (id: string, { rejectWithValue }) => {
+    async (id: string, { rejectWithValue, getState }) => {
         try {
             if (id.startsWith('at://')) {
+                const state = getState() as any;
+                const currentUserDid = state.auth?.user?.did;
                 const res = await fetch(`${getXrpcBase()}/app.bsky.graph.getList?list=${encodeURIComponent(id)}`, {
                     headers: getAuthHeaders()
                 });
                 if (!res.ok) throw new Error('Failed to fetch list via XRPC');
                 const data = await res.json();
-                return mapListFromXrpc(data.list);
+                return mapListFromXrpc(data.list, currentUserDid);
             }
             return await listService.getList(id);
         } catch (error: any) {
