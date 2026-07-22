@@ -165,13 +165,21 @@ public class ListsController : ControllerBase
     }
 
     [HttpGet("{id}/candidates")]
-    public async Task<ActionResult<IEnumerable<UserDto>>> GetCandidateMembers(Guid id, [FromQuery] string? q)
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetCandidateMembers(string id, [FromQuery] string? q)
     {
         try
         {
             var userId = GetUserId();
             if (userId == null) return Unauthorized();
-            var candidates = await _listService.GetCandidateMembersAsync(id, userId.Value, q);
+            
+            // Try to parse as GUID for local lists
+            Guid listId = Guid.Empty;
+            if (Guid.TryParse(id, out var parsedGuid))
+            {
+                listId = parsedGuid;
+            }
+            
+            var candidates = await _listService.GetCandidateMembersAsync(listId, userId.Value, q);
             return Ok(candidates);
         }
         catch (Exception ex)

@@ -1077,15 +1077,20 @@ public class ListService : IListService
     {
         try
         {
-            // Get existing members safely handling potential duplicates or orphaned entries
-            var membersList = await _unitOfWork.ListMembers.Query()
-                .AsNoTracking()
-                .Where(lm => lm.ListId == listId)
-                .ToListAsync();
+            // Get existing members - skip if remote list (listId == Guid.Empty)
+            Dictionary<Guid, int?> existingMembers = new Dictionary<Guid, int?>();
+            
+            if (listId != Guid.Empty)
+            {
+                var membersList = await _unitOfWork.ListMembers.Query()
+                    .AsNoTracking()
+                    .Where(lm => lm.ListId == listId)
+                    .ToListAsync();
 
-            var existingMembers = membersList
-                .GroupBy(lm => lm.UserId)
-                .ToDictionary(g => g.Key, g => g.First().Status);
+                existingMembers = membersList
+                    .GroupBy(lm => lm.UserId)
+                    .ToDictionary(g => g.Key, g => g.First().Status);
+            }
 
             List<User> users;
 
@@ -1123,7 +1128,7 @@ public class ListService : IListService
                     .ToListAsync();
             }
 
-            // Map to DTO with status
+            // Map to DTO with status (null for remote lists since we can't check membership)
             var result = new List<UserDto>();
             foreach (var user in users)
             {
