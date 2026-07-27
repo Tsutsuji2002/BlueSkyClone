@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { FiArrowUp } from 'react-icons/fi';
+import { SCROLL_STORAGE_PREFIX } from '../../hooks/useScrollRestoration';
 
 interface ScrollToTopButtonProps {
     /** Scroll threshold in px before the button appears */
@@ -8,6 +10,7 @@ interface ScrollToTopButtonProps {
 
 const ScrollToTopButton: React.FC<ScrollToTopButtonProps> = ({ threshold = 300 }) => {
     const [visible, setVisible] = useState(false);
+    const location = useLocation();
 
     useEffect(() => {
         let ticking = false;
@@ -26,8 +29,13 @@ const ScrollToTopButton: React.FC<ScrollToTopButtonProps> = ({ threshold = 300 }
     }, [threshold]);
 
     const scrollToTop = useCallback(() => {
+        // Clear the saved scroll position so restoration doesn't fight us
+        const storageKey = SCROLL_STORAGE_PREFIX + location.pathname;
+        sessionStorage.removeItem(storageKey);
+        
+        // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, []);
+    }, [location.pathname]);
 
     return (
         <button
