@@ -143,17 +143,27 @@ public class ListService : IListService
                             var blobRoot = blobDoc.RootElement;
                             if (blobRoot.TryGetProperty("blob", out var blobProp))
                             {
+                                // Extract CID for CDN URL construction
+                                var blobCid = blobProp.GetProperty("ref").GetProperty("$link").GetString() ?? "";
+                                
                                 // Create blob object with proper structure
                                 avatarBlob = new Dictionary<string, object>
                                 {
                                     ["$type"] = "blob",
-                                    ["ref"] = blobProp.GetProperty("ref").GetProperty("$link").GetString() ?? "",
+                                    ["ref"] = new Dictionary<string, object>
+                                    {
+                                        ["$link"] = blobCid
+                                    },
                                     ["mimeType"] = blobProp.GetProperty("mimeType").GetString() ?? mimeType,
                                     ["size"] = blobProp.GetProperty("size").GetInt32()
                                 };
                                 
                                 listRecord["avatar"] = avatarBlob;
-                                _logger.LogInformation("[CreateList] Avatar blob uploaded successfully");
+                                
+                                // Construct CDN URL for returning in DTO
+                                dto.Avatar = $"https://cdn.bsky.app/img/avatar/plain/{user.Did}/{blobCid}@jpeg";
+                                
+                                _logger.LogInformation("[CreateList] Avatar blob uploaded successfully, CDN URL: {Url}", dto.Avatar);
                             }
                         }
                         else
@@ -346,6 +356,34 @@ public class ListService : IListService
             {
                 foreach (var listItem in listsArray.EnumerateArray())
                 {
+                    // Parse avatar - can be string URL or blob object
+                    string? avatarUrl = null;
+                    if (listItem.TryGetProperty("avatar", out var avatarProp))
+                    {
+                        if (avatarProp.ValueKind == JsonValueKind.String)
+                        {
+                            avatarUrl = avatarProp.GetString();
+                        }
+                        else if (avatarProp.ValueKind == JsonValueKind.Object && avatarProp.TryGetProperty("ref", out var refProp))
+                        {
+                            // It's a blob object, extract CID and construct CDN URL
+                            string? cid = null;
+                            if (refProp.ValueKind == JsonValueKind.String)
+                            {
+                                cid = refProp.GetString();
+                            }
+                            else if (refProp.TryGetProperty("$link", out var linkProp))
+                            {
+                                cid = linkProp.GetString();
+                            }
+                            
+                            if (!string.IsNullOrEmpty(cid))
+                            {
+                                avatarUrl = $"https://cdn.bsky.app/img/avatar/plain/{user.Did}/{cid}@jpeg";
+                            }
+                        }
+                    }
+                    
                     lists.Add(new ListDto
                     {
                         Id = Guid.NewGuid(), // Temporary ID
@@ -373,7 +411,7 @@ public class ListService : IListService
                         Name = listItem.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "",
                         Description = listItem.TryGetProperty("description", out var descProp) ? descProp.GetString() : null,
                         Purpose = listItem.TryGetProperty("purpose", out var purposeProp) ? purposeProp.GetString() : null,
-                        AvatarUrl = listItem.TryGetProperty("avatar", out var avatarProp) && avatarProp.ValueKind == JsonValueKind.String ? avatarProp.GetString() : null,
+                        AvatarUrl = avatarUrl,
                         MembersCount = listItem.TryGetProperty("listItemCount", out var countProp) ? countProp.GetInt32() : 0,
                         PostsCount = 0,
                         CreatedAt = listItem.TryGetProperty("indexedAt", out var createdProp) ? DateTime.Parse(createdProp.GetString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
@@ -503,6 +541,37 @@ public class ListService : IListService
         var creator = list.GetProperty("creator");
         var creatorDid = creator.GetProperty("did").GetString()!;
         var creatorHandle = creator.GetProperty("handle").GetString()!;
+        
+        // Parse avatar - can be string URL or blob object
+        string? avatarUrl = null;
+        if (list.TryGetProperty("avatar", out var avatarProp))
+        {
+            if (avatarProp.ValueKind == JsonValueKind.String)
+            {
+                avatarUrl = avatarProp.GetString();
+            }
+            else if (avatarProp.ValueKind == JsonValueKind.Object && avatarProp.TryGetProperty("ref", out var refProp))
+            {
+                // It's a blob object, extract CID and construct CDN URL
+                string? blobCid = null;
+                if (refProp.ValueKind == JsonValueKind.String)
+                {
+                    blobCid = refProp.GetString();
+                }
+                else if (refProp.TryGetProperty("$link", out var linkProp))
+                {
+                    blobCid = linkProp.GetString();
+                }
+                
+                if (!string.IsNullOrEmpty(blobCid))
+                {
+                    // Extract DID from URI: at://did:plc:xxx/...
+                    var uriParts = uri.Split('/');
+                    var did = uriParts.Length > 2 ? uriParts[2] : creatorDid;
+                    avatarUrl = $"https://cdn.bsky.app/img/avatar/plain/{did}/{blobCid}@jpeg";
+                }
+            }
+        }
 
         return new ListDto
         {
@@ -511,7 +580,7 @@ public class ListService : IListService
             Name = list.GetProperty("name").GetString()!,
             Description = list.TryGetProperty("description", out var d) ? d.GetString() : null,
             Purpose = list.GetProperty("purpose").GetString()!,
-            AvatarUrl = list.TryGetProperty("avatar", out var a) ? a.GetString() : null,
+            AvatarUrl = avatarUrl,
             MembersCount = 0, // Metadata doesn't usually include count in list view
             PostsCount = 0,
             CreatedAt = list.TryGetProperty("indexedAt", out var idx) ? idx.GetDateTime() : DateTime.UtcNow,
@@ -894,17 +963,27 @@ public class ListService : IListService
                         var blobRoot = blobDoc.RootElement;
                         if (blobRoot.TryGetProperty("blob", out var blobProp))
                         {
+                            // Extract CID for CDN URL construction
+                            var blobCid = blobProp.GetProperty("ref").GetProperty("$link").GetString() ?? "";
+                            
                             // Create blob object with proper structure
                             var avatarBlob = new Dictionary<string, object>
                             {
                                 ["$type"] = "blob",
-                                ["ref"] = blobProp.GetProperty("ref").GetProperty("$link").GetString() ?? "",
+                                ["ref"] = new Dictionary<string, object>
+                                {
+                                    ["$link"] = blobCid
+                                },
                                 ["mimeType"] = blobProp.GetProperty("mimeType").GetString() ?? mimeType,
                                 ["size"] = blobProp.GetProperty("size").GetInt32()
                             };
                             
                             mergedRecord["avatar"] = avatarBlob;
-                            _logger.LogInformation("[UpdateListByIdOrUriAsync] Avatar blob uploaded successfully");
+                            
+                            // Update DTO with CDN URL for response
+                            dto.Avatar = $"https://cdn.bsky.app/img/avatar/plain/{user.Did}/{blobCid}@jpeg";
+                            
+                            _logger.LogInformation("[UpdateListByIdOrUriAsync] Avatar blob uploaded successfully, CDN URL: {Url}", dto.Avatar);
                         }
                     }
                     else
@@ -966,6 +1045,42 @@ public class ListService : IListService
         string? updatedUri = putRoot.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : listUri;
 
         // Build and return ListDto
+        // Parse avatar URL from updated record
+        string? finalAvatarUrl = null;
+        if (dto.Avatar != null)
+        {
+            // Avatar was updated - use the CDN URL we set during upload
+            finalAvatarUrl = string.IsNullOrEmpty(dto.Avatar) ? null : dto.Avatar;
+        }
+        else if (mergedRecord.ContainsKey("avatar"))
+        {
+            // Avatar was preserved - extract from blob or use string
+            var avatarObj = mergedRecord["avatar"];
+            if (avatarObj is Dictionary<string, object> blobDict && blobDict.ContainsKey("ref"))
+            {
+                // It's a blob object
+                var refObj = blobDict["ref"];
+                string? avatarBlobCid = null;
+                if (refObj is Dictionary<string, object> refDict && refDict.ContainsKey("$link"))
+                {
+                    avatarBlobCid = refDict["$link"]?.ToString();
+                }
+                else if (refObj is string cidStr)
+                {
+                    avatarBlobCid = cidStr;
+                }
+                
+                if (!string.IsNullOrEmpty(avatarBlobCid))
+                {
+                    finalAvatarUrl = $"https://cdn.bsky.app/img/avatar/plain/{user.Did}/{avatarBlobCid}@jpeg";
+                }
+            }
+            else if (avatarObj is string avatarStr)
+            {
+                finalAvatarUrl = avatarStr;
+            }
+        }
+        
         var resultDto = new ListDto
         {
             Id = Guid.NewGuid(), // Temporary ID for remote list
@@ -993,7 +1108,7 @@ public class ListService : IListService
             Name = mergedRecord.ContainsKey("name") ? mergedRecord["name"].ToString() ?? "" : "",
             Description = mergedRecord.ContainsKey("description") ? mergedRecord["description"].ToString() : null,
             Purpose = mergedRecord.ContainsKey("purpose") ? mergedRecord["purpose"].ToString() : null,
-            AvatarUrl = listElement.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null,
+            AvatarUrl = finalAvatarUrl,
             MembersCount = listElement.TryGetProperty("listItemCount", out var countProp) ? countProp.GetInt32() : 0,
             PostsCount = 0,
             CreatedAt = mergedRecord.ContainsKey("createdAt") ? DateTime.Parse(mergedRecord["createdAt"].ToString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
