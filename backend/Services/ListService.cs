@@ -80,18 +80,48 @@ public class ListService : IListService
                 {
                     try
                     {
-                        // Download the avatar image from the URL
-                        using var httpClient = new HttpClient();
-                        var imageBytes = await httpClient.GetByteArrayAsync(dto.Avatar);
-                        
-                        // Determine MIME type from URL or default to image/jpeg
+                        byte[] imageBytes;
                         string mimeType = "image/jpeg";
-                        if (dto.Avatar.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                            mimeType = "image/png";
-                        else if (dto.Avatar.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
-                            mimeType = "image/gif";
-                        else if (dto.Avatar.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
-                            mimeType = "image/webp";
+                        
+                        // Check if it's a local file path or URL
+                        if (dto.Avatar.StartsWith("/") || dto.Avatar.StartsWith("\\"))
+                        {
+                            // Local file path - read from uploads folder
+                            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", dto.Avatar.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                            if (File.Exists(uploadsPath))
+                            {
+                                imageBytes = await File.ReadAllBytesAsync(uploadsPath);
+                                
+                                // Determine MIME type from file extension
+                                var extension = Path.GetExtension(uploadsPath).ToLower();
+                                mimeType = extension switch
+                                {
+                                    ".png" => "image/png",
+                                    ".gif" => "image/gif",
+                                    ".webp" => "image/webp",
+                                    _ => "image/jpeg"
+                                };
+                            }
+                            else
+                            {
+                                _logger.LogWarning("[CreateList] Local avatar file not found: {Path}", uploadsPath);
+                                throw new FileNotFoundException($"Avatar file not found: {uploadsPath}");
+                            }
+                        }
+                        else
+                        {
+                            // URL - download the avatar image
+                            using var httpClient = new HttpClient();
+                            imageBytes = await httpClient.GetByteArrayAsync(dto.Avatar);
+                            
+                            // Determine MIME type from URL
+                            if (dto.Avatar.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                                mimeType = "image/png";
+                            else if (dto.Avatar.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                                mimeType = "image/gif";
+                            else if (dto.Avatar.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+                                mimeType = "image/webp";
+                        }
 
                         // Upload blob to AT Protocol
                         using var imageStream = new MemoryStream(imageBytes);
@@ -801,18 +831,48 @@ public class ListService : IListService
             {
                 try
                 {
-                    // Download the avatar image from the URL
-                    using var httpClient = new HttpClient();
-                    var imageBytes = await httpClient.GetByteArrayAsync(dto.Avatar);
-                    
-                    // Determine MIME type from URL or default to image/jpeg
+                    byte[] imageBytes;
                     string mimeType = "image/jpeg";
-                    if (dto.Avatar.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                        mimeType = "image/png";
-                    else if (dto.Avatar.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
-                        mimeType = "image/gif";
-                    else if (dto.Avatar.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
-                        mimeType = "image/webp";
+                    
+                    // Check if it's a local file path or URL
+                    if (dto.Avatar.StartsWith("/") || dto.Avatar.StartsWith("\\"))
+                    {
+                        // Local file path - read from uploads folder
+                        var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", dto.Avatar.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString()));
+                        if (File.Exists(uploadsPath))
+                        {
+                            imageBytes = await File.ReadAllBytesAsync(uploadsPath);
+                            
+                            // Determine MIME type from file extension
+                            var extension = Path.GetExtension(uploadsPath).ToLower();
+                            mimeType = extension switch
+                            {
+                                ".png" => "image/png",
+                                ".gif" => "image/gif",
+                                ".webp" => "image/webp",
+                                _ => "image/jpeg"
+                            };
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[UpdateListByIdOrUriAsync] Local avatar file not found: {Path}", uploadsPath);
+                            throw new FileNotFoundException($"Avatar file not found: {uploadsPath}");
+                        }
+                    }
+                    else
+                    {
+                        // URL - download the avatar image
+                        using var httpClient = new HttpClient();
+                        imageBytes = await httpClient.GetByteArrayAsync(dto.Avatar);
+                        
+                        // Determine MIME type from URL
+                        if (dto.Avatar.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                            mimeType = "image/png";
+                        else if (dto.Avatar.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                            mimeType = "image/gif";
+                        else if (dto.Avatar.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+                            mimeType = "image/webp";
+                    }
 
                     // Upload blob to AT Protocol
                     using var imageStream = new MemoryStream(imageBytes);
