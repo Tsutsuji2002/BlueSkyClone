@@ -1359,11 +1359,13 @@ const postsSlice = createSlice({
                 state.actionLoading[actionUri] = true;
 
                 // Optimistic Update
-                const existingTruth = state.interactionTruth[actionUri];
+                const actionUriLower = actionUri.toLowerCase();
+                const existingTruth = state.interactionTruth[actionUriLower];
                 const baseLikesCount = existingTruth?.likesCount ?? currentLikesCount ?? 0;
                 
-                state.interactionTruth[actionUri] = {
-                    ...existingTruth,
+                // Create a post update object to use with updateInteractionTruth
+                const postUpdate: Partial<Post> = {
+                    uri: actionUri,
                     isLiked: !existingTruth?.isLiked,
                     likesCount: existingTruth?.isLiked 
                         ? Math.max(0, baseLikesCount - 1) 
@@ -1371,12 +1373,25 @@ const postsSlice = createSlice({
                     lastInteractedAt: new Date().toISOString()
                 };
                 
-                // Broaden optimistic truth to all identifiers
-                const postIdx = state.posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri);
-                if (postIdx) {
-                    if (postIdx.id) state.interactionTruth[postIdx.id] = state.interactionTruth[actionUri];
-                    if (postIdx.tid) state.interactionTruth[postIdx.tid] = state.interactionTruth[actionUri];
+                // Find the post in any array to get all its identifiers
+                const findPostInArrays = () => {
+                    for (const arr of [state.posts, state.discoverPosts, state.trendingPosts, state.bookmarkedPosts, state.threadPosts]) {
+                        const found = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri);
+                        if (found) return found;
+                    }
+                    return null;
+                };
+                
+                const foundPost = findPostInArrays();
+                if (foundPost) {
+                    postUpdate.id = foundPost.id;
+                    postUpdate.tid = foundPost.tid;
+                    postUpdate.author = foundPost.author;
                 }
+                
+                // Use updateInteractionTruth to ensure all keys are updated
+                updateInteractionTruth(state, postUpdate as Post);
+                
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
                         recursivelyUpdatePost(p, actionUri, (post) => {
@@ -1397,16 +1412,21 @@ const postsSlice = createSlice({
                 state.actionLoading[actionUri] = false;
                 
                 const serverIsLiked = action.payload.isLiked;
-                const existing = state.interactionTruth[actionUri];
+                const existingKeys = [actionUri.toLowerCase()];
                 
-                // Rely entirely on the optimistic count calculated in pending state
-                // since the backend returns a stale count to avoid cache-busting database hits.
-                state.interactionTruth[actionUri] = {
-                    ...existing,
+                // Find any existing truth under this URI
+                const existing = state.interactionTruth[actionUri.toLowerCase()];
+                
+                // Create a post update object to use with updateInteractionTruth
+                const postUpdate: Partial<Post> = {
+                    uri: actionUri,
                     isLiked: serverIsLiked,
                     likesCount: existing?.likesCount,
                     viewer: { ...existing?.viewer, like: action.payload.likeUri }
                 };
+                
+                // Use updateInteractionTruth to ensure all keys are updated
+                updateInteractionTruth(state, postUpdate as Post);
 
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
@@ -1459,11 +1479,13 @@ const postsSlice = createSlice({
                 const { uri: actionUri, currentRepostsCount } = action.meta.arg;
                 state.actionLoading[actionUri] = true;
 
-                const existingTruth = state.interactionTruth[actionUri];
+                const actionUriLower = actionUri.toLowerCase();
+                const existingTruth = state.interactionTruth[actionUriLower];
                 const baseRepostsCount = existingTruth?.repostsCount ?? currentRepostsCount ?? 0;
 
-                state.interactionTruth[actionUri] = {
-                    ...existingTruth,
+                // Create a post update object to use with updateInteractionTruth
+                const postUpdate: Partial<Post> = {
+                    uri: actionUri,
                     isReposted: !existingTruth?.isReposted,
                     repostsCount: existingTruth?.isReposted 
                         ? Math.max(0, baseRepostsCount - 1) 
@@ -1471,12 +1493,24 @@ const postsSlice = createSlice({
                     lastInteractedAt: new Date().toISOString()
                 };
 
-                // Broaden optimistic truth to all identifiers
-                const postIdx = state.posts.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri);
-                if (postIdx) {
-                    if (postIdx.id) state.interactionTruth[postIdx.id] = state.interactionTruth[actionUri];
-                    if (postIdx.tid) state.interactionTruth[postIdx.tid] = state.interactionTruth[actionUri];
+                // Find the post in any array to get all its identifiers
+                const findPostInArrays = () => {
+                    for (const arr of [state.posts, state.discoverPosts, state.trendingPosts, state.bookmarkedPosts, state.threadPosts]) {
+                        const found = arr.find(p => p.uri === actionUri || p.id === actionUri || p.tid === actionUri);
+                        if (found) return found;
+                    }
+                    return null;
+                };
+                
+                const foundPost = findPostInArrays();
+                if (foundPost) {
+                    postUpdate.id = foundPost.id;
+                    postUpdate.tid = foundPost.tid;
+                    postUpdate.author = foundPost.author;
                 }
+
+                // Use updateInteractionTruth to ensure all keys are updated
+                updateInteractionTruth(state, postUpdate as Post);
 
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
@@ -1498,14 +1532,19 @@ const postsSlice = createSlice({
                 state.actionLoading[actionUri] = false;
 
                 const serverIsReposted = action.payload.isReposted;
-                const existing = state.interactionTruth[actionUri];
-                // Rely entirely on the optimistic count calculated in pending state
-                state.interactionTruth[actionUri] = {
-                    ...existing,
+                const actionUriLower = actionUri.toLowerCase();
+                const existing = state.interactionTruth[actionUriLower];
+                
+                // Create a post update object to use with updateInteractionTruth
+                const postUpdate: Partial<Post> = {
+                    uri: actionUri,
                     isReposted: serverIsReposted,
                     repostsCount: existing?.repostsCount,
                     viewer: { ...existing?.viewer, repost: action.payload.repostUri }
                 };
+                
+                // Use updateInteractionTruth to ensure all keys are updated
+                updateInteractionTruth(state, postUpdate as Post);
 
                 const updateInArray = (arr: Post[]) => {
                     arr.forEach(p => {
