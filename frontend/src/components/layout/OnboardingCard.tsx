@@ -12,7 +12,12 @@ const OnboardingCard: React.FC = () => {
     const { t } = useTranslation();
     const { user } = useAppSelector((state: RootState) => state.auth);
     const [suggestionData, setSuggestionData] = useState<{avatar: string, displayName: string}[]>([]);
-    const [isHidden, setIsHidden] = useState(false);
+    
+    // Check localStorage for dismiss preference on mount
+    const [isHidden, setIsHidden] = useState(() => {
+        const dismissed = localStorage.getItem('onboarding-card-dismissed');
+        return dismissed === 'true';
+    });
 
     const isGoalReached = (user && user.followingCount >= 10) || suggestionData.length >= 10;
 
@@ -20,13 +25,13 @@ const OnboardingCard: React.FC = () => {
     // Memoize the avatar display to avoid unnecessary re-renders
     const avatarDisplay = useMemo(() => {
         const totalSlots = 10;
-        const filledSlots = Math.min(suggestionData.length, 3); // Show max 3 actual avatars
+        const filledSlots = Math.min(suggestionData.length, 10); // Show all followed users up to 10
         const emptySlots = totalSlots - filledSlots;
 
         return (
             <div className="flex items-center">
-                {/* Actual avatars (max 3) */}
-                {suggestionData.slice(0, 3).map((data, i) => (
+                {/* Actual avatars (up to 10) */}
+                {suggestionData.slice(0, 10).map((data, i) => (
                     <div
                         key={`avatar-${i}`}
                         className="relative rounded-full border border-gray-100 dark:border-[#232e3e] bg-gray-200 dark:bg-[#111822]"
@@ -48,7 +53,7 @@ const OnboardingCard: React.FC = () => {
 
                 {/* Placeholder avatars */}
                 {[...Array(emptySlots)].map((_, i) => {
-                    const zIndex = 7 - i;
+                    const zIndex = 10 - filledSlots - i;
                     return (
                         <div
                             key={`placeholder-${i}`}
@@ -81,6 +86,9 @@ const OnboardingCard: React.FC = () => {
     // Clear suggestions when switching users to prevent "ghost" data from the previous account
     useEffect(() => {
         setSuggestionData([]);
+        // Reset dismiss preference when user changes
+        const dismissed = localStorage.getItem('onboarding-card-dismissed');
+        setIsHidden(dismissed === 'true');
     }, [user?.did]);
 
     // Optimized data loading with useCallback
@@ -117,6 +125,7 @@ const OnboardingCard: React.FC = () => {
     // Memoized event handlers
     const handleDismiss = useCallback(() => {
         setIsHidden(true);
+        localStorage.setItem('onboarding-card-dismissed', 'true');
     }, []);
 
     const handleFindPeople = useCallback(() => {
