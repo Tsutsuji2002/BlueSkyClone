@@ -129,7 +129,7 @@ const OnboardingCard: React.FC = () => {
     }, []);
 
     const handleFindPeople = useCallback(() => {
-        navigate('/search');
+        navigate('/explore');
     }, [navigate]);
 
     // Early return after all hooks are defined
