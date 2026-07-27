@@ -620,6 +620,195 @@ public class ListService : IListService
         return await MapToListDto(list, userId);
     }
 
+    public async Task<ListDto> UpdateListByIdOrUriAsync(Guid userId, string listIdOrUri, UpdateListDto dto)
+    {
+        // Try to parse as GUID first (local list)
+        if (Guid.TryParse(listIdOrUri, out var listGuid))
+        {
+            return await UpdateListAsync(userId, listGuid, dto);
+        }
+
+        // Remote list path - get user's DID
+        var user = await _userService.GetUserByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did))
+        {
+            throw new Exception("User DID not found");
+        }
+
+        // Construct AT URI from rkey or use full URI if provided
+        string listUri;
+        string rkey;
+        if (listIdOrUri.StartsWith("at://"))
+        {
+            listUri = listIdOrUri;
+            rkey = listUri.Split('/').Last();
+        }
+        else
+        {
+            // It's an rkey, construct the full URI
+            rkey = listIdOrUri;
+            listUri = $"at://{user.Did}/app.bsky.graph.list/{rkey}";
+        }
+
+        // Get auth token
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("Bluesky session expired. Please log out and back in.");
+        }
+
+        // Step 1: Fetch current record using app.bsky.graph.getList
+        var getListParams = new Dictionary<string, string?>
+        {
+            ["list"] = listUri
+        };
+
+        var getResult = await _xrpcProxy.ProxyRequestAsync(
+            user.Did,
+            "app.bsky.graph.getList",
+            getListParams,
+            token,
+            "GET",
+            null,
+            userId
+        );
+
+        if (!getResult.Success)
+        {
+            _logger.LogError("[UpdateListByIdOrUriAsync] Failed to fetch remote list {Uri}: {Content}", listUri, getResult.Content);
+            throw new Exception($"Failed to fetch list: {getResult.Content}");
+        }
+
+        // Parse the current list record
+        using var getDoc = JsonDocument.Parse(getResult.Content);
+        var getRoot = getDoc.RootElement;
+        
+        if (!getRoot.TryGetProperty("list", out var listElement))
+        {
+            throw new Exception("List not found in response");
+        }
+
+        // Step 2: Merge updates - start with current record
+        var mergedRecord = new Dictionary<string, object>
+        {
+            ["$type"] = "app.bsky.graph.list"
+        };
+
+        // Update name if provided, otherwise keep current
+        if (dto.Name != null)
+        {
+            mergedRecord["name"] = dto.Name;
+        }
+        else if (listElement.TryGetProperty("name", out var nameProp))
+        {
+            mergedRecord["name"] = nameProp.GetString() ?? "";
+        }
+
+        // Update description if provided, otherwise keep current
+        if (dto.Description != null)
+        {
+            mergedRecord["description"] = dto.Description;
+        }
+        else if (listElement.TryGetProperty("description", out var descProp))
+        {
+            mergedRecord["description"] = descProp.GetString() ?? "";
+        }
+
+        // Preserve purpose from original record (UpdateListDto doesn't include purpose)
+        if (listElement.TryGetProperty("purpose", out var purposeProp))
+        {
+            mergedRecord["purpose"] = purposeProp.GetString() ?? "app.bsky.graph.defs#curatelist";
+        }
+        else
+        {
+            mergedRecord["purpose"] = "app.bsky.graph.defs#curatelist";
+        }
+
+        // Preserve createdAt from original record
+        if (listElement.TryGetProperty("createdAt", out var createdAtProp))
+        {
+            mergedRecord["createdAt"] = createdAtProp.GetString() ?? DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        }
+        else
+        {
+            mergedRecord["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        }
+
+        // Note: Avatar updates require blob upload, skipping for now as per design
+
+        // Step 3: Call putRecord with merged record
+        var putRequestBody = new Dictionary<string, object?>
+        {
+            ["repo"] = user.Did,
+            ["collection"] = "app.bsky.graph.list",
+            ["rkey"] = rkey,
+            ["record"] = mergedRecord
+        };
+
+        var putResult = await _xrpcProxy.ProxyRequestAsync(
+            user.Did,
+            "com.atproto.repo.putRecord",
+            new Dictionary<string, string?>(),
+            token,
+            "POST",
+            putRequestBody,
+            userId
+        );
+
+        if (!putResult.Success)
+        {
+            _logger.LogError("[UpdateListByIdOrUriAsync] Failed to update remote list {Uri}: {Content}", listUri, putResult.Content);
+            throw new Exception($"Failed to update list: {putResult.Content}");
+        }
+
+        // Step 4: Parse response and build ListDto
+        using var putDoc = JsonDocument.Parse(putResult.Content);
+        var putRoot = putDoc.RootElement;
+        string? cid = putRoot.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
+        string? updatedUri = putRoot.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : listUri;
+
+        // Build and return ListDto
+        var resultDto = new ListDto
+        {
+            Id = Guid.NewGuid(), // Temporary ID for remote list
+            OwnerId = userId,
+            Owner = new UserDto(
+                user.Id,
+                user.Username,
+                user.Handle,
+                user.Email ?? "",
+                user.DisplayName,
+                user.AvatarUrl,
+                user.CoverImageUrl,
+                user.Bio,
+                null, // Location
+                null, // Website
+                null, // DateOfBirth
+                user.FollowersCount ?? 0,
+                user.FollowingCount ?? 0,
+                user.PostsCount ?? 0,
+                user.Role,
+                null, // ListMembershipStatus
+                user.IsVerified,
+                user.Did
+            ),
+            Name = mergedRecord.ContainsKey("name") ? mergedRecord["name"].ToString() ?? "" : "",
+            Description = mergedRecord.ContainsKey("description") ? mergedRecord["description"].ToString() : null,
+            Purpose = mergedRecord.ContainsKey("purpose") ? mergedRecord["purpose"].ToString() : null,
+            AvatarUrl = listElement.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null,
+            MembersCount = listElement.TryGetProperty("listItemCount", out var countProp) ? countProp.GetInt32() : 0,
+            PostsCount = 0,
+            CreatedAt = mergedRecord.ContainsKey("createdAt") ? DateTime.Parse(mergedRecord["createdAt"].ToString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
+            IsPinned = false,
+            IsOwner = true,
+            Cid = cid,
+            Uri = updatedUri
+        };
+
+        _logger.LogInformation("[UpdateListByIdOrUriAsync] Successfully updated remote list {Uri}", updatedUri);
+        return resultDto;
+    }
+
     public async Task<bool> DeleteListAsync(Guid userId, Guid listId)
     {
         var list = await _unitOfWork.Lists.GetByIdAsync(listId);
@@ -640,6 +829,72 @@ public class ListService : IListService
         list.IsDeleted = true;
         _unitOfWork.Lists.Update(list);
         await _unitOfWork.CompleteAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteListByIdOrUriAsync(Guid userId, string listIdOrUri)
+    {
+        // Try to parse as GUID first (local list)
+        if (Guid.TryParse(listIdOrUri, out var listGuid))
+        {
+            return await DeleteListAsync(userId, listGuid);
+        }
+
+        // Remote list path - get user's DID
+        var user = await _userService.GetUserByIdAsync(userId);
+        if (user == null || string.IsNullOrEmpty(user.Did))
+        {
+            _logger.LogError("[DeleteListByIdOrUriAsync] User DID not found for userId: {UserId}", userId);
+            return false;
+        }
+
+        // Construct AT URI from rkey or use full URI if provided
+        string listUri;
+        string rkey;
+        if (listIdOrUri.StartsWith("at://"))
+        {
+            listUri = listIdOrUri;
+            rkey = listUri.Split('/').Last();
+        }
+        else
+        {
+            // It's an rkey, construct the full URI
+            rkey = listIdOrUri;
+            listUri = $"at://{user.Did}/app.bsky.graph.list/{rkey}";
+        }
+
+        // Get auth token
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("Bluesky session expired. Please log out and back in.");
+        }
+
+        // Call deleteRecord via XrpcProxy
+        var requestBody = new Dictionary<string, object?>
+        {
+            ["repo"] = user.Did,
+            ["collection"] = "app.bsky.graph.list",
+            ["rkey"] = rkey
+        };
+
+        var result = await _xrpcProxy.ProxyRequestAsync(
+            user.Did,
+            "com.atproto.repo.deleteRecord",
+            new Dictionary<string, string?>(),
+            token,
+            "POST",
+            requestBody,
+            userId
+        );
+
+        if (!result.Success)
+        {
+            _logger.LogError("[DeleteListByIdOrUriAsync] Failed to delete remote list {Uri}: {Content}", listUri, result.Content);
+            return false;
+        }
+
+        _logger.LogInformation("[DeleteListByIdOrUriAsync] Successfully deleted remote list {Uri}", listUri);
         return true;
     }
 
@@ -852,6 +1107,158 @@ public class ListService : IListService
         return await _unitOfWork.CompleteAsync() > 0;
     }
 
+    public async Task<bool> RemoveMemberByIdOrUriAsync(Guid requestingUserId, string listIdOrUri, Guid targetUserId)
+    {
+        // Try to parse as GUID first (local list)
+        if (Guid.TryParse(listIdOrUri, out var listGuid))
+        {
+            return await RemoveMemberAsync(requestingUserId, listGuid, targetUserId);
+        }
+
+        // Remote list path - get requesting user's DID
+        var requestingUser = await _userService.GetUserByIdAsync(requestingUserId);
+        if (requestingUser == null || string.IsNullOrEmpty(requestingUser.Did))
+        {
+            _logger.LogError("[RemoveMemberByIdOrUriAsync] Requesting user DID not found for userId: {UserId}", requestingUserId);
+            return false;
+        }
+
+        // Get target user's DID
+        var targetUser = await _userService.GetUserByIdAsync(targetUserId);
+        if (targetUser == null || string.IsNullOrEmpty(targetUser.Did))
+        {
+            _logger.LogError("[RemoveMemberByIdOrUriAsync] Target user DID not found for userId: {UserId}", targetUserId);
+            return false;
+        }
+
+        // Construct list AT URI (use as full URI if provided, or construct from DID + rkey)
+        string listUri;
+        if (listIdOrUri.StartsWith("at://"))
+        {
+            listUri = listIdOrUri;
+        }
+        else
+        {
+            // It's an rkey, construct the full URI using requesting user's DID
+            listUri = $"at://{requestingUser.Did}/app.bsky.graph.list/{listIdOrUri}";
+        }
+
+        // Get auth token
+        var token = await _userService.GetOrRefreshBlueskyTokenAsync(requestingUserId);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("Bluesky session expired. Please log out and back in.");
+        }
+
+        // Step 1: Query app.bsky.graph.getList to get all members and find the target listitem
+        var getListParams = new Dictionary<string, string?>
+        {
+            ["list"] = listUri,
+            ["limit"] = "100" // Fetch up to 100 members (AT Protocol default)
+        };
+
+        var getListResult = await _xrpcProxy.ProxyRequestAsync(
+            requestingUser.Did,
+            "app.bsky.graph.getList",
+            getListParams,
+            token,
+            "GET",
+            null,
+            requestingUserId
+        );
+
+        if (!getListResult.Success)
+        {
+            _logger.LogError("[RemoveMemberByIdOrUriAsync] Failed to fetch remote list {Uri}: {Content}", listUri, getListResult.Content);
+            return false;
+        }
+
+        // Step 2: Parse response and find the listitem where subject matches target user's DID
+        using var doc = JsonDocument.Parse(getListResult.Content);
+        var root = doc.RootElement;
+        
+        if (!root.TryGetProperty("items", out var itemsArray))
+        {
+            _logger.LogError("[RemoveMemberByIdOrUriAsync] No items array in response for list {Uri}", listUri);
+            return false;
+        }
+
+        string? listitemUri = null;
+        foreach (var item in itemsArray.EnumerateArray())
+        {
+            if (item.TryGetProperty("subject", out var subjectElem))
+            {
+                string? subjectDid = null;
+                
+                // Subject can be either a string (DID) or an object with a 'did' property
+                if (subjectElem.ValueKind == JsonValueKind.String)
+                {
+                    subjectDid = subjectElem.GetString();
+                }
+                else if (subjectElem.ValueKind == JsonValueKind.Object && subjectElem.TryGetProperty("did", out var didProp))
+                {
+                    subjectDid = didProp.GetString();
+                }
+
+                if (subjectDid == targetUser.Did)
+                {
+                    // Found the matching listitem
+                    if (item.TryGetProperty("uri", out var uriProp))
+                    {
+                        listitemUri = uriProp.GetString();
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If listitem not found, the member isn't in the list
+        if (string.IsNullOrEmpty(listitemUri))
+        {
+            _logger.LogWarning("[RemoveMemberByIdOrUriAsync] Member {TargetDid} not found in list {Uri}", targetUser.Did, listUri);
+            return false;
+        }
+
+        // Step 3: Extract the itemRkey from the listitem URI
+        // URI format: at://{ownerDid}/app.bsky.graph.listitem/{itemRkey}
+        var uriParts = listitemUri.Split('/');
+        if (uriParts.Length < 5)
+        {
+            _logger.LogError("[RemoveMemberByIdOrUriAsync] Invalid listitem URI format: {Uri}", listitemUri);
+            return false;
+        }
+        
+        string itemRkey = uriParts[^1]; // Last segment is the rkey
+        string ownerDid = uriParts[2]; // Third segment is the owner DID (after at:// and empty string)
+
+        // Step 4: Call deleteRecord to remove the listitem
+        var deleteRequestBody = new Dictionary<string, object?>
+        {
+            ["repo"] = ownerDid,
+            ["collection"] = "app.bsky.graph.listitem",
+            ["rkey"] = itemRkey
+        };
+
+        var deleteResult = await _xrpcProxy.ProxyRequestAsync(
+            requestingUser.Did,
+            "com.atproto.repo.deleteRecord",
+            new Dictionary<string, string?>(),
+            token,
+            "POST",
+            deleteRequestBody,
+            requestingUserId
+        );
+
+        if (!deleteResult.Success)
+        {
+            _logger.LogError("[RemoveMemberByIdOrUriAsync] Failed to delete listitem {Uri}: {Content}", listitemUri, deleteResult.Content);
+            return false;
+        }
+
+        _logger.LogInformation("[RemoveMemberByIdOrUriAsync] Successfully removed member {TargetDid} from list {Uri}", targetUser.Did, listUri);
+        return true;
+    }
+
     public async Task<IEnumerable<ListItemDto>> GetListMembersAsync(Guid listId)
     {
         var members = await _unitOfWork.ListMembers.Query()
@@ -887,6 +1294,211 @@ public class ListService : IListService
             Uri = lm.Uri,
             Cid = lm.Cid
         });
+    }
+
+    public async Task<IEnumerable<ListItemDto>> GetListMembersByIdOrUriAsync(string listIdOrUri, Guid? viewerId = null)
+    {
+        // Try to parse as GUID first (local list)
+        if (Guid.TryParse(listIdOrUri, out var listGuid))
+        {
+            return await GetListMembersAsync(listGuid);
+        }
+
+        // Remote list path - construct AT URI
+        string listUri;
+        if (listIdOrUri.StartsWith("at://"))
+        {
+            // Already a full AT URI
+            listUri = listIdOrUri;
+        }
+        else
+        {
+            // It's an rkey - we need to construct the full URI
+            // Design recommends frontend provides full URI for remote lists
+            // For now, we'll assume it's already a full URI or handle the error
+            listUri = listIdOrUri;
+        }
+
+        // Get viewer's token if available for authenticated requests
+        string? token = null;
+        string? viewerDid = null;
+        
+        if (viewerId.HasValue)
+        {
+            var viewer = await _userService.GetUserByIdAsync(viewerId.Value);
+            if (viewer != null && !string.IsNullOrEmpty(viewer.Did))
+            {
+                viewerDid = viewer.Did;
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(viewerId.Value);
+            }
+        }
+
+        // Call app.bsky.graph.getList to fetch list members
+        var queryParams = new Dictionary<string, string?>
+        {
+            ["list"] = listUri,
+            ["limit"] = "100"
+        };
+
+        ProxyResponse result;
+        if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(viewerDid))
+        {
+            // Authenticated request
+            result = await _xrpcProxy.ProxyRequestAsync(
+                viewerDid,
+                "app.bsky.graph.getList",
+                queryParams,
+                token,
+                "GET",
+                null,
+                viewerId.Value
+            );
+        }
+        else
+        {
+            // Public/unauthenticated request
+            using var client = _httpClientFactory.CreateClient();
+            var url = $"https://public.api.bsky.app/xrpc/app.bsky.graph.getList?list={Uri.EscapeDataString(listUri)}&limit=100";
+            var httpResp = await client.GetAsync(url);
+            
+            if (!httpResp.IsSuccessStatusCode)
+            {
+                _logger.LogError("[GetListMembersByIdOrUriAsync] Failed to fetch remote list members from public API: {StatusCode}", httpResp.StatusCode);
+                return new List<ListItemDto>();
+            }
+            
+            result = new ProxyResponse 
+            { 
+                Success = true, 
+                Content = await httpResp.Content.ReadAsStringAsync() 
+            };
+        }
+
+        if (!result.Success)
+        {
+            _logger.LogError("[GetListMembersByIdOrUriAsync] Failed to fetch remote list members: {Content}", result.Content);
+            return new List<ListItemDto>();
+        }
+
+        // Parse JSON response to extract items array
+        var memberDtos = new List<ListItemDto>();
+        
+        try
+        {
+            using var doc = JsonDocument.Parse(result.Content);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("items", out var itemsArray))
+            {
+                // No members in the list
+                return memberDtos;
+            }
+
+            // Process each member
+            foreach (var item in itemsArray.EnumerateArray())
+            {
+                if (!item.TryGetProperty("subject", out var subject))
+                {
+                    continue;
+                }
+
+                // Extract subject DID and profile info
+                string? subjectDid = subject.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                if (string.IsNullOrEmpty(subjectDid))
+                {
+                    continue;
+                }
+
+                // Try to resolve to local User or create lightweight UserDto from AT Protocol data
+                var localUser = await _userService.GetUserByDidAsync(subjectDid);
+                
+                UserDto userDto;
+                if (localUser != null)
+                {
+                    // Use local user data
+                    userDto = new UserDto(
+                        localUser.Id,
+                        localUser.Username,
+                        localUser.Handle,
+                        localUser.Email ?? "",
+                        localUser.DisplayName,
+                        localUser.AvatarUrl,
+                        localUser.CoverImageUrl,
+                        localUser.Bio,
+                        null, // Location
+                        null, // Website
+                        null, // DateOfBirth
+                        localUser.FollowersCount ?? 0,
+                        localUser.FollowingCount ?? 0,
+                        localUser.PostsCount ?? 0,
+                        localUser.Role,
+                        null, // ListMembershipStatus
+                        localUser.IsVerified,
+                        localUser.Did
+                    );
+                }
+                else
+                {
+                    // Create lightweight UserDto from AT Protocol data
+                    string handle = subject.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() ?? "" : "";
+                    string? displayName = subject.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : null;
+                    string? avatarUrl = subject.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null;
+                    string? bio = subject.TryGetProperty("description", out var bioProp) ? bioProp.GetString() : null;
+
+                    userDto = new UserDto(
+                        Guid.Empty, // No local ID for remote-only users
+                        handle,
+                        handle,
+                        "", // No email
+                        displayName ?? handle,
+                        avatarUrl,
+                        null, // No cover image
+                        bio,
+                        null, // Location
+                        null, // Website
+                        null, // DateOfBirth
+                        0, // FollowersCount
+                        0, // FollowingCount
+                        0, // PostsCount
+                        "user",
+                        null, // ListMembershipStatus
+                        false, // IsVerified
+                        subjectDid
+                    );
+                }
+
+                // Extract item URI and created date
+                string? itemUri = item.TryGetProperty("uri", out var uriProp) ? uriProp.GetString() : null;
+                string? itemCid = item.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null;
+                
+                DateTime joinedAt = DateTime.UtcNow;
+                if (item.TryGetProperty("createdAt", out var createdAtProp))
+                {
+                    string? createdAtStr = createdAtProp.GetString();
+                    if (!string.IsNullOrEmpty(createdAtStr) && DateTime.TryParse(createdAtStr, out var parsedDate))
+                    {
+                        joinedAt = parsedDate;
+                    }
+                }
+
+                // Build ListItemDto
+                memberDtos.Add(new ListItemDto
+                {
+                    UserId = userDto.Id,
+                    User = userDto,
+                    JoinedAt = joinedAt,
+                    Uri = itemUri,
+                    Cid = itemCid
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[GetListMembersByIdOrUriAsync] Error parsing remote list members response");
+            return new List<ListItemDto>();
+        }
+
+        return memberDtos;
     }
 
     // Pinning / Subscribing
@@ -1162,20 +1774,164 @@ public class ListService : IListService
                     .ToDictionary(g => g.Key, g => (int?)g.First().Status);
             }
 
-            var currentUser = await _userService.GetUserByIdAsync(userId);
-            if (currentUser == null) return new List<UserDto>();
+            // Handle listId == Guid.Empty case (remote list scenario)
+            if (listId == Guid.Empty)
+            {
+                var currentUser = await _userService.GetUserByIdAsync(userId);
+                if (currentUser == null) return new List<UserDto>();
 
-            bool isRemoteUser = !string.IsNullOrEmpty(currentUser.Did) && 
-                               !currentUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+                bool isRemoteUser = !string.IsNullOrEmpty(currentUser.Did) && 
+                                   !currentUser.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
+
+                // Remote user with no search query - fetch top 5 following from AT Protocol
+                if (isRemoteUser && string.IsNullOrWhiteSpace(query))
+                {
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        _logger.LogWarning("[GetCandidateMembersAsync] No auth token available for remote user");
+                        // Fall back to recently created users
+                        return await GetRecentlyCreatedUsersAsync(userId);
+                    }
+
+                    var queryParams = new Dictionary<string, string?>
+                    {
+                        ["actor"] = currentUser.Did,
+                        ["limit"] = "5"
+                    };
+
+                    var result = await _xrpcProxy.ProxyRequestAsync(
+                        currentUser.Did,
+                        "app.bsky.graph.getFollows",
+                        queryParams,
+                        token,
+                        "GET",
+                        null,
+                        userId
+                    );
+
+                    if (!result.Success)
+                    {
+                        _logger.LogError("[GetCandidateMembersAsync] Failed to fetch follows from AT Protocol: {Content}", result.Content);
+                        // Fall back to recently created users
+                        return await GetRecentlyCreatedUsersAsync(userId);
+                    }
+
+                    // Parse follows array from JSON response
+                    using var doc = JsonDocument.Parse(result.Content);
+                    var root = doc.RootElement;
+
+                    if (!root.TryGetProperty("follows", out var followsArray))
+                    {
+                        _logger.LogWarning("[GetCandidateMembersAsync] No follows array in response");
+                        // Fall back to recently created users
+                        return await GetRecentlyCreatedUsersAsync(userId);
+                    }
+
+                    var candidates = new List<UserDto>();
+                    var count = 0;
+
+                    foreach (var followItem in followsArray.EnumerateArray())
+                    {
+                        if (count >= 5) break;
+
+                        var did = followItem.TryGetProperty("did", out var didProp) ? didProp.GetString() : null;
+                        if (string.IsNullOrEmpty(did)) continue;
+
+                        var handle = followItem.TryGetProperty("handle", out var handleProp) ? handleProp.GetString() : null;
+                        var displayName = followItem.TryGetProperty("displayName", out var displayNameProp) ? displayNameProp.GetString() : null;
+                        var avatar = followItem.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null;
+                        var description = followItem.TryGetProperty("description", out var descProp) ? descProp.GetString() : null;
+
+                        // Try to find this user in local database
+                        var localUser = await _userService.GetUserByDidAsync(did);
+                        
+                        if (localUser != null)
+                        {
+                            // Use local user data
+                            candidates.Add(new UserDto(
+                                localUser.Id,
+                                localUser.Username ?? handle ?? "unknown",
+                                localUser.Handle ?? handle ?? "unknown",
+                                localUser.Email ?? "",
+                                localUser.DisplayName ?? displayName ?? handle,
+                                localUser.AvatarUrl ?? avatar,
+                                localUser.CoverImageUrl,
+                                localUser.Bio ?? description,
+                                localUser.Location,
+                                localUser.Website,
+                                localUser.DateOfBirth,
+                                localUser.FollowersCount,
+                                localUser.FollowingCount,
+                                localUser.PostsCount,
+                                localUser.Role ?? "user",
+                                null, // Status - not applicable for remote list candidates
+                                localUser.IsVerified,
+                                localUser.Did
+                            ));
+                        }
+                        else
+                        {
+                            // Create lightweight UserDto from AT Protocol data
+                            candidates.Add(new UserDto(
+                                Guid.Empty, // No local ID
+                                handle ?? "unknown",
+                                handle ?? "unknown",
+                                "",
+                                displayName ?? handle ?? "unknown",
+                                avatar,
+                                null, // Cover image
+                                description,
+                                null, // Location
+                                null, // Website
+                                null, // DateOfBirth
+                                0, // FollowersCount
+                                0, // FollowingCount
+                                0, // PostsCount
+                                "user",
+                                null, // Status
+                                false, // IsVerified
+                                did
+                            ));
+                        }
+
+                        count++;
+                    }
+
+                    // If user follows no one, return recently created users from local DB as fallback
+                    if (!candidates.Any())
+                    {
+                        return await GetRecentlyCreatedUsersAsync(userId);
+                    }
+
+                    return candidates;
+                }
+
+                // If search query provided, fall back to local database search
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    return await SearchLocalUsersAsync(userId, query);
+                }
+
+                // Local user or other cases - fall back to recently created users
+                return await GetRecentlyCreatedUsersAsync(userId);
+            }
+
+            // Original logic for non-empty listId (local lists)
+            var currentUserForLocal = await _userService.GetUserByIdAsync(userId);
+            if (currentUserForLocal == null) return new List<UserDto>();
+
+            bool isRemoteUserForLocal = !string.IsNullOrEmpty(currentUserForLocal.Did) && 
+                               !currentUserForLocal.Did.StartsWith("did:local:", StringComparison.OrdinalIgnoreCase);
 
             List<User> users;
 
             if (string.IsNullOrWhiteSpace(query))
             {
-                if (isRemoteUser)
+                if (isRemoteUserForLocal)
                 {
                     // For remote users, fetch following from AT Protocol
-                    var (followingUsers, _) = await _userService.GetFollowingAsync(currentUser.Did, limit: 5, cursor: null, viewerId: userId);
+                    var (followingUsers, _) = await _userService.GetFollowingAsync(currentUserForLocal.Did, limit: 5, cursor: null, viewerId: userId);
                     users = followingUsers.Take(5).ToList();
                 }
                 else
@@ -1214,13 +1970,13 @@ public class ListService : IListService
             }
 
             // Map to DTO with status (null for remote lists since we can't check membership)
-            var result = new List<UserDto>();
+            var resultForLocal = new List<UserDto>();
             foreach (var user in users)
             {
                 if (user == null) continue;
                 int? status = existingMembers.ContainsKey(user.Id) ? existingMembers[user.Id] : null;
 
-                result.Add(new UserDto(
+                resultForLocal.Add(new UserDto(
                     user.Id,
                     user.Username ?? "unknown",
                     user.Handle ?? "unknown",
@@ -1241,13 +1997,76 @@ public class ListService : IListService
                     user.Did
                 ));
             }
-            return result;
+            return resultForLocal;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ListService] GetCandidateMembersAsync Critical Error: {ex}");
             return new List<UserDto>();
         }
+    }
+
+    private async Task<IEnumerable<UserDto>> GetRecentlyCreatedUsersAsync(Guid userId)
+    {
+        var users = await _unitOfWork.Users.Query()
+            .Where(u => u.Id != userId && u.IsDeleted != true)
+            .OrderByDescending(u => u.CreatedAt)
+            .Take(5)
+            .ToListAsync();
+
+        return users.Select(u => new UserDto(
+            u.Id,
+            u.Username ?? "unknown",
+            u.Handle ?? "unknown",
+            u.Email ?? "",
+            u.DisplayName,
+            u.AvatarUrl,
+            u.CoverImageUrl,
+            u.Bio,
+            u.Location,
+            u.Website,
+            u.DateOfBirth,
+            u.FollowersCount,
+            u.FollowingCount,
+            u.PostsCount,
+            u.Role ?? "user",
+            null, // Status
+            u.IsVerified,
+            u.Did
+        ));
+    }
+
+    private async Task<IEnumerable<UserDto>> SearchLocalUsersAsync(Guid userId, string query)
+    {
+        var lowerQuery = query.ToLower();
+        var users = await _unitOfWork.Users.Query()
+            .Where(u => u.Id != userId && 
+                       ((u.Username != null && u.Username.ToLower().Contains(lowerQuery)) || 
+                        (u.DisplayName != null && u.DisplayName.ToLower().Contains(lowerQuery)) ||
+                        (u.Handle != null && u.Handle.ToLower().Contains(lowerQuery))))
+            .Take(20)
+            .ToListAsync();
+
+        return users.Select(u => new UserDto(
+            u.Id,
+            u.Username ?? "unknown",
+            u.Handle ?? "unknown",
+            u.Email ?? "",
+            u.DisplayName,
+            u.AvatarUrl,
+            u.CoverImageUrl,
+            u.Bio,
+            u.Location,
+            u.Website,
+            u.DateOfBirth,
+            u.FollowersCount,
+            u.FollowingCount,
+            u.PostsCount,
+            u.Role ?? "user",
+            null, // Status
+            u.IsVerified,
+            u.Did
+        ));
     }
 
     public async Task<bool> AddPostAsync(Guid userId, Guid listId, Guid postId, string? caption = null)

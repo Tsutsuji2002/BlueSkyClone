@@ -97,13 +97,13 @@ public class ListsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateList(Guid id, [FromBody] UpdateListDto dto)
+    public async Task<IActionResult> UpdateList(string id, [FromBody] UpdateListDto dto)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
         try
         {
-            var list = await _listService.UpdateListAsync(userId.Value, id, dto);
+            var list = await _listService.UpdateListByIdOrUriAsync(userId.Value, id, dto);
             return Ok(list);
         }
         catch (UnauthorizedAccessException)
@@ -113,11 +113,11 @@ public class ListsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteList(Guid id)
+    public async Task<IActionResult> DeleteList(string id)
     {
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
-        var success = await _listService.DeleteListAsync(userId.Value, id);
+        var success = await _listService.DeleteListByIdOrUriAsync(userId.Value, id);
         if (!success) return BadRequest("Failed to delete list or not owner");
         return Ok();
     }
@@ -158,9 +158,10 @@ public class ListsController : ControllerBase
     }
 
     [HttpGet("{id}/members")]
-    public async Task<IActionResult> GetMembers(Guid id)
+    public async Task<IActionResult> GetMembers(string id)
     {
-        var members = await _listService.GetListMembersAsync(id);
+        var userId = GetUserId(); // For viewer context
+        var members = await _listService.GetListMembersByIdOrUriAsync(id, userId);
         return Ok(members);
     }
 
@@ -235,13 +236,7 @@ public class ListsController : ControllerBase
         var userId = GetUserId();
         if (userId == null) return Unauthorized();
         
-        // Try to parse as GUID for local lists
-        if (!Guid.TryParse(id, out var listGuid))
-        {
-            return BadRequest("Invalid list ID format for remove operation");
-        }
-        
-        var success = await _listService.RemoveMemberAsync(userId.Value, listGuid, targetId);
+        var success = await _listService.RemoveMemberByIdOrUriAsync(userId.Value, id, targetId);
         return success ? Ok() : BadRequest("Failed to remove member");
     }
 

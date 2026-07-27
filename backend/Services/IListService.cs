@@ -13,12 +13,16 @@ public interface IListService
     Task<ListDto?> GetListByIdAsync(Guid userId, Guid listId);
     Task<ListDto> UpdateListAsync(Guid userId, Guid listId, UpdateListDto dto);
     Task<bool> DeleteListAsync(Guid userId, Guid listId); // Only owner
+    Task<bool> DeleteListByIdOrUriAsync(Guid userId, string listIdOrUri);
+    Task<ListDto> UpdateListByIdOrUriAsync(Guid userId, string listIdOrUri, UpdateListDto dto);
     
     // Members
     Task<bool> AddMemberByIdOrUriAsync(Guid ownerId, string listIdOrUri, Guid targetUserId);
     Task<bool> AddMemberAsync(Guid ownerId, Guid listId, Guid targetUserId);
     Task<bool> RemoveMemberAsync(Guid requestingUserId, Guid listId, Guid targetUserId);
+    Task<bool> RemoveMemberByIdOrUriAsync(Guid requestingUserId, string listIdOrUri, Guid targetUserId);
     Task<IEnumerable<ListItemDto>> GetListMembersAsync(Guid listId);
+    Task<IEnumerable<ListItemDto>> GetListMembersByIdOrUriAsync(string listIdOrUri, Guid? viewerId = null);
     Task<bool> AcceptInvitationAsync(Guid userId, Guid listId);
     Task<bool> RejectInvitationAsync(Guid userId, Guid listId);
     
