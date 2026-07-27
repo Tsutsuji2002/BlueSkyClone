@@ -68,11 +68,81 @@ public class ListService : IListService
             ["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
         };
 
-        // For remote users, skip avatar for now (it needs to be uploaded as a blob first)
-        // For local users, we can store the URL directly
-        if (!isRemoteUser && !string.IsNullOrEmpty(dto.Avatar))
+        // Handle avatar for both local and remote users
+        object? avatarBlob = null;
+        if (!string.IsNullOrEmpty(dto.Avatar))
         {
-            listRecord["avatar"] = dto.Avatar;
+            if (isRemoteUser)
+            {
+                // Remote user - upload avatar as blob to AT Protocol
+                var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    try
+                    {
+                        // Download the avatar image from the URL
+                        using var httpClient = new HttpClient();
+                        var imageBytes = await httpClient.GetByteArrayAsync(dto.Avatar);
+                        
+                        // Determine MIME type from URL or default to image/jpeg
+                        string mimeType = "image/jpeg";
+                        if (dto.Avatar.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                            mimeType = "image/png";
+                        else if (dto.Avatar.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                            mimeType = "image/gif";
+                        else if (dto.Avatar.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+                            mimeType = "image/webp";
+
+                        // Upload blob to AT Protocol
+                        using var imageStream = new MemoryStream(imageBytes);
+                        var uploadResult = await _xrpcProxy.ProxyRequestAsync(
+                            user.Did,
+                            "com.atproto.repo.uploadBlob",
+                            new Dictionary<string, string?>(),
+                            token,
+                            "POST",
+                            imageStream,
+                            userId,
+                            mimeType
+                        );
+
+                        if (uploadResult.Success)
+                        {
+                            // Parse blob reference from response
+                            using var blobDoc = JsonDocument.Parse(uploadResult.Content);
+                            var blobRoot = blobDoc.RootElement;
+                            if (blobRoot.TryGetProperty("blob", out var blobProp))
+                            {
+                                // Create blob object with proper structure
+                                avatarBlob = new Dictionary<string, object>
+                                {
+                                    ["$type"] = "blob",
+                                    ["ref"] = blobProp.GetProperty("ref").GetProperty("$link").GetString() ?? "",
+                                    ["mimeType"] = blobProp.GetProperty("mimeType").GetString() ?? mimeType,
+                                    ["size"] = blobProp.GetProperty("size").GetInt32()
+                                };
+                                
+                                listRecord["avatar"] = avatarBlob;
+                                _logger.LogInformation("[CreateList] Avatar blob uploaded successfully");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("[CreateList] Failed to upload avatar blob: {Content}", uploadResult.Content);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[CreateList] Error uploading avatar blob");
+                        // Continue without avatar rather than failing the entire list creation
+                    }
+                }
+            }
+            else
+            {
+                // Local user - store URL directly
+                listRecord["avatar"] = dto.Avatar;
+            }
         }
 
         string cid;
@@ -87,27 +157,17 @@ public class ListService : IListService
                 throw new Exception("Bluesky session expired. Please log out and back in.");
             }
 
-            // Build the complete JSON body as a string first to ensure proper serialization
-            var requestBodyJson = $@"{{
-  ""repo"": ""{user.Did}"",
-  ""collection"": ""app.bsky.graph.list"",
-  ""rkey"": ""{rkey}"",
-  ""record"": {{
-    ""$type"": ""app.bsky.graph.list"",
-    ""name"": {JsonSerializer.Serialize(dto.Name)},
-    ""purpose"": {JsonSerializer.Serialize(dto.Purpose ?? "app.bsky.graph.defs#curatelist")},
-    ""description"": {JsonSerializer.Serialize(dto.Description ?? "")},
-    ""createdAt"": ""{DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss.fffZ}""
-  }}
-}}";
+            // Use the listRecord dictionary we built (includes avatar if uploaded)
+            var requestBody = new Dictionary<string, object?>
+            {
+                ["repo"] = user.Did,
+                ["collection"] = "app.bsky.graph.list",
+                ["rkey"] = rkey,
+                ["record"] = listRecord
+            };
 
             // Log the request body for debugging
-            _logger.LogInformation("[CreateList] ===== REQUEST BODY (raw JSON string) =====");
-            _logger.LogInformation(requestBodyJson);
-            _logger.LogInformation("[CreateList] ===== END REQUEST =====");
-
-            // Parse to object for the proxy (it will re-serialize)
-            var requestBody = JsonSerializer.Deserialize<object>(requestBodyJson);
+            _logger.LogInformation("[CreateList] Creating remote list with avatar: {HasAvatar}", listRecord.ContainsKey("avatar"));
 
             var result = await _xrpcProxy.ProxyRequestAsync(
                 user.Did,
@@ -194,7 +254,7 @@ public class ListService : IListService
             Name = dto.Name,
             Description = dto.Description,
             Purpose = listRecord["purpose"].ToString(),
-            AvatarUrl = null, // No avatar for now
+            AvatarUrl = dto.Avatar, // Include avatar URL (blob was uploaded if provided)
             MembersCount = 0,
             PostsCount = 0,
             CreatedAt = DateTime.UtcNow,
