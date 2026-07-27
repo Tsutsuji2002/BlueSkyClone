@@ -343,7 +343,7 @@ public class ListService : IListService
                         Name = listItem.TryGetProperty("name", out var nameProp) ? nameProp.GetString() ?? "" : "",
                         Description = listItem.TryGetProperty("description", out var descProp) ? descProp.GetString() : null,
                         Purpose = listItem.TryGetProperty("purpose", out var purposeProp) ? purposeProp.GetString() : null,
-                        AvatarUrl = listItem.TryGetProperty("avatar", out var avatarProp) ? avatarProp.GetString() : null,
+                        AvatarUrl = listItem.TryGetProperty("avatar", out var avatarProp) && avatarProp.ValueKind == JsonValueKind.String ? avatarProp.GetString() : null,
                         MembersCount = listItem.TryGetProperty("listItemCount", out var countProp) ? countProp.GetInt32() : 0,
                         PostsCount = 0,
                         CreatedAt = listItem.TryGetProperty("indexedAt", out var createdProp) ? DateTime.Parse(createdProp.GetString() ?? DateTime.UtcNow.ToString()) : DateTime.UtcNow,
@@ -794,7 +794,85 @@ public class ListService : IListService
             mergedRecord["createdAt"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
 
-        // Note: Avatar updates require blob upload, skipping for now as per design
+        // Handle avatar update - upload as blob if provided
+        if (dto.Avatar != null)
+        {
+            if (!string.IsNullOrEmpty(dto.Avatar))
+            {
+                try
+                {
+                    // Download the avatar image from the URL
+                    using var httpClient = new HttpClient();
+                    var imageBytes = await httpClient.GetByteArrayAsync(dto.Avatar);
+                    
+                    // Determine MIME type from URL or default to image/jpeg
+                    string mimeType = "image/jpeg";
+                    if (dto.Avatar.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        mimeType = "image/png";
+                    else if (dto.Avatar.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+                        mimeType = "image/gif";
+                    else if (dto.Avatar.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+                        mimeType = "image/webp";
+
+                    // Upload blob to AT Protocol
+                    using var imageStream = new MemoryStream(imageBytes);
+                    var uploadResult = await _xrpcProxy.ProxyRequestAsync(
+                        user.Did,
+                        "com.atproto.repo.uploadBlob",
+                        new Dictionary<string, string?>(),
+                        token,
+                        "POST",
+                        imageStream,
+                        userId,
+                        mimeType
+                    );
+
+                    if (uploadResult.Success)
+                    {
+                        // Parse blob reference from response
+                        using var blobDoc = JsonDocument.Parse(uploadResult.Content);
+                        var blobRoot = blobDoc.RootElement;
+                        if (blobRoot.TryGetProperty("blob", out var blobProp))
+                        {
+                            // Create blob object with proper structure
+                            var avatarBlob = new Dictionary<string, object>
+                            {
+                                ["$type"] = "blob",
+                                ["ref"] = blobProp.GetProperty("ref").GetProperty("$link").GetString() ?? "",
+                                ["mimeType"] = blobProp.GetProperty("mimeType").GetString() ?? mimeType,
+                                ["size"] = blobProp.GetProperty("size").GetInt32()
+                            };
+                            
+                            mergedRecord["avatar"] = avatarBlob;
+                            _logger.LogInformation("[UpdateListByIdOrUriAsync] Avatar blob uploaded successfully");
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[UpdateListByIdOrUriAsync] Failed to upload avatar blob: {Content}", uploadResult.Content);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[UpdateListByIdOrUriAsync] Error uploading avatar blob");
+                    // Continue without avatar update rather than failing the entire update
+                }
+            }
+            else
+            {
+                // Empty string means remove avatar
+                mergedRecord.Remove("avatar");
+            }
+        }
+        else
+        {
+            // dto.Avatar is null - preserve existing avatar
+            if (listElement.TryGetProperty("avatar", out var existingAvatarProp))
+            {
+                // Preserve existing avatar blob
+                mergedRecord["avatar"] = JsonSerializer.Deserialize<Dictionary<string, object>>(existingAvatarProp.GetRawText()) ?? new Dictionary<string, object>();
+            }
+        }
 
         // Step 3: Call putRecord with merged record
         var putRequestBody = new Dictionary<string, object?>
