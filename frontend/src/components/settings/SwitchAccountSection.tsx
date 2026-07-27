@@ -102,10 +102,13 @@ const SwitchAccountSection: React.FC = () => {
                                 disabled={isLoading}
                             >
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                    {/* Pure Orange @ Icon for avatar in list like Pic 4 */}
-                                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <span className="text-[14px] text-white font-bold">@</span>
-                                    </div>
+                                    {/* Use actual avatar from saved account */}
+                                    <Avatar
+                                        src={account.avatar}
+                                        alt={account.displayName || account.handle}
+                                        size="sm"
+                                        className="flex-shrink-0"
+                                    />
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[15px] font-normal text-gray-900 dark:text-dark-text truncate">
                                             @{account.handle}
