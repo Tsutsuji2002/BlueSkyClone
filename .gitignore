@@ -28,3 +28,4 @@ logs/
 
 # AI Analysis
 brain/
+.agents/
