@@ -83,10 +83,28 @@ const SwitchAccountSection: React.FC = () => {
                     {isLoading && (
                         <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     )}
-                    {/* Orange Indicator Icon from Pic 3 */}
-                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-[10px] text-white font-bold">@</span>
-                    </div>
+                    {/* Show avatar of first saved account (not current user) or default icon */}
+                    {(() => {
+                        const otherAccounts = savedAccounts.filter(acc => acc.did !== user?.did);
+                        const firstOtherAccount = otherAccounts[0];
+                        
+                        if (firstOtherAccount?.avatar) {
+                            return (
+                                <Avatar
+                                    src={firstOtherAccount.avatar}
+                                    alt={firstOtherAccount.displayName || firstOtherAccount.handle}
+                                    size="xs"
+                                    className="w-6 h-6"
+                                />
+                            );
+                        }
+                        
+                        return (
+                            <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                                <span className="text-[10px] text-white font-bold">@</span>
+                            </div>
+                        );
+                    })()}
                     {isExpanded ? <FiChevronUp size={20} className="text-gray-900 dark:text-dark-text" /> : <FiChevronDown size={20} className="text-gray-900 dark:text-dark-text" />}
                 </div>
             </button>
