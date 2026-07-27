@@ -29,12 +29,23 @@ const ScrollToTopButton: React.FC<ScrollToTopButtonProps> = ({ threshold = 300 }
     }, [threshold]);
 
     const scrollToTop = useCallback(() => {
-        // Clear the saved scroll position so restoration doesn't fight us
-        const storageKey = SCROLL_STORAGE_PREFIX + location.pathname;
-        sessionStorage.removeItem(storageKey);
+        // Clear ALL saved scroll positions for this path (including subkeys)
+        const pathPrefix = SCROLL_STORAGE_PREFIX + location.pathname;
         
-        // Scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Find and remove all matching keys
+        Object.keys(sessionStorage).forEach(key => {
+            if (key.startsWith(pathPrefix)) {
+                sessionStorage.removeItem(key);
+            }
+        });
+        
+        // Scroll to top with instant behavior to avoid fighting with restoration
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        
+        // Then do a smooth scroll for visual feedback
+        setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 0);
     }, [location.pathname]);
 
     return (
