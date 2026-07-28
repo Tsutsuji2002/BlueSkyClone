@@ -191,6 +191,8 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
             bookmarksCount: post.bookmarksCount,
             repliesCount: post.repliesCount,
             quotesCount: post.quotesCount,
+            replyRestriction: post.replyRestriction,
+            allowQuotes: post.allowQuotes,
             viewer: post.viewer,
         };
     } else {
@@ -204,6 +206,10 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
         if (post.isLiked !== undefined) existing.isLiked = post.isLiked;
         if (post.isReposted !== undefined) existing.isReposted = post.isReposted;
         if (post.isBookmarked !== undefined) existing.isBookmarked = post.isBookmarked;
+        
+        // Update interaction settings
+        if (post.replyRestriction !== undefined) existing.replyRestriction = post.replyRestriction;
+        if (post.allowQuotes !== undefined) existing.allowQuotes = post.allowQuotes;
 
         if (post.viewer) {
             existing.viewer = {

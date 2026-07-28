@@ -398,6 +398,10 @@ const PostDetailPage: React.FC = () => {
     const handleDelete = async () => {
         try {
             await deletePostMutation(post.uri!).unwrap();
+            
+            // Dispatch custom event for ProfileTabContent to listen to
+            window.dispatchEvent(new CustomEvent('postDeleted', { detail: { uri: post.uri } }));
+            
             dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
             navigate(-1);
         } catch (error: any) {

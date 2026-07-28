@@ -37,6 +37,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const dispatch = useAppDispatch();
     const fetchVersionRef = useRef(0);
     const sentinelRef = useRef<HTMLDivElement>(null);
+    const deletedPostsRef = useRef<Set<string>>(new Set());
 
     // Feeds and Lists from Redux
     const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
@@ -144,6 +145,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
     // Sync local items with interactionTruth from Redux
     const interactionTruth = useAppSelector((state: RootState) => state.posts.interactionTruth);
+    
     useEffect(() => {
         if (items.length === 0 || Object.keys(interactionTruth).length === 0) return;
 
@@ -159,7 +161,9 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                     item.isReposted !== truth.isReposted || 
                     item.isBookmarked !== truth.isBookmarked ||
                     item.likesCount !== truth.likesCount ||
-                    item.repostsCount !== truth.repostsCount) {
+                    item.repostsCount !== truth.repostsCount ||
+                    item.replyRestriction !== truth.replyRestriction ||
+                    item.allowQuotes !== truth.allowQuotes) {
                     changed = true;
                     return {
                         ...item,
@@ -168,6 +172,8 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                         isBookmarked: truth.isBookmarked,
                         likesCount: truth.likesCount,
                         repostsCount: truth.repostsCount,
+                        replyRestriction: truth.replyRestriction,
+                        allowQuotes: truth.allowQuotes,
                         viewer: truth.viewer || item.viewer
                     };
                 }
@@ -178,6 +184,26 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         if (changed) {
             setItems(newItems);
         }
+    }, [interactionTruth, items]);
+    
+    // Listen for post deletions via custom event
+    useEffect(() => {
+        const handlePostDeleted = (e: CustomEvent) => {
+            const deletedUri = e.detail.uri;
+            deletedPostsRef.current.add(deletedUri);
+            
+            // Remove from local items
+            setItems(prev => prev.filter(item => {
+                if (!item.uri) return true;
+                const uri = item.uri.toLowerCase();
+                const deletedLower = deletedUri.toLowerCase();
+                return uri !== deletedLower && !uri.endsWith('/' + deletedLower.split('/').pop());
+            }));
+        };
+        
+        window.addEventListener('postDeleted' as any, handlePostDeleted);
+        return () => window.removeEventListener('postDeleted' as any, handlePostDeleted);
+    }, []);
     }, [interactionTruth, items]);
 
     // Feeds Tab Selectors
