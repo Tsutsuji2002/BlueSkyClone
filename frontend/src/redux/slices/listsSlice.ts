@@ -492,19 +492,30 @@ const listsSlice = createSlice({
         builder.addCase(fetchMyLists.pending, (state) => {
             // Only show loading spinner if we have no lists to display
             // This prevents showing spinner when we have cached lists from localStorage
+            console.log('[fetchMyLists.pending] Current myLists.length:', state.myLists.length, 'isLoading:', state.isLoading);
             if (state.myLists.length === 0) {
                 state.isLoading = true;
+                console.log('[fetchMyLists.pending] Setting isLoading = true');
             }
             state.error = null;
         });
         builder.addCase(fetchMyLists.fulfilled, (state, action) => {
-            // Always set loading to false when fetch completes
+            console.log('[fetchMyLists.fulfilled] Payload length:', action.payload.length, 'Current isLoading:', state.isLoading);
+            console.log('[fetchMyLists.fulfilled] Recently deleted cache:', Array.from(state.recentlyDeleted.entries()));
+            
+            // CRITICAL: Always set loading to false when fetch completes, regardless of result
             state.isLoading = false;
+            state.error = null; // Clear any previous errors
+            
             // Clean up expired entries
             state.recentlyDeleted = cleanupRecentlyDeleted(state.recentlyDeleted);
+            
             // Filter out recently deleted lists from the fetched results
             const filteredLists = action.payload.filter(list => !isListRecentlyDeleted(list, state.recentlyDeleted));
+            console.log('[fetchMyLists.fulfilled] After filtering:', filteredLists.length, 'lists. Setting isLoading = false');
             state.myLists = filteredLists;
+            
+            // Update localStorage with filtered results
             const did = state.lastFetchDid;
             if (did) {
                 localStorage.setItem(getAccountKey('lists_my', did), JSON.stringify(filteredLists));
