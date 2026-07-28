@@ -98,27 +98,23 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
 
         try {
             if (postUri) {
-                // Editing an existing post: only persist to backend if saveForNextTime is checked
-                // Otherwise, just close without saving
-                if (saveForNextTime) {
-                    const response = await fetch(`${API_BASE_URL}/posts/interactions/settings`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uri: postUri, replyRestriction: finalRestriction, allowQuotes: localQuotes }),
-                        credentials: 'include'
-                    });
-                    if (!response.ok) throw new Error('Failed to update');
+                // Editing an existing post: always update the post
+                const response = await fetch(`${API_BASE_URL}/posts/interactions/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uri: postUri, replyRestriction: finalRestriction, allowQuotes: localQuotes }),
+                    credentials: 'include'
+                });
+                if (!response.ok) throw new Error('Failed to update');
 
-                    // Also save as default for future posts
+                dispatch(showToast({ message: t('post.interaction_settings_updated', 'Settings updated'), type: 'success' }));
+
+                // Optionally also save as default for future posts
+                if (saveForNextTime) {
                     await updateSettings({
                         defaultReplyRestriction: finalRestriction,
                         defaultAllowQuotes: localQuotes
                     }).unwrap();
-
-                    dispatch(showToast({ message: t('post.interaction_settings_updated', 'Settings updated'), type: 'success' }));
-                } else {
-                    // For existing posts, if not saving, just inform user nothing changed
-                    dispatch(showToast({ message: t('post.settings_not_saved', 'Settings not saved'), type: 'info' }));
                 }
             } else {
                 // For new posts (no postUri): settings are draft-local only, applied when creating the post.
@@ -132,7 +128,6 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                         defaultReplyRestriction: finalRestriction,
                         defaultAllowQuotes: localQuotes
                     }).unwrap();
-                    dispatch(showToast({ message: t('post.settings_saved_as_default', 'Settings saved as default'), type: 'success' }));
                 }
             }
 

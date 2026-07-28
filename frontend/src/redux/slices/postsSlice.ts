@@ -1131,6 +1131,21 @@ const postsSlice = createSlice({
             
             console.log('[postsSlice] Updated', updateCount, 'author references in posts');
         },
+        // Optimistic deletion triggered by RTK Query mutation
+        deleteOptimistic: (state, action: PayloadAction<string>) => {
+            const deletedUri = action.payload;
+            const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
+            const isDeletedPost = (p: Post) =>
+                p.uri === deletedUri ||
+                (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
+                (p.uri && p.uri.endsWith('/' + deletedId));
+            // Optimistically remove from all arrays
+            state.posts = state.posts.filter((p: Post) => !isDeletedPost(p));
+            state.discoverPosts = state.discoverPosts.filter((p: Post) => !isDeletedPost(p));
+            state.trendingPosts = state.trendingPosts.filter((p: Post) => !isDeletedPost(p));
+            state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !isDeletedPost(p));
+            state.threadPosts = state.threadPosts.filter((p: Post) => !isDeletedPost(p));
+        },
     },
 
     extraReducers: (builder) => {

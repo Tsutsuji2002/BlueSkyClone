@@ -277,6 +277,17 @@ export const postApi = apiSlice.injectEndpoints({
                 };
             },
             invalidatesTags: (result, error, postUri) => [{ type: 'Post', id: postUri }, { type: 'Feed' }],
+            // Optimistic deletion
+            async onQueryStarted(postUri, { dispatch, queryFulfilled }) {
+                // Optimistically remove from posts slice
+                dispatch({ type: 'posts/deleteOptimistic', payload: postUri });
+                try {
+                    await queryFulfilled;
+                } catch {
+                    // If deletion fails, we'd need to restore, but we don't have the post data
+                    // The UI will refetch and show the post again
+                }
+            },
         }),
         createPost: builder.mutation<Post, FormData>({
             query: (formData) => ({
