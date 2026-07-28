@@ -1619,7 +1619,21 @@ const postsSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload as string;
             })
-            // Delete Post
+            // Delete Post - Optimistic deletion
+            .addCase(deletePost.pending, (state: PostsState, action) => {
+                const deletedUri = action.meta.arg; // the postUri being deleted
+                const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
+                const isDeletedPost = (p: Post) =>
+                    p.uri === deletedUri ||
+                    (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
+                    (p.uri && p.uri.endsWith('/' + deletedId));
+                // Optimistically remove from all arrays
+                state.posts = state.posts.filter((p: Post) => !isDeletedPost(p));
+                state.discoverPosts = state.discoverPosts.filter((p: Post) => !isDeletedPost(p));
+                state.trendingPosts = state.trendingPosts.filter((p: Post) => !isDeletedPost(p));
+                state.bookmarkedPosts = state.bookmarkedPosts.filter((p: Post) => !isDeletedPost(p));
+                state.threadPosts = state.threadPosts.filter((p: Post) => !isDeletedPost(p));
+            })
             .addCase(deletePost.fulfilled, (state: PostsState, action: PayloadAction<string>) => {
                 const deletedUri = action.payload; // original postUri passed in
                 // Extract TID/ID from the URI for broader matching
