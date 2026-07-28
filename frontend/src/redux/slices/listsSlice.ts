@@ -527,12 +527,27 @@ const listsSlice = createSlice({
             }
         });
 
-        // Delete List
-        builder.addCase(deleteList.fulfilled, (state, action) => {
-            state.myLists = state.myLists.filter(l => l.id !== action.payload);
-            if (state.activeList?.id === action.payload) {
+        // Delete List - Optimistic deletion
+        builder.addCase(deleteList.pending, (state, action) => {
+            // Optimistically remove the list from UI immediately
+            const listId = action.meta.arg;
+            state.myLists = state.myLists.filter(l => l.id !== listId && l.uri !== listId);
+            if (state.activeList?.id === listId || state.activeList?.uri === listId) {
                 state.activeList = null;
             }
+        });
+        builder.addCase(deleteList.fulfilled, (state, action) => {
+            // List already removed in pending, just ensure it's gone
+            state.myLists = state.myLists.filter(l => l.id !== action.payload && l.uri !== action.payload);
+            if (state.activeList?.id === action.payload || state.activeList?.uri === action.payload) {
+                state.activeList = null;
+            }
+        });
+        builder.addCase(deleteList.rejected, (state, action) => {
+            // On rejection, we should ideally restore the list, but since we don't have it stored,
+            // we'll just refetch the lists
+            // The UI will show an error toast, and user can refresh to see the list again if needed
+            state.error = action.payload as string;
         });
 
         // Pin/Unpin

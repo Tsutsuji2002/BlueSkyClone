@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchListById, pinList, unpinList, deleteList, updateList, fetchListFeed, fetchListMembers, removeListMember, fetchListsIAmOn, removeListPost } from '../redux/slices/listsSlice';
+import { showToast } from '../redux/slices/toastSlice';
 import { FiArrowLeft, FiMoreHorizontal, FiCopy, FiEdit2, FiTrash2, FiUserPlus, FiLogOut, FiPlus } from 'react-icons/fi';
 import CreateListModal from '../components/lists/CreateListModal';
 import AddMemberModal from '../components/lists/AddMemberModal';
@@ -143,8 +144,13 @@ const ListDetailPage: React.FC = () => {
             title: t('lists.delete_list'),
             message: t('lists.confirm_delete'),
             onConfirm: async () => {
-                await dispatch(deleteList(activeList.id));
-                navigate('/lists');
+                try {
+                    await dispatch(deleteList(activeList.id)).unwrap();
+                    dispatch(showToast({ message: t('lists.deleted_successfully', 'List deleted successfully'), type: 'success' }));
+                    navigate('/lists');
+                } catch (error) {
+                    dispatch(showToast({ message: t('lists.delete_failed', 'Failed to delete list'), type: 'error' }));
+                }
             },
             variant: 'danger'
         });
