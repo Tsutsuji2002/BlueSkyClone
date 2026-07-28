@@ -204,7 +204,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         window.addEventListener('postDeleted' as any, handlePostDeleted);
         return () => window.removeEventListener('postDeleted' as any, handlePostDeleted);
     }, []);
-    }, [interactionTruth, items]);
 
     // Feeds Tab Selectors
     const subscribedFeeds = useAppSelector((state: RootState) => state.feeds.subscribedFeeds);
