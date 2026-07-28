@@ -22,7 +22,7 @@ interface ListsState {
     hasMoreFeed: boolean;
     error: string | null;
     lastFetchDid: string;
-    recentlyDeleted: Map<string, number>; // listId/uri -> timestamp
+    recentlyDeleted: Record<string, number>; // listId/uri -> timestamp (using plain object for Redux serialization)
 }
 
 const getAccountKey = (key: string, did?: string) => did ? `${key}_${did.replace(/:/g, '_')}` : key;
@@ -43,7 +43,7 @@ const initialState: ListsState = {
     hasMoreFeed: true,
     error: null,
     lastFetchDid: localStorage.getItem('lists_last_did') || '',
-    recentlyDeleted: new Map(),
+    recentlyDeleted: {}, // Plain object for Redux serialization
 };
 
 const getHydratedState = (initial: ListsState): ListsState => {
@@ -56,30 +56,17 @@ const getHydratedState = (initial: ListsState): ListsState => {
             myLists: JSON.parse(localStorage.getItem(getAccountKey('lists_my', did)) || '[]'),
             pinnedLists: JSON.parse(localStorage.getItem(getAccountKey('lists_pinned', did)) || '[]'),
             lastFetchDid: did,
-            recentlyDeleted: new Map(), // Don't persist deleted cache across sessions
+            recentlyDeleted: {}, // Don't persist deleted cache across sessions
         };
     } catch (e) {
         return initial;
     }
 };
 
-// Helper to clean up expired deleted list entries (older than 60 seconds)
-const cleanupRecentlyDeleted = (recentlyDeleted: Map<string, number>): Map<string, number> => {
-    const now = Date.now();
-    const EXPIRY_MS = 60000; // 60 seconds
-    const cleaned = new Map<string, number>();
-    recentlyDeleted.forEach((timestamp, key) => {
-        if (now - timestamp <= EXPIRY_MS) {
-            cleaned.set(key, timestamp);
-        }
-    });
-    return cleaned;
-};
-
 // Helper to check if a list is recently deleted
-const isListRecentlyDeleted = (list: ListDto, recentlyDeleted: Map<string, number>): boolean => {
-    if (recentlyDeleted.has(list.id)) return true;
-    if (list.uri && recentlyDeleted.has(list.uri)) return true;
+const isListRecentlyDeleted = (list: ListDto, recentlyDeleted: Record<string, number>): boolean => {
+    if (recentlyDeleted[list.id]) return true;
+    if (list.uri && recentlyDeleted[list.uri]) return true;
     return false;
 };
 
@@ -478,7 +465,7 @@ const listsSlice = createSlice({
             state.pinnedLists = [];
             state.activeListFeed = [];
             state.lastFetchDid = '';
-            state.recentlyDeleted = new Map();
+            state.recentlyDeleted = {};
             localStorage.removeItem('lists_last_did');
         },
         setPinnedLists: (state, action) => {
@@ -501,14 +488,21 @@ const listsSlice = createSlice({
         });
         builder.addCase(fetchMyLists.fulfilled, (state, action) => {
             console.log('[fetchMyLists.fulfilled] Payload length:', action.payload.length, 'Current isLoading:', state.isLoading);
-            console.log('[fetchMyLists.fulfilled] Recently deleted cache:', Array.from(state.recentlyDeleted.entries()));
+            console.log('[fetchMyLists.fulfilled] Recently deleted cache:', Object.keys(state.recentlyDeleted));
             
             // CRITICAL: Always set loading to false when fetch completes, regardless of result
             state.isLoading = false;
             state.error = null; // Clear any previous errors
             
-            // Clean up expired entries
-            state.recentlyDeleted = cleanupRecentlyDeleted(state.recentlyDeleted);
+            // Clean up expired entries - must modify in place for Immer compatibility
+            const now = Date.now();
+            const EXPIRY_MS = 60000; // 60 seconds
+            Object.keys(state.recentlyDeleted).forEach(key => {
+                const timestamp = state.recentlyDeleted[key];
+                if (now - timestamp > EXPIRY_MS) {
+                    delete state.recentlyDeleted[key];
+                }
+            });
             
             // Filter out recently deleted lists from the fetched results
             const filteredLists = action.payload.filter(list => !isListRecentlyDeleted(list, state.recentlyDeleted));
@@ -573,9 +567,8 @@ const listsSlice = createSlice({
         builder.addCase(deleteList.pending, (state, action) => {
             // Optimistically remove the list from UI immediately
             const listId = action.meta.arg;
-            // Add to recently deleted cache with current timestamp
-            state.recentlyDeleted = new Map(state.recentlyDeleted);
-            state.recentlyDeleted.set(listId, Date.now());
+            // Add to recently deleted cache with current timestamp (using plain object)
+            state.recentlyDeleted = { ...state.recentlyDeleted, [listId]: Date.now() };
             // Remove from all list arrays
             state.myLists = state.myLists.filter(l => l.id !== listId && l.uri !== listId);
             if (state.activeList?.id === listId || state.activeList?.uri === listId) {
