@@ -500,10 +500,11 @@ const listsSlice = createSlice({
             // Clean up expired entries
             state.recentlyDeleted = cleanupRecentlyDeleted(state.recentlyDeleted);
             // Filter out recently deleted lists from the fetched results
-            state.myLists = action.payload.filter(list => !isListRecentlyDeleted(list, state.recentlyDeleted));
+            const filteredLists = action.payload.filter(list => !isListRecentlyDeleted(list, state.recentlyDeleted));
+            state.myLists = filteredLists;
             const did = state.lastFetchDid;
             if (did) {
-                localStorage.setItem(getAccountKey('lists_my', did), JSON.stringify(state.myLists));
+                localStorage.setItem(getAccountKey('lists_my', did), JSON.stringify(filteredLists));
             }
         });
         builder.addCase(fetchMyLists.rejected, (state, action) => {
@@ -565,6 +566,11 @@ const listsSlice = createSlice({
             state.myLists = state.myLists.filter(l => l.id !== listId && l.uri !== listId);
             if (state.activeList?.id === listId || state.activeList?.uri === listId) {
                 state.activeList = null;
+            }
+            // Also update localStorage immediately to prevent stale data
+            const did = state.lastFetchDid;
+            if (did) {
+                localStorage.setItem(getAccountKey('lists_my', did), JSON.stringify(state.myLists));
             }
         });
         builder.addCase(deleteList.fulfilled, (state, action) => {
