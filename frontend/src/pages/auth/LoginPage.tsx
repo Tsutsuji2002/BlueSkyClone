@@ -102,7 +102,9 @@ const LoginPage: React.FC = () => {
         try {
             const data = await loginMutation(formData).unwrap();
             dispatch(setAuth(data));
-            navigate('/');
+            dispatch(showToast({ message: t('auth.login.success', 'Successfully signed in'), type: 'success' }));
+            // Small delay to allow toast to be visible before navigation
+            setTimeout(() => navigate('/'), 500);
         } catch (err: any) {
             // HTTP 429 = rate limited by the server
             const status = err?.status || err?.data?.status;
@@ -130,7 +132,8 @@ const LoginPage: React.FC = () => {
                 const data = await switchMutation({ refreshToken: storedAccount.refreshToken }).unwrap();
                 dispatch(setAuth(data));
                 dispatch(showToast({ message: `Signed in as @${account.handle}`, type: 'success' }));
-                navigate('/');
+                // Small delay to allow toast to be visible before navigation
+                setTimeout(() => navigate('/'), 500);
                 return;
             } catch (err: any) {
                 console.warn('Instant switch failed, falling back to login form', err);
