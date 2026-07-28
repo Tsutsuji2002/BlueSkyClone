@@ -2018,7 +2018,9 @@ const postsSlice = createSlice({
                         recursivelyUpdatePost(p, postUri, (post) => {
                             post.replyRestriction = replyRestriction;
                             post.allowQuotes = allowQuotes;
-                        });
+                            // Update interaction truth for optimistic update
+                            updateInteractionTruth(state, post);
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
@@ -2034,7 +2036,9 @@ const postsSlice = createSlice({
                         recursivelyUpdatePost(p, postUri, (post) => {
                             post.replyRestriction = replyRestriction;
                             post.allowQuotes = allowQuotes;
-                        });
+                            // Update interaction truth for each updated post
+                            updateInteractionTruth(state, post);
+                        }, state);
                     });
                 };
                 updateInArray(state.posts);
