@@ -146,7 +146,7 @@ const PostDetailPage: React.FC = () => {
     
     const [toggleLikeMutation] = useToggleLikeMutation();
     const [repostMutation] = useRepostMutation();
-    const [deletePostMutation] = useDeletePostMutation();
+    const [deletePostMutation, { isLoading: isDeleting }] = useDeletePostMutation();
     const [updateSettingsMutation] = useUpdateSettingsMutation();
 
     const interactionTruth = useAppSelector((state: RootState) => {
@@ -674,7 +674,19 @@ const PostDetailPage: React.FC = () => {
                 }
 
                 return (
-                    <div ref={mainPostRef} className="px-4 py-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg">
+                    <div ref={mainPostRef} className={cn(
+                        "px-4 py-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg transition-all duration-300",
+                        isDeleting && "opacity-50 pointer-events-none"
+                    )}>
+                        {/* Deleting overlay */}
+                        {isDeleting && (
+                            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-dark-bg/60 backdrop-blur-sm">
+                                <div className="flex flex-col items-center gap-2">
+                                    <LoadingIndicator />
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">{t('post.deleting', 'Deleting post...')}</span>
+                                </div>
+                            </div>
+                        )}
                         {/* Post Content & Moderation UI logic */}
                         {(() => {
 

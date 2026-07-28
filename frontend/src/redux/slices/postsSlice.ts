@@ -471,7 +471,20 @@ export const updatePost = createAsyncThunk(
 
 export const createPost = createAsyncThunk(
     'posts/createPost',
-    async (postData: { content: string; replyTo?: any; mediaFiles?: File[]; videoFile?: File; linkPreview?: any; gifUrl?: string; replyToPostId?: string; rootPostId?: string; quotePostId?: string; labels?: string[] }, { rejectWithValue, getState }) => {
+    async (postData: { 
+        content: string; 
+        replyTo?: any; 
+        mediaFiles?: File[]; 
+        videoFile?: File; 
+        linkPreview?: any; 
+        gifUrl?: string; 
+        replyToPostId?: string; 
+        rootPostId?: string; 
+        quotePostId?: string; 
+        labels?: string[];
+        replyRestriction?: string;
+        allowQuotes?: boolean;
+    }, { rejectWithValue, getState }) => {
         try {
             const state = getState() as any;
             const user = state.auth.user;
@@ -500,6 +513,12 @@ export const createPost = createAsyncThunk(
             }
             if (postData.quotePostId) {
                 formData.append('QuotePostId', postData.quotePostId);
+            }
+            if (postData.replyRestriction) {
+                formData.append('ReplyRestriction', postData.replyRestriction);
+            }
+            if (postData.allowQuotes !== undefined) {
+                formData.append('AllowQuotes', String(postData.allowQuotes));
             }
 
             const response = await fetch(`${API_BASE_URL}/posts`, {

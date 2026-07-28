@@ -363,6 +363,8 @@ const CreatePostModal: React.FC = () => {
                     gifUrl: selectedGifUrl || undefined,
                     labels: labels.length > 0 ? labels : undefined,
                     quotePostId: isQuoting ? (postToQuote?.uri || postToQuote?.id) : undefined,
+                    replyRestriction, // Add interaction settings
+                    allowQuotes,      // Add interaction settings
                 })).unwrap();
                 dispatch(showToast({ message: t('post.created_success'), type: 'success' }));
             }

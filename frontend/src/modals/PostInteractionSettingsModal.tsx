@@ -6,7 +6,7 @@ import { cn } from '../utils/classNames';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useUpdateSettingsMutation } from '../redux/api/authApi';
-import { updateInteractionSettings } from '../redux/slices/postsSlice';
+import { updateInteractionSettings as updateInteractionSettingsThunk } from '../redux/slices/postsSlice';
 import { showToast } from '../redux/slices/toastSlice';
 import { API_BASE_URL } from '../constants';
 
@@ -98,14 +98,12 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
 
         try {
             if (postUri) {
-                // Editing an existing post: always update the post
-                const response = await fetch(`${API_BASE_URL}/posts/interactions/settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ uri: postUri, replyRestriction: finalRestriction, allowQuotes: localQuotes }),
-                    credentials: 'include'
-                });
-                if (!response.ok) throw new Error('Failed to update');
+                // Editing an existing post: always update the post using the Redux thunk
+                await dispatch(updateInteractionSettingsThunk({
+                    postUri,
+                    replyRestriction: finalRestriction,
+                    allowQuotes: localQuotes
+                })).unwrap();
 
                 dispatch(showToast({ message: t('post.interaction_settings_updated', 'Settings updated'), type: 'success' }));
 
