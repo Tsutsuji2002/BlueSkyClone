@@ -490,12 +490,15 @@ const listsSlice = createSlice({
     extraReducers: (builder) => {
         // Fetch My Lists
         builder.addCase(fetchMyLists.pending, (state) => {
+            // Only show loading spinner if we have no lists to display
+            // This prevents showing spinner when we have cached lists from localStorage
             if (state.myLists.length === 0) {
                 state.isLoading = true;
             }
             state.error = null;
         });
         builder.addCase(fetchMyLists.fulfilled, (state, action) => {
+            // Always set loading to false when fetch completes
             state.isLoading = false;
             // Clean up expired entries
             state.recentlyDeleted = cleanupRecentlyDeleted(state.recentlyDeleted);
