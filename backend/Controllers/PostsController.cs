@@ -155,10 +155,16 @@ public class PostsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool includePins = false, [FromQuery] bool stream = false)
     {
         try
         {
+            // Add no-cache headers to prevent browser caching
+            Response.Headers.Add("Cache-Control", "no-cache, no-store, must-revalidate");
+            Response.Headers.Add("Pragma", "no-cache");
+            Response.Headers.Add("Expires", "0");
+            
             var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
 
