@@ -37,7 +37,31 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const dispatch = useAppDispatch();
     const fetchVersionRef = useRef(0);
     const sentinelRef = useRef<HTMLDivElement>(null);
-    const deletedPostsRef = useRef<Set<string>>(new Set());
+    
+    // Track recently deleted posts (persisted in localStorage)
+    const getDeletedPosts = () => {
+        try {
+            const stored = localStorage.getItem('recentlyDeletedPosts');
+            if (!stored) return {};
+            const parsed = JSON.parse(stored);
+            // Clean up entries older than 5 minutes
+            const now = Date.now();
+            const cleaned: Record<string, number> = {};
+            Object.entries(parsed).forEach(([uri, timestamp]) => {
+                if (now - (timestamp as number) < 300000) { // 5 minutes
+                    cleaned[uri] = timestamp as number;
+                }
+            });
+            if (Object.keys(cleaned).length !== Object.keys(parsed).length) {
+                localStorage.setItem('recentlyDeletedPosts', JSON.stringify(cleaned));
+            }
+            return cleaned;
+        } catch {
+            return {};
+        }
+    };
+    
+    const [deletedPosts, setDeletedPosts] = useState<Record<string, number>>(getDeletedPosts());
 
     // Feeds and Lists from Redux
     const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
@@ -190,9 +214,16 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     useEffect(() => {
         const handlePostDeleted = (e: CustomEvent) => {
             const deletedUri = e.detail.uri;
-            deletedPostsRef.current.add(deletedUri);
+            const now = Date.now();
             
-            // Remove from local items
+            // Update local state
+            setDeletedPosts(prev => {
+                const updated = { ...prev, [deletedUri]: now };
+                localStorage.setItem('recentlyDeletedPosts', JSON.stringify(updated));
+                return updated;
+            });
+            
+            // Remove from local items immediately
             setItems(prev => prev.filter(item => {
                 if (!item.uri) return true;
                 const uri = item.uri.toLowerCase();
