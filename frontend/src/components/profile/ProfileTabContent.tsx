@@ -47,16 +47,22 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             // Clean up entries older than 5 minutes
             const now = Date.now();
             const cleaned: Record<string, number> = {};
+            let hasChanges = false;
             Object.entries(parsed).forEach(([uri, timestamp]) => {
-                if (now - (timestamp as number) < 300000) { // 5 minutes
-                    cleaned[uri] = timestamp as number;
+                if (typeof timestamp === 'number' && now - timestamp < 300000) { // 5 minutes
+                    cleaned[uri] = timestamp;
+                } else {
+                    hasChanges = true;
                 }
             });
-            if (Object.keys(cleaned).length !== Object.keys(parsed).length) {
+            if (hasChanges) {
                 localStorage.setItem('recentlyDeletedPosts', JSON.stringify(cleaned));
             }
             return cleaned;
-        } catch {
+        } catch (error) {
+            console.error('[ProfileTabContent] Error reading deletedPosts from localStorage:', error);
+            // Clear corrupted data
+            localStorage.removeItem('recentlyDeletedPosts');
             return {};
         }
     };
@@ -96,11 +102,12 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 (post) => {
                     if (currentVersion !== fetchVersionRef.current) return;
                     
-                    // Filter out recently deleted posts
-                    if (post.uri) {
+                    // Filter out recently deleted posts (only if we have a valid URI and it's in the cache)
+                    if (post.uri && post.uri.startsWith('at://')) {
                         const currentDeletedPosts = getDeletedPosts();
                         const postUri = post.uri.toLowerCase();
-                        if (currentDeletedPosts[postUri]) {
+                        // Only filter if this specific URI is in our deleted cache
+                        if (currentDeletedPosts[postUri] !== undefined) {
                             console.log('[ProfileTabContent] Filtering out deleted post:', postUri);
                             return; // Skip this post
                         }
