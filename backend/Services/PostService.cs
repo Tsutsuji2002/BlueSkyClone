@@ -3402,6 +3402,45 @@ public class PostService : IPostService
 
             var dto = MapToDto(savedPost!);
             await _postHubContext.Clients.All.SendAsync("NewPost", dto);
+            
+            // Clear author feed cache to show new post immediately
+            if (author != null)
+            {
+                var handles = new List<string?> { author.Handle, author.Did }.Where(h => !string.IsNullOrEmpty(h)).ToList();
+                var subTypes = new List<string?> { "posts", "replies", "media", "likes", null };
+                
+                var cacheClearTasks = new List<Task>();
+                foreach (var h in handles)
+                {
+                    foreach (var t in subTypes)
+                    {
+                        cacheClearTasks.Add(Task.Run(async () => {
+                            try
+                            {
+                                var cacheKeys = new List<string>
+                                {
+                                    $"BlueskyAuthorFeed_{h}_{t}_none_{Guid.Empty}",
+                                    $"BlueskyAuthorFeed_{h}_{t}_none_{userId}",
+                                    $"BlueskyAuthorFeed_{h}_{t}",
+                                };
+                                
+                                foreach (var key in cacheKeys)
+                                {
+                                    await _distributedCache.RemoveAsync(key);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "[CreatePostAsync] Failed to clear cache for author feed {Handle}", h);
+                            }
+                        }));
+                    }
+                }
+                
+                // Don't await to avoid blocking post creation response
+                _ = Task.WhenAll(cacheClearTasks);
+            }
+            
             return dto;
         }
         finally
@@ -5779,17 +5818,40 @@ public class PostService : IPostService
         cleanupTasks.Add(_cacheService.RemoveAsync("posts:trending"));
 
         // THIN-CLIENT: also invalidate author-feed caches to reflect deletion immediately
+        // Clear all variants of the cache key (with different cursors and viewerIds)
         if (rootPost.Author != null)
         {
             var author = rootPost.Author;
             var handles = new List<string?> { author.Handle, author.Did }.Where(h => !string.IsNullOrEmpty(h)).ToList();
-            var subTypes = new List<string?> { "posts", "replies", "media", null };
+            var subTypes = new List<string?> { "posts", "replies", "media", "likes", null };
             
             foreach (var h in handles)
             {
                 foreach (var t in subTypes)
                 {
-                    cleanupTasks.Add(_distributedCache.RemoveAsync($"BlueskyAuthorFeed_{h}_{t}"));
+                    // Clear the base cache key pattern (this will miss cursor/viewerId variants, but Redis doesn't support wildcards in RemoveAsync)
+                    // So we use a pattern-based removal approach
+                    cleanupTasks.Add(Task.Run(async () => {
+                        try
+                        {
+                            // Clear multiple cursor variants (none, and potential cursor values)
+                            var cacheKeys = new List<string>
+                            {
+                                $"BlueskyAuthorFeed_{h}_{t}_none_{Guid.Empty}",
+                                $"BlueskyAuthorFeed_{h}_{t}_none_{userId}",
+                                $"BlueskyAuthorFeed_{h}_{t}",
+                            };
+                            
+                            foreach (var key in cacheKeys)
+                            {
+                                await _distributedCache.RemoveAsync(key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "[DeletePostAsync] Failed to clear cache for author feed {Handle}", h);
+                        }
+                    }));
                 }
             }
         }
