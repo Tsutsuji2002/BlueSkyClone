@@ -370,7 +370,12 @@ export const fetchUserPostsStreaming = (
         if (includePins) params.set('includePins', 'true');
 
         const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params.toString()}`, {
-            credentials: 'include'
+            credentials: 'include',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         });
 
         if (!response.ok) {
