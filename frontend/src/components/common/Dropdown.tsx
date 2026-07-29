@@ -152,46 +152,49 @@ const Dropdown: React.FC<DropdownProps> = ({
                     >
                         {items.map((item, idx) => (
                             <React.Fragment key={item.id || `divider-${idx}`}>
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        item.onClick?.();
-                                        // Delay closing to ensure the action (like file picker) is triggered
-                                        if (!item.content || item.onClick) {
-                                            setTimeout(() => setIsOpen(false), 10);
-                                        }
-                                    }}
-                                    className={cn(
-                                        'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px]',
-                                        'hover:bg-gray-50 dark:hover:bg-dark-hover',
-                                        item.danger
-                                            ? 'text-red-500'
-                                            : 'text-gray-900 dark:text-dark-text',
-                                        item.content ? 'p-0 h-auto' : ''
-                                    )}
-                                >
-                                    {item.content ? (
-                                        item.content
-                                    ) : (
-                                        <>
-                                            <span>{item.label}</span>
-                                            {item.type === 'radio' ? (
-                                                <div className={cn(
-                                                    "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-                                                    item.selected 
-                                                        ? "border-primary-500 bg-primary-500" 
-                                                        : "border-gray-300 dark:border-dark-border"
-                                                )}>
-                                                    {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
-                                                </div>
-                                            ) : (
-                                                item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
-                                            )}
-                                        </>
-                                    )}
-                                </button>
+                                {/* Only render button if item has a label or content */}
+                                {(item.label || item.content) && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            item.onClick?.();
+                                            // Delay closing to ensure the action (like file picker) is triggered
+                                            if (!item.content || item.onClick) {
+                                                setTimeout(() => setIsOpen(false), 10);
+                                            }
+                                        }}
+                                        className={cn(
+                                            'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px]',
+                                            'hover:bg-gray-50 dark:hover:bg-dark-hover',
+                                            item.danger
+                                                ? 'text-red-500'
+                                                : 'text-gray-900 dark:text-dark-text',
+                                            item.content ? 'p-0 h-auto' : ''
+                                        )}
+                                    >
+                                        {item.content ? (
+                                            item.content
+                                        ) : (
+                                            <>
+                                                <span>{item.label}</span>
+                                                {item.type === 'radio' ? (
+                                                    <div className={cn(
+                                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                                        item.selected 
+                                                            ? "border-primary-500 bg-primary-500" 
+                                                            : "border-gray-300 dark:border-dark-border"
+                                                    )}>
+                                                        {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                                    </div>
+                                                ) : (
+                                                    item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
+                                                )}
+                                            </>
+                                        )}
+                                    </button>
+                                )}
                                 {(item.hasDivider || item.h) && (
                                     <div className="h-[1px] bg-gray-100 dark:bg-dark-border mx-0" />
                                 )}
