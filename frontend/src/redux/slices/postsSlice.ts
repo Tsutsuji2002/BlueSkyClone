@@ -368,16 +368,9 @@ export const fetchUserPostsStreaming = (
         if (type) params.set('type', type);
         if (cursor) params.set('cursor', cursor);
         if (includePins) params.set('includePins', 'true');
-        // Add timestamp to bust browser cache
-        params.set('_t', Date.now().toString());
 
         const response = await fetch(`${API_BASE_URL}/posts/user/${userId}?${params.toString()}`, {
-            credentials: 'include',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
-            }
+            credentials: 'include'
         });
 
         if (!response.ok) {

@@ -37,37 +37,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const dispatch = useAppDispatch();
     const fetchVersionRef = useRef(0);
     const sentinelRef = useRef<HTMLDivElement>(null);
-    
-    // Track recently deleted posts (persisted in localStorage)
-    const getDeletedPosts = () => {
-        try {
-            const stored = localStorage.getItem('recentlyDeletedPosts');
-            if (!stored) return {};
-            const parsed = JSON.parse(stored);
-            // Clean up entries older than 5 minutes
-            const now = Date.now();
-            const cleaned: Record<string, number> = {};
-            let hasChanges = false;
-            Object.entries(parsed).forEach(([uri, timestamp]) => {
-                if (typeof timestamp === 'number' && now - timestamp < 300000) { // 5 minutes
-                    cleaned[uri] = timestamp;
-                } else {
-                    hasChanges = true;
-                }
-            });
-            if (hasChanges) {
-                localStorage.setItem('recentlyDeletedPosts', JSON.stringify(cleaned));
-            }
-            return cleaned;
-        } catch (error) {
-            console.error('[ProfileTabContent] Error reading deletedPosts from localStorage:', error);
-            // Clear corrupted data
-            localStorage.removeItem('recentlyDeletedPosts');
-            return {};
-        }
-    };
-    
-    const [deletedPosts, setDeletedPosts] = useState<Record<string, number>>(getDeletedPosts());
 
     // Feeds and Lists from Redux
     const userFeeds = useAppSelector((state: RootState) => state.feeds.userFeeds);
@@ -101,17 +70,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 { userId, type, limit: requestedTake, cursor: isInitial ? null : cursor },
                 (post) => {
                     if (currentVersion !== fetchVersionRef.current) return;
-                    
-                    // Filter out recently deleted posts (only if we have a valid URI and it's in the cache)
-                    if (post.uri && post.uri.startsWith('at://')) {
-                        const currentDeletedPosts = getDeletedPosts();
-                        const postUri = post.uri.toLowerCase();
-                        // Only filter if this specific URI is in our deleted cache
-                        if (currentDeletedPosts[postUri] !== undefined) {
-                            console.log('[ProfileTabContent] Filtering out deleted post:', postUri);
-                            return; // Skip this post
-                        }
-                    }
 
                     if (type === 'video') {
                         const isVideo = !!post.videoUrl || !!post.video || (post.media && post.media.some((m: any) => m.type === 'video'));
@@ -226,32 +184,6 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             setItems(newItems);
         }
     }, [interactionTruth, items]);
-    
-    // Listen for post deletions via custom event
-    useEffect(() => {
-        const handlePostDeleted = (e: CustomEvent) => {
-            const deletedUri = e.detail.uri;
-            const now = Date.now();
-            
-            // Update local state
-            setDeletedPosts(prev => {
-                const updated = { ...prev, [deletedUri]: now };
-                localStorage.setItem('recentlyDeletedPosts', JSON.stringify(updated));
-                return updated;
-            });
-            
-            // Remove from local items immediately
-            setItems(prev => prev.filter(item => {
-                if (!item.uri) return true;
-                const uri = item.uri.toLowerCase();
-                const deletedLower = deletedUri.toLowerCase();
-                return uri !== deletedLower && !uri.endsWith('/' + deletedLower.split('/').pop());
-            }));
-        };
-        
-        window.addEventListener('postDeleted' as any, handlePostDeleted);
-        return () => window.removeEventListener('postDeleted' as any, handlePostDeleted);
-    }, []);
 
     // Feeds Tab Selectors
     const subscribedFeeds = useAppSelector((state: RootState) => state.feeds.subscribedFeeds);
