@@ -185,6 +185,26 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
         }
     }, [interactionTruth, items]);
 
+    // Listen for postDeleted events and remove the deleted post from local state
+    useEffect(() => {
+        const handlePostDeleted = (event: CustomEvent) => {
+            const deletedUri = event.detail?.uri;
+            if (!deletedUri) return;
+
+            setItems(prev => prev.filter(item => {
+                // Match by URI or other identifiers
+                if (item.uri === deletedUri) return false;
+                if (item.id && deletedUri.includes(item.id)) return false;
+                return true;
+            }));
+        };
+
+        window.addEventListener('postDeleted', handlePostDeleted as EventListener);
+        return () => {
+            window.removeEventListener('postDeleted', handlePostDeleted as EventListener);
+        };
+    }, []);
+
     // Feeds Tab Selectors
     const subscribedFeeds = useAppSelector((state: RootState) => state.feeds.subscribedFeeds);
     const pinnedFeedIds = useAppSelector((state: RootState) => state.feeds.pinnedFeedIds);
