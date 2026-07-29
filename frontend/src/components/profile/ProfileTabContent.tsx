@@ -95,6 +95,16 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
                 { userId, type, limit: requestedTake, cursor: isInitial ? null : cursor },
                 (post) => {
                     if (currentVersion !== fetchVersionRef.current) return;
+                    
+                    // Filter out recently deleted posts
+                    if (post.uri) {
+                        const currentDeletedPosts = getDeletedPosts();
+                        const postUri = post.uri.toLowerCase();
+                        if (currentDeletedPosts[postUri]) {
+                            console.log('[ProfileTabContent] Filtering out deleted post:', postUri);
+                            return; // Skip this post
+                        }
+                    }
 
                     if (type === 'video') {
                         const isVideo = !!post.videoUrl || !!post.video || (post.media && post.media.some((m: any) => m.type === 'video'));
