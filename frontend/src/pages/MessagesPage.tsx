@@ -221,7 +221,8 @@ const MessagesPage: React.FC = () => {
     );
 
     const renderChatRequests = () => {
-        const requestConversations = conversations.filter(c => c.isAccepted === false);
+        // Backend already filters for requests when isRequest=true, no need to filter again
+        const requestConversations = conversations;
         
         return (
             <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-black">
