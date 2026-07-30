@@ -30,7 +30,35 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     const [isGroupMode, setIsGroupMode] = useState(false);
     const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
     const [isVerifyEmailOpen, setIsVerifyEmailOpen] = useState(false);
+    const [userFollowerStatus, setUserFollowerStatus] = useState<Map<string, boolean>>(new Map());
     const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Check if a user follows the current user
+    const checkIfUserFollowsMe = async (userDid: string): Promise<boolean> => {
+        try {
+            if (!currentUser?.did && !currentUser?.handle) return false;
+            
+            // Check if userDid follows currentUser
+            const response = await fetch(`/xrpc/app.bsky.graph.getFollows?actor=${encodeURIComponent(userDid)}&limit=100`, { 
+                credentials: 'include' 
+            });
+            
+            if (!response.ok) return false;
+            
+            const data = await response.json();
+            const follows = data?.follows ?? [];
+            
+            // Check if currentUser is in the follows list
+            const followsMe = follows.some((follow: any) => 
+                follow.did === currentUser?.did || follow.handle === currentUser?.handle
+            );
+            
+            return followsMe;
+        } catch (error) {
+            console.error('Error checking follower status:', error);
+            return false;
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -67,6 +95,18 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                     const response = await api.search.users(searchQuery);
                     const filteredData = (response.data || []).filter((user: any) => user.did !== currentUser?.did && user.did !== currentUser?.id);
                     setResults(filteredData);
+                    
+                    // Check follower status for all results (for 1-on-1 messaging validation)
+                    if (!isGroupMode) {
+                        const statusMap = new Map<string, boolean>();
+                        await Promise.all(
+                            filteredData.map(async (user: any) => {
+                                const followsMe = await checkIfUserFollowsMe(user.did || user.id);
+                                statusMap.set(user.did || user.id, followsMe);
+                            })
+                        );
+                        setUserFollowerStatus(statusMap);
+                    }
                 } catch (error) {
                     console.error('Failed to search users:', error);
                 } finally {
@@ -74,11 +114,12 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                 }
             } else {
                 setResults([]);
+                setUserFollowerStatus(new Map());
             }
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [searchQuery]);
+    }, [searchQuery, isGroupMode]);
 
     const handleStartChat = async (user: any) => {
         if (!currentUser?.emailConfirmed) {
@@ -95,6 +136,15 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
             } else {
                 setSelectedUsers(prev => [...prev, user]);
             }
+            return;
+        }
+
+        // For 1-on-1 conversations, check if user follows current user
+        const userKey = user.did || user.id;
+        const followsMe = userFollowerStatus.get(userKey);
+        
+        if (followsMe === false) {
+            setError(`@${user.handle} can't be messaged because they don't follow you.`);
             return;
         }
 
@@ -329,32 +379,46 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                                         <LoadingIndicator size="md" />
                                     </div>
                                 ) : results.length > 0 ? (
-                                    results.map((user) => (
-                                        <button
-                                            key={user.did || user.id}
-                                            onClick={() => handleStartChat(user)}
-                                            className={`w-full flex flex-row items-center gap-3 px-4 py-2 transition-colors text-left ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && isGroupMode ? 'bg-[#f1f3f5] dark:bg-white/5' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
-                                        >
-                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="md" />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate leading-5">
-                                                    {user.displayName || user.handle}
-                                                </p>
-                                                <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate leading-4">
-                                                    @{user.handle}
-                                                </p>
-                                            </div>
-                                            {isGroupMode && (
-                                                <div className={`w-[22px] h-[22px] rounded-[6px] shrink-0 flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF]' : 'border-[2px] border-[#DCE2EA] dark:border-[#2E3C4D]'}`}>
-                                                    {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
-                                                        <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
-                                                            <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
-                                                        </svg>
-                                                    )}
+                                    results.map((user) => {
+                                        const userKey = user.did || user.id;
+                                        const followsMe = userFollowerStatus.get(userKey);
+                                        const canMessage = isGroupMode || followsMe !== false;
+                                        
+                                        return (
+                                            <button
+                                                key={user.did || user.id}
+                                                onClick={() => canMessage && handleStartChat(user)}
+                                                disabled={!canMessage}
+                                                className={`w-full flex flex-row items-center gap-3 px-4 py-2 transition-colors text-left ${
+                                                    !canMessage 
+                                                        ? 'opacity-50 cursor-not-allowed' 
+                                                        : selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && isGroupMode 
+                                                            ? 'bg-[#f1f3f5] dark:bg-white/5' 
+                                                            : 'hover:bg-gray-50 dark:hover:bg-white/5'
+                                                }`}
+                                            >
+                                                <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="md" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-bold text-[15px] text-gray-900 dark:text-white truncate leading-5">
+                                                        {user.displayName || user.handle}
+                                                    </p>
+                                                    <p className="text-[14px] text-[#526580] dark:text-[#a5b2c5] truncate leading-4">
+                                                        @{user.handle}
+                                                        {!canMessage && <span className="ml-1">can't be messaged</span>}
+                                                    </p>
                                                 </div>
-                                            )}
-                                        </button>
-                                    ))
+                                                {isGroupMode && (
+                                                    <div className={`w-[22px] h-[22px] rounded-[6px] shrink-0 flex items-center justify-center transition-colors ${selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) ? 'bg-[#006AFF]' : 'border-[2px] border-[#DCE2EA] dark:border-[#2E3C4D]'}`}>
+                                                        {selectedUsers.some(u => (u.did || (u as any).id) === (user.did || (user as any).id)) && (
+                                                            <svg fill="none" width="14" height="14" viewBox="0 0 24 24">
+                                                                <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z"></path>
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        );
+                                    })
                                 ) : (
                                     <div className="py-20 text-center px-10">
                                         <p className="text-[#526580] dark:text-[#667B99]">

@@ -184,6 +184,25 @@ export const acceptConversation = createAsyncThunk(
     }
 );
 
+export const declineConversation = createAsyncThunk(
+    'messages/declineConversation',
+    async (conversationId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/decline`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to decline conversation');
+            }
+            return conversationId;
+        } catch (error: any) {
+            return rejectWithValue(error.message || 'Something went wrong');
+        }
+    }
+);
+
 export const markAsRead = createAsyncThunk(
     'messages/markAsRead',
     async ({ conversationId, messageId }: { conversationId: string; messageId?: string }, { rejectWithValue }) => {
@@ -635,6 +654,14 @@ const messagesSlice = createSlice({
             const conv = state.conversations.find(c => c.id === action.payload);
             if (conv) {
                 conv.isAccepted = true;
+            }
+        });
+        builder.addCase(declineConversation.fulfilled, (state, action) => {
+            // Remove declined conversation from list
+            state.conversations = state.conversations.filter(c => c.id !== action.payload);
+            if (state.activeConversationId === action.payload) {
+                state.activeConversationId = null;
+                state.activeConversationMessages = [];
             }
         });
         builder.addCase(deleteConversation.fulfilled, (state, action) => {

@@ -335,17 +335,37 @@ public class ChatService : IChatService
             return MapToConversationDto(fullConv!, userId, unreadCount);
         }
 
-        var isAccepted = true;
-        // Logic for IsAccepted: If any participant (who is not the creator) doesn't follow the creator, 
-        // it starts as a request (Accepted = false).
-        foreach (var pId in ids)
+        // For 1-on-1 conversations: enforce follower-only rule (user can only message users who follow them)
+        // This prevents spam from non-followers
+        if (ids.Count == 2)
         {
-            if (pId == userId) continue;
-            var isFollowing = await _userService.IsFollowingAsync(pId, userId);
-            if (!isFollowing)
+            var recipientId = ids.FirstOrDefault(id => id != userId);
+            if (recipientId != Guid.Empty)
             {
-                isAccepted = false;
-                break;
+                // Check if recipient follows the sender (userId)
+                var recipientFollowsSender = await _userService.IsFollowingAsync(recipientId, userId);
+                if (!recipientFollowsSender)
+                {
+                    throw new Exception("You can only send messages to users who follow you.");
+                }
+            }
+        }
+
+        var isAccepted = true;
+        // Logic for IsAccepted: For group chats, if any participant (who is not the creator) doesn't follow the creator, 
+        // it starts as a request (Accepted = false).
+        // For 1-on-1 chats, we've already validated the follower relationship above, so isAccepted = true
+        if (ids.Count > 2)
+        {
+            foreach (var pId in ids)
+            {
+                if (pId == userId) continue;
+                var isFollowing = await _userService.IsFollowingAsync(pId, userId);
+                if (!isFollowing)
+                {
+                    isAccepted = false;
+                    break;
+                }
             }
         }
 
@@ -751,6 +771,34 @@ public class ChatService : IChatService
         if (!isParticipant) return false;
 
         conversation.IsAccepted = true;
+        await _unitOfWork.CompleteAsync();
+
+        // Invalidate caches for all participants
+        var participants = await GetParticipantIdsAsync(conversationId);
+        foreach (var pId in participants)
+        {
+            await _cacheService.RemoveAsync($"user:{pId}:conversations");
+            await _cacheService.RemoveAsync($"user:{pId}:conv:{conversationId}");
+        }
+
+        return true;
+    }
+
+    public async Task<bool> DeclineConversationAsync(Guid userId, string conversationId)
+    {
+        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        var conversation = await _unitOfWork.Conversations.GetByIdAsync(convId);
+        
+        if (conversation == null) return false;
+        
+        // Check if user is a participant
+        var isParticipant = await _unitOfWork.Conversations.Query()
+            .AnyAsync(c => c.Id == convId && c.ConversationParticipants.Any(p => p.UserId == userId));
+            
+        if (!isParticipant) return false;
+
+        // Mark conversation as deleted (soft delete)
+        conversation.IsDeleted = true;
         await _unitOfWork.CompleteAsync();
 
         // Invalidate caches for all participants

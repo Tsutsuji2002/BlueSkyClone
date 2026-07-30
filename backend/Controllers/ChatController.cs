@@ -254,6 +254,15 @@ public class ChatController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("conversations/{conversationId}/decline")]
+    public async Task<ActionResult> DeclineConversation(string conversationId)
+    {
+        var userId = GetUserId();
+        var success = await _chatService.DeclineConversationAsync(userId, conversationId);
+        if (!success) return NotFound();
+        return Ok();
+    }
+
     [HttpPut("conversations/{id}/name")]
     public async Task<IActionResult> UpdateConversationName(string id, [FromBody] UpdateConversationNameRequest request)
     {

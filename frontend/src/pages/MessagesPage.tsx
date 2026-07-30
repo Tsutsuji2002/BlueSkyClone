@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useParams, Link, NavLink } from 'react-router-dom';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchConversations, fetchChatSettings, updateChatSettings, acceptConversation, deleteConversation, fetchConversationById } from '../redux/slices/messagesSlice';
+import { fetchConversations, fetchChatSettings, updateChatSettings, acceptConversation, declineConversation, deleteConversation, fetchConversationById } from '../redux/slices/messagesSlice';
 import ConversationItem from '../components/messages/ConversationItem';
 import SkeletonConversationItem from '../components/messages/SkeletonConversationItem';
 import { FiSearch, FiMenu, FiArrowLeft, FiMoreHorizontal } from 'react-icons/fi';
@@ -220,33 +220,71 @@ const MessagesPage: React.FC = () => {
         </div>
     );
 
-    const renderChatRequests = () => (
-        <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-black">
-            <div className="sticky top-0 z-10 bg-white/95 dark:bg-black/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-5 min-h-[52px] flex flex-row items-center gap-2">
-                <button 
-                    onClick={() => navigate('/messages')}
-                    className="p-1.5 -ml-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
-                >
-                    <FiArrowLeft size={22} className="text-[#526580] dark:text-dark-text-secondary" />
-                </button>
-                <h1 className="text-[18.8px] font-semibold tracking-[0.25px] text-gray-900 dark:text-white leading-[22px]">
-                    {t('messages.requests', 'Chat requests')}
-                </h1>
-            </div>
-            
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-black pb-[100px]">
-                <div className="bg-[#eff2f6] dark:bg-dark-surface p-6 rounded-full mb-4">
-                     <svg fill="none" width="48" viewBox="0 0 24 24" height="48" className="text-[#405168] dark:text-[#a5b2c5]"><path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M19 14h-2.417a5 5 0 0 1-9.166 0H5v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4Zm0-8a1 1 0 0 0-.898-.995L18 5H6a1 1 0 0 0-1 1v6h3.126a1 1 0 0 1 .969.751 3.001 3.001 0 0 0 5.81 0l.056-.16a1 1 0 0 1 .913-.591H19V6Zm2 12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12l.154.004A3 3 0 0 1 21 6v12Z"></path></svg>
+    const renderChatRequests = () => {
+        const requestConversations = conversations.filter(c => c.isAccepted === false);
+        
+        return (
+            <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-black">
+                <div className="sticky top-0 z-10 bg-white/95 dark:bg-black/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-5 min-h-[52px] flex flex-row items-center gap-2">
+                    <button 
+                        onClick={() => navigate('/messages')}
+                        className="p-1.5 -ml-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
+                    >
+                        <FiArrowLeft size={22} className="text-[#526580] dark:text-dark-text-secondary" />
+                    </button>
+                    <h1 className="text-[18.8px] font-semibold tracking-[0.25px] text-gray-900 dark:text-white leading-[22px]">
+                        {t('messages.requests', 'Chat requests')}
+                    </h1>
                 </div>
-                <h2 className="text-[24px] font-bold text-gray-900 dark:text-white mb-2">
-                    {t('messages.inbox_zero', 'Inbox zero!')}
-                </h2>
-                <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary max-w-[300px]">
-                    {t('messages.inbox_zero_desc', 'You have no new chat requests.')}
-                </p>
+                
+                {requestConversations.length > 0 ? (
+                    <div className="flex-1 overflow-y-auto bg-white dark:bg-black no-scrollbar pt-2">
+                        {requestConversations.map((conv) => (
+                            <div key={conv.id} className="border-b border-gray-100 dark:border-dark-border/50">
+                                <ConversationItem
+                                    conversation={conv}
+                                    isActive={false}
+                                    onClick={() => handleConversationClick(conv.id)}
+                                />
+                                <div className="flex gap-2 px-4 pb-3">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            dispatch(acceptConversation(conv.id));
+                                        }}
+                                        className="flex-1 bg-[#006aff] hover:bg-[#005cdb] text-white font-medium text-[14px] py-2 rounded-full transition-colors"
+                                    >
+                                        {t('messages.accept', 'Accept')}
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            dispatch(declineConversation(conv.id) as any);
+                                        }}
+                                        className="flex-1 bg-[#f1f3f5] dark:bg-dark-surface hover:bg-[#e1e6ed] dark:hover:bg-dark-hover text-gray-900 dark:text-white font-medium text-[14px] py-2 rounded-full transition-colors"
+                                    >
+                                        {t('messages.decline', 'Decline')}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-black pb-[100px]">
+                        <div className="bg-[#eff2f6] dark:bg-dark-surface p-6 rounded-full mb-4">
+                             <svg fill="none" width="48" viewBox="0 0 24 24" height="48" className="text-[#405168] dark:text-[#a5b2c5]"><path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M19 14h-2.417a5 5 0 0 1-9.166 0H5v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4Zm0-8a1 1 0 0 0-.898-.995L18 5H6a1 1 0 0 0-1 1v6h3.126a1 1 0 0 1 .969.751 3.001 3.001 0 0 0 5.81 0l.056-.16a1 1 0 0 1 .913-.591H19V6Zm2 12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h12l.154.004A3 3 0 0 1 21 6v12Z"></path></svg>
+                        </div>
+                        <h2 className="text-[24px] font-bold text-gray-900 dark:text-white mb-2">
+                            {t('messages.inbox_zero', 'Inbox zero!')}
+                        </h2>
+                        <p className="text-[15px] text-gray-500 dark:text-dark-text-secondary max-w-[300px]">
+                            {t('messages.inbox_zero_desc', 'You have no new chat requests.')}
+                        </p>
+                    </div>
+                )}
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <div className="flex flex-1 flex-row mx-auto w-full max-w-[960px] bg-white dark:bg-black min-h-screen">
