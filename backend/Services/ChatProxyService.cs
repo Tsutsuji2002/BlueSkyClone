@@ -802,6 +802,13 @@ namespace BSkyClone.Services
             ));
 
             var isLocked = convo.Kind?.LockStatus == "locked";
+            
+            // For ATProto: Group chats (3+ members) that appear in requests should have IsAccepted = false
+            // Since ATProto doesn't explicitly provide request status, we infer it:
+            // - If it's a group chat (3+ members) AND has no messages or very few, it's likely a request
+            // For simplicity: ALL group chats default to IsAccepted = false (requests)
+            // 1-on-1 conversations (2 members) are always accepted
+            var isAccepted = convo.Members.Count < 3; // 1-on-1 = true, group = false
 
             return new ConversationDto(
                 convo.Id,
@@ -809,7 +816,7 @@ namespace BSkyClone.Services
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id, membersDict) : null,
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
-                true, // IsAccepted
+                isAccepted, // Dynamic based on member count
                 convo.Kind?.Name, // GroupName from Bluesky API
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null,
                 convo.Muted, 
