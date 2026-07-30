@@ -542,6 +542,16 @@ END
             logger.LogError(ex, "Failed to verify muted word schema.");
         }
 
+        // --- FIX 1-ON-1 CONVERSATIONS WITH ISACCEPTED = FALSE ---
+        try
+        {
+            await FixOneToOneConversations.Run(services);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to fix 1-on-1 conversations.");
+        }
+
 
         // --- SEED AI FEEDS AND INTERESTS ---
         try
