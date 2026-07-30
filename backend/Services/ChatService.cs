@@ -62,14 +62,14 @@ public class ChatService : IChatService
                     {
                         if (isRequest.Value)
                         {
-                            // For requests: only show group chats (3+ participants, excluding current user from count)
+                            // For requests: only show group chats (3+ participants) that are not accepted
                             // ATProto includes current user in participants list, so group chat = 3+ total participants
-                            proxyConvos = proxyConvos.Where(c => c.Participants.Count >= 3).ToList();
+                            proxyConvos = proxyConvos.Where(c => !c.IsAccepted && c.Participants.Count >= 3).ToList();
                         }
                         else
                         {
-                            // For regular conversations: this would need accepted status from ATProto
-                            // For now, return all since ATProto doesn't distinguish
+                            // For regular conversations: show accepted conversations
+                            proxyConvos = proxyConvos.Where(c => c.IsAccepted).ToList();
                         }
                     }
                     
