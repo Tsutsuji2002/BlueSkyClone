@@ -351,12 +351,12 @@ public class ChatService : IChatService
             }
         }
 
+        // Request logic: ONLY for group chats (3+ participants)
+        // For 1-on-1 conversations, always set isAccepted = true (no request needed)
         var isAccepted = true;
-        // Logic for IsAccepted: For group chats, if any participant (who is not the creator) doesn't follow the creator, 
-        // it starts as a request (Accepted = false).
-        // For 1-on-1 chats, we've already validated the follower relationship above, so isAccepted = true
         if (ids.Count > 2)
         {
+            // For group chats: if any participant doesn't follow the creator, it starts as a request
             foreach (var pId in ids)
             {
                 if (pId == userId) continue;
