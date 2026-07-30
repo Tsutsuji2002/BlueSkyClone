@@ -88,7 +88,16 @@ public class ChatService : IChatService
 
         if (isRequest.HasValue)
         {
-            query = query.Where(c => c.IsAccepted == !isRequest.Value);
+            if (isRequest.Value)
+            {
+                // For requests: only show group chats (3+ participants) that are not accepted
+                query = query.Where(c => c.IsAccepted == false && c.ConversationParticipants.Count > 2);
+            }
+            else
+            {
+                // For regular conversations: show accepted conversations (both 1-on-1 and group)
+                query = query.Where(c => c.IsAccepted == true);
+            }
         }
 
         if (!string.IsNullOrEmpty(cursor) && Guid.TryParse(cursor, out var cursorId))
