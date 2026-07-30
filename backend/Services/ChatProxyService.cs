@@ -803,12 +803,16 @@ namespace BSkyClone.Services
 
             var isLocked = convo.Kind?.LockStatus == "locked";
             
-            // For ATProto: Group chats (3+ members) that appear in requests should have IsAccepted = false
-            // Since ATProto doesn't explicitly provide request status, we infer it:
-            // - If it's a group chat (3+ members) AND has no messages or very few, it's likely a request
-            // For simplicity: ALL group chats default to IsAccepted = false (requests)
-            // 1-on-1 conversations (2 members) are always accepted
-            var isAccepted = convo.Members.Count < 3; // 1-on-1 = true, group = false
+            // Log member count for debugging
+            var memberHandles = string.Join(", ", convo.Members.Select(m => m.Handle));
+            _logger.LogInformation("[MapToConversationDto] Convo {ConvoId}: {MemberCount} members ({Members}), Kind: {Kind}", 
+                convo.Id, convo.Members.Count, memberHandles, convo.Kind?.Type ?? "null");
+            
+            // For ATProto: Determine if it's a request based on conversation Kind
+            // According to ATProto spec, group chats have Kind.Type set
+            // 1-on-1 conversations have no Kind or Kind is null
+            var isGroup = convo.Kind?.Type != null && convo.Kind.Type.Contains("group", StringComparison.OrdinalIgnoreCase);
+            var isAccepted = !isGroup; // Groups = requests (false), 1-on-1 = accepted (true)
 
             return new ConversationDto(
                 convo.Id,
@@ -816,7 +820,7 @@ namespace BSkyClone.Services
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id, membersDict) : null,
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
-                isAccepted, // Dynamic based on member count
+                isAccepted, // Based on Kind.Type, not member count
                 convo.Kind?.Name, // GroupName from Bluesky API
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null,
                 convo.Muted, 
