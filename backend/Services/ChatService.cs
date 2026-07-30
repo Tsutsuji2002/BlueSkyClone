@@ -56,6 +56,23 @@ public class ChatService : IChatService
                 { 
                     var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor); 
                     _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
+                    
+                    // Filter proxy results based on isRequest parameter
+                    if (isRequest.HasValue)
+                    {
+                        if (isRequest.Value)
+                        {
+                            // For requests: only show group chats (3+ participants, excluding current user from count)
+                            // ATProto includes current user in participants list, so group chat = 3+ total participants
+                            proxyConvos = proxyConvos.Where(c => c.Participants.Count >= 3).ToList();
+                        }
+                        else
+                        {
+                            // For regular conversations: this would need accepted status from ATProto
+                            // For now, return all since ATProto doesn't distinguish
+                        }
+                    }
+                    
                     return proxyConvos;
                 }
                 catch (Exception ex)
