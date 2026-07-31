@@ -628,7 +628,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
         setShowOptionsMenu(false);
     };
 
-    const isGroup = conversation?.participants && conversation.participants.length > 2;
+    // Check if it's a group chat: either has 3+ participants OR has a groupName (including re-invited members)
+    const isGroup = (conversation?.participants && conversation.participants.length > 2) || !!conversation?.groupName;
 
     const otherParticipants = conversation?.participants.filter((p: User) => 
         (p.did && currentUser?.did) ? p.did.toLowerCase() !== currentUser.did.toLowerCase() : (p.id !== currentUser?.id && p.handle !== currentUser?.handle)
