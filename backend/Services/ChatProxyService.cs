@@ -413,6 +413,34 @@ namespace BSkyClone.Services
             return response.IsSuccessStatusCode;
         }
 
+        public async Task<bool> AcceptConvoAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.acceptConvo";
+            var body = new { convoId = conversationId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("AcceptConvo failed: {StatusCode} - {Error}", response.StatusCode, error);
+            }
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeclineConvoAsync(string token, string conversationId)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.deleteConvo";
+            var body = new { convoId = conversationId };
+            
+            var response = await CallAsync(token, url, "POST", body);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("DeleteConvo failed: {StatusCode} - {Error}", response.StatusCode, error);
+            }
+            return response.IsSuccessStatusCode;
+        }
+
         public async Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members)
         {
             var queryString = string.Join("&", members.Select(m => $"members={Uri.EscapeDataString(m)}"));

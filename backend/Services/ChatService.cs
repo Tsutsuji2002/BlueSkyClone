@@ -781,7 +781,35 @@ public class ChatService : IChatService
 
     public async Task<bool> AcceptConversationAsync(Guid userId, string conversationId)
     {
-        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        // Check if this is an ATProto conversation (non-GUID ID)
+        if (!Guid.TryParse(conversationId, out var convId))
+        {
+            // ATProto conversation - call the proxy service
+            if (!string.IsNullOrEmpty(user.Did))
+            {
+                var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    try
+                    {
+                        await _chatProxy.AcceptConvoAsync(token, conversationId);
+                        _logger.LogInformation("Accepted ATProto conversation {ConvoId} for user {UserId}", conversationId, userId);
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to accept ATProto conversation {ConvoId} for user {UserId}", conversationId, userId);
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Local database conversation
         var conversation = await _unitOfWork.Conversations.GetByIdAsync(convId);
         
         if (conversation == null) return false;
@@ -808,7 +836,35 @@ public class ChatService : IChatService
 
     public async Task<bool> DeclineConversationAsync(Guid userId, string conversationId)
     {
-        var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null) return false;
+
+        // Check if this is an ATProto conversation (non-GUID ID)
+        if (!Guid.TryParse(conversationId, out var convId))
+        {
+            // ATProto conversation - call the proxy service
+            if (!string.IsNullOrEmpty(user.Did))
+            {
+                var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                if (!string.IsNullOrEmpty(token))
+                {
+                    try
+                    {
+                        await _chatProxy.DeclineConvoAsync(token, conversationId);
+                        _logger.LogInformation("Declined ATProto conversation {ConvoId} for user {UserId}", conversationId, userId);
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to decline ATProto conversation {ConvoId} for user {UserId}", conversationId, userId);
+                        return false;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Local database conversation
         var conversation = await _unitOfWork.Conversations.GetByIdAsync(convId);
         
         if (conversation == null) return false;

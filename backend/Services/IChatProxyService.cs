@@ -13,6 +13,8 @@ namespace BSkyClone.Services
         Task<IEnumerable<MessageDto>> GetMessagesAsync(string token, string conversationId, int limit = 50, string? cursor = null);
         Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null, string? replyToRev = null, string? imageUrl = null, LinkPreviewDto? linkPreview = null);
         Task<bool> UpdateReadAsync(string token, string conversationId, string? messageId = null);
+        Task<bool> AcceptConvoAsync(string token, string conversationId);
+        Task<bool> DeclineConvoAsync(string token, string conversationId);
         Task<ConversationDto> GetOrCreateConversationAsync(string token, List<string> members);
         Task<ConversationDto> CreateConvoAsync(string token, List<string> members, string name);
         Task<ConversationDto> AddMembersAsync(string token, string conversationId, List<string> members);
