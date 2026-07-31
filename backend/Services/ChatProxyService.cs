@@ -47,7 +47,11 @@ namespace BSkyClone.Services
             var json = await response.Content.ReadAsStringAsync();
             var data = JsonSerializer.Deserialize<BlueskyConvoListResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             
-            return data?.Convos?.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
+            // IMPORTANT: Filter out conversations with status="request"
+            // Those should only appear via GetConvoRequestsAsync (listConvoRequests endpoint)
+            var acceptedConvos = data?.Convos?.Where(c => c.Status != "request") ?? Enumerable.Empty<BlueskyConvo>();
+            
+            return acceptedConvos.Select(MapToConversationDto);
         }
 
         public async Task<IEnumerable<ConversationDto>> GetConvoRequestsAsync(string token, int limit = 50, string? cursor = null)
@@ -1069,6 +1073,8 @@ namespace BSkyClone.Services
             public BlueskyMessage? LastMessage { get; set; }
             [JsonPropertyName("unreadCount")]
             public int UnreadCount { get; set; }
+            [JsonPropertyName("status")]
+            public string? Status { get; set; }  // "request" or null/empty for accepted
             [JsonPropertyName("kind")]
             public BlueskyConvoKind? Kind { get; set; }
             [JsonPropertyName("joinLink")]
