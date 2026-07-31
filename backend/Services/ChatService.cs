@@ -57,14 +57,19 @@ public class ChatService : IChatService
                     var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor); 
                     _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
                     
-                    // For ATProto: listConvos returns all active conversations (both 1-on-1 and accepted groups)
-                    // Requests are in a separate endpoint that we don't support yet
-                    // So for now: show all in Messages, return empty for Requests
-                    if (isRequest.HasValue && isRequest.Value)
+                    // Filter proxy results based on isRequest parameter
+                    if (isRequest.HasValue)
                     {
-                        // For requests: ATProto has a separate endpoint (not implemented)
-                        // Return empty for now
-                        return Enumerable.Empty<ConversationDto>();
+                        if (isRequest.Value)
+                        {
+                            // For requests: show group chats with IsAccepted=false (no messages yet)
+                            proxyConvos = proxyConvos.Where(c => !c.IsAccepted).ToList();
+                        }
+                        else
+                        {
+                            // For messages: show all accepted conversations (1-on-1 and active groups)
+                            proxyConvos = proxyConvos.Where(c => c.IsAccepted).ToList();
+                        }
                     }
                     
                     return proxyConvos;

@@ -808,9 +808,12 @@ namespace BSkyClone.Services
             _logger.LogInformation("[MapToConversationDto] Convo {ConvoId}: {MemberCount} members ({Members}), Kind: {Kind}", 
                 convo.Id, convo.Members.Count, memberHandles, convo.Kind?.Type ?? "null");
             
-            // For ATProto: All conversations from listConvos are active/accepted
-            // The Kind.Type just indicates conversation type (direct vs group)
-            var isAccepted = true; // All conversations from listConvos are accepted
+            // Determine if this is a group chat request:
+            // - It's a group chat (Kind.Type contains "group")
+            // - AND it has no last message (hasn't been accepted/started yet)
+            var isGroup = convo.Kind?.Type != null && convo.Kind.Type.Contains("group", StringComparison.OrdinalIgnoreCase);
+            var hasMessages = convo.LastMessage != null;
+            var isAccepted = !isGroup || hasMessages; // Group with no messages = request (false), otherwise = accepted (true)
 
             return new ConversationDto(
                 convo.Id,
@@ -818,7 +821,7 @@ namespace BSkyClone.Services
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id, membersDict) : null,
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
-                isAccepted, // All active conversations are accepted
+                isAccepted, // Group chat with no messages = request, all others = accepted
                 convo.Kind?.Name, // GroupName from Bluesky API
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null,
                 convo.Muted, 
