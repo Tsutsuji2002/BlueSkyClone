@@ -760,7 +760,51 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                 >
-                    {isMessagesLoading && activeConversationMessages.length === 0 ? (
+                    {conversation && !conversation.isAccepted ? (
+                        /* Request Preview - Show group info without messages */
+                        <div className="flex-1 flex flex-col items-center justify-center pt-8 pb-12">
+                            {isGroup ? (
+                                <>
+                                    <div className="mb-6">
+                                        <GroupAvatar 
+                                            users={otherParticipants}
+                                            size="xl"
+                                        />
+                                    </div>
+                                    <h3 className="text-[20.6px] font-bold text-gray-900 dark:text-dark-text mb-1 px-4 text-center leading-tight">
+                                        {groupDisplayName}
+                                    </h3>
+                                    <p className="text-[13.1px] text-gray-500 dark:text-dark-text-secondary text-center px-4 mb-2">
+                                        {otherParticipants.length > 0 
+                                            ? `${otherParticipants.length + 1} ${t('messages.members', 'members')}`
+                                            : t('messages.group_chat', 'Group Chat')
+                                        }
+                                    </p>
+                                    <p className="text-[12px] text-gray-400 dark:text-dark-text-secondary/70 text-center px-4 max-w-sm">
+                                        {t('messages.group_request_info', 'Accept the request to see messages and interact with this group')}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <Avatar
+                                        src={otherParticipant?.avatarUrl || otherParticipant?.avatar}
+                                        alt={otherParticipant?.displayName || 'User'}
+                                        size="xl"
+                                        className="mb-4"
+                                    />
+                                    <h3 className="text-[20.6px] font-bold text-gray-900 dark:text-dark-text mb-1">
+                                        {otherParticipant?.displayName || t('messages.unknown_user')}
+                                    </h3>
+                                    <p className="text-[13.1px] text-gray-500 dark:text-dark-text-secondary mb-4">
+                                        @{otherParticipant?.handle}
+                                    </p>
+                                    <p className="text-[12px] text-gray-400 dark:text-dark-text-secondary/70 text-center px-4 max-w-sm">
+                                        {t('messages.request_info', 'Accept the request to see messages')}
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                    ) : isMessagesLoading && activeConversationMessages.length === 0 ? (
                         <div className="flex-1 flex flex-col p-4">
                             <MessageSkeleton isMe={false} />
                             <MessageSkeleton isMe={true} />
