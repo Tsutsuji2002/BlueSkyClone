@@ -675,14 +675,29 @@ const messagesSlice = createSlice({
                 }
             });
         builder.addCase(acceptConversation.fulfilled, (state, action) => {
+            // Find conversation in regular conversations list
             const conv = state.conversations.find(c => c.id === action.payload);
             if (conv) {
                 conv.isAccepted = true;
             }
+            
+            // Also check in requestConversations and move it to conversations
+            const requestIndex = state.requestConversations.findIndex(c => c.id === action.payload);
+            if (requestIndex !== -1) {
+                const acceptedConv = { ...state.requestConversations[requestIndex], isAccepted: true };
+                // Remove from requests
+                state.requestConversations.splice(requestIndex, 1);
+                // Add to conversations if not already there
+                if (!conv) {
+                    state.conversations.unshift(acceptedConv);
+                }
+            }
         });
         builder.addCase(declineConversation.fulfilled, (state, action) => {
-            // Remove declined conversation from list
+            // Remove declined conversation from both lists
             state.conversations = state.conversations.filter(c => c.id !== action.payload);
+            state.requestConversations = state.requestConversations.filter(c => c.id !== action.payload);
+            
             if (state.activeConversationId === action.payload) {
                 state.activeConversationId = null;
                 state.activeConversationMessages = [];

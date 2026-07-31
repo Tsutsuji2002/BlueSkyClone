@@ -122,6 +122,12 @@ const MessagesPage: React.FC = () => {
     };
 
     const filteredConversations = conversations.filter(c => {
+        // Exclude unaccepted requests from the main conversation list
+        // Unaccepted requests should only appear in the Requests tab
+        if (c.isAccepted === false) {
+            return false;
+        }
+        
         const otherParticipants = c.participants.filter(p => 
             (p.did && currentUser?.did) ? p.did !== currentUser.did : p.id !== currentUser?.id
         );
