@@ -7,6 +7,8 @@ interface MessagesState {
     conversations: Conversation[];
     conversationsCursor: string | null;
     hasMoreConversations: boolean;
+    requestConversations: Conversation[]; // Separate state for group chat requests
+    isRequestConversationsLoading: boolean;
     activeConversationMessages: Message[];
     activeConversationId: string | null;
     isConversationsLoading: boolean;
@@ -24,6 +26,8 @@ const initialState: MessagesState = {
     conversations: [],
     conversationsCursor: null,
     hasMoreConversations: true,
+    requestConversations: [], // Separate state for group chat requests
+    isRequestConversationsLoading: false,
     activeConversationMessages: [],
     activeConversationId: null,
     isConversationsLoading: false,
@@ -507,6 +511,8 @@ const messagesSlice = createSlice({
             state.conversations = [];
             state.conversationsCursor = null;
             state.hasMoreConversations = true;
+            state.requestConversations = [];
+            state.isRequestConversationsLoading = false;
             state.activeConversationMessages = [];
             state.activeConversationId = null;
             state.isConversationsLoading = false;
@@ -522,29 +528,47 @@ const messagesSlice = createSlice({
     extraReducers: (builder) => {
         builder
             .addCase(fetchConversations.pending, (state, action) => {
-                if (action.meta.arg?.cursor) {
+                const isRequest = action.meta.arg?.isRequest;
+                if (isRequest) {
+                    // Loading group chat requests
+                    state.isRequestConversationsLoading = true;
+                } else if (action.meta.arg?.cursor) {
                     state.isLoadingMoreConversations = true;
                 } else {
                     state.isConversationsLoading = true;
                 }
             })
             .addCase(fetchConversations.fulfilled, (state, action) => {
-                state.isConversationsLoading = false;
-                state.isLoadingMoreConversations = false;
-                const { conversations, isLoadMore } = action.payload;
+                const isRequest = action.meta.arg?.isRequest;
                 
-                if (isLoadMore) {
-                    state.conversations = [...state.conversations, ...conversations];
+                if (isRequest) {
+                    // Storing group chat requests separately
+                    state.requestConversations = action.payload.conversations;
+                    state.isRequestConversationsLoading = false;
                 } else {
-                    state.conversations = conversations;
-                }
+                    // Regular conversations (all conversations for left sidebar)
+                    state.isConversationsLoading = false;
+                    state.isLoadingMoreConversations = false;
+                    const { conversations, isLoadMore } = action.payload;
+                    
+                    if (isLoadMore) {
+                        state.conversations = [...state.conversations, ...conversations];
+                    } else {
+                        state.conversations = conversations;
+                    }
 
-                state.hasMoreConversations = conversations.length >= (action.meta.arg?.limit || 50);
-                state.conversationsCursor = conversations.length > 0 ? conversations[conversations.length - 1].id : state.conversationsCursor;
+                    state.hasMoreConversations = conversations.length >= (action.meta.arg?.limit || 50);
+                    state.conversationsCursor = conversations.length > 0 ? conversations[conversations.length - 1].id : state.conversationsCursor;
+                }
             })
             .addCase(fetchConversations.rejected, (state, action) => {
-                state.isConversationsLoading = false;
-                state.isLoadingMoreConversations = false;
+                const isRequest = action.meta.arg?.isRequest;
+                if (isRequest) {
+                    state.isRequestConversationsLoading = false;
+                } else {
+                    state.isConversationsLoading = false;
+                    state.isLoadingMoreConversations = false;
+                }
                 state.error = action.payload as string;
             })
             .addCase(fetchConversationById.fulfilled, (state, action: PayloadAction<Conversation>) => {

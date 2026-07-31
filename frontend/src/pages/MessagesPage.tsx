@@ -20,7 +20,7 @@ const MessagesPage: React.FC = () => {
     const location = useLocation();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { conversations, isConversationsLoading, hasMoreConversations, conversationsCursor, isLoadingMoreConversations } = useAppSelector((state: RootState) => state.messages);
+    const { conversations, isConversationsLoading, hasMoreConversations, conversationsCursor, isLoadingMoreConversations, requestConversations, isRequestConversationsLoading } = useAppSelector((state: RootState) => state.messages);
     const { user: currentUser } = useAppSelector((state: RootState) => state.auth);
     const { conversationId } = useParams<{ conversationId: string }>();
     
@@ -40,8 +40,16 @@ const MessagesPage: React.FC = () => {
     const [isSavingSettings, setIsSavingSettings] = useState(false);
 
     useEffect(() => {
-        // Only fetch normal conversations or requests based on the view
-        dispatch(fetchConversations({ isRequest: isInboxView }));
+        // Always fetch all conversations for the left sidebar
+        // The left sidebar should never be filtered - it always shows all conversations
+        dispatch(fetchConversations({ isRequest: false }));
+    }, [dispatch]);
+
+    // Fetch group chat requests when viewing the Requests tab
+    useEffect(() => {
+        if (isInboxView) {
+            dispatch(fetchConversations({ isRequest: true }));
+        }
     }, [dispatch, isInboxView]);
 
     // Fetch individual conversation when viewing group settings to ensure latest state (locked, muted, etc.)
@@ -95,7 +103,8 @@ const MessagesPage: React.FC = () => {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting) {
-                    dispatch(fetchConversations({ cursor: conversationsCursor, isRequest: isInboxView }));
+                    // Always fetch all conversations for pagination, never filter by request
+                    dispatch(fetchConversations({ cursor: conversationsCursor, isRequest: false }));
                 }
             },
             { threshold: 0.1 }
@@ -106,7 +115,7 @@ const MessagesPage: React.FC = () => {
         }
 
         return () => observer.disconnect();
-    }, [dispatch, hasMoreConversations, isLoadingMoreConversations, isConversationsLoading, conversationsCursor, searchQuery, isInboxView]);
+    }, [dispatch, hasMoreConversations, isLoadingMoreConversations, isConversationsLoading, conversationsCursor, searchQuery]);
 
     const handleConversationClick = (id: string) => {
         navigate(`/messages/${id}`);
@@ -221,8 +230,8 @@ const MessagesPage: React.FC = () => {
     );
 
     const renderChatRequests = () => {
-        // Backend already filters for requests when isRequest=true, no need to filter again
-        const requestConversations = conversations;
+        // Use the separate requestConversations state that was fetched with isRequest=true
+        // This comes from the backend's GetConvoRequestsAsync which returns ONLY group chat requests
         
         return (
             <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-black">
@@ -238,7 +247,11 @@ const MessagesPage: React.FC = () => {
                     </h1>
                 </div>
                 
-                {requestConversations.length > 0 ? (
+                {isRequestConversationsLoading ? (
+                    <div className="flex-1 flex items-center justify-center bg-white dark:bg-black">
+                        <LoadingIndicator />
+                    </div>
+                ) : requestConversations.length > 0 ? (
                     <div className="flex-1 overflow-y-auto bg-white dark:bg-black no-scrollbar pt-2">
                         {requestConversations.map((conv) => (
                             <div key={conv.id} className="border-b border-gray-100 dark:border-dark-border/50">
