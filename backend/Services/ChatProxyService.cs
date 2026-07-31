@@ -813,7 +813,13 @@ namespace BSkyClone.Services
             // - AND it has no last message (hasn't been accepted/started yet)
             var isGroup = convo.Kind?.Type != null && convo.Kind.Type.Contains("group", StringComparison.OrdinalIgnoreCase);
             var hasMessages = convo.LastMessage != null;
-            var isAccepted = !isGroup || hasMessages; // Group with no messages = request (false), otherwise = accepted (true)
+            
+            // For 1-on-1: always accepted (even with no messages)
+            // For groups: no messages = request, with messages = accepted
+            var isAccepted = !isGroup || hasMessages;
+            
+            _logger.LogInformation("[MapToConversationDto] Convo {ConvoId}: isGroup={IsGroup}, hasMessages={HasMessages}, isAccepted={IsAccepted}", 
+                convo.Id, isGroup, hasMessages, isAccepted);
 
             return new ConversationDto(
                 convo.Id,

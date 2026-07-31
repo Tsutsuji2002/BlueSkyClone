@@ -62,7 +62,8 @@ public class ChatService : IChatService
                     {
                         if (isRequest.Value)
                         {
-                            // For requests: show group chats with IsAccepted=false (no messages yet)
+                            // For requests: show conversations with IsAccepted=false
+                            // The mapper already ensures only group chats without messages have IsAccepted=false
                             proxyConvos = proxyConvos.Where(c => !c.IsAccepted).ToList();
                         }
                         else
