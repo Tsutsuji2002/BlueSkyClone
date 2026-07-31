@@ -54,23 +54,19 @@ public class ChatService : IChatService
             {
                 try 
                 { 
-                    var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor); 
-                    _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
+                    IEnumerable<ConversationDto> proxyConvos;
                     
-                    // Filter proxy results based on isRequest parameter
-                    if (isRequest.HasValue)
+                    if (isRequest.HasValue && isRequest.Value)
                     {
-                        if (isRequest.Value)
-                        {
-                            // For requests: show conversations with IsAccepted=false
-                            // The mapper already ensures only group chats without messages have IsAccepted=false
-                            proxyConvos = proxyConvos.Where(c => !c.IsAccepted).ToList();
-                        }
-                        else
-                        {
-                            // For messages: show all accepted conversations (1-on-1 and active groups)
-                            proxyConvos = proxyConvos.Where(c => c.IsAccepted).ToList();
-                        }
+                        // For requests: call the listConvoRequests endpoint
+                        proxyConvos = await _chatProxy.GetConvoRequestsAsync(token, limit, cursor);
+                        _logger.LogInformation("Fetched {Count} conversation requests from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
+                    }
+                    else
+                    {
+                        // For messages: call the listConvos endpoint  
+                        proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor);
+                        _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
                     }
                     
                     return proxyConvos;

@@ -50,6 +50,26 @@ namespace BSkyClone.Services
             return data?.Convos?.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
         }
 
+        public async Task<IEnumerable<ConversationDto>> GetConvoRequestsAsync(string token, int limit = 50, string? cursor = null)
+        {
+            var url = $"{ChatEndpoint}/chat.bsky.convo.listConvoRequests?limit={limit}";
+            if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={cursor}";
+
+            var response = await CallAsync(token, url);
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Chat proxy listConvoRequests failed: {StatusCode} - {Error}", response.StatusCode, error);
+                throw new Exception($"Failed to fetch conversation requests from proxy: {response.StatusCode}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            // The response structure is {"requests": [...]} instead of {"convos": [...]}
+            var data = JsonSerializer.Deserialize<BlueskyConvoRequestsResponse>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            return data?.Requests?.Select(MapToConversationDto) ?? Enumerable.Empty<ConversationDto>();
+        }
+
         private async Task<HttpResponseMessage> CallAsync(string token, string url, string method = "GET", object? body = null)
         {
             var request = new HttpRequestMessage(new HttpMethod(method), url);
@@ -1034,6 +1054,7 @@ namespace BSkyClone.Services
         }
 
         private class BlueskyConvoListResponse { public List<BlueskyConvo> Convos { get; set; } = new(); public string? Cursor { get; set; } }
+        private class BlueskyConvoRequestsResponse { public List<BlueskyConvo> Requests { get; set; } = new(); public string? Cursor { get; set; } }
         private class BlueskyConvoResponse { public BlueskyConvo Convo { get; set; } = new(); }
         private class BlueskyMessageListResponse { public List<BlueskyMessage> Messages { get; set; } = new(); public string? Cursor { get; set; } }
         private class BlueskyConvo 

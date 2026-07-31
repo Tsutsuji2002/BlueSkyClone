@@ -8,6 +8,7 @@ namespace BSkyClone.Services
     public interface IChatProxyService
     {
         Task<IEnumerable<ConversationDto>> GetConversationsAsync(string token, int limit = 50, string? cursor = null);
+        Task<IEnumerable<ConversationDto>> GetConvoRequestsAsync(string token, int limit = 50, string? cursor = null);
         Task<ConversationDto?> GetConversationAsync(string token, string conversationId);
         Task<IEnumerable<MessageDto>> GetMessagesAsync(string token, string conversationId, int limit = 50, string? cursor = null);
         Task<MessageDto> SendMessageAsync(string token, string conversationId, string content, string? replyToId = null, string? replyToRev = null, string? imageUrl = null, LinkPreviewDto? linkPreview = null);
