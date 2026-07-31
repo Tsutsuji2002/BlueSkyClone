@@ -808,11 +808,9 @@ namespace BSkyClone.Services
             _logger.LogInformation("[MapToConversationDto] Convo {ConvoId}: {MemberCount} members ({Members}), Kind: {Kind}", 
                 convo.Id, convo.Members.Count, memberHandles, convo.Kind?.Type ?? "null");
             
-            // For ATProto: Determine if it's a request based on conversation Kind
-            // According to ATProto spec, group chats have Kind.Type set
-            // 1-on-1 conversations have no Kind or Kind is null
-            var isGroup = convo.Kind?.Type != null && convo.Kind.Type.Contains("group", StringComparison.OrdinalIgnoreCase);
-            var isAccepted = !isGroup; // Groups = requests (false), 1-on-1 = accepted (true)
+            // For ATProto: All conversations from listConvos are active/accepted
+            // The Kind.Type just indicates conversation type (direct vs group)
+            var isAccepted = true; // All conversations from listConvos are accepted
 
             return new ConversationDto(
                 convo.Id,
@@ -820,7 +818,7 @@ namespace BSkyClone.Services
                 convo.LastMessage != null ? MapToMessageDto(convo.LastMessage, convo.Id, membersDict) : null,
                 convo.UnreadCount,
                 convo.LastMessage != null ? DateTimeOffset.Parse(convo.LastMessage.SentAt) : DateTimeOffset.UtcNow,
-                isAccepted, // Based on Kind.Type, not member count
+                isAccepted, // All active conversations are accepted
                 convo.Kind?.Name, // GroupName from Bluesky API
                 convo.Kind?.JoinLink != null ? MapToJoinLinkDto(convo.Kind.JoinLink) : null,
                 convo.Muted, 
