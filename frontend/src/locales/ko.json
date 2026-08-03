@@ -22,7 +22,8 @@
         "link_preview": "링크 미리보기",
         "admin": "관리자",
         "search": "검색",
-        "go_profile": "프로필 보기"
+        "go_profile": "프로필 보기",
+        "videos": "Videos"
     },
     "accessibility": {
         "title": "접근성",
@@ -202,7 +203,13 @@
         "muted_success": "사용자가 무시되었습니다",
         "blocked_success": "사용자가 차단되었습니다",
         "note": "참고",
-        "chat_settings": "채팅 설정"
+        "chat_settings": "채팅 설정",
+        "switch_account": "Switch account",
+        "add_another_account": "Add another account",
+        "remove_account": "Remove account",
+        "account_removed": "Account removed",
+        "switched_to": "Switched to @{{handle}}",
+        "switch_failed": "Failed to switch account"
     },
     "moderation": {
         "title": "중재",
@@ -306,7 +313,8 @@
         "sensitive_content": "민감한 콘텐츠",
         "muted_word": "무시한 단어",
         "bsky_moderation_service": "Bluesky 중재 서비스",
-        "bsky_moderation_service_desc": "공식 Bluesky 중재 서비스입니다."
+        "bsky_moderation_service_desc": "공식 Bluesky 중재 서비스입니다.",
+        "interaction_settings": "Interaction settings"
     },
     "privacy": {
         "title": "개인정보 및 보안",
@@ -512,7 +520,9 @@
         "my_feeds_hint": "피드를 고정하여 홈에 추가하세요. 홈 피드 순서는 설정에서 변경할 수 있습니다.",
         "no_recommendations": "추천 검색 결과가 없습니다.",
         "unpin": "고정 해제",
-        "pin": "고정"
+        "pin": "고정",
+        "unpin_feed": "Unpin feed",
+        "feed_by": "Feed by @{{handle}}"
     },
     "explore": {
         "search_placeholder": "게시물, 사용자 또는 피드 검색",
@@ -591,7 +601,10 @@
         "join": "참가",
         "join_request_sent": "참가 요청 보냄",
         "feed_end": "리스트에 게시물이 더 이상 없습니다...",
-        "feed_empty": "리스트에 게시물이 아직 없습니다."
+        "feed_empty": "리스트에 게시물이 아직 없습니다.",
+        "start_adding_people_button": "Start adding people",
+        "no_members_yet": "No members yet",
+        "added": "Added"
     },
     "saved": {
         "title": "저장됨",
@@ -655,7 +668,21 @@
             "no_account": "계정이 없으신가요?",
             "signup_now": "지금 가입하기",
             "back": "뒤로",
-            "error_generic": "로그인에 실패했습니다. 자격 증명을 확인하고 다시 시도하세요."
+            "error_generic": "로그인에 실패했습니다. 자격 증명을 확인하고 다시 시도하세요.",
+            "error_rate_limit": "Too many login attempts. Please wait a moment and try again.",
+            "sign_in_title_selector": "Sign in as...",
+            "select_existing": "Select from an existing account",
+            "sign_in_as": "SIGN IN AS",
+            "other_account": "Add another account",
+            "logged_out": "Logged out",
+            "remove_account": "Remove account",
+            "switch_account": "Switch account",
+            "sign_out": "Sign out",
+            "account_label": "Account",
+            "enter_details": "Enter your details",
+            "forgot_password_short": "Forgot?",
+            "hero_title": "Sign in",
+            "hero_subtitle": "Select from an existing account"
         },
         "signup": {
             "title": "계정 만들기",
@@ -684,8 +711,12 @@
             "back": "뒤로",
             "next": "다음",
             "done": "완료",
-            "logout_full": "로그아웃"
-        }
+            "logout_full": "로그아웃",
+            "hosting_provider": "Hosting provider"
+        },
+        "logout_confirm_title": "Sign out?",
+        "logout_confirm_message": "You will be signed out of all your accounts.",
+        "logout_confirm_btn": "Sign out"
     },
     "messages": {
         "title": "메시지",
@@ -710,7 +741,14 @@
             "mute": "대화 무시",
             "block": "계정 차단",
             "report": "계정 신고",
-            "leave": "대화 나가기"
+            "leave": "대화 나가기",
+            "reply": "Reply",
+            "forward": "Forward",
+            "copy": "Copy text",
+            "translate": "Translate",
+            "edit": "Edit message",
+            "delete_for_me": "Delete for me",
+            "recall": "Recall for everyone"
         },
         "leave_confirm": "정말로 이 대화에서 나가시겠습니까? 이 작업은 취소할 수 없습니다.",
         "read": "읽음",
@@ -727,7 +765,26 @@
         "confirm_delete_for_me": "정말로 이 메시지를 나에게서만 삭제하시겠습니까? 다른 참가자에게는 계속 보입니다.",
         "delete_success": "메시지가 나에게서 삭제되었습니다",
         "delete_error": "메시지 삭제 실패",
-        "chat_settings_link": "채팅 설정"
+        "chat_settings_link": "채팅 설정",
+        "new_chat": "New chat",
+        "new_group_chat": "New group chat",
+        "select_chat_title": "Select a message",
+        "select_chat_desc": "Choose an existing conversation or start a new one to begin chatting.",
+        "loading_conversations": "Loading conversations...",
+        "all": "All",
+        "requests": "Requests",
+        "no_requests": "No message requests",
+        "num_participants": "{{count}} participants",
+        "n_participants": "{{count}} participants",
+        "accept": "Accept",
+        "delete": "Delete",
+        "message_request_title": "Message Request",
+        "message_request_desc": "If you accept, they'll be able to message you and see when you've read their messages.",
+        "delete_request_title": "Delete this request?",
+        "message_request_delete_desc": "The conversation will be deleted. They won't be notified.",
+        "link_preview": "Link Preview",
+        "you_replied_to": "You replied to {{name}}",
+        "replied_to": "{{name}} replied to {{other}}"
     },
     "chat_settings": {
         "title": "채팅 설정",
@@ -1149,5 +1206,15 @@
     "tag": {
         "exploring_tagged": "#{{tag}} 태그가 포함된 게시물 살펴보기",
         "no_posts_with_tag": "#{{tag}} 태그가 포함된 게시물을 찾을 수 없습니다"
+    },
+    "errors": {
+        "follow_failed": "Failed to follow user",
+        "unfollow_failed": "Failed to unfollow user",
+        "post_failed": "Failed to create post",
+        "delete_failed": "Failed to delete post",
+        "update_failed": "Failed to update",
+        "load_failed": "Failed to load content",
+        "network_error": "Network error. Please try again.",
+        "unknown_error": "Something went wrong"
     }
 }

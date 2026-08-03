@@ -420,7 +420,7 @@
         "follow": "Follow",
         "following_btn": "Following",
         "followers": "followers",
-        "following": "following",
+        "following": "Following",
         "posts_stat": "posts",
         "no_posts": "No posts yet",
         "no_replies": "No replies yet",
@@ -625,7 +625,6 @@
         "logout_confirm_title": "Sign out?",
         "logout_confirm_message": "You will be signed out of all your accounts.",
         "logout_confirm_btn": "Sign out",
-
         "login": {
             "title": "Log in",
             "welcome_back": "Welcome back",
@@ -1207,5 +1206,15 @@
     "tag": {
         "exploring_tagged": "Exploring posts tagged with #{{tag}}",
         "no_posts_with_tag": "No posts found with tag #{{tag}}"
+    },
+    "errors": {
+        "follow_failed": "Failed to follow user",
+        "unfollow_failed": "Failed to unfollow user",
+        "post_failed": "Failed to create post",
+        "delete_failed": "Failed to delete post",
+        "update_failed": "Failed to update",
+        "load_failed": "Failed to load content",
+        "network_error": "Network error. Please try again.",
+        "unknown_error": "Something went wrong"
     }
 }

@@ -22,7 +22,8 @@
         "link_preview": "Lingi eelvaade",
         "admin": "Admin",
         "search": "Otsi",
-        "go_profile": "Mine profiilile"
+        "go_profile": "Mine profiilile",
+        "videos": "Videos"
     },
     "accessibility": {
         "title": "Juurdepääsetavus",
@@ -202,7 +203,13 @@
         "muted_success": "Kasutaja vaigistamine õnnestus",
         "blocked_success": "Kasutaja blokeerimine õnnestus",
         "note": "Märkus",
-        "chat_settings": "Vestluse seaded"
+        "chat_settings": "Vestluse seaded",
+        "switch_account": "Switch account",
+        "add_another_account": "Add another account",
+        "remove_account": "Remove account",
+        "account_removed": "Account removed",
+        "switched_to": "Switched to @{{handle}}",
+        "switch_failed": "Failed to switch account"
     },
     "moderation": {
         "title": "Mõõdukus",
@@ -306,7 +313,8 @@
         "sensitive_content": "Tundlik sisu",
         "muted_word": "Vaigistatud Word",
         "bsky_moderation_service": "Bluesky modereerimisteenus",
-        "bsky_moderation_service_desc": "Ametlik Bluesky modereerimisteenus."
+        "bsky_moderation_service_desc": "Ametlik Bluesky modereerimisteenus.",
+        "interaction_settings": "Interaction settings"
     },
     "privacy": {
         "title": "Privaatsus ja turvalisus",
@@ -512,7 +520,9 @@
         "my_feeds_hint": "Kinnitage vood, et need avalehele lisada. Kasutage kodulehe tellimiseks seadeid.",
         "no_recommendations": "Soovitusi ei leitud.",
         "unpin": "Vabastage",
-        "pin": "Pin"
+        "pin": "Pin",
+        "unpin_feed": "Unpin feed",
+        "feed_by": "Feed by @{{handle}}"
     },
     "explore": {
         "search_placeholder": "Search for posts, users or feeds",
@@ -525,7 +535,16 @@
         "loading_accounts": "Loading trending accounts...",
         "loading_topics": "Loading trending topics...",
         "discover_posts": "Discover Posts",
-        "no_more_posts": "No more posts to discover right now."
+        "no_more_posts": "No more posts to discover right now.",
+        "trending_topics": "Trending Topics",
+        "suggested_accounts": "Suggested accounts",
+        "categories": {
+            "all": "For You",
+            "news": "News",
+            "tech": "Tech",
+            "gaming": "Gaming"
+        },
+        "no_suggested_accounts": "No suggested accounts found for this category."
     },
     "lists": {
         "title": "Lists",
@@ -584,7 +603,10 @@
         "join": "Join",
         "join_request_sent": "Join request sent",
         "feed_end": "No more posts in this list...",
-        "feed_empty": "No posts in this list yet."
+        "feed_empty": "No posts in this list yet.",
+        "start_adding_people_button": "Start adding people",
+        "no_members_yet": "No members yet",
+        "added": "Added"
     },
     "saved": {
         "title": "Salvestatud",
@@ -615,7 +637,21 @@
             "no_account": "Don't have an account?",
             "signup_now": "Sign up now",
             "back": "Back",
-            "error_generic": "Login failed. Please check your credentials and try again."
+            "error_generic": "Login failed. Please check your credentials and try again.",
+            "error_rate_limit": "Too many login attempts. Please wait a moment and try again.",
+            "sign_in_title_selector": "Sign in as...",
+            "select_existing": "Select from an existing account",
+            "sign_in_as": "SIGN IN AS",
+            "other_account": "Add another account",
+            "logged_out": "Logged out",
+            "remove_account": "Remove account",
+            "switch_account": "Switch account",
+            "sign_out": "Sign out",
+            "account_label": "Account",
+            "enter_details": "Enter your details",
+            "forgot_password_short": "Forgot?",
+            "hero_title": "Sign in",
+            "hero_subtitle": "Select from an existing account"
         },
         "signup": {
             "title": "Create an account",
@@ -644,8 +680,12 @@
             "back": "Back",
             "next": "Next",
             "done": "Done",
-            "logout_full": "Sign out"
-        }
+            "logout_full": "Sign out",
+            "hosting_provider": "Hosting provider"
+        },
+        "logout_confirm_title": "Sign out?",
+        "logout_confirm_message": "You will be signed out of all your accounts.",
+        "logout_confirm_btn": "Sign out"
     },
     "messages": {
         "title": "Sõnumid",
@@ -670,7 +710,14 @@
             "mute": "Vaigista vestlus",
             "block": "Blokeeri konto",
             "report": "Teata kontost",
-            "leave": "Lahku vestlusest"
+            "leave": "Lahku vestlusest",
+            "reply": "Reply",
+            "forward": "Forward",
+            "copy": "Copy text",
+            "translate": "Translate",
+            "edit": "Edit message",
+            "delete_for_me": "Delete for me",
+            "recall": "Recall for everyone"
         },
         "leave_confirm": "Kas soovite kindlasti sellest vestlusest lahkuda? Seda toimingut ei saa tagasi võtta.",
         "read": "Lugege",
@@ -687,7 +734,26 @@
         "confirm_delete_for_me": "Kas olete kindel, et soovite selle sõnumi enda jaoks kustutada? See jääb teistele osalejatele nähtavaks.",
         "delete_success": "Sõnum kustutati teie eest",
         "delete_error": "Sõnumi kustutamine ebaõnnestus",
-        "chat_settings_link": "Vestluse seaded"
+        "chat_settings_link": "Vestluse seaded",
+        "new_chat": "New chat",
+        "new_group_chat": "New group chat",
+        "select_chat_title": "Select a message",
+        "select_chat_desc": "Choose an existing conversation or start a new one to begin chatting.",
+        "loading_conversations": "Loading conversations...",
+        "all": "All",
+        "requests": "Requests",
+        "no_requests": "No message requests",
+        "num_participants": "{{count}} participants",
+        "n_participants": "{{count}} participants",
+        "accept": "Accept",
+        "delete": "Delete",
+        "message_request_title": "Message Request",
+        "message_request_desc": "If you accept, they'll be able to message you and see when you've read their messages.",
+        "delete_request_title": "Delete this request?",
+        "message_request_delete_desc": "The conversation will be deleted. They won't be notified.",
+        "link_preview": "Link Preview",
+        "you_replied_to": "You replied to {{name}}",
+        "replied_to": "{{name}} replied to {{other}}"
     },
     "chat_settings": {
         "title": "Vestluse seaded",
@@ -1142,5 +1208,15 @@
     "tag": {
         "exploring_tagged": "Exploring posts tagged with #{{tag}}",
         "no_posts_with_tag": "No posts found with tag #{{tag}}"
+    },
+    "errors": {
+        "follow_failed": "Failed to follow user",
+        "unfollow_failed": "Failed to unfollow user",
+        "post_failed": "Failed to create post",
+        "delete_failed": "Failed to delete post",
+        "update_failed": "Failed to update",
+        "load_failed": "Failed to load content",
+        "network_error": "Network error. Please try again.",
+        "unknown_error": "Something went wrong"
     }
 }

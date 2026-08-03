@@ -22,7 +22,8 @@
         "link_preview": "Vista previa",
         "admin": "Admin",
         "search": "Buscar",
-        "go_profile": "Ver perfil"
+        "go_profile": "Ver perfil",
+        "videos": "Videos"
     },
     "accessibility": {
         "title": "Accesibilidad",
@@ -202,7 +203,13 @@
         "muted_success": "Usuario silenciado correctamente",
         "blocked_success": "Usuario bloqueado correctamente",
         "note": "Nota",
-        "chat_settings": "Ajustes de chat"
+        "chat_settings": "Ajustes de chat",
+        "switch_account": "Switch account",
+        "add_another_account": "Add another account",
+        "remove_account": "Remove account",
+        "account_removed": "Account removed",
+        "switched_to": "Switched to @{{handle}}",
+        "switch_failed": "Failed to switch account"
     },
     "moderation": {
         "title": "Moderación",
@@ -306,7 +313,8 @@
         "sensitive_content": "Contenido sensible",
         "muted_word": "Palabra silenciada",
         "bsky_moderation_service": "Servicio de moderación de Bluesky",
-        "bsky_moderation_service_desc": "Servicio oficial de moderación de Bluesky."
+        "bsky_moderation_service_desc": "Servicio oficial de moderación de Bluesky.",
+        "interaction_settings": "Interaction settings"
     },
     "privacy": {
         "title": "Privacidad y seguridad",
@@ -512,7 +520,9 @@
         "my_feeds_hint": "Fija feeds para añadirlos a Inicio. Usa los ajustes para el orden en el Inicio.",
         "no_recommendations": "No se han encontrado recomendaciones.",
         "unpin": "Desfijar",
-        "pin": "Fijar"
+        "pin": "Fijar",
+        "unpin_feed": "Unpin feed",
+        "feed_by": "Feed by @{{handle}}"
     },
     "explore": {
         "search_placeholder": "Buscar posts, usuarios o feeds",
@@ -591,7 +601,10 @@
         "join": "Unirse",
         "join_request_sent": "Petición de unión enviada",
         "feed_end": "No hay más posts en esta lista...",
-        "feed_empty": "Aún no hay posts en esta lista."
+        "feed_empty": "Aún no hay posts en esta lista.",
+        "start_adding_people_button": "Start adding people",
+        "no_members_yet": "No members yet",
+        "added": "Added"
     },
     "saved": {
         "title": "Guardado",
@@ -622,7 +635,21 @@
             "no_account": "¿No tienes una cuenta?",
             "signup_now": "Regístrate ahora",
             "back": "Atrás",
-            "error_generic": "Error al iniciar sesión. Comprueba tus credenciales e inténtalo de nuevo."
+            "error_generic": "Error al iniciar sesión. Comprueba tus credenciales e inténtalo de nuevo.",
+            "error_rate_limit": "Too many login attempts. Please wait a moment and try again.",
+            "sign_in_title_selector": "Sign in as...",
+            "select_existing": "Select from an existing account",
+            "sign_in_as": "SIGN IN AS",
+            "other_account": "Add another account",
+            "logged_out": "Logged out",
+            "remove_account": "Remove account",
+            "switch_account": "Switch account",
+            "sign_out": "Sign out",
+            "account_label": "Account",
+            "enter_details": "Enter your details",
+            "forgot_password_short": "Forgot?",
+            "hero_title": "Sign in",
+            "hero_subtitle": "Select from an existing account"
         },
         "signup": {
             "title": "Crear una cuenta",
@@ -651,8 +678,12 @@
             "back": "Atrás",
             "next": "Siguiente",
             "done": "Hecho",
-            "logout_full": "Cerrar sesión"
-        }
+            "logout_full": "Cerrar sesión",
+            "hosting_provider": "Hosting provider"
+        },
+        "logout_confirm_title": "Sign out?",
+        "logout_confirm_message": "You will be signed out of all your accounts.",
+        "logout_confirm_btn": "Sign out"
     },
     "messages": {
         "title": "Mensajes",
@@ -677,7 +708,14 @@
             "mute": "Silenciar conversación",
             "block": "Bloquear cuenta",
             "report": "Denunciar cuenta",
-            "leave": "Dejar conversación"
+            "leave": "Dejar conversación",
+            "reply": "Reply",
+            "forward": "Forward",
+            "copy": "Copy text",
+            "translate": "Translate",
+            "edit": "Edit message",
+            "delete_for_me": "Delete for me",
+            "recall": "Recall for everyone"
         },
         "leave_confirm": "¿Estás seguro de que quieres dejar esta conversación? Esta acción no se puede deshacer.",
         "read": "Leído",
@@ -694,7 +732,26 @@
         "confirm_delete_for_me": "¿Estás seguro de que quieres borrar este mensaje para ti? Seguirá siendo visible para el resto de participantes.",
         "delete_success": "Mensaje borrado para ti",
         "delete_error": "Error al borrar el mensaje",
-        "chat_settings_link": "Ajustes del chat"
+        "chat_settings_link": "Ajustes del chat",
+        "new_chat": "New chat",
+        "new_group_chat": "New group chat",
+        "select_chat_title": "Select a message",
+        "select_chat_desc": "Choose an existing conversation or start a new one to begin chatting.",
+        "loading_conversations": "Loading conversations...",
+        "all": "All",
+        "requests": "Requests",
+        "no_requests": "No message requests",
+        "num_participants": "{{count}} participants",
+        "n_participants": "{{count}} participants",
+        "accept": "Accept",
+        "delete": "Delete",
+        "message_request_title": "Message Request",
+        "message_request_desc": "If you accept, they'll be able to message you and see when you've read their messages.",
+        "delete_request_title": "Delete this request?",
+        "message_request_delete_desc": "The conversation will be deleted. They won't be notified.",
+        "link_preview": "Link Preview",
+        "you_replied_to": "You replied to {{name}}",
+        "replied_to": "{{name}} replied to {{other}}"
     },
     "chat_settings": {
         "title": "Ajustes del chat",
@@ -1149,5 +1206,15 @@
     "tag": {
         "exploring_tagged": "Explorando posts con la etiqueta #{{tag}}",
         "no_posts_with_tag": "No se han encontrado posts con la etiqueta #{{tag}}"
+    },
+    "errors": {
+        "follow_failed": "Failed to follow user",
+        "unfollow_failed": "Failed to unfollow user",
+        "post_failed": "Failed to create post",
+        "delete_failed": "Failed to delete post",
+        "update_failed": "Failed to update",
+        "load_failed": "Failed to load content",
+        "network_error": "Network error. Please try again.",
+        "unknown_error": "Something went wrong"
     }
 }
