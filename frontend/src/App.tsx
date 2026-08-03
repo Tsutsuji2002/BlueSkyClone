@@ -5,6 +5,7 @@ import { store } from './redux/store';
 import { useAppSelector } from './hooks/useAppSelector';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Toaster } from 'react-hot-toast';
 import AppRoutes from './routes/AppRoutes';
 import CreatePostModal from './modals/CreatePostModal';
 import ReplyModal from './modals/ReplyModal';
@@ -537,6 +538,16 @@ const AppContent: React.FC = () => {
       {/* Global Delete Confirm Modal */}
       <GlobalDeleteConfirmModal />
       <Toast />
+      <Toaster
+        position="bottom-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+        }}
+      />
       <SessionKeeper />
     </>
   );

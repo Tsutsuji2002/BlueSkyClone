@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { FiChevronRight, FiCheck } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../../constants';
 import Avatar from '../common/Avatar';
 import { cn } from '../../utils/classNames';
@@ -14,6 +15,13 @@ import { fetchSuggestedUsers, updateFollowStatus } from '../../redux/slices/sugg
 import { followUserAsync, unfollowUserAsync } from '../../redux/slices/userSlice';
 import { openAuthWall } from '../../redux/slices/modalsSlice';
 import { useVerifiedFollowStatuses } from '../../hooks/useVerifiedFollowStatuses';
+
+// Optimistic follow state type definition
+interface OptimisticFollowState {
+    isFollowing: boolean;
+    isLoading: boolean;
+    followingReference?: string;
+}
 
 const categories = [
     { id: 'all', nameKey: 'explore.categories.all' },
@@ -50,6 +58,9 @@ const SuggestedUsersForExplore: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     
+    // Initialize optimistic state for follow/unfollow actions
+    const [optimisticState, setOptimisticState] = useState<Record<string, OptimisticFollowState>>({});
+    
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const { suggestionsByCategory, loadingStates } = useAppSelector((state: RootState) => state.suggestions);
 
@@ -58,6 +69,20 @@ const SuggestedUsersForExplore: React.FC = () => {
     }, [suggestionsByCategory]);
 
     const { resolveIsFollowing, resolveFollowingReference, updateVerifiedStatus } = useVerifiedFollowStatuses(allSuggestions as any[]);
+
+    // Helper: Get effective follow status (optimistic > hook)
+    const getEffectiveFollowStatus = (user: SuggestedUser): boolean => {
+        const userDid = user.did;
+        if (optimisticState[userDid]) {
+            return optimisticState[userDid].isFollowing;
+        }
+        return resolveIsFollowing(user as any);
+    };
+
+    // Helper: Get loading state for user
+    const isUserLoading = (userDid: string): boolean => {
+        return optimisticState[userDid]?.isLoading ?? false;
+    };
 
     const fetchCategory = async (category: typeof categories[0]) => {
         // Skip if already loading or already fetched in Redux (unless it returned empty last time)
@@ -77,32 +102,109 @@ const SuggestedUsersForExplore: React.FC = () => {
     }, [selectedCategory.id]);
 
     const handleFollow = async (user: SuggestedUser) => {
+        // 1. Authentication check - MUST happen before any state updates
         if (!isAuthenticated) {
             dispatch(openAuthWall());
+            return; // Return early to prevent optimistic updates
+        }
+        
+        const did = user.did;
+        const currentFollowStatus = getEffectiveFollowStatus(user);
+        
+        // 2. Prevent duplicate actions
+        if (isUserLoading(did)) {
             return;
         }
         
-        const isFollowing = resolveIsFollowing(user as any);
-        const did = user.did;
+        // 3. Set optimistic state immediately
+        const newFollowStatus = !currentFollowStatus;
+        setOptimisticState(prev => ({
+            ...prev,
+            [did]: {
+                isFollowing: newFollowStatus,
+                isLoading: true,
+                followingReference: newFollowStatus ? prev[did]?.followingReference : undefined
+            }
+        }));
 
         try {
-            if (isFollowing) {
-                const followUri = resolveFollowingReference(user as any) || user.viewer?.following;
+            // 4. Execute backend request
+            if (newFollowStatus) {
+                // Follow action
+                const result = await dispatch(followUserAsync(did)).unwrap();
+                
+                // 5. Update hook state and Redux on success
+                updateVerifiedStatus(user as any, { 
+                    isFollowing: true, 
+                    followingReference: result.uri 
+                });
+                dispatch(updateFollowStatus({ 
+                    did, 
+                    isFollowing: true, 
+                    followUri: result.uri 
+                }));
+                
+                // 6. Update optimistic state with confirmed URI
+                setOptimisticState(prev => ({
+                    ...prev,
+                    [did]: {
+                        isFollowing: true,
+                        isLoading: false,
+                        followingReference: result.uri
+                    }
+                }));
+            } else {
+                // Unfollow action
+                const followUri = resolveFollowingReference(user as any) || 
+                               optimisticState[did]?.followingReference || 
+                               user.viewer?.following;
+                
                 if (!followUri) {
                     console.error('No follow URI found for unfollow');
+                    toast.error(t('errors.unfollow_failed', { defaultValue: 'Failed to unfollow user' }));
+                    // Revert optimistic state
+                    setOptimisticState(prev => ({
+                        ...prev,
+                        [did]: {
+                            isFollowing: currentFollowStatus,
+                            isLoading: false
+                        }
+                    }));
                     return;
                 }
                 
                 await dispatch(unfollowUserAsync({ userId: did, followUri })).unwrap();
+                
+                // Update hook state and Redux on success
                 updateVerifiedStatus(user as any, { isFollowing: false });
                 dispatch(updateFollowStatus({ did, isFollowing: false }));
-            } else {
-                const result = await dispatch(followUserAsync(did)).unwrap();
-                updateVerifiedStatus(user as any, { isFollowing: true, followingReference: result.uri });
-                dispatch(updateFollowStatus({ did, isFollowing: true, followUri: result.uri }));
+                
+                // Clear optimistic state entry
+                setOptimisticState(prev => {
+                    const newState = { ...prev };
+                    delete newState[did];
+                    return newState;
+                });
             }
         } catch (error) {
+            // 7. Error handling - revert optimistic state and show toast
             console.error('Failed to follow/unfollow:', error);
+            
+            const errorMessage = newFollowStatus
+                ? t('errors.follow_failed', { defaultValue: 'Failed to follow user' })
+                : t('errors.unfollow_failed', { defaultValue: 'Failed to unfollow user' });
+            
+            toast.error(errorMessage);
+            
+            // Revert to previous state
+            setOptimisticState(prev => ({
+                ...prev,
+                [did]: {
+                    isFollowing: currentFollowStatus,
+                    isLoading: false,
+                    followingReference: prev[did]?.followingReference
+                }
+            }));
         }
     };
 
@@ -222,21 +324,16 @@ const SuggestedUsersForExplore: React.FC = () => {
                                      e.stopPropagation();
                                      handleFollow(user);
                                 }}
-                                disabled={user.viewer?.following === 'pending'}
+                                disabled={isUserLoading(user.did)}
                                 className={cn(
                                     "px-4 py-1.5 rounded-full text-sm font-bold transition-all",
-                                    resolveIsFollowing(user as any)
+                                    getEffectiveFollowStatus(user)
                                         ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-gray-200 dark:border-dark-border"
-                                        : "bg-primary-600 hover:bg-primary-700 text-white shadow-sm"
+                                        : "bg-primary-600 hover:bg-primary-700 text-white shadow-sm",
+                                    isUserLoading(user.did) && "opacity-60 cursor-not-allowed"
                                 )}
                             >
-                                {user.viewer?.following === 'pending' ? (
-                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                ) : resolveIsFollowing(user as any) ? (
-                                    t('profile.following')
-                                ) : (
-                                    t('profile.follow')
-                                )}
+                                {getEffectiveFollowStatus(user) ? t('profile.following') : t('profile.follow')}
                             </button>
                         </div>
                     ))
