@@ -381,7 +381,9 @@ public class UserService : IUserService
     public async Task<UserSetting> UpdateSettingsAsync(Guid userId, UserSettingDto request)
     {
         var settings = await _unitOfWork.UserSettings.Query().FirstOrDefaultAsync(s => s.UserId == userId);
-        if (settings == null)
+        bool isNew = settings == null;
+        
+        if (isNew)
         {
             settings = new UserSetting { UserId = userId };
             await _unitOfWork.UserSettings.AddAsync(settings);
@@ -412,8 +414,12 @@ public class UserService : IUserService
             }
         }
 
-
-        _unitOfWork.UserSettings.Update(settings);
+        // Only call Update if it's an existing entity (not newly added)
+        if (!isNew)
+        {
+            _unitOfWork.UserSettings.Update(settings);
+        }
+        
         await _unitOfWork.CompleteAsync();
         return settings;
     }
