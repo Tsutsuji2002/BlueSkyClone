@@ -33,30 +33,35 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
     const [userFollowerStatus, setUserFollowerStatus] = useState<Map<string, boolean>>(new Map());
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Check if a user follows the current user
-    const checkIfUserFollowsMe = async (userDid: string): Promise<boolean> => {
+    // Check who follows the current user (batch approach - single API call)
+    const checkWhoFollowsMe = async (userDids: string[]): Promise<Map<string, boolean>> => {
         try {
-            if (!currentUser?.did && !currentUser?.handle) return false;
+            if (!currentUser?.did && !currentUser?.handle) return new Map();
+            if (userDids.length === 0) return new Map();
             
-            // Check if userDid follows currentUser
-            const response = await fetch(`/xrpc/app.bsky.graph.getFollows?actor=${encodeURIComponent(userDid)}&limit=100`, { 
+            // Get followers of current user
+            const response = await fetch(`/xrpc/app.bsky.graph.getFollowers?actor=${encodeURIComponent(currentUser.did || currentUser.handle!)}&limit=100`, { 
                 credentials: 'include' 
             });
             
-            if (!response.ok) return false;
+            if (!response.ok) return new Map();
             
             const data = await response.json();
-            const follows = data?.follows ?? [];
+            const followers = data?.followers ?? [];
             
-            // Check if currentUser is in the follows list
-            const followsMe = follows.some((follow: any) => 
-                follow.did === currentUser?.did || follow.handle === currentUser?.handle
-            );
+            // Create a set of follower DIDs for fast lookup
+            const followerDids = new Set(followers.map((f: any) => f.did));
             
-            return followsMe;
+            // Map each user DID to whether they follow current user
+            const statusMap = new Map<string, boolean>();
+            userDids.forEach(did => {
+                statusMap.set(did, followerDids.has(did));
+            });
+            
+            return statusMap;
         } catch (error) {
             console.error('Error checking follower status:', error);
-            return false;
+            return new Map();
         }
     };
 
@@ -79,11 +84,14 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                     .finally(() => setLoadingSuggestions(false));
             }
         } else {
+            // CLEAR ALL STATE when modal closes
             setSearchQuery('');
             setResults([]);
             setSuggestedUsers([]);
             setIsGroupMode(false);
             setSelectedUsers([]);
+            setError(null); // ✅ Clear error state
+            setUserFollowerStatus(new Map()); // ✅ Clear follower status
         }
     }, [isOpen]);
 
@@ -96,15 +104,10 @@ const ChatSearchModal: React.FC<ChatSearchModalProps> = ({ isOpen, onClose }) =>
                     const filteredData = (response.data || []).filter((user: any) => user.did !== currentUser?.did && user.did !== currentUser?.id);
                     setResults(filteredData);
                     
-                    // Check follower status for all results (for 1-on-1 messaging validation)
-                    if (!isGroupMode) {
-                        const statusMap = new Map<string, boolean>();
-                        await Promise.all(
-                            filteredData.map(async (user: any) => {
-                                const followsMe = await checkIfUserFollowsMe(user.did || user.id);
-                                statusMap.set(user.did || user.id, followsMe);
-                            })
-                        );
+                    // Check follower status for all results in ONE API call (for 1-on-1 messaging validation)
+                    if (!isGroupMode && filteredData.length > 0) {
+                        const userDids = filteredData.map((user: any) => user.did || user.id);
+                        const statusMap = await checkWhoFollowsMe(userDids);
                         setUserFollowerStatus(statusMap);
                     }
                 } catch (error) {
