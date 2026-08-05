@@ -1078,6 +1078,35 @@ const feedsSlice = createSlice({
                     };
                 });
             })
+            // Handle post deletion - optimistically remove from all feed posts
+            .addCase(deletePost.pending, (state: FeedsState, action) => {
+                const deletedUri = action.meta.arg;
+                const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
+                
+                const isDeletedPost = (p: Post) =>
+                    p.uri === deletedUri ||
+                    (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
+                    (p.uri && p.uri.endsWith('/' + deletedId));
+                
+                // Remove from all feed posts
+                Object.keys(state.feedPosts).forEach(feedId => {
+                    state.feedPosts[feedId] = state.feedPosts[feedId].filter((p: Post) => !isDeletedPost(p));
+                });
+            })
+            .addCase(deletePost.fulfilled, (state: FeedsState, action: PayloadAction<string>) => {
+                const deletedUri = action.payload;
+                const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
+                
+                const isDeletedPost = (p: Post) =>
+                    p.uri === deletedUri ||
+                    (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
+                    (p.uri && p.uri.endsWith('/' + deletedId));
+                
+                // Ensure removal from all feed posts (in case pending didn't catch it)
+                Object.keys(state.feedPosts).forEach(feedId => {
+                    state.feedPosts[feedId] = state.feedPosts[feedId].filter((p: Post) => !isDeletedPost(p));
+                });
+            })
             // Synchronize interactions across feedPosts (Optimistic)
             .addMatcher(
                 (action) => action.type.endsWith('/toggleLike/pending') ||
@@ -1290,36 +1319,7 @@ const feedsSlice = createSlice({
                         localStorage.setItem('feeds_last_did', did);
                     }
                 }
-            )
-            // Handle post deletion - optimistically remove from all feed posts
-            .addCase(deletePost.pending, (state: FeedsState, action) => {
-                const deletedUri = action.meta.arg;
-                const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
-                
-                const isDeletedPost = (p: Post) =>
-                    p.uri === deletedUri ||
-                    (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
-                    (p.uri && p.uri.endsWith('/' + deletedId));
-                
-                // Remove from all feed posts
-                Object.keys(state.feedPosts).forEach(feedId => {
-                    state.feedPosts[feedId] = state.feedPosts[feedId].filter((p: Post) => !isDeletedPost(p));
-                });
-            })
-            .addCase(deletePost.fulfilled, (state: FeedsState, action: PayloadAction<string>) => {
-                const deletedUri = action.payload;
-                const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop()! : deletedUri;
-                
-                const isDeletedPost = (p: Post) =>
-                    p.uri === deletedUri ||
-                    (deletedId && (p.tid === deletedId || p.id === deletedId)) ||
-                    (p.uri && p.uri.endsWith('/' + deletedId));
-                
-                // Ensure removal from all feed posts (in case pending didn't catch it)
-                Object.keys(state.feedPosts).forEach(feedId => {
-                    state.feedPosts[feedId] = state.feedPosts[feedId].filter((p: Post) => !isDeletedPost(p));
-                });
-            });
+            );
     }
 });
 
