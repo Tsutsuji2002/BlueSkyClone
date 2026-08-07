@@ -191,10 +191,16 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
             const deletedUri = event.detail?.uri;
             if (!deletedUri) return;
 
+            // Extract ID from URI for broader matching
+            const deletedId = deletedUri.includes('/') ? deletedUri.split('/').pop() : deletedUri;
+
             setItems(prev => prev.filter(item => {
-                // Match by URI or other identifiers
+                // Match by URI
                 if (item.uri === deletedUri) return false;
-                if (item.id && deletedUri.includes(item.id)) return false;
+                // Match by TID or ID
+                if (deletedId && (item.tid === deletedId || item.id === deletedId)) return false;
+                // Match by URI ending with ID
+                if (deletedId && item.uri && item.uri.endsWith('/' + deletedId)) return false;
                 return true;
             }));
         };

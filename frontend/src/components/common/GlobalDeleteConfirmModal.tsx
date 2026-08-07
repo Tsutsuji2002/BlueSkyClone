@@ -22,6 +22,10 @@ const GlobalDeleteConfirmModal: React.FC = () => {
         } else if (postUri) {
             try {
                 await dispatch(deletePost(postUri)).unwrap();
+                
+                // Dispatch custom event for ProfileTabContent to listen to
+                window.dispatchEvent(new CustomEvent('postDeleted', { detail: { uri: postUri } }));
+                
                 dispatch(showToast({ message: t('common.post_deleted'), type: 'success' }));
             } catch (error: any) {
                 dispatch(showToast({ message: error || t('common.failed_to_delete'), type: 'error' }));
