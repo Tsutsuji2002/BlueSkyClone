@@ -450,9 +450,12 @@ const CreatePostModal: React.FC = () => {
     return (
         <>
             {/* Main Modal */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={handleClose}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={isPostLoading ? undefined : handleClose}>
                 <div
-                    className="bg-white dark:bg-dark-surface rounded-[14px] border border-gray-200 dark:border-dark-border w-full max-w-[600px] shadow-2xl flex flex-col"
+                    className={cn(
+                        "bg-white dark:bg-dark-surface rounded-[14px] border border-gray-200 dark:border-dark-border w-full max-w-[600px] shadow-2xl flex flex-col relative",
+                        isPostLoading && "pointer-events-none"
+                    )}
                     style={{ maxHeight: 'min(90vh, 720px)' }}
                     onClick={e => e.stopPropagation()}
                 >
@@ -460,16 +463,27 @@ const CreatePostModal: React.FC = () => {
                     <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
                         <button
                             onClick={handleClose}
-                            className="text-[15px] font-bold text-[#1d9bf0] hover:text-[#60b8f5] transition-colors"
+                            disabled={isPostLoading}
+                            className={cn(
+                                "text-[15px] font-bold transition-colors",
+                                isPostLoading 
+                                    ? "text-gray-400 cursor-not-allowed" 
+                                    : "text-[#1d9bf0] hover:text-[#60b8f5]"
+                            )}
                         >
                             {t('common.cancel', 'Cancel')}
                         </button>
                         <span className="text-[15px] font-bold text-gray-400">{t('common.drafts', 'Drafts')}</span>
                         <div className="flex items-center gap-3">
-                            {isVideoProcessing && (
+                            {(isVideoProcessing || isPostLoading) && (
                                 <div className="flex items-center gap-2 text-sm text-gray-500 animate-pulse">
                                     <div className="w-4 h-4 rounded-full border-2 border-[#1d9bf0] border-t-transparent animate-spin" />
-                                    <span>{t('post.video_processing')}</span>
+                                    <span>
+                                        {isPostLoading 
+                                            ? (isEditing ? t('common.saving', 'Saving…') : t('common.posting', 'Posting…'))
+                                            : t('post.video_processing')
+                                        }
+                                    </span>
                                 </div>
                             )}
                             <button
@@ -483,6 +497,21 @@ const CreatePostModal: React.FC = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Loading Overlay */}
+                    {isPostLoading && (
+                        <div className="absolute inset-0 bg-white/70 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center rounded-[14px]">
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-12 h-12 rounded-full border-4 border-[#1d9bf0] border-t-transparent animate-spin" />
+                                <p className="text-[15px] font-semibold text-gray-700 dark:text-gray-200">
+                                    {isEditing ? t('common.saving', 'Saving…') : t('common.posting', 'Posting…')}
+                                </p>
+                                <p className="text-[13px] text-gray-500 dark:text-gray-400">
+                                    {t('post.processing_image', 'Processing image, please wait...')}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="px-4 pt-3 pb-2 overflow-y-auto flex-1">
                         <div className="flex gap-3">

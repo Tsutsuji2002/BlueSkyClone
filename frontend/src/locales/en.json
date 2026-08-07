@@ -827,6 +827,7 @@
     "post": {
         "title": "Post",
         "updated_success": "Post updated successfully",
+        "processing_image": "Processing image, please wait...",
         "everyone_can_reply": "Everyone can reply",
         "translate": "Translate",
         "copy_text": "Copy post text",

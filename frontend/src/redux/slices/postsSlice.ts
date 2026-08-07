@@ -527,18 +527,33 @@ export const createPost = createAsyncThunk(
                 formData.append('AllowQuotes', String(postData.allowQuotes));
             }
 
-            const response = await fetch(`${API_BASE_URL}/posts`, {
-                method: 'POST',
-                credentials: 'include',
-                body: formData
-            });
+            // Use AbortController for custom timeout (120 seconds for large image processing)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-            if (!response.ok) {
-                const err = await response.json();
-                return rejectWithValue(err.message || 'Failed to create post');
+            try {
+                const response = await fetch(`${API_BASE_URL}/posts`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData,
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    return rejectWithValue(err.message || 'Failed to create post');
+                }
+
+                return await response.json() as Post;
+            } catch (fetchError: any) {
+                clearTimeout(timeoutId);
+                if (fetchError.name === 'AbortError') {
+                    return rejectWithValue('Post creation timed out. The image may be too large or complex to process.');
+                }
+                throw fetchError;
             }
-
-            return await response.json() as Post;
         } catch (error: any) {
             return rejectWithValue(error.message || 'Failed to create post');
         }

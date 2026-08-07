@@ -8510,31 +8510,57 @@ public class PostService : IPostService
         {
             using (var image = await Image.LoadAsync(fullPath))
             {
-                int quality = 85;
+                const int targetSize = 950000; // 950 KB target
                 int maxWidth = 2000;
                 
+                // First pass: Resize if needed
+                if (image.Width > maxWidth)
+                {
+                    var ratio = (double)maxWidth / image.Width;
+                    image.Mutate(x => x.Resize(maxWidth, (int)(image.Height * ratio)));
+                }
+
                 using (var ms = new MemoryStream())
                 {
-                    // Progressivesively reduce until < 950KB
-                    while (quality > 10)
-                    {
-                        ms.SetLength(0);
-                        bool resized = false;
-                        if (image.Width > maxWidth)
-                        {
-                            var ratio = (double)maxWidth / image.Width;
-                            image.Mutate(x => x.Resize(maxWidth, (int)(image.Height * ratio)));
-                            resized = true;
-                        }
+                    // Binary search for optimal quality (much faster than linear)
+                    int minQuality = 10;
+                    int maxQuality = 85;
+                    int bestQuality = 85;
+                    byte[]? bestResult = null;
 
-                        await image.SaveAsJpegAsync(ms, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = quality });
-                        if (ms.Length < 950000) break;
+                    while (minQuality <= maxQuality)
+                    {
+                        int midQuality = (minQuality + maxQuality) / 2;
+                        ms.SetLength(0);
                         
-                        quality -= 15;
-                        if (!resized) maxWidth -= 400; // Only reduce width if we didn't just resize
-                        if (maxWidth < 800) maxWidth = 800;
+                        await image.SaveAsJpegAsync(ms, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = midQuality });
+                        
+                        if (ms.Length <= targetSize)
+                        {
+                            // This quality works, save it and try higher quality
+                            bestQuality = midQuality;
+                            bestResult = ms.ToArray();
+                            minQuality = midQuality + 1;
+                        }
+                        else
+                        {
+                            // Too large, try lower quality
+                            maxQuality = midQuality - 1;
+                        }
                     }
-                    return ms.ToArray();
+
+                    // If even at lowest quality it's still too large, aggressively resize
+                    if (bestResult == null || bestResult.Length > targetSize)
+                    {
+                        maxWidth = 1200; // More aggressive resize
+                        image.Mutate(x => x.Resize(maxWidth, (int)(image.Height * ((double)maxWidth / image.Width))));
+                        
+                        ms.SetLength(0);
+                        await image.SaveAsJpegAsync(ms, new SixLabors.ImageSharp.Formats.Jpeg.JpegEncoder { Quality = 75 });
+                        return ms.ToArray();
+                    }
+
+                    return bestResult;
                 }
             }
         }
