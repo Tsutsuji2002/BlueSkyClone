@@ -72,10 +72,10 @@ const TrendingSection: React.FC = () => {
                                 const searchUrl = topic.link || `/search?query=${encodeURIComponent(topic.hashtag)}`;
                                 navigate(searchUrl);
                             }}
-                            className="flex flex-row items-center justify-start group cursor-pointer hover:underline decoration-white/20"
+                            className="flex flex-row items-center justify-start group cursor-pointer hover:underline decoration-white/20 w-full min-w-0"
                         >
-                            <div className="flex flex-row items-center gap-1">
-                                <span className="text-[13.1px] text-[#526580] dark:text-[#8798b0] min-w-[16px] leading-[17px]">
+                            <div className="flex flex-row items-center gap-1 min-w-0 w-full">
+                                <span className="text-[13.1px] text-[#526580] dark:text-[#8798b0] min-w-[16px] leading-[17px] shrink-0">
                                     {index + 1}.
                                 </span>
                                 <span className="text-[13.1px] text-[#1D2B3D] dark:text-[#a5b2c5] group-hover:text-[#006AFF] dark:group-hover:text-white transition-colors truncate leading-[17px]">
