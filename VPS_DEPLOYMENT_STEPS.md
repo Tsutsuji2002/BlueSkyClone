@@ -125,7 +125,7 @@ docker compose -f docker-compose.prod.yml build --no-cache backend
 ### If LinkPreviews errors persist:
 ```bash
 # Verify table exists
-docker exec -it bsky-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Ifilp0721@@' -C -Q "SELECT name FROM BlueSkyClone.sys.tables WHERE name = 'LinkPreviews'"
+docker exec -it bsky-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourPassword' -C -Q "SELECT name FROM BlueSkyClone.sys.tables WHERE name = 'LinkPreviews'"
 
 # If table doesn't exist, run reset script again
 ./reset-database.sh
@@ -134,14 +134,14 @@ docker exec -it bsky-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Ifi
 ### If BookmarksCount NULL errors persist:
 ```bash
 # Manually fix the column
-docker exec -it bsky-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Ifilp0721@@' -C -d BlueSkyClone -Q "UPDATE Posts SET BookmarksCount = 0 WHERE BookmarksCount IS NULL; ALTER TABLE Posts ALTER COLUMN BookmarksCount int NOT NULL;"
+docker exec -it bsky-db /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourPassword' -C -d BlueSkyClone -Q "UPDATE Posts SET BookmarksCount = 0 WHERE BookmarksCount IS NULL; ALTER TABLE Posts ALTER COLUMN BookmarksCount int NOT NULL;"
 ```
 
 ## Database Credentials
 - Container: `bsky-db`
 - Database: `BlueSkyClone`
 - User: `sa`
-- Password: `Ifilp0721@@`
+- Password: `YourPassword`
 
 ## Expected Result
 After successful deployment:
