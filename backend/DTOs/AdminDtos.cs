@@ -153,3 +153,12 @@ public record AccessLogDto(
     string Action,
     DateTime CreatedAt
 );
+
+public record AccessLogStatsDto(
+    int TotalAccesses,
+    int UserLogins,
+    int GuestVisits,
+    int Logouts,
+    int ExpiredSessions
+);
+

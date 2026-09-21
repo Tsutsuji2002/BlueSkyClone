@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../constants';
-import { AdminStats, AdminList, AdminConversation, AdminBlock, AdminMute, BroadcastNotificationRequest, PaginatedResult, AdminUser, AdminPost, AdminFeed, AdminInterest, AdminHashtag, AccessLog } from '../types/admin';
+import { AdminStats, AdminList, AdminConversation, AdminBlock, AdminMute, BroadcastNotificationRequest, PaginatedResult, AdminUser, AdminPost, AdminFeed, AdminInterest, AdminHashtag, AccessLog, AccessLogStats } from '../types/admin';
 
 export const adminService = {
     getUsers: async (skip = 0, take = 20, search?: string): Promise<PaginatedResult<AdminUser>> => {
@@ -306,6 +306,14 @@ export const adminService = {
             credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to fetch access logs');
+        return response.json();
+    },
+
+    getAccessLogStats: async (): Promise<AccessLogStats> => {
+        const response = await fetch(`${API_BASE_URL}/admin/access-logs/stats`, {
+            credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Failed to fetch access log stats');
         return response.json();
     }
 };

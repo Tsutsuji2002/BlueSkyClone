@@ -261,4 +261,11 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetAccessLogsAsync(skip, take, search, action);
         return Ok(result);
     }
+
+    [HttpGet("access-logs/stats")]
+    public async Task<IActionResult> GetAccessLogStats()
+    {
+        var result = await _adminService.GetAccessLogStatsAsync();
+        return Ok(result);
+    }
 }

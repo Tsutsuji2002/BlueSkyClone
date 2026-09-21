@@ -122,3 +122,12 @@ export interface AccessLog {
     action: string;
     createdAt: string;
 }
+
+export interface AccessLogStats {
+    totalAccesses: number;
+    userLogins: number;
+    guestVisits: number;
+    logouts: number;
+    expiredSessions: number;
+}
+

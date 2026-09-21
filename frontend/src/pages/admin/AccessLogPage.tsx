@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiActivity, FiSearch, FiRefreshCw, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiActivity, FiSearch, FiRefreshCw, FiChevronLeft, FiChevronRight, FiUserCheck, FiUsers, FiLogOut, FiShieldOff } from 'react-icons/fi';
 import { adminService } from '../../services/adminService';
-import { AccessLog } from '../../types/admin';
+import { AccessLog, AccessLogStats } from '../../types/admin';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 
@@ -9,8 +9,17 @@ const TAKE = 50;
 
 const actionColors: Record<string, string> = {
     login: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    logout: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    default: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    guest_visit: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    logout: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    session_expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    default: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+};
+
+const actionLabels: Record<string, string> = {
+    login: 'Login',
+    guest_visit: 'Guest Visit',
+    logout: 'Logout',
+    session_expired: 'Session Expired',
 };
 
 function formatDate(iso: string): string {
@@ -28,14 +37,28 @@ const AccessLogPage: React.FC = () => {
     const dark = mode === 'dark';
 
     const [logs, setLogs] = useState<AccessLog[]>([]);
+    const [stats, setStats] = useState<AccessLogStats | null>(null);
     const [total, setTotal] = useState(0);
     const [skip, setSkip] = useState(0);
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
     const [loading, setLoading] = useState(false);
+    const [statsLoading, setStatsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastRefresh, setLastRefresh] = useState(new Date());
+
+    const fetchStats = useCallback(async () => {
+        setStatsLoading(true);
+        try {
+            const result = await adminService.getAccessLogStats();
+            setStats(result);
+        } catch {
+            // Non-critical if stats fail
+        } finally {
+            setStatsLoading(false);
+        }
+    }, []);
 
     const fetchLogs = useCallback(async (s = skip, q = search, a = actionFilter) => {
         setLoading(true);
@@ -52,15 +75,27 @@ const AccessLogPage: React.FC = () => {
         }
     }, [skip, search, actionFilter]);
 
+    const refreshAll = useCallback(() => {
+        fetchLogs();
+        fetchStats();
+    }, [fetchLogs, fetchStats]);
+
     useEffect(() => {
         fetchLogs(skip, search, actionFilter);
     }, [skip, search, actionFilter]);
 
+    useEffect(() => {
+        fetchStats();
+    }, [fetchStats]);
+
     // Auto-refresh every 30 seconds
     useEffect(() => {
-        const timer = setInterval(() => fetchLogs(skip, search, actionFilter), 30000);
+        const timer = setInterval(() => {
+            fetchLogs(skip, search, actionFilter);
+            fetchStats();
+        }, 30000);
         return () => clearInterval(timer);
-    }, [skip, search, actionFilter, fetchLogs]);
+    }, [skip, search, actionFilter, fetchLogs, fetchStats]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,7 +120,7 @@ const AccessLogPage: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Access Logs</h1>
-                        <p className={`text-sm ${textSub}`}>User login activity and IP tracking</p>
+                        <p className={`text-sm ${textSub}`}>Monitor user logins, guest visits, and session activity</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -93,13 +128,68 @@ const AccessLogPage: React.FC = () => {
                         Last updated: {lastRefresh.toLocaleTimeString()}
                     </span>
                     <button
-                        onClick={() => fetchLogs()}
+                        onClick={refreshAll}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors"
-                        disabled={loading}
+                        disabled={loading || statsLoading}
                     >
-                        <FiRefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                        <FiRefreshCw size={14} className={loading || statsLoading ? 'animate-spin' : ''} />
                         Refresh
                     </button>
+                </div>
+            </div>
+
+            {/* Access Stats Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {/* Total Accesses */}
+                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
+                        <FiActivity size={22} />
+                    </div>
+                    <div>
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Total Accesses</span>
+                        <p className="text-2xl font-extrabold mt-0.5">
+                            {stats ? stats.totalAccesses.toLocaleString() : '—'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* User Logins */}
+                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                    <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center font-bold">
+                        <FiUserCheck size={22} />
+                    </div>
+                    <div>
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>User Logins</span>
+                        <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-0.5">
+                            {stats ? stats.userLogins.toLocaleString() : '—'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Guest Visits */}
+                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+                        <FiUsers size={22} />
+                    </div>
+                    <div>
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Guest Visits</span>
+                        <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                            {stats ? stats.guestVisits.toLocaleString() : '—'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Logouts & Expired */}
+                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold">
+                        <FiLogOut size={22} />
+                    </div>
+                    <div>
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Logouts & Expired</span>
+                        <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
+                            {stats ? (stats.logouts + stats.expiredSessions).toLocaleString() : '—'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -110,7 +200,7 @@ const AccessLogPage: React.FC = () => {
                         <FiSearch size={14} className={textSub} />
                         <input
                             type="text"
-                            placeholder="Search by handle or IP..."
+                            placeholder="Search by handle or IP address..."
                             value={searchInput}
                             onChange={e => setSearchInput(e.target.value)}
                             className="flex-1 bg-transparent outline-none text-sm"
@@ -127,15 +217,17 @@ const AccessLogPage: React.FC = () => {
                     className={`px-3 py-2 rounded-lg border text-sm ${dark ? 'bg-dark-surface border-dark-border text-dark-text' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
                 >
                     <option value="all">All Actions</option>
-                    <option value="login">Login</option>
+                    <option value="login">User Login</option>
+                    <option value="guest_visit">Guest Visit</option>
                     <option value="logout">Logout</option>
+                    <option value="session_expired">Session Expired</option>
                 </select>
             </div>
 
             {/* Stats bar */}
             <div className={`border rounded-xl p-3 mb-5 flex items-center justify-between ${card}`}>
                 <span className={`text-sm ${textSub}`}>
-                    {loading ? 'Loading...' : `${total.toLocaleString()} total records`}
+                    {loading ? 'Loading...' : `${total.toLocaleString()} matching records`}
                 </span>
                 <span className={`text-sm ${textSub}`}>
                     Page {currentPage} of {Math.max(1, totalPages)}
@@ -155,7 +247,7 @@ const AccessLogPage: React.FC = () => {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className={`border-b ${dark ? 'border-dark-border bg-dark-surface' : 'border-gray-100 bg-gray-50'}`}>
-                                <th className="text-left px-4 py-3 font-semibold">Handle</th>
+                                <th className="text-left px-4 py-3 font-semibold">User / Identity</th>
                                 <th className="text-left px-4 py-3 font-semibold">IP Address</th>
                                 <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">User Agent</th>
                                 <th className="text-left px-4 py-3 font-semibold">Action</th>
@@ -183,7 +275,13 @@ const AccessLogPage: React.FC = () => {
                             {!loading && logs.map(log => (
                                 <tr key={log.id} className={`transition-colors ${rowHover}`}>
                                     <td className="px-4 py-3 font-medium">
-                                        {log.handle || <span className={textSub}>—</span>}
+                                        {log.handle === 'Guest' ? (
+                                            <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-semibold">
+                                                Guest
+                                            </span>
+                                        ) : (
+                                            log.handle || <span className={textSub}>—</span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 font-mono text-xs">
                                         <span className={`px-2 py-0.5 rounded ${dark ? 'bg-dark-surface' : 'bg-gray-100'}`}>
@@ -195,7 +293,7 @@ const AccessLogPage: React.FC = () => {
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${actionColors[log.action] ?? actionColors.default}`}>
-                                            {log.action}
+                                            {actionLabels[log.action] ?? log.action}
                                         </span>
                                     </td>
                                     <td className={`px-4 py-3 text-xs ${textSub} whitespace-nowrap`}>

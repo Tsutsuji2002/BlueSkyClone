@@ -334,6 +334,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseAuthentication();
 app.UseMiddleware<BSkyClone.Middleware.BannedUserMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<BSkyClone.Middleware.GuestAccessLoggingMiddleware>();
 
 app.UseMiddleware<BSkyClone.Middleware.XrpcMiddleware>();
 app.MapControllers();

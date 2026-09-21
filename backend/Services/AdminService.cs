@@ -867,4 +867,23 @@ public class AdminService : IAdminService
             return new PaginatedResult<AccessLogDto>(new List<AccessLogDto>(), 0, skip, take);
         }
     }
+
+    public async Task<AccessLogStatsDto> GetAccessLogStatsAsync()
+    {
+        try
+        {
+            var total = await _context.AccessLogs.CountAsync();
+            var userLogins = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "login");
+            var guestVisits = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "guest_visit");
+            var logouts = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "logout");
+            var expiredSessions = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "session_expired");
+
+            return new AccessLogStatsDto(total, userLogins, guestVisits, logouts, expiredSessions);
+        }
+        catch (Exception ex)
+        {
+            System.Console.WriteLine($"[AdminService] AccessLogStats query failed: {ex.Message}");
+            return new AccessLogStatsDto(0, 0, 0, 0, 0);
+        }
+    }
 }

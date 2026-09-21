@@ -12,11 +12,13 @@ namespace BSkyClone.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IAccessLogService _accessLogService;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IAccessLogService accessLogService, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _accessLogService = accessLogService;
         _logger = logger;
     }
 
@@ -125,6 +127,9 @@ public class AuthController : ControllerBase
         var result = await _authService.RefreshTokenAsync(refreshToken);
         if (result == null)
         {
+            var ip = GetClientIp();
+            var userAgent = Request.Headers["User-Agent"].ToString();
+            _ = _accessLogService.LogAsync(null, "Unknown", ip, userAgent, "session_expired");
             return Unauthorized(new { message = "Invalid refresh token." });
         }
         SetTokenCookies(result.Token, result.RefreshToken, result.RememberMe);
@@ -140,6 +145,9 @@ public class AuthController : ControllerBase
         var result = await _authService.RefreshTokenAsync(request.RefreshToken);
         if (result == null)
         {
+            var ip = GetClientIp();
+            var userAgent = Request.Headers["User-Agent"].ToString();
+            _ = _accessLogService.LogAsync(null, "Unknown", ip, userAgent, "session_expired");
             return Unauthorized(new { message = "Session expired. Please log in again." });
         }
         SetTokenCookies(result.Token, result.RefreshToken, result.RememberMe);
@@ -149,6 +157,13 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
+        var handle = User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("handle") ?? "User";
+        Guid? userId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uid) ? uid : null;
+        var ip = GetClientIp();
+        var userAgent = Request.Headers["User-Agent"].ToString();
+
+        _ = _accessLogService.LogAsync(userId, handle, ip, userAgent, "logout");
+
         var refreshToken = Request.Cookies["refresh_token"];
         if (!string.IsNullOrEmpty(refreshToken))
         {
@@ -158,6 +173,21 @@ public class AuthController : ControllerBase
         Response.Cookies.Delete("access_token", new CookieOptions { Path = "/" });
         Response.Cookies.Delete("refresh_token", new CookieOptions { Path = "/" });
         return Ok(new { success = true });
+    }
+
+    private string GetClientIp()
+    {
+        var forwardedFor = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(forwardedFor))
+        {
+            return forwardedFor.Split(',')[0].Trim();
+        }
+        var realIp = Request.Headers["X-Real-IP"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(realIp))
+        {
+            return realIp.Trim();
+        }
+        return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
     }
 
     private void SetTokenCookies(string token, string refreshToken, bool rememberMe = false)
