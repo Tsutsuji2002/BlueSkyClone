@@ -68,6 +68,7 @@ public partial class BSkyDbContext : DbContext
     public virtual DbSet<RepoBlock> RepoBlocks { get; set; }
     public virtual DbSet<Report> Reports { get; set; }
     public virtual DbSet<Label> Labels { get; set; }
+    public virtual DbSet<AccessLog> AccessLogs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -761,6 +762,23 @@ public partial class BSkyDbContext : DbContext
             entity.Property(e => e.Neg).HasDefaultValue(false);
             
             entity.HasIndex(e => e.Uri);
+        });
+
+        modelBuilder.Entity<AccessLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("(newsequentialid())");
+            entity.Property(e => e.Handle).HasMaxLength(256);
+            entity.Property(e => e.IpAddress).HasMaxLength(64);
+            entity.Property(e => e.UserAgent).HasMaxLength(512);
+            entity.Property(e => e.Action).HasMaxLength(50).HasDefaultValue("login");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Handle);
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_AccessLogUser");
         });
 
         OnModelCreatingPartial(modelBuilder);

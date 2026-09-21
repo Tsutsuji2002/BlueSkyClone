@@ -32,6 +32,7 @@ const AdminLayout: React.FC = () => {
             title: t('admin.users.title'),
             items: [
                 { path: '/admin/users', icon: <FiUsers size={20} />, label: t('admin.users.title') },
+                { path: '/admin/access-logs', icon: <FiActivity size={20} />, label: 'Access Logs' },
                 { path: '/admin/lists', icon: <FiList size={20} />, label: t('admin.lists.title') },
             ]
         },

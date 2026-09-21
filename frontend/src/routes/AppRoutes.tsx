@@ -70,6 +70,7 @@ const SubmitRequestPage = React.lazy(() => import('../pages/SubmitRequestPage'))
 // Admin Pages
 const AdminDashboardPage = React.lazy(() => import('../pages/admin/AdminDashboardPage'));
 const UserManagementPage = React.lazy(() => import('../pages/admin/UserManagementPage'));
+const AccessLogPage = React.lazy(() => import('../pages/admin/AccessLogPage'));
 const PostManagementPage = React.lazy(() => import('../pages/admin/PostManagementPage'));
 const FeedManagementPage = React.lazy(() => import('../pages/admin/FeedManagementPage'));
 const InterestManagementPage = React.lazy(() => import('../pages/admin/InterestManagementPage'));
@@ -301,6 +302,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="conversations" element={<ConversationManagementPage />} />
                     <Route path="moderation" element={<ModerationPage />} />
                     <Route path="notifications" element={<NotificationManagementPage />} />
+                    <Route path="access-logs" element={<AccessLogPage />} />
                     <Route path="support" element={<SupportManagementPage />} />
                     <Route path="pages" element={<PageContentManagementPage />} />
                 </Route>

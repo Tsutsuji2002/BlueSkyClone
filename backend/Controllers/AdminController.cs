@@ -248,4 +248,17 @@ public class AdminController : ControllerBase
         await _adminService.ReindexSystemAsync();
         return Ok(new { message = "Reindexing started in the background" });
     }
+
+    // ── Access Logs ──
+
+    [HttpGet("access-logs")]
+    public async Task<IActionResult> GetAccessLogs(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 50,
+        [FromQuery] string? search = null,
+        [FromQuery] string? action = null)
+    {
+        var result = await _adminService.GetAccessLogsAsync(skip, take, search, action);
+        return Ok(result);
+    }
 }

@@ -825,4 +825,38 @@ public class AdminService : IAdminService
     {
         await _searchService.ReindexAllAsync();
     }
+
+    public async Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action)
+    {
+        var query = _context.AccessLogs.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(l => l.Handle.ToLower().Contains(s) || l.IpAddress.Contains(s));
+        }
+
+        if (!string.IsNullOrWhiteSpace(action) && action.ToLower() != "all")
+        {
+            query = query.Where(l => l.Action.ToLower() == action.ToLower());
+        }
+
+        var total = await query.CountAsync();
+
+        var items = await query
+            .OrderByDescending(l => l.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .Select(l => new AccessLogDto(
+                l.Id,
+                l.Handle,
+                l.IpAddress,
+                l.UserAgent,
+                l.Action,
+                l.CreatedAt
+            ))
+            .ToListAsync();
+
+        return new PaginatedResult<AccessLogDto>(items, total, skip, take);
+    }
 }

@@ -33,4 +33,5 @@ public interface IAdminService
     Task<bool> DeleteHashtagAsync(int hashtagId);
     Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request);
     Task ReindexSystemAsync();
+    Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action);
 }

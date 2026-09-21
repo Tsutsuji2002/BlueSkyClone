@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../constants';
-import { AdminStats, AdminList, AdminConversation, AdminBlock, AdminMute, BroadcastNotificationRequest, PaginatedResult, AdminUser, AdminPost, AdminFeed, AdminInterest, AdminHashtag } from '../types/admin';
+import { AdminStats, AdminList, AdminConversation, AdminBlock, AdminMute, BroadcastNotificationRequest, PaginatedResult, AdminUser, AdminPost, AdminFeed, AdminInterest, AdminHashtag, AccessLog } from '../types/admin';
 
 export const adminService = {
     getUsers: async (skip = 0, take = 20, search?: string): Promise<PaginatedResult<AdminUser>> => {
@@ -296,5 +296,16 @@ export const adminService = {
             credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to reindex system');
+    },
+
+    getAccessLogs: async (skip = 0, take = 50, search?: string, action?: string): Promise<PaginatedResult<AccessLog>> => {
+        const query = new URLSearchParams({ skip: skip.toString(), take: take.toString() });
+        if (search) query.append('search', search);
+        if (action && action !== 'all') query.append('action', action);
+        const response = await fetch(`${API_BASE_URL}/admin/access-logs?${query.toString()}`, {
+            credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Failed to fetch access logs');
+        return response.json();
     }
 };

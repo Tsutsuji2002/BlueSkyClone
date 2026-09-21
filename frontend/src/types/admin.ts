@@ -113,3 +113,12 @@ export interface PaginatedResult<T> {
     items: T[];
     totalCount: number;
 }
+
+export interface AccessLog {
+    id: string;
+    handle?: string;
+    ipAddress: string;
+    userAgent?: string;
+    action: string;
+    createdAt: string;
+}

@@ -38,8 +38,9 @@ public class AuthService : IAuthService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<PostHub> _postHubContext;
     private readonly ILogger<AuthService> _logger;
+    private readonly IAccessLogService _accessLogService;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, IXrpcProxyService xrpcProxy, IServiceScopeFactory scopeFactory, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger)
+    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, IDistributedCache cache, IXrpcProxyService xrpcProxy, IServiceScopeFactory scopeFactory, IHubContext<PostHub> postHubContext, ILogger<AuthService> logger, IAccessLogService accessLogService)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
@@ -48,6 +49,7 @@ public class AuthService : IAuthService
         _scopeFactory = scopeFactory;
         _postHubContext = postHubContext;
         _logger = logger;
+        _accessLogService = accessLogService;
     }
 
     public async Task RequestPhoneVerificationAsync(string phone)
@@ -268,6 +270,20 @@ public class AuthService : IAuthService
         }
 
         await _unitOfWork.CompleteAsync();
+
+        // Log access event (fire-and-forget, never crashes login)
+        try
+        {
+            using var logScope = _scopeFactory.CreateScope();
+            var httpCtxAccessor = logScope.ServiceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
+            var httpCtx = httpCtxAccessor?.HttpContext;
+            var ip = httpCtx?.Connection.RemoteIpAddress?.ToString() ?? 
+                     httpCtx?.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "unknown";
+            var ua = httpCtx?.Request.Headers["User-Agent"].ToString();
+            var logSvc = logScope.ServiceProvider.GetRequiredService<IAccessLogService>();
+            await logSvc.LogAsync(user.Id, user.Handle, ip, ua, "login");
+        }
+        catch { /* never let logging fail login */ }
 
         // Broadcast Real-time Profile Update (Sync from Bluesky)
         var userDto = new UserDto(user.Id, user.Username, user.Handle, user.Email, user.DisplayName, user.AvatarUrl, user.CoverImageUrl, user.Bio, user.Location, user.Website, user.DateOfBirth, user.FollowersCount, user.FollowingCount, user.PostsCount, user.Role, null, user.IsVerified, user.Did);

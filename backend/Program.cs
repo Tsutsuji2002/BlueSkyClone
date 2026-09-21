@@ -22,6 +22,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSignalR(options =>
 {
@@ -152,6 +153,7 @@ builder.Services.AddHttpClient("BlueskyClient", client =>
 builder.Services.AddScoped<ILinkService, LinkService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IAccessLogService, AccessLogService>();
 builder.Services.AddScoped<IListService, ListService>();
 builder.Services.AddScoped<ListMigrationService>(); // Migration service for cleaning up remote user lists
 builder.Services.AddScoped<ICacheService, CacheService>();
@@ -533,6 +535,24 @@ END
 IF COL_LENGTH('Conversations', 'GroupName') IS NULL
 BEGIN
     ALTER TABLE [Conversations] ADD [GroupName] nvarchar(max) NULL;
+END
+
+-- Ensure AccessLogs table exists
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('[AccessLogs]') AND type = N'U')
+BEGIN
+    CREATE TABLE [AccessLogs] (
+        [Id] uniqueidentifier NOT NULL DEFAULT NEWSEQUENTIALID(),
+        [UserId] uniqueidentifier NULL,
+        [Handle] nvarchar(256) NOT NULL DEFAULT N'',
+        [IpAddress] nvarchar(64) NOT NULL DEFAULT N'',
+        [UserAgent] nvarchar(512) NULL,
+        [Action] nvarchar(50) NOT NULL DEFAULT N'login',
+        [CreatedAt] datetime2 NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_AccessLogs] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_AccessLogUser] FOREIGN KEY ([UserId]) REFERENCES [Users]([Id]) ON DELETE SET NULL
+    );
+    CREATE INDEX [IX_AccessLogs_CreatedAt] ON [AccessLogs] ([CreatedAt]);
+    CREATE INDEX [IX_AccessLogs_Handle] ON [AccessLogs] ([Handle]);
 END
 ");
             logger.LogInformation("Verified muted word schema.");

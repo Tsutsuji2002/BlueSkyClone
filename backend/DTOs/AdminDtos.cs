@@ -145,3 +145,11 @@ public record AdminHashtagDto(
     DateTime CreatedAt
 );
 
+public record AccessLogDto(
+    Guid Id,
+    string? Handle,
+    string IpAddress,
+    string? UserAgent,
+    string Action,
+    DateTime CreatedAt
+);
