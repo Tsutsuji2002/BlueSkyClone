@@ -11,6 +11,7 @@ services:
       - ConnectionStrings__DefaultConnection=${CONNECTION_STRING:-Server=host.docker.internal,1433;Database=BlueSkyClone;User Id=sa;Password=ifilp0721;TrustServerCertificate=True;MultipleActiveResultSets=True;Max Pool Size=200;}
       - Redis__ConnectionString=${REDIS_CONNECTION:-redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000}
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
+      - ADMIN_HANDLES=${ADMIN_HANDLES:-}
       - DOTNET_SERVER_GC=0
       - DOTNET_GCHeapHardLimit=0x100000000
     mem_limit: 3500m

@@ -187,7 +187,20 @@ public class AuthService : IAuthService
         bool emailConfirmed = bskySession.TryGetProperty("emailConfirmed", out var confirmedProp) && confirmedProp.GetBoolean();
 
         var user = await _unitOfWork.Users.GetByDidAsync(did) ?? await _unitOfWork.Users.GetByHandleAsync(handle);
-        
+
+        // Resolve admin role from ADMIN_HANDLES configuration (used for both new and existing users)
+        var adminConfig = _configuration["ADMIN_HANDLES"] ?? _configuration["AdminHandles"] ?? Environment.GetEnvironmentVariable("ADMIN_HANDLES");
+        var isAdminHandle = false;
+        if (!string.IsNullOrWhiteSpace(adminConfig))
+        {
+            var adminList = adminConfig.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var uname = handle.Contains(".") ? handle.Split('.')[0] : handle;
+            isAdminHandle = adminList.Any(a =>
+                a.Equals(handle, StringComparison.OrdinalIgnoreCase) ||
+                a.Equals(email, StringComparison.OrdinalIgnoreCase) ||
+                a.Equals(uname, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (user == null)
         {
             user = new User
@@ -200,6 +213,7 @@ public class AuthService : IAuthService
                 DisplayName = handle,
                 CreatedAt = DateTime.UtcNow,
                 IsBanned = false,
+                Role = isAdminHandle ? "admin" : "user",
                 PasswordHash = "PROXY_ACCOUNT",
                 Salt = "PROXY_ACCOUNT",
                 BlueskyAccessToken = accessJwt,
@@ -222,6 +236,13 @@ public class AuthService : IAuthService
             {
                 user.Email = email;
             }
+
+            // Auto-promote handle to admin if configured
+            if (isAdminHandle)
+            {
+                user.Role = "admin";
+            }
+
             _unitOfWork.Users.Update(user);
         }
 
