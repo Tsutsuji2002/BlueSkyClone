@@ -24,6 +24,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=sql-server;Database=BlueSkyClone;User Id=sa;Password=${DB_PASSWORD:-YourStrongPassword123!};TrustServerCertificate=True;MultipleActiveResultSets=True;Max Pool Size=200;
       - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000
+      - Jwt__Key=${JWT_KEY:-a_very_long_random_secret_string_change_this_for_prod}
       - DOTNET_SERVER_GC=0
       - DOTNET_GCHeapHardLimit=0x100000000
     mem_limit: 3500m
