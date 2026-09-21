@@ -13,10 +13,7 @@ services:
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
       - DOTNET_SERVER_GC=0
       - DOTNET_GCHeapHardLimit=0x100000000
-    deploy:
-      resources:
-        limits:
-          memory: 3500M
+    mem_limit: 3500m
     depends_on:
       redis:
         condition: service_healthy
