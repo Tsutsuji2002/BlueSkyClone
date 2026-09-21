@@ -828,35 +828,43 @@ public class AdminService : IAdminService
 
     public async Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action)
     {
-        var query = _context.AccessLogs.AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
+        try
         {
-            var s = search.ToLower();
-            query = query.Where(l => l.Handle.ToLower().Contains(s) || l.IpAddress.Contains(s));
-        }
+            var query = _context.AccessLogs.AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(action) && action.ToLower() != "all")
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.ToLower();
+                query = query.Where(l => l.Handle.ToLower().Contains(s) || l.IpAddress.Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(action) && action.ToLower() != "all")
+            {
+                query = query.Where(l => l.Action.ToLower() == action.ToLower());
+            }
+
+            var total = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(l => l.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .Select(l => new AccessLogDto(
+                    l.Id,
+                    l.Handle,
+                    l.IpAddress,
+                    l.UserAgent,
+                    l.Action,
+                    l.CreatedAt
+                ))
+                .ToListAsync();
+
+            return new PaginatedResult<AccessLogDto>(items, total, skip, take);
+        }
+        catch (Exception ex)
         {
-            query = query.Where(l => l.Action.ToLower() == action.ToLower());
+            System.Console.WriteLine($"[AdminService] AccessLogs query failed: {ex.Message}");
+            return new PaginatedResult<AccessLogDto>(new List<AccessLogDto>(), 0, skip, take);
         }
-
-        var total = await query.CountAsync();
-
-        var items = await query
-            .OrderByDescending(l => l.CreatedAt)
-            .Skip(skip)
-            .Take(take)
-            .Select(l => new AccessLogDto(
-                l.Id,
-                l.Handle,
-                l.IpAddress,
-                l.UserAgent,
-                l.Action,
-                l.CreatedAt
-            ))
-            .ToListAsync();
-
-        return new PaginatedResult<AccessLogDto>(items, total, skip, take);
     }
 }

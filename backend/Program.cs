@@ -536,9 +536,19 @@ IF COL_LENGTH('Conversations', 'GroupName') IS NULL
 BEGIN
     ALTER TABLE [Conversations] ADD [GroupName] nvarchar(max) NULL;
 END
+");
+            logger.LogInformation("Verified muted word schema.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to verify muted word schema.");
+        }
 
--- Ensure AccessLogs table exists
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID('[AccessLogs]') AND type = N'U')
+        // Dedicated AccessLogs schema creation
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+IF OBJECT_ID('AccessLogs', 'U') IS NULL
 BEGIN
     CREATE TABLE [AccessLogs] (
         [Id] uniqueidentifier NOT NULL DEFAULT NEWSEQUENTIALID(),
@@ -555,11 +565,11 @@ BEGIN
     CREATE INDEX [IX_AccessLogs_Handle] ON [AccessLogs] ([Handle]);
 END
 ");
-            logger.LogInformation("Verified muted word schema.");
+            logger.LogInformation("Verified AccessLogs schema.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to verify muted word schema.");
+            logger.LogError(ex, "Failed to verify AccessLogs schema.");
         }
 
 
