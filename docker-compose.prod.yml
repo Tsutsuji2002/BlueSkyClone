@@ -7,6 +7,10 @@ services:
       - MSSQL_SA_PASSWORD=${DB_PASSWORD:-YourStrongPassword123!}
     volumes:
       - mssql_data:/var/opt/mssql
+    deploy:
+      resources:
+        limits:
+          memory: 3000M
     healthcheck:
       test: [ "CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD:-YourStrongPassword123!}", "-C", "-Q", "SELECT 1" ]
       interval: 10s
@@ -23,7 +27,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=sql-server;Database=BlueSkyClone;User Id=sa;Password=${DB_PASSWORD:-YourStrongPassword123!};TrustServerCertificate=True;MultipleActiveResultSets=True;Max Pool Size=200;
       - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=10000,syncTimeout=10000
-      - Jwt__Key=${JWT_KEY:-a_very_long_random_secret_string_change_this_for_prod}
+      - DOTNET_SERVER_GC=0
+      - DOTNET_GCHeapHardLimit=0x100000000
+    deploy:
+      resources:
+        limits:
+          memory: 3500M
     depends_on:
       sql-server:
         condition: service_healthy
