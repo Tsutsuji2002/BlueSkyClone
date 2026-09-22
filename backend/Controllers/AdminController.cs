@@ -256,9 +256,11 @@ public class AdminController : ControllerBase
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50,
         [FromQuery] string? search = null,
-        [FromQuery] string? action = null)
+        [FromQuery] string? action = null,
+        [FromQuery] string? browser = null,
+        [FromQuery] string? dateRange = null)
     {
-        var result = await _adminService.GetAccessLogsAsync(skip, take, search, action);
+        var result = await _adminService.GetAccessLogsAsync(skip, take, search, action, browser, dateRange);
         return Ok(result);
     }
 

@@ -298,10 +298,12 @@ export const adminService = {
         if (!response.ok) throw new Error('Failed to reindex system');
     },
 
-    getAccessLogs: async (skip = 0, take = 50, search?: string, action?: string): Promise<PaginatedResult<AccessLog>> => {
+    getAccessLogs: async (skip = 0, take = 50, search?: string, action?: string, browser?: string, dateRange?: string): Promise<PaginatedResult<AccessLog>> => {
         const query = new URLSearchParams({ skip: skip.toString(), take: take.toString() });
         if (search) query.append('search', search);
         if (action && action !== 'all') query.append('action', action);
+        if (browser && browser !== 'all') query.append('browser', browser);
+        if (dateRange && dateRange !== 'all') query.append('dateRange', dateRange);
         const response = await fetch(`${API_BASE_URL}/admin/access-logs?${query.toString()}`, {
             credentials: 'include'
         });

@@ -45,6 +45,8 @@ const AccessLogPage: React.FC = () => {
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
     const [actionFilter, setActionFilter] = useState('all');
+    const [browserFilter, setBrowserFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState('all');
     const [loading, setLoading] = useState(false);
     const [statsLoading, setStatsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -62,11 +64,18 @@ const AccessLogPage: React.FC = () => {
         }
     }, []);
 
-    const fetchLogs = useCallback(async (s = skip, q = search, a = actionFilter) => {
+    const fetchLogs = useCallback(async (s = skip, q = search, a = actionFilter, b = browserFilter, d = dateFilter) => {
         setLoading(true);
         setError(null);
         try {
-            const result = await adminService.getAccessLogs(s, TAKE, q || undefined, a !== 'all' ? a : undefined);
+            const result = await adminService.getAccessLogs(
+                s,
+                TAKE,
+                q || undefined,
+                a !== 'all' ? a : undefined,
+                b !== 'all' ? b : undefined,
+                d !== 'all' ? d : undefined
+            );
             setLogs(result.items);
             setTotal(result.totalCount);
             setLastRefresh(new Date());
@@ -75,7 +84,7 @@ const AccessLogPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [skip, search, actionFilter]);
+    }, [skip, search, actionFilter, browserFilter, dateFilter]);
 
     const refreshAll = useCallback(() => {
         fetchLogs();
@@ -83,8 +92,8 @@ const AccessLogPage: React.FC = () => {
     }, [fetchLogs, fetchStats]);
 
     useEffect(() => {
-        fetchLogs(skip, search, actionFilter);
-    }, [skip, search, actionFilter]);
+        fetchLogs(skip, search, actionFilter, browserFilter, dateFilter);
+    }, [skip, search, actionFilter, browserFilter, dateFilter]);
 
     useEffect(() => {
         fetchStats();
@@ -93,11 +102,11 @@ const AccessLogPage: React.FC = () => {
     // Auto-refresh every 30 seconds
     useEffect(() => {
         const timer = setInterval(() => {
-            fetchLogs(skip, search, actionFilter);
+            fetchLogs(skip, search, actionFilter, browserFilter, dateFilter);
             fetchStats();
         }, 30000);
         return () => clearInterval(timer);
-    }, [skip, search, actionFilter, fetchLogs, fetchStats]);
+    }, [skip, search, actionFilter, browserFilter, dateFilter, fetchLogs, fetchStats]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -213,6 +222,34 @@ const AccessLogPage: React.FC = () => {
                     </button>
                 </form>
 
+                {/* Date Range Filter */}
+                <select
+                    value={dateFilter}
+                    onChange={e => { setSkip(0); setDateFilter(e.target.value); }}
+                    className={`px-3 py-2 rounded-lg border text-sm ${dark ? 'bg-dark-surface border-dark-border text-dark-text' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="24h">Past 24 Hours</option>
+                    <option value="7d">Past 7 Days</option>
+                    <option value="30d">Past 30 Days</option>
+                </select>
+
+                {/* Browser Filter */}
+                <select
+                    value={browserFilter}
+                    onChange={e => { setSkip(0); setBrowserFilter(e.target.value); }}
+                    className={`px-3 py-2 rounded-lg border text-sm ${dark ? 'bg-dark-surface border-dark-border text-dark-text' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                >
+                    <option value="all">All Browsers / Devices</option>
+                    <option value="chrome">Google Chrome</option>
+                    <option value="safari">Apple Safari</option>
+                    <option value="edge">Microsoft Edge</option>
+                    <option value="firefox">Mozilla Firefox</option>
+                    <option value="bot">Bots & Scanners</option>
+                </select>
+
+                {/* Action Filter */}
                 <select
                     value={actionFilter}
                     onChange={e => { setSkip(0); setActionFilter(e.target.value); }}

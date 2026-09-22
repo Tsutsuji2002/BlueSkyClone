@@ -826,7 +826,7 @@ public class AdminService : IAdminService
         await _searchService.ReindexAllAsync();
     }
 
-    public async Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action)
+    public async Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action, string? browser, string? dateRange)
     {
         try
         {
@@ -841,6 +841,66 @@ public class AdminService : IAdminService
             if (!string.IsNullOrWhiteSpace(action) && action.ToLower() != "all")
             {
                 query = query.Where(l => l.Action.ToLower() == action.ToLower());
+            }
+
+            // Browser filter
+            if (!string.IsNullOrWhiteSpace(browser) && browser.ToLower() != "all")
+            {
+                var b = browser.ToLower();
+                if (b == "chrome")
+                {
+                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Chrome") && !l.UserAgent.Contains("Edg"));
+                }
+                else if (b == "safari")
+                {
+                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Safari") && !l.UserAgent.Contains("Chrome"));
+                }
+                else if (b == "edge")
+                {
+                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Edg"));
+                }
+                else if (b == "firefox")
+                {
+                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Firefox"));
+                }
+                else if (b == "bot")
+                {
+                    query = query.Where(l => l.UserAgent != null && (
+                        l.UserAgent.ToLower().Contains("bot") ||
+                        l.UserAgent.ToLower().Contains("crawler") ||
+                        l.UserAgent.ToLower().Contains("spider") ||
+                        l.UserAgent.ToLower().Contains("palo alto") ||
+                        l.UserAgent.ToLower().Contains("libredtail") ||
+                        l.UserAgent.ToLower().Contains("curl")
+                    ));
+                }
+            }
+
+            // Date Range filter
+            if (!string.IsNullOrWhiteSpace(dateRange) && dateRange.ToLower() != "all")
+            {
+                var now = DateTime.UtcNow;
+                var dr = dateRange.ToLower();
+                if (dr == "today")
+                {
+                    var today = now.Date;
+                    query = query.Where(l => l.CreatedAt >= today);
+                }
+                else if (dr == "24h")
+                {
+                    var threshold = now.AddHours(-24);
+                    query = query.Where(l => l.CreatedAt >= threshold);
+                }
+                else if (dr == "7d")
+                {
+                    var threshold = now.AddDays(-7);
+                    query = query.Where(l => l.CreatedAt >= threshold);
+                }
+                else if (dr == "30d")
+                {
+                    var threshold = now.AddDays(-30);
+                    query = query.Where(l => l.CreatedAt >= threshold);
+                }
             }
 
             var total = await query.CountAsync();
