@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using BSkyClone.Services;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -27,6 +28,7 @@ public class GuestAccessLoggingMiddleware
             if (path.StartsWith("/swagger") ||
                 path.StartsWith("/hub") ||
                 path.StartsWith("/hubs") ||
+                path.StartsWith("/api/admin/access-logs") || // Don't log access logs fetching itself
                 path.EndsWith(".css") ||
                 path.EndsWith(".js") ||
                 path.EndsWith(".png") ||
@@ -42,25 +44,44 @@ public class GuestAccessLoggingMiddleware
                 return;
             }
 
-            // Only log if the request is unauthenticated (Guest)
-            if (context.User?.Identity?.IsAuthenticated != true)
+            var ip = GetClientIp(context);
+            var userAgent = context.Request.Headers["User-Agent"].ToString();
+
+            if (context.User?.Identity?.IsAuthenticated == true)
             {
-                var ip = GetClientIp(context);
+                // Authenticated user return visit tracking
+                var handle = context.User.FindFirst("handle")?.Value
+                             ?? context.User.FindFirst(ClaimTypes.Name)?.Value
+                             ?? context.User.Identity.Name;
+
+                if (!string.IsNullOrEmpty(handle))
+                {
+                    var cacheKey = $"user_access_{handle}_{ip}";
+
+                    // Throttle user visit logging per handle + IP to once every 15 minutes
+                    if (!memoryCache.TryGetValue(cacheKey, out _))
+                    {
+                        await accessLogService.LogAsync(null, handle, ip, userAgent, "user_visit");
+                        memoryCache.Set(cacheKey, true, TimeSpan.FromMinutes(15));
+                    }
+                }
+            }
+            else
+            {
+                // Unauthenticated guest visit tracking
                 var cacheKey = $"guest_access_{ip}";
 
                 // Throttle guest logging per IP to once every 15 minutes
                 if (!memoryCache.TryGetValue(cacheKey, out _))
                 {
-                    var userAgent = context.Request.Headers["User-Agent"].ToString();
                     await accessLogService.LogAsync(null, "Guest", ip, userAgent, "guest_visit");
-
                     memoryCache.Set(cacheKey, true, TimeSpan.FromMinutes(15));
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Failed to log guest access.");
+            _logger.LogDebug(ex, "Failed to log access.");
         }
     }
 

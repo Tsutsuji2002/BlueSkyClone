@@ -127,6 +127,7 @@ export interface AccessLogStats {
     totalAccesses: number;
     userLogins: number;
     guestVisits: number;
+    userVisits: number;
     logouts: number;
     expiredSessions: number;
 }

@@ -158,6 +158,7 @@ public record AccessLogStatsDto(
     int TotalAccesses,
     int UserLogins,
     int GuestVisits,
+    int UserVisits,
     int Logouts,
     int ExpiredSessions
 );

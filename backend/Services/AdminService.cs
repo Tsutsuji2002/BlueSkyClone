@@ -935,15 +935,16 @@ public class AdminService : IAdminService
             var total = await _context.AccessLogs.CountAsync();
             var userLogins = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "login");
             var guestVisits = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "guest_visit");
+            var userVisits = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "user_visit");
             var logouts = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "logout");
             var expiredSessions = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "session_expired");
 
-            return new AccessLogStatsDto(total, userLogins, guestVisits, logouts, expiredSessions);
+            return new AccessLogStatsDto(total, userLogins, guestVisits, userVisits, logouts, expiredSessions);
         }
         catch (Exception ex)
         {
             System.Console.WriteLine($"[AdminService] AccessLogStats query failed: {ex.Message}");
-            return new AccessLogStatsDto(0, 0, 0, 0, 0);
+            return new AccessLogStatsDto(0, 0, 0, 0, 0, 0);
         }
     }
 }

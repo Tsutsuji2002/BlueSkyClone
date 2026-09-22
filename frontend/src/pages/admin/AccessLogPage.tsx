@@ -11,6 +11,7 @@ const TAKE = 50;
 const actionColors: Record<string, string> = {
     login: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
     guest_visit: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    user_visit: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
     logout: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     session_expired: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
     default: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
@@ -19,6 +20,7 @@ const actionColors: Record<string, string> = {
 const actionLabels: Record<string, string> = {
     login: 'Login',
     guest_visit: 'Guest Visit',
+    user_visit: 'User Return Visit',
     logout: 'Logout',
     session_expired: 'Session Expired',
 };
@@ -150,7 +152,7 @@ const AccessLogPage: React.FC = () => {
             </div>
 
             {/* Access Stats Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 {/* Total Accesses */}
                 <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
                     <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
@@ -173,6 +175,19 @@ const AccessLogPage: React.FC = () => {
                         <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>User Logins</span>
                         <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-0.5">
                             {stats ? stats.userLogins.toLocaleString() : '—'}
+                        </p>
+                    </div>
+                </div>
+
+                {/* User Return Visits */}
+                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold">
+                        <FiUserCheck size={22} />
+                    </div>
+                    <div>
+                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>User Return Visits</span>
+                        <p className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
+                            {stats ? (stats.userVisits || 0).toLocaleString() : '—'}
                         </p>
                     </div>
                 </div>
@@ -257,6 +272,7 @@ const AccessLogPage: React.FC = () => {
                 >
                     <option value="all">All Actions</option>
                     <option value="login">User Login</option>
+                    <option value="user_visit">User Return Visit</option>
                     <option value="guest_visit">Guest Visit</option>
                     <option value="logout">Logout</option>
                     <option value="session_expired">Session Expired</option>
