@@ -6248,6 +6248,13 @@ public class PostService : IPostService
 
             await _unitOfWork.CompleteAsync();
             await _cacheService.RemoveAsync($"post:{postId}");
+            try
+            {
+                await _distributedCache.RemoveAsync($"Bookmarks_{userId}_0_20");
+                await _distributedCache.RemoveAsync($"Bookmarks_{userId}_0_30");
+                await _distributedCache.RemoveAsync($"Bookmarks_{userId}_0_50");
+            }
+            catch { }
 
             // Broadcast Updates
             var timestamp = DateTime.UtcNow;
@@ -6815,7 +6822,29 @@ public class PostService : IPostService
 
     public async Task<PagedPostDto> GetBookmarkedPostsAsync(Guid userId, int skip = 0, int take = 20)
     {
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 1: Starting query for UserId: {UserId}", userId);
+        _logger.LogInformation("[PostService] GetBookmarkedPostsAsync: Fetching bookmarks for UserId: {UserId}, skip={Skip}, take={Take}", userId, skip, take);
+
+        // 1. Distributed Cache Check (60s TTL)
+        var cacheKey = $"Bookmarks_{userId}_{skip}_{take}";
+        try
+        {
+            var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedJson))
+            {
+                var cachedDto = System.Text.Json.JsonSerializer.Deserialize<PagedPostDto>(cachedJson);
+                if (cachedDto?.Posts != null)
+                {
+                    _logger.LogInformation("[PostService] GetBookmarkedPostsAsync: Cache hit with {Count} posts for user {UserId}", cachedDto.Posts.Count(), userId);
+                    return cachedDto;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[GetBookmarkedPostsAsync] Cache read error for key {CacheKey}", cacheKey);
+        }
+
+        // 2. Fetch local bookmark records
         var query = _unitOfWork.Bookmarks.Query()
             .Where(b => b.UserId == userId)
             .Include(b => b.Post)
@@ -6836,40 +6865,101 @@ public class PostService : IPostService
             .AsSplitQuery()
             .OrderByDescending(b => b.CreatedAt);
 
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 2: About to count.");
         var total = await query.CountAsync();
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 3: Total counted = {Total}, skipping {Skip}, taking {Take}", total, skip, take);
         
         var bookmarkedPosts = await query
             .Skip(skip)
             .Take(take)
             .Select(b => b.Post)
+            .Where(p => p != null)
             .ToListAsync();
 
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 4: Successfully fetched {Count} posts from DB. About to map.", bookmarkedPosts.Count);
-
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
-        
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Mapped to DTOs. About to refresh token.");
-        var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId) : null;
-        
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 4: Token refreshed. Calling EnrichAndFilterPostsAsync.");
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 5: Enriching {Count} posts. Token present: {TokenPresent}", postDtos.Count, !string.IsNullOrEmpty(token));
-        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, !string.IsNullOrEmpty(token));
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 6: Enrichment complete. Returned {Count} posts.", enriched.Count);
-        
-        _logger.LogWarning("[BOOKMARK-TRACE] Step 7: Enrichment complete. Emitting result.");
 
-        // Force IsBookmarked = true: every post returned here IS a bookmark by definition.
-        // EnrichAndFilterPostsAsync may fail to set this correctly for remote posts.
+        // 3. On-demand Remote Hydration: Check for stub posts needing real text/media/author
+        var stubDtos = postDtos
+            .Where(p => !string.IsNullOrEmpty(p.Uri) && p.Uri.StartsWith("at://") && (p.Content == "[Remote interaction...]" || string.IsNullOrWhiteSpace(p.Content) || p.Author?.DisplayName == null))
+            .ToList();
+
+        if (stubDtos.Any())
+        {
+            _logger.LogInformation("[GetBookmarkedPostsAsync] Hydrating {Count} stub remote posts from Bluesky AppView", stubDtos.Count);
+            try
+            {
+                var stubUris = stubDtos.Select(s => s.Uri!).Distinct().ToList();
+                using var hydrateClient = _httpClientFactory.CreateClient();
+                hydrateClient.Timeout = TimeSpan.FromSeconds(5);
+                hydrateClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+
+                var queryStr = string.Join("&", stubUris.Select(u => $"uris={Uri.EscapeDataString(u)}"));
+                var res = await hydrateClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                
+                if (res.IsSuccessStatusCode)
+                {
+                    var jsonContent = await res.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(jsonContent);
+                    if (doc.RootElement.TryGetProperty("posts", out var remotePostsArr) && remotePostsArr.ValueKind == JsonValueKind.Array)
+                    {
+                        // getPosts returns raw post objects (not feed items), so use MapBlueskyPost
+                        var fetchedDtos = remotePostsArr.EnumerateArray()
+                            .Select(el => MapBlueskyPost(el))
+                            .Where(d => d != null && !string.IsNullOrEmpty(d.Uri))
+                            .Select(d => d!)
+                            .ToList();
+                        var fetchedDict = fetchedDtos.Where(f => !string.IsNullOrEmpty(f.Uri)).ToDictionary(f => f.Uri!, StringComparer.OrdinalIgnoreCase);
+
+                        for (int i = 0; i < postDtos.Count; i++)
+                        {
+                            if (!string.IsNullOrEmpty(postDtos[i].Uri) && fetchedDict.TryGetValue(postDtos[i].Uri!, out var hydrated))
+                            {
+                                hydrated.IsBookmarked = true;
+                                postDtos[i] = hydrated;
+                            }
+                        }
+
+                        // Background task: Sync thread nodes into DB so future reads have full post content stored locally
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                foreach (var uri in stubUris)
+                                {
+                                    await SyncRemoteThreadToDbAsync(uri);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "[GetBookmarkedPostsAsync] Background thread sync failed");
+                            }
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetBookmarkedPostsAsync] Remote stub hydration HTTP call failed");
+            }
+        }
+
+        // 4. Fast Enrichment (bypassRemoteCache: false for instant cached response)
+        var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false) : null;
+        var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, false);
+
         foreach (var p in enriched)
             p.IsBookmarked = true;
 
         var hasMore = (skip + take) < total;
-        // Simple cursor: encode skip position for next page
         var nextCursor = hasMore ? Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes((skip + take).ToString())) : null;
+        var resultDto = new PagedPostDto { Posts = enriched, Cursor = nextCursor };
 
-        return new PagedPostDto { Posts = enriched, Cursor = nextCursor };
+        // 5. Cache result for 60 seconds
+        try
+        {
+            await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(resultDto), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) });
+        }
+        catch { }
+
+        return resultDto;
     }
 
     /// <summary>
