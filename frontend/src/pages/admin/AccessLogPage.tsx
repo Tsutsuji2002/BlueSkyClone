@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FiActivity, FiSearch, FiRefreshCw, FiChevronLeft, FiChevronRight, FiUserCheck, FiUsers, FiLogOut, FiShieldOff } from 'react-icons/fi';
+import { FiActivity, FiSearch, FiRefreshCw, FiChevronLeft, FiChevronRight, FiUserCheck, FiUsers, FiLogOut, FiEye } from 'react-icons/fi';
 import { adminService } from '../../services/adminService';
 import { AccessLog, AccessLogStats } from '../../types/admin';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
+import AccessLogDetailModal from '../../components/admin/AccessLogDetailModal';
 
 const TAKE = 50;
 
@@ -28,8 +29,8 @@ function formatDate(iso: string): string {
 
 function truncateUA(ua?: string): string {
     if (!ua) return '—';
-    if (ua.length <= 60) return ua;
-    return ua.slice(0, 57) + '...';
+    if (ua.length <= 55) return ua;
+    return ua.slice(0, 52) + '...';
 }
 
 const AccessLogPage: React.FC = () => {
@@ -38,6 +39,7 @@ const AccessLogPage: React.FC = () => {
 
     const [logs, setLogs] = useState<AccessLog[]>([]);
     const [stats, setStats] = useState<AccessLogStats | null>(null);
+    const [selectedLog, setSelectedLog] = useState<AccessLog | null>(null);
     const [total, setTotal] = useState(0);
     const [skip, setSkip] = useState(0);
     const [search, setSearch] = useState('');
@@ -120,7 +122,7 @@ const AccessLogPage: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Access Logs</h1>
-                        <p className={`text-sm ${textSub}`}>Monitor user logins, guest visits, and session activity</p>
+                        <p className={`text-sm ${textSub}`}>Monitor user logins, guest visits, and session activity (Click any row for details)</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -227,7 +229,7 @@ const AccessLogPage: React.FC = () => {
             {/* Stats bar */}
             <div className={`border rounded-xl p-3 mb-5 flex items-center justify-between ${card}`}>
                 <span className={`text-sm ${textSub}`}>
-                    {loading ? 'Loading...' : `${total.toLocaleString()} matching records`}
+                    {loading ? 'Loading...' : `${total.toLocaleString()} matching records (Click row to expand details)`}
                 </span>
                 <span className={`text-sm ${textSub}`}>
                     Page {currentPage} of {Math.max(1, totalPages)}
@@ -252,12 +254,13 @@ const AccessLogPage: React.FC = () => {
                                 <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">User Agent</th>
                                 <th className="text-left px-4 py-3 font-semibold">Action</th>
                                 <th className="text-left px-4 py-3 font-semibold">Time</th>
+                                <th className="text-center px-4 py-3 font-semibold w-16">Details</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
                             {loading && (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-12">
+                                    <td colSpan={6} className="text-center py-12">
                                         <div className="flex items-center justify-center gap-2">
                                             <FiRefreshCw size={16} className="animate-spin text-indigo-500" />
                                             <span className={textSub}>Loading...</span>
@@ -267,13 +270,17 @@ const AccessLogPage: React.FC = () => {
                             )}
                             {!loading && logs.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className={`text-center py-12 ${textSub}`}>
+                                    <td colSpan={6} className={`text-center py-12 ${textSub}`}>
                                         No access logs found.
                                     </td>
                                 </tr>
                             )}
                             {!loading && logs.map(log => (
-                                <tr key={log.id} className={`transition-colors ${rowHover}`}>
+                                <tr
+                                    key={log.id}
+                                    onClick={() => setSelectedLog(log)}
+                                    className={`transition-colors cursor-pointer ${rowHover}`}
+                                >
                                     <td className="px-4 py-3 font-medium">
                                         {log.handle === 'Guest' ? (
                                             <span className="px-2 py-0.5 rounded text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-semibold">
@@ -298,6 +305,15 @@ const AccessLogPage: React.FC = () => {
                                     </td>
                                     <td className={`px-4 py-3 text-xs ${textSub} whitespace-nowrap`}>
                                         {formatDate(log.createdAt)}
+                                    </td>
+                                    <td className="px-4 py-3 text-center">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setSelectedLog(log); }}
+                                            className={`p-1.5 rounded-lg transition-colors text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/40`}
+                                            title="View Full Details"
+                                        >
+                                            <FiEye size={16} />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -325,6 +341,15 @@ const AccessLogPage: React.FC = () => {
                         Next <FiChevronRight size={14} />
                     </button>
                 </div>
+            )}
+
+            {/* Log Detail Modal */}
+            {selectedLog && (
+                <AccessLogDetailModal
+                    log={selectedLog}
+                    dark={dark}
+                    onClose={() => setSelectedLog(null)}
+                />
             )}
         </div>
     );
