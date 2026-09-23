@@ -3,13 +3,14 @@ import RichText from './RichText';
 import { Facet } from '../../types';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../utils/classNames';
+import { FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
 interface ExpandableRichTextProps {
     content?: string;
     facets?: Facet[];
     className?: string;
     maxLines?: number; // Maximum visible lines before clamping (default: 6)
-    maxChars?: number; // Maximum visible characters before clamping (default: 400)
+    maxChars?: number; // Maximum visible characters before clamping (default: 350)
     isDetailView?: boolean; // If true, applies detail view styling and higher threshold
 }
 
@@ -18,7 +19,7 @@ const ExpandableRichText: React.FC<ExpandableRichTextProps> = ({
     facets,
     className,
     maxLines = 6,
-    maxChars = 400,
+    maxChars = 350,
     isDetailView = false,
 }) => {
     const { t } = useTranslation();
@@ -30,30 +31,38 @@ const ExpandableRichText: React.FC<ExpandableRichTextProps> = ({
     const linesCount = content.split('\n').length;
     const isLongContent = content.length > maxChars || linesCount > maxLines;
 
-    // Determine line clamp CSS class based on maxLines prop
-    const getClampClass = (lines: number) => {
-        switch (lines) {
-            case 3: return 'line-clamp-3';
-            case 4: return 'line-clamp-4';
-            case 5: return 'line-clamp-5';
-            case 6: return 'line-clamp-6';
-            case 8: return 'line-clamp-8';
-            case 10: return 'line-clamp-10';
-            default: return 'line-clamp-6';
+    // Maximum height calculations based on view type and line limits:
+    // Feed view (font 15px, leading 22.5px): 6 lines ~ 135px - 145px
+    // Detail view (font 18px, leading 28px): 8 lines ~ 224px - 240px
+    // Quote view (font 14px, leading 20px): 4 lines ~ 80px - 95px
+    const getMaxHeightClass = () => {
+        if (isDetailView) {
+            return 'max-h-[220px]';
         }
+        if (maxLines <= 4) {
+            return 'max-h-[100px]';
+        }
+        return 'max-h-[145px]';
     };
 
-    const clampClass = getClampClass(maxLines);
+    const maxHeightClass = getMaxHeightClass();
 
     return (
-        <div className="w-full">
+        <div className="w-full relative">
             <div
                 className={cn(
-                    "transition-all duration-200",
-                    !isExpanded && isLongContent ? cn("overflow-hidden", clampClass) : ""
+                    "relative transition-all duration-300 ease-in-out",
+                    !isExpanded && isLongContent
+                        ? cn("overflow-hidden", maxHeightClass)
+                        : ""
                 )}
             >
                 <RichText content={content} facets={facets} className={className} />
+
+                {/* Subtle Gradient Fade Overlay when collapsed */}
+                {!isExpanded && isLongContent && (
+                    <div className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-white dark:from-dark-bg to-transparent pointer-events-none" />
+                )}
             </div>
 
             {isLongContent && (
@@ -64,11 +73,14 @@ const ExpandableRichText: React.FC<ExpandableRichTextProps> = ({
                         setIsExpanded(!isExpanded);
                     }}
                     className={cn(
-                        "text-primary-500 hover:underline font-medium text-left block transition-colors",
-                        isDetailView ? "text-[15px] mt-2 mb-3" : "text-[14px] mt-1 mb-2"
+                        "inline-flex items-center gap-1 text-primary-500 hover:underline font-semibold transition-colors focus:outline-none",
+                        isDetailView ? "text-[15px] mt-2 mb-2" : "text-[14px] mt-1.5 mb-1.5"
                     )}
                 >
-                    {isExpanded ? t('post.show_less', 'Show less') : t('post.show_more', 'Show more')}
+                    <span>
+                        {isExpanded ? t('post.show_less', 'Show less') : t('post.show_more', 'Show more')}
+                    </span>
+                    {isExpanded ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
                 </button>
             )}
         </div>
