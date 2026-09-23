@@ -288,12 +288,17 @@ const PostDetailPage: React.FC = () => {
     // Auto scroll to main post if it has a parent
     React.useEffect(() => {
         if (parentPost && post?.replyToPostId && mainPostRef.current && !isThreadLoading && !hasScrolledRef.current) {
-            const rect = mainPostRef.current.getBoundingClientRect();
-            window.scrollTo({
-                top: rect.top + window.scrollY - 60,
-                behavior: 'smooth'
-            });
-            hasScrolledRef.current = true;
+            const timer = setTimeout(() => {
+                if (mainPostRef.current) {
+                    const rect = mainPostRef.current.getBoundingClientRect();
+                    window.scrollTo({
+                        top: rect.top + window.scrollY - 68,
+                        behavior: 'smooth'
+                    });
+                    hasScrolledRef.current = true;
+                }
+            }, 60);
+            return () => clearTimeout(timer);
         }
     }, [parentPost, post, isThreadLoading]);
 
@@ -680,7 +685,7 @@ const PostDetailPage: React.FC = () => {
 
                 return (
                     <div ref={mainPostRef} className={cn(
-                        "px-4 py-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg transition-all duration-300",
+                        "px-4 pt-4 sm:pt-5 pb-3 border-b border-gray-100 dark:border-dark-border relative bg-white dark:bg-dark-bg transition-all duration-300 scroll-mt-16",
                         isDeleting && "opacity-50 pointer-events-none"
                     )}>
                         {/* Deleting overlay */}
