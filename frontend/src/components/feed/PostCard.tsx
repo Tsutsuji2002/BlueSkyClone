@@ -19,6 +19,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import MediaGrid from './MediaGrid';
 import { formatPostDate } from '../../utils/formatDate';
 import RichText from '../common/RichText';
+import ExpandableRichText from '../common/ExpandableRichText';
 import {
     FiHeart,
     FiRepeat,
@@ -576,24 +577,15 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             }
 
                             // Normal content rendering
-                            const isLongContent = post.content && (post.content.length > 400 || post.content.split('\n').length > 6);
                             return (
                                 <>
-                                    <div className={cn(
-                                        "text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words leading-normal",
-                                        !isExpanded && isLongContent ? "line-clamp-6" : "",
-                                        isLongContent ? "mb-1" : "mb-3"
-                                    )}>
-                                        <RichText content={post.content} facets={post.facets} />
-                                    </div>
-                                    {isLongContent && (
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
-                                            className="text-primary-500 hover:underline text-[14px] mb-3 font-medium text-left -mt-1 block"
-                                        >
-                                            {isExpanded ? t('post.show_less', 'Show less') : t('post.show_more', 'Show more')}
-                                        </button>
-                                    )}
+                                    <ExpandableRichText
+                                        content={post.content}
+                                        facets={post.facets}
+                                        className="text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words leading-normal"
+                                        maxLines={6}
+                                        maxChars={400}
+                                    />
 
                                     {(() => {
                                         const hasLinkPreview = post.linkPreview || post.isLinkPreviewPending;

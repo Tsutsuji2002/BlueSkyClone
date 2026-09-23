@@ -23,6 +23,7 @@ import MediaGrid from '../components/feed/MediaGrid';
 import QuotedPost from '../components/feed/QuotedPost';
 import LinkPreviewCard from '../components/common/LinkPreviewCard';
 import RichText from '../components/common/RichText';
+import ExpandableRichText from '../components/common/ExpandableRichText';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
 import { showToast } from '../redux/slices/toastSlice';
 import { usePostActions } from '../hooks/usePostActions';
@@ -803,10 +804,13 @@ const PostDetailPage: React.FC = () => {
                             </div>
 
                             {/* Content */}
-                            <RichText
+                            <ExpandableRichText
                                 content={post.content}
                                 facets={post.facets}
-                                className="text-lg text-gray-900 dark:text-dark-text mb-4 whitespace-pre-wrap"
+                                className="text-lg text-gray-900 dark:text-dark-text mb-2 whitespace-pre-wrap break-words leading-relaxed"
+                                maxLines={8}
+                                maxChars={450}
+                                isDetailView={true}
                             />
 
                             {isMuted && behavior === 'warn' ? (

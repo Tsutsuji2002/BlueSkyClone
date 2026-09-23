@@ -4,6 +4,7 @@ import Avatar from '../common/Avatar';
 import { formatPostDate } from '../../utils/formatDate';
 import { useTranslation } from 'react-i18next';
 import RichText from '../common/RichText';
+import ExpandableRichText from '../common/ExpandableRichText';
 import MediaGrid from './MediaGrid';
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { FiRepeat } from 'react-icons/fi';
@@ -76,12 +77,13 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                 </div>
 
                 {hasContent && (
-                    <div className="text-[14px] text-gray-800 dark:text-dark-text mb-1.5 leading-normal break-words">
-                        <RichText
-                            content={post.content}
-                            facets={post.facets}
-                        />
-                    </div>
+                    <ExpandableRichText
+                        content={post.content}
+                        facets={post.facets}
+                        className="text-[14px] text-gray-800 dark:text-dark-text mb-1.5 leading-normal break-words"
+                        maxLines={4}
+                        maxChars={250}
+                    />
                 )}
 
                 {post.linkPreview && (
