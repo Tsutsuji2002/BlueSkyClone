@@ -537,6 +537,12 @@ IF COL_LENGTH('Conversations', 'GroupName') IS NULL
 BEGIN
     ALTER TABLE [Conversations] ADD [GroupName] nvarchar(max) NULL;
 END
+
+-- Ensure UserSettings.HideFromDiscover exists (Discover Feed Opt-Out feature)
+IF COL_LENGTH('UserSettings', 'HideFromDiscover') IS NULL
+BEGIN
+    ALTER TABLE [UserSettings] ADD [HideFromDiscover] bit NOT NULL DEFAULT 0;
+END
 ");
             logger.LogInformation("Verified muted word schema.");
         }
