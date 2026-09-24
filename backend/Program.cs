@@ -353,15 +353,28 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<BSkyDbContext>();
         var logger = services.GetRequiredService<ILogger<Program>>();
         
-        // Try to apply pending migrations, but don't let failures here block manual updates
-        try
+        // Try to apply pending migrations with retry handling
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            context.Database.Migrate();
-            logger.LogInformation("Database migrations applied successfully.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Database migration failed. Attempting manual schema updates as fallback...");
+            try
+            {
+                context.Database.Migrate();
+                logger.LogInformation("Database migrations applied successfully.");
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Database migration attempt {Attempt}/{MaxRetries} failed.", attempt, maxRetries);
+                if (attempt < maxRetries)
+                {
+                    System.Threading.Thread.Sleep(2000);
+                }
+                else
+                {
+                    logger.LogError(ex, "All database migration attempts failed. Proceeding with fallback schema guards.");
+                }
+            }
         }
 
         // Keep muted-word moderation resilient even if an older deployment missed one of the later schema changes.
