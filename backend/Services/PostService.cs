@@ -1004,7 +1004,7 @@ public class PostService : IPostService
             var sortParam = !string.IsNullOrEmpty(sort) ? sort : "top";
 
             // Loop to handle skip/take via cursors
-            while (fetchedSoFar < skip + take && fetchedSoFar < maxDepth)
+            while (fetchedSoFar < maxDepth && results.Count < take)
             {
                 int limit = Math.Max(take, 25);
                 var url = $"{baseUrl}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(finalQuery)}&limit={limit}&sort={sortParam}";
@@ -1026,12 +1026,15 @@ public class PostService : IPostService
 
                     foreach (var postObj in pagePosts)
                     {
-                        if (fetchedSoFar >= skip && results.Count < take)
+                        var dto = MapBlueskyPost(postObj);
+                        if (dto != null && PassesSearchFilters(dto, finalQuery))
                         {
-                            var dto = MapBlueskyPost(postObj);
-                            if (dto != null) results.Add(dto);
+                            if (fetchedSoFar >= skip && results.Count < take)
+                            {
+                                results.Add(dto);
+                            }
+                            fetchedSoFar++;
                         }
-                        fetchedSoFar++;
                     }
 
                     if (responseBody.TryGetProperty("cursor", out var cursorProp))
@@ -1057,6 +1060,91 @@ public class PostService : IPostService
             _logger.LogError(ex, "[SearchPostsRemoteAsync] Error searching for {Query}", query);
             return new List<PostDto>();
         }
+    }
+
+    private static bool PassesSearchFilters(PostDto post, string rawQuery)
+    {
+        if (post == null || string.IsNullOrWhiteSpace(rawQuery)) return true;
+
+        var authorHandle = post.Author?.Handle?.Trim().TrimStart('@').ToLowerInvariant() ?? "";
+        var authorDid = post.Author?.Did?.Trim().ToLowerInvariant() ?? "";
+        var postContent = post.Content?.ToLowerInvariant() ?? "";
+
+        // Parse operators handling quoted phrases vs space-separated tokens
+        var matches = System.Text.RegularExpressions.Regex.Matches(rawQuery, @"(?:\x22[^\x22]+\x22|\S+)");
+
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            var token = match.Value.Trim();
+            if (string.IsNullOrEmpty(token)) continue;
+
+            // 1. Excluded Author (-from:handle)
+            if (token.StartsWith("-from:", StringComparison.OrdinalIgnoreCase))
+            {
+                var excludedAuthor = token.Substring(6).Trim().TrimStart('@').ToLowerInvariant();
+                if (!string.IsNullOrEmpty(excludedAuthor))
+                {
+                    if (authorHandle.Equals(excludedAuthor, StringComparison.OrdinalIgnoreCase) ||
+                        authorHandle.EndsWith("." + excludedAuthor, StringComparison.OrdinalIgnoreCase) ||
+                        authorDid.Equals(excludedAuthor, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+            }
+            // 2. Included Author (from:handle)
+            else if (token.StartsWith("from:", StringComparison.OrdinalIgnoreCase))
+            {
+                var targetAuthor = token.Substring(5).Trim().TrimStart('@').ToLowerInvariant();
+                if (!string.IsNullOrEmpty(targetAuthor))
+                {
+                    if (!authorHandle.Equals(targetAuthor, StringComparison.OrdinalIgnoreCase) &&
+                        !authorHandle.EndsWith("." + targetAuthor, StringComparison.OrdinalIgnoreCase) &&
+                        !authorDid.Equals(targetAuthor, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+            }
+            // 3. Excluded Domain (-domain:domain)
+            else if (token.StartsWith("-domain:", StringComparison.OrdinalIgnoreCase))
+            {
+                var excludedDomain = token.Substring(8).Trim().ToLowerInvariant();
+                if (!string.IsNullOrEmpty(excludedDomain))
+                {
+                    if (postContent.Contains(excludedDomain)) return false;
+                }
+            }
+            // 4. Included Domain (domain:domain)
+            else if (token.StartsWith("domain:", StringComparison.OrdinalIgnoreCase))
+            {
+                var targetDomain = token.Substring(7).Trim().ToLowerInvariant();
+                if (!string.IsNullOrEmpty(targetDomain))
+                {
+                    if (!postContent.Contains(targetDomain)) return false;
+                }
+            }
+            // 5. Excluded Word (-word)
+            else if (token.StartsWith("-") && token.Length > 1 && !token.StartsWith("-from:") && !token.StartsWith("-domain:") && !token.StartsWith("-to:"))
+            {
+                var excludedWord = token.Substring(1).Trim().ToLowerInvariant();
+                if (!string.IsNullOrEmpty(excludedWord) && postContent.Contains(excludedWord))
+                {
+                    return false;
+                }
+            }
+            // 6. Exact Phrase ("phrase")
+            else if (token.StartsWith("\"") && token.EndsWith("\"") && token.Length > 2)
+            {
+                var phrase = token.Substring(1, token.Length - 2).Trim().ToLowerInvariant();
+                if (!string.IsNullOrEmpty(phrase) && !postContent.Contains(phrase))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public async Task<List<PostDto>> EnrichAndFilterPostsAsync(List<PostDto> posts, Guid viewerId, string? token = null, bool isTimeline = false, bool forceDropHidden = true, bool bypassRemoteCache = false, bool skipDeepResolution = false, CancellationToken ct = default)
