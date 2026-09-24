@@ -381,6 +381,12 @@ using (var scope = app.Services.CreateScope())
         try
         {
             context.Database.ExecuteSqlRaw(@"
+-- Ensure UserSettings.HideFromDiscover exists (Discover Feed Opt-Out feature - CRITICAL TOP PRIORITY)
+IF COL_LENGTH('UserSettings', 'HideFromDiscover') IS NULL
+BEGIN
+    ALTER TABLE [UserSettings] ADD [HideFromDiscover] bit NOT NULL DEFAULT 0;
+END
+
 -- Ensure Feeds have IsOfficial (top-priority: referenced by handshake on startup)
 IF COL_LENGTH('Feeds', 'IsOfficial') IS NULL
 BEGIN
