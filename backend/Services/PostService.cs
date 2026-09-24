@@ -1370,7 +1370,7 @@ public class PostService : IPostService
                                 chunkClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                             var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                            var baseUrl = string.IsNullOrEmpty(token) ? "https://public.api.bsky.app" : "https://api.bsky.app";
+                            var baseUrl = "https://public.api.bsky.app";
                             
                             using var response = await chunkClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}", ctsTotal.Token);
                             if (response.IsSuccessStatusCode)
@@ -7001,6 +7001,7 @@ public class PostService : IPostService
         var postDtos = bookmarkedPosts.Select(MapToDto).ToList();
 
         // 3. On-demand Remote Hydration: Check for stub posts needing real text/media/author
+        var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false) : null;
         var stubDtos = postDtos
             .Where(p => !string.IsNullOrEmpty(p.Uri) && p.Uri.StartsWith("at://") && (p.Content == "[Remote interaction...]" || string.IsNullOrWhiteSpace(p.Content) || p.Author?.DisplayName == null))
             .ToList();
@@ -7014,6 +7015,8 @@ public class PostService : IPostService
                 using var hydrateClient = _httpClientFactory.CreateClient();
                 hydrateClient.Timeout = TimeSpan.FromSeconds(5);
                 hydrateClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
+                if (!string.IsNullOrEmpty(token))
+                    hydrateClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                 var queryStr = string.Join("&", stubUris.Select(u => $"uris={Uri.EscapeDataString(u)}"));
                 var res = await hydrateClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
@@ -7066,7 +7069,6 @@ public class PostService : IPostService
         }
 
         // 4. Fast Enrichment (bypassRemoteCache: false for instant cached response)
-        var token = userId != Guid.Empty ? await _userService.GetOrRefreshBlueskyTokenAsync(userId, false) : null;
         var enriched = await EnrichAndFilterPostsAsync(postDtos, userId, token, false, true, false);
 
         foreach (var p in enriched)
@@ -7161,7 +7163,7 @@ public class PostService : IPostService
             foreach (var chunk in remoteUris.Chunk(25))
             {
                 var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                var response = await client.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
 
                 if (!response.IsSuccessStatusCode)
                 {
