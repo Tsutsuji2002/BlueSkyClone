@@ -963,7 +963,7 @@ public class PostService : IPostService
         }
     }
 
-    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20, CancellationToken ct = default)
+    public async Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20, string? author = null, string? since = null, string? until = null, string? lang = null, string? domain = null, string? sort = null, bool? hasImages = null, bool? hasVideo = null, bool? hasLinks = null, CancellationToken ct = default)
     {
         try
         {
@@ -979,15 +979,35 @@ public class PostService : IPostService
             string? cursor = null;
             var results = new List<PostDto>();
             int fetchedSoFar = 0;
-            int maxDepth = 100; // Safety limit to prevent infinite loops or excessive API calls
+            int maxDepth = 100;
+
+            // Build AT Protocol search syntax operators appended to the query string
+            var q = new System.Text.StringBuilder(query.Trim());
+            if (!string.IsNullOrWhiteSpace(author))
+                q.Append($" from:{author.TrimStart('@')}");
+            if (!string.IsNullOrWhiteSpace(since))
+                q.Append($" since:{since}");
+            if (!string.IsNullOrWhiteSpace(until))
+                q.Append($" until:{until}");
+            if (!string.IsNullOrWhiteSpace(lang))
+                q.Append($" lang:{lang}");
+            if (!string.IsNullOrWhiteSpace(domain))
+                q.Append($" domain:{domain}");
+            if (hasImages == true)
+                q.Append(" has:images");
+            if (hasVideo == true)
+                q.Append(" has:video");
+            if (hasLinks == true)
+                q.Append(" has:links");
+
+            var finalQuery = q.ToString().Trim();
+            var sortParam = !string.IsNullOrEmpty(sort) ? sort : "top";
 
             // Loop to handle skip/take via cursors
             while (fetchedSoFar < skip + take && fetchedSoFar < maxDepth)
             {
-                // Calculate how many to fetch in this page. 
-                // We fetch up to 'take' or 25 if we're still skipping.
                 int limit = Math.Max(take, 25);
-                var url = $"{baseUrl}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(query)}&limit={limit}";
+                var url = $"{baseUrl}/xrpc/app.bsky.feed.searchPosts?q={Uri.EscapeDataString(finalQuery)}&limit={limit}&sort={sortParam}";
                 if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
 
                 var response = await httpClient.GetAsync(url);
@@ -1014,7 +1034,6 @@ public class PostService : IPostService
                         fetchedSoFar++;
                     }
 
-                    // Get next cursor
                     if (responseBody.TryGetProperty("cursor", out var cursorProp))
                     {
                         cursor = cursorProp.GetString();

@@ -231,10 +231,10 @@ export const postApi = apiSlice.injectEndpoints({
                     ? [...result.posts.map(({ uri }) => ({ type: 'Post' as const, id: uri })), { type: 'Feed', id: 'DISCOVER' }]
                     : [{ type: 'Feed', id: 'DISCOVER' }],
         }),
-        searchPosts: builder.query<{ posts: Post[]; cursor: string | null }, { query: string; skip?: number; take?: number }>({
-            query: ({ query, skip = 0, take = 20 }) => ({
+        searchPosts: builder.query<{ posts: Post[]; cursor: string | null }, { query: string; skip?: number; take?: number; author?: string; since?: string; until?: string; lang?: string; domain?: string; sort?: string; hasImages?: boolean; hasVideo?: boolean; hasLinks?: boolean }>({
+            query: ({ query, skip = 0, take = 20, author, since, until, lang, domain, sort, hasImages, hasVideo, hasLinks }) => ({
                 url: '/search/posts',
-                params: { q: query, skip, take },
+                params: { q: query, skip, take, author, since, until, lang, domain, sort, hasImages, hasVideo, hasLinks },
             }),
             transformResponse: (rawPosts: any[]) => {
                 const posts = rawPosts.map((p: any) => mapAtProtoPostToPost(p));

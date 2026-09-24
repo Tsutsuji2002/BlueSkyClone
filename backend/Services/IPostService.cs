@@ -32,7 +32,7 @@ public interface IPostService
     Task<IEnumerable<PostDto>> GetPostsByTagAsync(string tag, Guid? viewerId = null, int limit = 20, int offset = 0, System.Threading.CancellationToken ct = default);
     Task<IEnumerable<PostDto>> GetDiscoverPostsAsync(Guid userId, int limit = 50, int skip = 0, bool bypassCache = false);
     Task<IEnumerable<PostDto>> SearchPostsDBAsync(string query, Guid? viewerId = null, int limit = 20, int offset = 0);
-    Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20, System.Threading.CancellationToken ct = default);
+    Task<IEnumerable<PostDto>> SearchPostsRemoteAsync(string query, string? token, int skip = 0, int take = 20, string? author = null, string? since = null, string? until = null, string? lang = null, string? domain = null, string? sort = null, bool? hasImages = null, bool? hasVideo = null, bool? hasLinks = null, System.Threading.CancellationToken ct = default);
     Task<IEnumerable<PostInteractionStatusDto>> GetInteractionStatusesAsync(Guid userId, IEnumerable<string> uris);
     Task<IEnumerable<PostInteractionStatusDto>> GetViewerStateFromAppViewAsync(Guid userId, IEnumerable<string> uris);
     Task<PostDto?> UpdateInteractionSettingsAsync(Guid userId, Guid postId, UpdateInteractionSettingsRequest request);

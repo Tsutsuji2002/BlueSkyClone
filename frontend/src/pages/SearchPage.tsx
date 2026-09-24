@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
-import { FiArrowLeft, FiSearch, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiSearch, FiX, FiSliders } from 'react-icons/fi';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { fetchPostsSearch, clearSearchResults as clearPostSearchResults } from '../redux/slices/postsSlice';
@@ -15,6 +15,7 @@ import { BsPatchCheckFill } from 'react-icons/bs';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { FiMenu } from 'react-icons/fi';
+import SearchFilterModal, { SearchFilterState } from '../components/search/SearchFilterModal';
 
 const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -29,14 +30,22 @@ const SearchPage: React.FC = () => {
     const { searchResultsByTab, searchHasMoreByTab: searchUsersHasMoreByTab, searchLoading: isUsersLoading, searchFetchedByTab: usersFetchedByTab } = useAppSelector((state: RootState) => state.user);
 
     const [inputValue, setInputValue] = useState(query);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [filters, setFilters] = useState<SearchFilterState>({});
     const limit = 20;
 
     const isLoading = activeTab === 'people' ? isUsersLoading : isPostsLoading;
 
-    // Track scroll positions for tab separation (Mirroring HomePage logic)
+    // Track scroll positions for tab separation 
     const scrollPositionsRef = React.useRef<Record<string, number>>({});
     const prevActiveTab = React.useRef<string | null>(activeTab);
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([activeTab]));
+
+    const activeFilterCount = Object.entries(filters).filter(([key, val]) => {
+        if (typeof val === 'boolean') return val;
+        if (typeof val === 'string') return val.trim() !== '' && val !== 'top';
+        return false;
+    }).length;
 
     useEffect(() => {
         if (activeTab && !visitedTabs.has(activeTab)) {
@@ -58,7 +67,7 @@ const SearchPage: React.FC = () => {
         window.scrollTo(0, 0);
     }, [query, dispatch]);
 
-    // Restore scroll position when tab changes (Instant feel)
+    // Restore scroll position when tab changes
     React.useLayoutEffect(() => {
         if (activeTab && activeTab !== prevActiveTab.current) {
             const targetScroll = scrollPositionsRef.current[activeTab] || 0;
@@ -74,13 +83,12 @@ const SearchPage: React.FC = () => {
                 ? !!usersFetchedByTab?.[activeTab]
                 : !!postsFetchedByTab?.[activeTab];
             
-            // Only fetch if we haven't fetched for this tab yet and we aren't currently loading
             if (!isFetched && !isLoading) {
                 if (activeTab === 'people') {
                     const userQuery = query.startsWith('@') ? query.slice(1) : query;
                     dispatch(searchUsers({ query: userQuery, skip: 0, take: limit, tab: activeTab }));
                 } else {
-                    dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab }));
+                    dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab, ...filters }));
                 }
             }
         }
@@ -99,10 +107,7 @@ const SearchPage: React.FC = () => {
 
     const handleTabChange = (tab: string) => {
         if (tab === activeTab) return;
-
-        // Save current position
         scrollPositionsRef.current[activeTab] = window.scrollY;
-        
         setActiveTab(tab);
         setSearchParams({ q: query, tab });
     };
@@ -118,8 +123,29 @@ const SearchPage: React.FC = () => {
                 const userQuery = query.startsWith('@') ? query.slice(1) : query;
                 dispatch(searchUsers({ query: userQuery, skip: currentCount, take: limit, tab: activeTab }));
             } else {
-                dispatch(fetchPostsSearch({ query, skip: currentCount, take: limit, tab: activeTab }));
+                dispatch(fetchPostsSearch({ query, skip: currentCount, take: limit, tab: activeTab, ...filters }));
             }
+        }
+    };
+
+    const handleApplyFilters = (newFilters: SearchFilterState) => {
+        setFilters(newFilters);
+        // Re-run search with new filters
+        dispatch(clearPostSearchResults());
+        scrollPositionsRef.current = {};
+        window.scrollTo(0, 0);
+        if (query) {
+            dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab, ...newFilters }));
+        }
+    };
+
+    const handleResetFilters = () => {
+        setFilters({});
+        dispatch(clearPostSearchResults());
+        scrollPositionsRef.current = {};
+        window.scrollTo(0, 0);
+        if (query) {
+            dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab }));
         }
     };
 
@@ -163,7 +189,6 @@ const SearchPage: React.FC = () => {
                                 onChange={(e) => {
                                     setInputValue(e.target.value);
                                     if (e.target.value.trim() !== '') {
-                                        // Auto-search for users in guest mode like typeahead
                                         const q = e.target.value.trim().startsWith('@') ? e.target.value.trim().slice(1) : e.target.value.trim();
                                         dispatch(searchUsers({ query: q, skip: 0, take: 10 }));
                                     }
@@ -256,7 +281,7 @@ const SearchPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
-                    <div className="flex items-center gap-3 px-3 py-2">
+                    <div className="flex items-center gap-2 px-3 py-2">
                         <button
                             onClick={() => navigate(-1)}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
@@ -283,6 +308,21 @@ const SearchPage: React.FC = () => {
                                 </button>
                             )}
                         </form>
+
+                        {/* Filter Button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsFilterOpen(true)}
+                            className="relative flex-shrink-0 p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                            title={t('search.filters_title', { defaultValue: 'Advanced Filters' })}
+                        >
+                            <FiSliders size={20} className={activeFilterCount > 0 ? 'text-primary-500' : 'text-gray-500 dark:text-dark-text-secondary'} />
+                            {activeFilterCount > 0 && (
+                                <span className="absolute top-0.5 right-0.5 w-4 h-4 text-[10px] font-bold bg-primary-500 text-white rounded-full flex items-center justify-center">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </button>
                     </div>
 
                     {/* Tabs */}
@@ -296,9 +336,28 @@ const SearchPage: React.FC = () => {
                             </button>
                         ))}
                     </div>
+
+                    {/* Active Filter Banner */}
+                    {activeFilterCount > 0 && (
+                        <div className="flex items-center gap-2 px-4 py-1.5 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-800/30">
+                            <FiSliders size={13} className="text-primary-500 flex-shrink-0" />
+                            <span className="text-[13px] text-primary-600 dark:text-primary-400 font-medium flex-1 truncate">
+                                {`${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`}
+                                {filters.author && ` · from @${filters.author}`}
+                                {filters.since && ` · since ${filters.since}`}
+                                {filters.lang && ` · lang: ${filters.lang}`}
+                            </span>
+                            <button
+                                onClick={handleResetFilters}
+                                className="text-[13px] text-primary-500 hover:underline font-semibold flex-shrink-0"
+                            >
+                                {t('common.reset', { defaultValue: 'Reset' })}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                {/* Results Container: Render all visited tabs but hide inactive ones (Mirroring HomePage) */}
+                {/* Results Container */}
                 <div className="pb-20">
                     {tabs.map((tab) => {
                         if (!visitedTabs.has(tab.id)) return null;
@@ -329,6 +388,14 @@ const SearchPage: React.FC = () => {
                                         <p className="text-gray-500 dark:text-dark-text-secondary">
                                             {t('search.no_results_desc', { defaultValue: 'We couldn\'t find anything for "{{query}}"', query })}
                                         </p>
+                                        {activeFilterCount > 0 && (
+                                            <button
+                                                onClick={handleResetFilters}
+                                                className="mt-4 text-primary-500 text-sm font-semibold hover:underline"
+                                            >
+                                                {t('search.clear_filters', { defaultValue: 'Clear filters and try again' })}
+                                            </button>
+                                        )}
                                     </div>
                                 ) : tab.id === 'people' ? (
                                     <div className="divide-y divide-gray-100 dark:divide-dark-border">
@@ -374,6 +441,15 @@ const SearchPage: React.FC = () => {
                         );
                     })}
                 </div>
+
+            {/* Advanced Filter Modal */}
+            <SearchFilterModal
+                isOpen={isFilterOpen}
+                onClose={() => setIsFilterOpen(false)}
+                filters={filters}
+                onApplyFilters={handleApplyFilters}
+                onResetFilters={handleResetFilters}
+            />
         </div>
     );
 };

@@ -26,7 +26,19 @@ public class SearchController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("posts")]
-    public async Task<IActionResult> SearchPosts([FromQuery] string q, [FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<IActionResult> SearchPosts(
+        [FromQuery] string q,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 20,
+        [FromQuery] string? author = null,
+        [FromQuery] string? since = null,
+        [FromQuery] string? until = null,
+        [FromQuery] string? lang = null,
+        [FromQuery] string? domain = null,
+        [FromQuery] string? sort = null,
+        [FromQuery] bool? hasImages = null,
+        [FromQuery] bool? hasVideo = null,
+        [FromQuery] bool? hasLinks = null)
     {
         if (string.IsNullOrWhiteSpace(q)) return Ok(new List<object>());
 
@@ -39,12 +51,18 @@ public class SearchController : ControllerBase
             bskyToken = await _cache.GetStringAsync($"BlueskyToken_{userId.Value}");
 
         // [PERFORMANCE] Run remote AppView search and local ES/DB search in PARALLEL.
-        // Return whichever has results first within 5 seconds; avoids a 20-30s sequential wait.
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         var remoteTask = Task.Run(async () =>
         {
-            try { return await _postService.SearchPostsRemoteAsync(q, bskyToken, skip, take); }
+            try
+            {
+                return await _postService.SearchPostsRemoteAsync(
+                    q, bskyToken, skip, take,
+                    author: author, since: since, until: until,
+                    lang: lang, domain: domain, sort: sort,
+                    hasImages: hasImages, hasVideo: hasVideo, hasLinks: hasLinks);
+            }
             catch { return Enumerable.Empty<BSkyClone.DTOs.PostDto>(); }
         }, cts.Token);
 
@@ -65,7 +83,6 @@ public class SearchController : ControllerBase
             catch { return Enumerable.Empty<BSkyClone.DTOs.PostDto>(); }
         }, cts.Token);
 
-        // Wait for first task with results, or both to finish (within 5s)
         IEnumerable<BSkyClone.DTOs.PostDto> remoteResults = [];
         IEnumerable<BSkyClone.DTOs.PostDto> localResults = [];
 

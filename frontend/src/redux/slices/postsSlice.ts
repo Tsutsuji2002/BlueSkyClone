@@ -706,10 +706,24 @@ export const fetchPostsByTag = createAsyncThunk(
 
 export const fetchPostsSearch = createAsyncThunk(
     'posts/fetchSearch',
-    async ({ query, skip = 0, take = 20 }: { query: string; skip?: number; take?: number; cursor?: string; tab?: string }, { rejectWithValue }) => {
+    async ({ query, skip = 0, take = 20, author, since, until, lang, domain, sort, hasImages, hasVideo, hasLinks }: { query: string; skip?: number; take?: number; cursor?: string; tab?: string; author?: string; since?: string; until?: string; lang?: string; domain?: string; sort?: string; hasImages?: boolean; hasVideo?: boolean; hasLinks?: boolean }, { rejectWithValue }) => {
         try {
+            const params = new URLSearchParams();
+            params.set('q', query);
+            params.set('skip', String(skip));
+            params.set('take', String(take));
+            if (author) params.set('author', author);
+            if (since) params.set('since', since);
+            if (until) params.set('until', until);
+            if (lang) params.set('lang', lang);
+            if (domain) params.set('domain', domain);
+            if (sort) params.set('sort', sort);
+            if (hasImages) params.set('hasImages', 'true');
+            if (hasVideo) params.set('hasVideo', 'true');
+            if (hasLinks) params.set('hasLinks', 'true');
+
             const response = await fetch(
-                `${API_BASE_URL}/search/posts?q=${encodeURIComponent(query)}&skip=${skip}&take=${take}`,
+                `${API_BASE_URL}/search/posts?${params.toString()}`,
                 { credentials: 'include' }
             );
             if (!response.ok) return rejectWithValue('Failed to search posts');
