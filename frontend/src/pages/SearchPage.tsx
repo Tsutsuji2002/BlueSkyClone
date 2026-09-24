@@ -393,27 +393,7 @@ const SearchPage: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Active Filter Banner (Clean non-overlapping padding) */}
-                {activeFilterCount > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-primary-50/90 dark:bg-primary-950/30 border-b border-primary-100 dark:border-primary-900/40">
-                        <FiSliders size={14} className="text-primary-500 flex-shrink-0" />
-                        <span className="text-[13px] text-primary-700 dark:text-primary-300 font-medium flex-1 truncate">
-                            {`${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`}
-                            {filters.lang && ` · lang: ${filters.lang}`}
-                            {filters.author && ` · from: ${filters.author}`}
-                            {filters.since && ` · since: ${filters.since}`}
-                            {filters.until && ` · until: ${filters.until}`}
-                            {filters.media && ` · media: ${filters.media}`}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={handleResetFilters}
-                            className="text-[13px] text-primary-600 dark:text-primary-400 hover:underline font-semibold flex-shrink-0 ml-2"
-                        >
-                            {t('common.reset', { defaultValue: 'Reset' })}
-                        </button>
-                    </div>
-                )}
+
             </div>
 
             {/* Results Container */}

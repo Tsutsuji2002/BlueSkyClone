@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiX, FiCalendar, FiChevronDown, FiPlus } from 'react-icons/fi';
+import Avatar from '../common/Avatar';
+import { API_BASE_URL } from '../../constants';
 
 export interface CustomFilterRule {
     id: string;
@@ -21,6 +23,13 @@ export interface SearchFilterState {
     author?: string; // Author handle
     domain?: string;
     customRules?: CustomFilterRule[];
+}
+
+interface UserSuggestion {
+    id: string;
+    handle: string;
+    displayName?: string;
+    avatarUrl?: string;
 }
 
 interface SearchFilterModalProps {
@@ -87,6 +96,12 @@ const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     const [authorHandle, setAuthorHandle] = useState<string>('');
     const [customRules, setCustomRules] = useState<CustomFilterRule[]>([]);
 
+    // User Autocomplete state
+    const [activeTargetId, setActiveTargetId] = useState<string | null>(null); // 'author' or rule.id
+    const [userSuggestions, setUserSuggestions] = useState<UserSuggestion[]>([]);
+    const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         if (isOpen) {
             setAllWords(filters.query || initialQuery || '');
@@ -100,10 +115,54 @@ const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             setAuthorHandle(filters.author || '');
             setSelectedAuthorMode(filters.author ? 'custom' : '');
             setCustomRules(filters.customRules ? [...filters.customRules] : []);
+            setActiveTargetId(null);
+            setUserSuggestions([]);
         }
     }, [isOpen, filters, initialQuery]);
 
     if (!isOpen) return null;
+
+    const handleFetchUserSuggestions = (targetId: string, queryText: string) => {
+        setActiveTargetId(targetId);
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+        const cleanQ = queryText.trim().replace(/^@/, '');
+        if (!cleanQ) {
+            setUserSuggestions([]);
+            return;
+        }
+
+        debounceTimerRef.current = setTimeout(async () => {
+            try {
+                setIsSearchingUsers(true);
+                const res = await fetch(`${API_BASE_URL}/search/users?q=${encodeURIComponent(cleanQ)}&skip=0&take=5`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const suggestions: UserSuggestion[] = (data || []).map((u: any) => ({
+                        id: u.id || u.did || u.handle,
+                        handle: u.handle,
+                        displayName: u.displayName || u.handle,
+                        avatarUrl: u.avatar || u.avatarUrl,
+                    }));
+                    setUserSuggestions(suggestions);
+                }
+            } catch (err) {
+                console.error('[SearchFilterModal] Failed to search users:', err);
+            } finally {
+                setIsSearchingUsers(false);
+            }
+        }, 250);
+    };
+
+    const handleSelectUser = (targetId: string, handle: string) => {
+        if (targetId === 'author') {
+            setAuthorHandle(handle);
+        } else {
+            setCustomRules(customRules.map(r => r.id === targetId ? { ...r, value: handle } : r));
+        }
+        setUserSuggestions([]);
+        setActiveTargetId(null);
+    };
 
     const handleSearch = () => {
         const resultFilters: SearchFilterState = {
@@ -134,6 +193,10 @@ const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
 
     const handleRemoveFilterRule = (id: string) => {
         setCustomRules(customRules.filter(r => r.id !== id));
+        if (activeTargetId === id) {
+            setActiveTargetId(null);
+            setUserSuggestions([]);
+        }
     };
 
     const handleUpdateFilterRule = (id: string, updates: Partial<CustomFilterRule>) => {
@@ -328,7 +391,7 @@ const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                             </div>
                         </div>
 
-                        <div>
+                        <div className="relative">
                             <label className="block text-[13px] font-semibold text-[#405168] dark:text-dark-text-secondary mb-2">
                                 {t('search.author', { defaultValue: 'Author' })}
                             </label>
@@ -351,13 +414,42 @@ const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                             </div>
 
                             {selectedAuthorMode === 'custom' && (
-                                <input
-                                    type="text"
-                                    value={authorHandle}
-                                    onChange={(e) => setAuthorHandle(e.target.value)}
-                                    placeholder="alice.bsky.social"
-                                    className="w-full mt-2 bg-[#EFF2F6] dark:bg-dark-surface py-2 px-3.5 rounded-[10px] text-[14px] text-gray-900 dark:text-dark-text placeholder-[#667B99] outline-none border border-transparent focus:border-primary-500 transition-colors"
-                                />
+                                <div className="relative mt-2">
+                                    <input
+                                        type="text"
+                                        value={authorHandle}
+                                        onChange={(e) => {
+                                            setAuthorHandle(e.target.value);
+                                            handleFetchUserSuggestions('author', e.target.value);
+                                        }}
+                                        onFocus={(e) => handleFetchUserSuggestions('author', e.target.value)}
+                                        placeholder="alice.bsky.social"
+                                        className="w-full bg-[#EFF2F6] dark:bg-dark-surface py-2 px-3.5 rounded-[10px] text-[14px] text-gray-900 dark:text-dark-text placeholder-[#667B99] outline-none border border-transparent focus:border-primary-500 transition-colors"
+                                    />
+                                    {/* User Autocomplete Popup */}
+                                    {activeTargetId === 'author' && userSuggestions.length > 0 && (
+                                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-[14px] shadow-xl overflow-hidden p-1.5">
+                                            {userSuggestions.map((u) => (
+                                                <button
+                                                    type="button"
+                                                    key={u.id}
+                                                    onClick={() => handleSelectUser('author', u.handle)}
+                                                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-[10px] transition-colors text-left"
+                                                >
+                                                    <Avatar src={u.avatarUrl} alt={u.displayName || u.handle} size="md" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="text-[14px] font-bold text-gray-900 dark:text-dark-text truncate">
+                                                            {u.displayName || u.handle}
+                                                        </div>
+                                                        <div className="text-[12.5px] text-gray-500 dark:text-dark-text-secondary truncate">
+                                                            @{u.handle}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -410,18 +502,54 @@ const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                                         </button>
                                     </div>
 
-                                    {/* Input Value */}
-                                    <input
-                                        type="text"
-                                        value={rule.value}
-                                        onChange={(e) => handleUpdateFilterRule(rule.id, { value: e.target.value })}
-                                        placeholder={
-                                            rule.type === 'domain'
-                                                ? 'bsky.app atproto.com'
-                                                : 'alice.bsky.social bob.bsky.social'
-                                        }
-                                        className="w-full bg-[#EFF2F6] dark:bg-dark-surface py-2 px-3 rounded-[10px] text-[14.5px] text-gray-900 dark:text-dark-text placeholder-[#667B99] outline-none border border-transparent focus:border-primary-500 transition-colors"
-                                    />
+                                    {/* Input Value with User Autocomplete */}
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={rule.value}
+                                            onChange={(e) => {
+                                                handleUpdateFilterRule(rule.id, { value: e.target.value });
+                                                if (rule.type === 'author' || rule.type === 'mentions') {
+                                                    handleFetchUserSuggestions(rule.id, e.target.value);
+                                                }
+                                            }}
+                                            onFocus={(e) => {
+                                                if (rule.type === 'author' || rule.type === 'mentions') {
+                                                    handleFetchUserSuggestions(rule.id, e.target.value);
+                                                }
+                                            }}
+                                            placeholder={
+                                                rule.type === 'domain'
+                                                    ? 'bsky.app atproto.com'
+                                                    : 'alice.bsky.social bob.bsky.social'
+                                            }
+                                            className="w-full bg-[#EFF2F6] dark:bg-dark-surface py-2 px-3 rounded-[10px] text-[14.5px] text-gray-900 dark:text-dark-text placeholder-[#667B99] outline-none border border-transparent focus:border-primary-500 transition-colors"
+                                        />
+
+                                        {/* User Autocomplete Popup Card matching Pic 3 */}
+                                        {activeTargetId === rule.id && userSuggestions.length > 0 && (
+                                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-[14px] shadow-xl overflow-hidden p-1.5">
+                                                {userSuggestions.map((u) => (
+                                                    <button
+                                                        type="button"
+                                                        key={u.id}
+                                                        onClick={() => handleSelectUser(rule.id, u.handle)}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-[10px] transition-colors text-left"
+                                                    >
+                                                        <Avatar src={u.avatarUrl} alt={u.displayName || u.handle} size="md" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="text-[14px] font-bold text-gray-900 dark:text-dark-text truncate">
+                                                                {u.displayName || u.handle}
+                                                            </div>
+                                                            <div className="text-[12.5px] text-gray-500 dark:text-dark-text-secondary truncate">
+                                                                @{u.handle}
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
