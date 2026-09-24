@@ -708,7 +708,7 @@ namespace BSkyClone.Controllers
                 if (!request.TryGetProperty("preferences", out var prefsProp) || prefsProp.ValueKind != JsonValueKind.Array)
                     return BadRequest(new { error = "InvalidRequest", message = "Preferences array required" });
 
-                var settingsUpdate = new UserSettingDto(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+                var settingsUpdate = new UserSettingDto();
                 
                 foreach (var pref in prefsProp.EnumerateArray())
                 {

@@ -84,6 +84,7 @@ export interface UserSettings {
     selectedInterests: string[];
     // Privacy
     logoutVisibility: boolean;
+    hideFromDiscover?: boolean;
     // Moderation
     enableAdultContent: boolean;
     adultContentFilter: 'show' | 'warn' | 'hide';

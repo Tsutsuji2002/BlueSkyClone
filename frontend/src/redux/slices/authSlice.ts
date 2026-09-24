@@ -81,6 +81,7 @@ function normalizeSettings(raw: any): UserSettings {
         defaultReplyRestriction: raw.defaultReplyRestriction ?? raw.DefaultReplyRestriction ?? 'anyone',
         defaultAllowQuotes: raw.defaultAllowQuotes ?? raw.DefaultAllowQuotes ?? true,
         logoutVisibility: raw.logoutVisibility ?? raw.LogoutVisibility ?? raw.requireLogoutVisibility ?? raw.RequireLogoutVisibility ?? false,
+        hideFromDiscover: raw.hideFromDiscover ?? raw.HideFromDiscover ?? false,
 
         // Moderation
         enableAdultContent: raw.enableAdultContent ?? raw.EnableAdultContent ?? false,

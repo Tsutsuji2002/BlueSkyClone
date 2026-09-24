@@ -71,6 +71,8 @@ public partial class UserSetting
     public bool? EnableTreeView { get; set; }
     public bool? RequireLogoutVisibility { get; set; }
     public bool? LargerAltBadge { get; set; }
+    public bool? HideFromDiscover { get; set; }
+
 
     /// <summary>
     /// JSON array of selected interest names, e.g., '["Tech","Art","Food"]'

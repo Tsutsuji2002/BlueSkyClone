@@ -176,6 +176,7 @@ public class UserController : ControllerBase
                 settings.EnableDiscoverVideo,
                 settings.EnableTreeView,
                 settings.RequireLogoutVisibility,
+                settings.HideFromDiscover,
                 settings.LargerAltBadge,
                 settings.ShowReplies,
                 settings.ShowReposts,

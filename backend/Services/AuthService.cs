@@ -675,6 +675,7 @@ public class AuthService : IAuthService
             user.UserSetting.EnableDiscoverVideo,
             user.UserSetting.EnableTreeView,
             user.UserSetting.RequireLogoutVisibility,
+            user.UserSetting.HideFromDiscover,
             user.UserSetting.LargerAltBadge,
             user.UserSetting.ShowReplies,
             user.UserSetting.ShowReposts,
@@ -683,19 +684,51 @@ public class AuthService : IAuthService
             UserSettingDto.ParseJson(user.UserSetting.EnabledMediaProviders),
             UserSettingDto.ParseJson(user.UserSetting.SelectedInterests)
         ) : new UserSettingDto(
-            null, null, null, null, null, null, null, null, "en", "system",
-            true, true, true, true, true, true,  // Notify* (6)
-            true, true, true, true, true, true,  // PushNotify* (6)
-            true, true, true, true, true, true,  // InAppNotify* (6)
-            true, true, true,                    // Activity (3)
-            true, true, true,                    // LikesOfReposts (3)
-            true, true, true,                    // RepostsOfReposts (3)
-            true, true, true,                    // Others (3)
-            "anyone", true, 15,                  // ReplyRestriction, AllowQuotes, FontSize
-            true, true, false, false, false,     // Trending, Video, TreeView, Logout, AltBadge
-            true, true, true, false,             // ShowReplies, ShowReposts, ShowQuotes, ShowSampleFeeds
-            null,                                // EnabledMediaProviders
-            null                                 // SelectedInterests
+            AppLanguage: "en",
+            ThemeMode: "system",
+            NotifyLikes: true,
+            NotifyFollowers: true,
+            NotifyReplies: true,
+            NotifyMentions: true,
+            NotifyQuotes: true,
+            NotifyReposts: true,
+            PushNotifyLikes: true,
+            PushNotifyFollowers: true,
+            PushNotifyReplies: true,
+            PushNotifyMentions: true,
+            PushNotifyQuotes: true,
+            PushNotifyReposts: true,
+            InAppNotifyLikes: true,
+            InAppNotifyFollowers: true,
+            InAppNotifyReplies: true,
+            InAppNotifyMentions: true,
+            InAppNotifyQuotes: true,
+            InAppNotifyReposts: true,
+            NotifyActivity: true,
+            PushNotifyActivity: true,
+            InAppNotifyActivity: true,
+            NotifyLikesOfReposts: true,
+            PushNotifyLikesOfReposts: true,
+            InAppNotifyLikesOfReposts: true,
+            NotifyRepostsOfReposts: true,
+            PushNotifyRepostsOfReposts: true,
+            InAppNotifyRepostsOfReposts: true,
+            NotifyOthers: true,
+            PushNotifyOthers: true,
+            InAppNotifyOthers: true,
+            DefaultReplyRestriction: "anyone",
+            DefaultAllowQuotes: true,
+            FontSize: 15,
+            EnableTrending: true,
+            EnableDiscoverVideo: true,
+            EnableTreeView: false,
+            RequireLogoutVisibility: false,
+            HideFromDiscover: false,
+            LargerAltBadge: false,
+            ShowReplies: true,
+            ShowReposts: true,
+            ShowQuotePosts: true,
+            ShowSampleSavedFeeds: false
         );
 
         return new AuthResponse(userDto, settingsDto, token, refreshToken, rememberMe);

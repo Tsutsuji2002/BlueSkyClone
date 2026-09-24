@@ -8004,6 +8004,25 @@ public class PostService : IPostService
             .Select(b => b.UserId)
             .ToListAsync();
 
+        var optOutUserIds = await _unitOfWork.UserSettings.Query()
+            .Where(s => s.HideFromDiscover == true)
+            .Select(s => s.UserId)
+            .ToListAsync();
+
+        if (optOutUserIds.Any())
+        {
+            var followingUserIds = await _unitOfWork.Follows.Query()
+                .Where(f => f.FollowerId == userId)
+                .Select(f => f.FollowingId)
+                .ToListAsync();
+
+            var nonFollowedOptOutUserIds = optOutUserIds.Where(id => !followingUserIds.Contains(id)).ToList();
+            if (nonFollowedOptOutUserIds.Any())
+            {
+                mutedUserIds.AddRange(nonFollowedOptOutUserIds);
+            }
+        }
+
         // 2. Fetch a pool of recent posts (expand search window if they have interests)
         var poolCutoff = DateTime.UtcNow.AddDays(-7); // Expand to 7 days to find more interest matches
         List<Post> postPool;

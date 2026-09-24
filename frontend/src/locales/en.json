@@ -343,6 +343,9 @@
         "logout_visibility_label": "Discourage apps from showing my account to logged-out users",
         "logout_visibility_desc": "Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.",
         "logout_visibility_note": "Note: Bluesky is an open and public network. This setting only limits the visibility of your content on the Bluesky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.",
+        "hide_from_discover": "Discover feed opt-out",
+        "hide_from_discover_label": "Ask apps to hide my posts from algorithmic recommendations",
+        "hide_from_discover_desc": "Bluesky will exclude your posts from non-followers in the Discover feed. Other apps may not honor this request.",
         "learn_more": "Learn more about what is public on Bluesky.",
         "learn_more_public": "Learn more about what is public on Bluesky."
     },

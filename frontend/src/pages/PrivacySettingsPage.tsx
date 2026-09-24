@@ -140,7 +140,7 @@ const PrivacySettingsPage: React.FC = () => {
                             {t('privacy.logout_visibility_desc')}
                         </p>
 
-                        <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl">
+                        <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl mb-6">
                             <div className="flex gap-3">
                                 <span className="text-blue-500 mt-0.5 text-lg">ⓘ</span>
                                 <div className="flex flex-col gap-1">
@@ -152,6 +152,29 @@ const PrivacySettingsPage: React.FC = () => {
                                     </a>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Discover Feed Opt-Out */}
+                        <div className="pt-4 border-t border-gray-100 dark:border-dark-border/50">
+                            <div className="flex items-start justify-between gap-4 mb-2">
+                                <h4 className="text-[15px] font-bold text-gray-900 dark:text-dark-text">
+                                    {t('privacy.hide_from_discover_label', 'Ask apps to hide my posts from algorithmic recommendations')}
+                                </h4>
+                                <label className="relative inline-flex items-center cursor-pointer ml-auto shrink-0 mt-0.5">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={settings?.hideFromDiscover ?? false}
+                                        onChange={() => handleToggle('hideFromDiscover', !settings?.hideFromDiscover)}
+                                    />
+                                    <div className="w-5 h-5 bg-white border-2 border-gray-300 rounded peer-focus:ring-2 peer-focus:ring-blue-500 dark:bg-dark-bg dark:border-gray-500 peer-checked:bg-blue-500 peer-checked:border-blue-500 transition-all flex items-center justify-center">
+                                        <FiCheck size={14} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                    </div>
+                                </label>
+                            </div>
+                            <p className="text-[14px] text-gray-500 dark:text-dark-text-secondary leading-relaxed">
+                                {t('privacy.hide_from_discover_desc', 'Bluesky will exclude your posts from non-followers in the Discover feed. Other apps may not honor this request.')}
+                            </p>
                         </div>
                     </div>
                 </div>
