@@ -6044,30 +6044,47 @@ public class PostService : IPostService
                     string? targetCid = freshPost.Cid;
                     if (string.IsNullOrEmpty(targetCid) || !targetCid.StartsWith("bafy"))
                     {
-                        // [FAST PATH] Fetch only the CID via getPostThread?depth=0 - much faster than full ingestion
+                        var cacheKey = $"PostCid_{freshPost.Uri}";
                         try
                         {
-                            using var cidClient = _httpClientFactory.CreateClient();
-                            cidClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
-                            using var cidCts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
-                            var cidResp = await cidClient.GetAsync(
-                                $"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(freshPost.Uri!)}&depth=0",
-                                cidCts.Token);
-                            if (cidResp.IsSuccessStatusCode)
+                            targetCid = await _distributedCache.GetStringAsync(cacheKey);
+                        }
+                        catch { }
+
+                        if (string.IsNullOrEmpty(targetCid))
+                        {
+                            // [FAST PATH] Fetch CID via getPostThread with a 2s timeout and cache result
+                            try
                             {
-                                var cidJson = await cidResp.Content.ReadAsStringAsync(cidCts.Token);
-                                using var cidDoc = JsonDocument.Parse(cidJson);
-                                if (cidDoc.RootElement.TryGetProperty("thread", out var threadEl) &&
-                                    threadEl.TryGetProperty("post", out var postEl) &&
-                                    postEl.TryGetProperty("cid", out var cidEl))
+                                using var cidClient = _httpClientFactory.CreateClient();
+                                cidClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                                using var cidCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                                var cidResp = await cidClient.GetAsync(
+                                    $"https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri={Uri.EscapeDataString(freshPost.Uri!)}&depth=0",
+                                    cidCts.Token);
+                                if (cidResp.IsSuccessStatusCode)
                                 {
-                                    targetCid = cidEl.GetString() ?? "";
+                                    var cidJson = await cidResp.Content.ReadAsStringAsync(cidCts.Token);
+                                    using var cidDoc = JsonDocument.Parse(cidJson);
+                                    if (cidDoc.RootElement.TryGetProperty("thread", out var threadEl) &&
+                                        threadEl.TryGetProperty("post", out var postEl) &&
+                                        postEl.TryGetProperty("cid", out var cidEl))
+                                    {
+                                        targetCid = cidEl.GetString() ?? "";
+                                        if (!string.IsNullOrEmpty(targetCid))
+                                        {
+                                            await _distributedCache.SetStringAsync(cacheKey, targetCid, new DistributedCacheEntryOptions
+                                            {
+                                                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                                            });
+                                        }
+                                    }
                                 }
                             }
-                        }
-                        catch (Exception cidEx)
-                        {
-                            _logger.LogWarning("[ToggleLikeAsync] Fast CID fetch failed for {Uri}: {Msg}", freshPost.Uri, cidEx.Message);
+                            catch (Exception cidEx)
+                            {
+                                _logger.LogWarning("[ToggleLikeAsync] Fast CID fetch failed for {Uri}: {Msg}", freshPost.Uri, cidEx.Message);
+                            }
                         }
                         targetCid = string.IsNullOrEmpty(targetCid) ? (freshPost.Cid ?? "") : targetCid;
                     }

@@ -1515,7 +1515,7 @@ public class FeedService : IFeedService
 
                 var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip + 10, 30, 100) : Math.Max(take + 10, 30);
                 
-                foreach (var host in new[] { "https://api.bsky.app", "https://public.api.bsky.app" })
+                foreach (var host in new[] { "https://public.api.bsky.app", "https://api.bsky.app" })
                 {
                     try
                     {
@@ -1524,7 +1524,7 @@ public class FeedService : IFeedService
 
                         _logger.LogInformation("[FeedService] Fetching remote feed from {Host} with URI: {Uri}", host, resolvedUri);
 
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                         var response = await httpClient.GetAsync(url, linkedCts.Token);
 
@@ -1575,7 +1575,7 @@ public class FeedService : IFeedService
             var windowSize = take + 30; // [FIX] Larger buffer for filtering
             var postsToEnrich = rawResult.Posts.Skip(windowStart).Take(windowSize).ToList();
 
-            var enriched = await _postService.EnrichAndFilterPostsAsync(postsToEnrich, userId ?? Guid.Empty, token);
+            var enriched = await _postService.EnrichAndFilterPostsAsync(postsToEnrich, userId ?? Guid.Empty, token, isTimeline: false, forceDropHidden: true, bypassRemoteCache: false, skipDeepResolution: true, ct: ct);
             var paginatedPosts = enriched.Take(take).ToList();
             var finalResult = new PagedPostDto { Posts = paginatedPosts, Cursor = rawResult.Cursor };
 
