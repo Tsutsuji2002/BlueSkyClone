@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Feed from '../components/feed/Feed';
@@ -16,6 +16,60 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { FiMenu } from 'react-icons/fi';
 import SearchFilterModal, { SearchFilterState } from '../components/search/SearchFilterModal';
+
+const compileSearchArgs = (baseQuery: string, filters: SearchFilterState) => {
+    let qParts: string[] = [];
+
+    const qStr = (filters.query || baseQuery).trim();
+    if (qStr) qParts.push(qStr);
+
+    if (filters.noneWords) {
+        const words = filters.noneWords.trim().split(/\s+/);
+        words.forEach(w => {
+            if (w) qParts.push(`-${w.replace(/^-+/, '')}`);
+        });
+    }
+
+    if (filters.exactPhrase) {
+        qParts.push(`"${filters.exactPhrase.replace(/"/g, '')}"`);
+    }
+
+    if (filters.customRules) {
+        filters.customRules.forEach(rule => {
+            if (!rule.value.trim()) return;
+            const prefix = rule.mode === 'exclude' ? '-' : '';
+            const values = rule.value.trim().split(/\s+/);
+            values.forEach(val => {
+                if (!val) return;
+                const cleanVal = val.replace(/^@/, '');
+                if (rule.type === 'author') {
+                    qParts.push(`${prefix}from:${cleanVal}`);
+                } else if (rule.type === 'domain') {
+                    qParts.push(`${prefix}domain:${cleanVal}`);
+                } else if (rule.type === 'mentions') {
+                    qParts.push(`${prefix}to:${cleanVal}`);
+                }
+            });
+        });
+    }
+
+    const finalQuery = qParts.join(' ');
+
+    let hasImages = filters.media === 'images' ? true : undefined;
+    let hasVideo = filters.media === 'video' ? true : undefined;
+    let hasLinks = filters.media === 'links' ? true : undefined;
+
+    return {
+        query: finalQuery || baseQuery,
+        since: filters.since || undefined,
+        until: filters.until || undefined,
+        lang: filters.lang || undefined,
+        author: filters.author || undefined,
+        hasImages,
+        hasVideo,
+        hasLinks,
+    };
+};
 
 const SearchPage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -36,15 +90,15 @@ const SearchPage: React.FC = () => {
 
     const isLoading = activeTab === 'people' ? isUsersLoading : isPostsLoading;
 
-    // Track scroll positions for tab separation 
     const scrollPositionsRef = React.useRef<Record<string, number>>({});
     const prevActiveTab = React.useRef<string | null>(activeTab);
     const [visitedTabs, setVisitedTabs] = useState<Set<string>>(new Set([activeTab]));
 
     const activeFilterCount = Object.entries(filters).filter(([key, val]) => {
-        if (typeof val === 'boolean') return val;
-        if (typeof val === 'string') return val.trim() !== '' && val !== 'top';
-        return false;
+        if (!val) return false;
+        if (Array.isArray(val)) return val.length > 0;
+        if (typeof val === 'string') return val.trim() !== '';
+        return true;
     }).length;
 
     useEffect(() => {
@@ -58,7 +112,6 @@ const SearchPage: React.FC = () => {
         }
     }, [activeTab]);
 
-    // Reset scroll and data on new query
     useEffect(() => {
         dispatch(clearPostSearchResults());
         dispatch(clearUserSearchResults());
@@ -67,7 +120,6 @@ const SearchPage: React.FC = () => {
         window.scrollTo(0, 0);
     }, [query, dispatch]);
 
-    // Restore scroll position when tab changes
     React.useLayoutEffect(() => {
         if (activeTab && activeTab !== prevActiveTab.current) {
             const targetScroll = scrollPositionsRef.current[activeTab] || 0;
@@ -88,7 +140,8 @@ const SearchPage: React.FC = () => {
                     const userQuery = query.startsWith('@') ? query.slice(1) : query;
                     dispatch(searchUsers({ query: userQuery, skip: 0, take: limit, tab: activeTab }));
                 } else {
-                    dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab, ...filters }));
+                    const compiled = compileSearchArgs(query, filters);
+                    dispatch(fetchPostsSearch({ ...compiled, skip: 0, take: limit, tab: activeTab }));
                 }
             }
         }
@@ -123,19 +176,20 @@ const SearchPage: React.FC = () => {
                 const userQuery = query.startsWith('@') ? query.slice(1) : query;
                 dispatch(searchUsers({ query: userQuery, skip: currentCount, take: limit, tab: activeTab }));
             } else {
-                dispatch(fetchPostsSearch({ query, skip: currentCount, take: limit, tab: activeTab, ...filters }));
+                const compiled = compileSearchArgs(query, filters);
+                dispatch(fetchPostsSearch({ ...compiled, skip: currentCount, take: limit, tab: activeTab }));
             }
         }
     };
 
     const handleApplyFilters = (newFilters: SearchFilterState) => {
         setFilters(newFilters);
-        // Re-run search with new filters
         dispatch(clearPostSearchResults());
         scrollPositionsRef.current = {};
         window.scrollTo(0, 0);
-        if (query) {
-            dispatch(fetchPostsSearch({ query, skip: 0, take: limit, tab: activeTab, ...newFilters }));
+        if (query || newFilters.query) {
+            const compiled = compileSearchArgs(query, newFilters);
+            dispatch(fetchPostsSearch({ ...compiled, skip: 0, take: limit, tab: activeTab }));
         }
     };
 
@@ -154,7 +208,6 @@ const SearchPage: React.FC = () => {
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const [isFocused, setIsFocused] = useState(false);
 
-    // Standard search tabs
     const tabs = [
         { id: 'top', label: t('search.top', { defaultValue: 'Top' }) },
         { id: 'latest', label: t('search.latest', { defaultValue: 'Latest' }) },
@@ -165,7 +218,6 @@ const SearchPage: React.FC = () => {
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border pb-[80px]">
-                {/* Header */}
                 <div className="sticky top-0 z-30 bg-white dark:bg-dark-bg">
                     <div className="flex items-center gap-4 px-4 py-3">
                         <button
@@ -179,7 +231,6 @@ const SearchPage: React.FC = () => {
                         </h2>
                     </div>
 
-                    {/* Search Field */}
                     <div className="px-4 pb-3 flex gap-2">
                         <form onSubmit={handleSearch} className="flex-1 relative group">
                             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 focus-within:text-primary-500 transition-colors" size={18} />
@@ -222,7 +273,6 @@ const SearchPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Body */}
                 <div className="bg-white dark:bg-dark-bg min-h-[calc(100vh-120px)] border-t border-gray-100 dark:border-dark-border">
                     {inputValue.trim() === '' ? (
                         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -241,7 +291,6 @@ const SearchPage: React.FC = () => {
                                 </span>
                             </div>
                             
-                            {/* User Results */}
                             <div className="divide-y divide-gray-100 dark:divide-dark-border">
                                 {isUsersLoading && (searchResultsByTab?.['people'] || []).length === 0 ? (
                                     <div className="flex justify-center py-8">
@@ -280,173 +329,184 @@ const SearchPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border">
-                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
-                    <div className="flex items-center gap-2 px-3 py-2">
+            {/* Sticky Top Bar Container */}
+            <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
+                {/* Search Header Row */}
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
+                    >
+                        <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
+                    </button>
+
+                    <form onSubmit={handleSearch} className="flex-1 relative group">
+                        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
+                        <input
+                            type="text"
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            placeholder={t('explore.search_placeholder', { defaultValue: 'Search' })}
+                            className="w-full bg-[#EFF3F4] dark:bg-dark-surface py-2 pl-11 pr-10 rounded-full text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text placeholder-[#667B99]"
+                        />
+                        {inputValue && (
+                            <button
+                                type="button"
+                                onClick={() => setInputValue('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text p-1"
+                            >
+                                <FiX size={16} />
+                            </button>
+                        )}
+                    </form>
+
+                    {/* Filters Pill Button */}
+                    <button
+                        type="button"
+                        onClick={() => setIsFilterOpen(true)}
+                        className={`relative flex items-center gap-1.5 px-3 py-2 rounded-full text-[13.5px] font-medium transition-colors flex-shrink-0 ${
+                            activeFilterCount > 0
+                                ? 'bg-primary-500 text-white shadow-xs'
+                                : 'bg-[#EFF3F4] dark:bg-dark-surface text-[#405168] dark:text-dark-text hover:bg-gray-200 dark:hover:bg-dark-border'
+                        }`}
+                        title={t('search.filters_title', { defaultValue: 'Filters' })}
+                    >
+                        <FiSliders size={16} />
+                        <span className="hidden sm:inline">{t('search.filters_title', { defaultValue: 'Filters' })}</span>
+                        {activeFilterCount > 0 && (
+                            <span className="px-1.5 py-0.2 text-[11px] font-bold bg-white text-primary-600 rounded-full">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Search Tabs */}
+                <div className="flex border-b border-gray-100 dark:border-dark-border overflow-x-auto no-scrollbar">
+                    {tabs.map((tab) => (
                         <button
-                            onClick={() => navigate(-1)}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors flex-shrink-0"
-                        >
-                            <FiArrowLeft size={20} className="text-gray-900 dark:text-dark-text" />
+                            key={tab.id}
+                            onClick={() => handleTabChange(tab.id)}
+                            className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === tab.id ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
+                            {tab.label}
                         </button>
+                    ))}
+                </div>
 
-                        <form onSubmit={handleSearch} className="flex-1 relative group">
-                            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-500 transition-colors" size={18} />
-                            <input
-                                type="text"
-                                value={inputValue}
-                                onChange={(e) => setInputValue(e.target.value)}
-                                placeholder={t('explore.search_placeholder', { defaultValue: 'Search' })}
-                                className="w-full bg-gray-100 dark:bg-dark-surface py-2 pl-12 pr-10 rounded-full text-[15px] focus:bg-white dark:focus:bg-dark-bg border border-transparent focus:border-primary-500 outline-none transition-colors dark:text-dark-text"
-                            />
-                            {inputValue && (
-                                <button
-                                    type="button"
-                                    onClick={() => setInputValue('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text p-1"
-                                >
-                                    <FiX size={16} />
-                                </button>
-                            )}
-                        </form>
-
-                        {/* Filter Button */}
+                {/* Active Filter Banner (Clean non-overlapping padding) */}
+                {activeFilterCount > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-primary-50/90 dark:bg-primary-950/30 border-b border-primary-100 dark:border-primary-900/40">
+                        <FiSliders size={14} className="text-primary-500 flex-shrink-0" />
+                        <span className="text-[13px] text-primary-700 dark:text-primary-300 font-medium flex-1 truncate">
+                            {`${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`}
+                            {filters.lang && ` · lang: ${filters.lang}`}
+                            {filters.author && ` · from: ${filters.author}`}
+                            {filters.since && ` · since: ${filters.since}`}
+                            {filters.until && ` · until: ${filters.until}`}
+                            {filters.media && ` · media: ${filters.media}`}
+                        </span>
                         <button
                             type="button"
-                            onClick={() => setIsFilterOpen(true)}
-                            className="relative flex-shrink-0 p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
-                            title={t('search.filters_title', { defaultValue: 'Advanced Filters' })}
+                            onClick={handleResetFilters}
+                            className="text-[13px] text-primary-600 dark:text-primary-400 hover:underline font-semibold flex-shrink-0 ml-2"
                         >
-                            <FiSliders size={20} className={activeFilterCount > 0 ? 'text-primary-500' : 'text-gray-500 dark:text-dark-text-secondary'} />
-                            {activeFilterCount > 0 && (
-                                <span className="absolute top-0.5 right-0.5 w-4 h-4 text-[10px] font-bold bg-primary-500 text-white rounded-full flex items-center justify-center">
-                                    {activeFilterCount}
-                                </span>
-                            )}
+                            {t('common.reset', { defaultValue: 'Reset' })}
                         </button>
                     </div>
+                )}
+            </div>
 
-                    {/* Tabs */}
-                    <div className="flex border-b border-gray-100 dark:border-dark-border overflow-x-auto no-scrollbar">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => handleTabChange(tab.id)}
-                                className={`flex-1 py-3 text-[15px] transition-colors ${activeTab === tab.id ? 'font-bold text-gray-900 dark:text-dark-text border-b-2 border-primary-500' : 'font-medium text-gray-500 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-surface'}`}>
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
+            {/* Results Container */}
+            <div className="pb-20">
+                {tabs.map((tab) => {
+                    if (!visitedTabs.has(tab.id)) return null;
 
-                    {/* Active Filter Banner */}
-                    {activeFilterCount > 0 && (
-                        <div className="flex items-center gap-2 px-4 py-1.5 bg-primary-50 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-800/30">
-                            <FiSliders size={13} className="text-primary-500 flex-shrink-0" />
-                            <span className="text-[13px] text-primary-600 dark:text-primary-400 font-medium flex-1 truncate">
-                                {`${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active`}
-                                {filters.author && ` · from @${filters.author}`}
-                                {filters.since && ` · since ${filters.since}`}
-                                {filters.lang && ` · lang: ${filters.lang}`}
-                            </span>
-                            <button
-                                onClick={handleResetFilters}
-                                className="text-[13px] text-primary-500 hover:underline font-semibold flex-shrink-0"
-                            >
-                                {t('common.reset', { defaultValue: 'Reset' })}
-                            </button>
-                        </div>
-                    )}
-                </div>
+                    const currentPosts = searchPostsByTab?.[tab.id] || [];
+                    const currentUsers = searchResultsByTab?.[tab.id] || [];
+                    const currentHasMore = tab.id === 'people' 
+                        ? (searchUsersHasMoreByTab?.[tab.id] ?? false)
+                        : (searchHasMoreByTab?.[tab.id] ?? false);
 
-                {/* Results Container */}
-                <div className="pb-20">
-                    {tabs.map((tab) => {
-                        if (!visitedTabs.has(tab.id)) return null;
+                    const isTabLoading = isLoading && activeTab === tab.id;
+                    const hasNoResults = !isTabLoading && (tab.id === 'people' ? currentUsers.length === 0 : currentPosts.length === 0);
 
-                        const currentPosts = searchPostsByTab?.[tab.id] || [];
-                        const currentUsers = searchResultsByTab?.[tab.id] || [];
-                        const currentHasMore = tab.id === 'people' 
-                            ? (searchUsersHasMoreByTab?.[tab.id] ?? false)
-                            : (searchHasMoreByTab?.[tab.id] ?? false);
-
-                        const isTabLoading = isLoading && activeTab === tab.id;
-                        const hasNoResults = !isTabLoading && (tab.id === 'people' ? currentUsers.length === 0 : currentPosts.length === 0);
-
-                        return (
-                            <div key={tab.id} hidden={activeTab !== tab.id} style={{ display: activeTab === tab.id ? 'block' : 'none' }}>
-                                {(isTabLoading && (tab.id === 'people' ? currentUsers : currentPosts).length === 0) ? (
-                                    <div className="flex justify-center py-20">
-                                        <LoadingIndicator size="lg" />
+                    return (
+                        <div key={tab.id} hidden={activeTab !== tab.id} style={{ display: activeTab === tab.id ? 'block' : 'none' }}>
+                            {(isTabLoading && (tab.id === 'people' ? currentUsers : currentPosts).length === 0) ? (
+                                <div className="flex justify-center py-20">
+                                    <LoadingIndicator size="lg" />
+                                </div>
+                            ) : hasNoResults ? (
+                                <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                                    <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
+                                        <FiSearch className="text-gray-300" size={40} />
                                     </div>
-                                ) : hasNoResults ? (
-                                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                                        <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
-                                            <FiSearch className="text-gray-300" size={40} />
-                                        </div>
-                                        <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
-                                            {t('search.no_results_title', { defaultValue: 'No results' })}
-                                        </h2>
-                                        <p className="text-gray-500 dark:text-dark-text-secondary">
-                                            {t('search.no_results_desc', { defaultValue: 'We couldn\'t find anything for "{{query}}"', query })}
-                                        </p>
-                                        {activeFilterCount > 0 && (
-                                            <button
-                                                onClick={handleResetFilters}
-                                                className="mt-4 text-primary-500 text-sm font-semibold hover:underline"
-                                            >
-                                                {t('search.clear_filters', { defaultValue: 'Clear filters and try again' })}
-                                            </button>
-                                        )}
-                                    </div>
-                                ) : tab.id === 'people' ? (
-                                    <div className="divide-y divide-gray-100 dark:divide-dark-border">
-                                        {currentUsers.map((user) => (
-                                            <div
-                                                key={user.id}
-                                                onClick={() => navigate(`/profile/${user.handle}`)}
-                                                className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
-                                            >
-                                                <UserHoverCard user={user}>
-                                                    <div onClick={(e) => e.stopPropagation()}>
-                                                        <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
-                                                    </div>
-                                                </UserHoverCard>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-1">
-                                                        <UserHoverCard user={user}>
-                                                            <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName || user.handle || 'Unknown'}</span>
-                                                        </UserHoverCard>
-                                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
-                                                    </div>
-                                                    <div className="text-gray-500 dark:text-dark-text-secondary text-[15px] truncate">@{user.handle}</div>
-                                                    {user.bio && (
-                                                        <div className="text-gray-900 dark:text-dark-text text-[15px] mt-1 line-clamp-2">{user.bio}</div>
-                                                    )}
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-dark-text mb-2">
+                                        {t('search.no_results_title', { defaultValue: 'No results' })}
+                                    </h2>
+                                    <p className="text-gray-500 dark:text-dark-text-secondary">
+                                        {t('search.no_results_desc', { defaultValue: 'We couldn\'t find anything for "{{query}}"', query })}
+                                    </p>
+                                    {activeFilterCount > 0 && (
+                                        <button
+                                            onClick={handleResetFilters}
+                                            className="mt-4 text-primary-500 text-sm font-semibold hover:underline"
+                                        >
+                                            {t('search.clear_filters', { defaultValue: 'Clear filters and try again' })}
+                                        </button>
+                                    )}
+                                </div>
+                            ) : tab.id === 'people' ? (
+                                <div className="divide-y divide-gray-100 dark:divide-dark-border">
+                                    {currentUsers.map((user) => (
+                                        <div
+                                            key={user.id}
+                                            onClick={() => navigate(`/profile/${user.handle}`)}
+                                            className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 dark:hover:bg-dark-surface cursor-pointer transition-colors"
+                                        >
+                                            <UserHoverCard user={user}>
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName || user.handle || '?'} size="lg" />
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <Feed 
-                                        feedId={`search_${tab.id}_${query}`}
-                                        posts={currentPosts} 
-                                        isLoading={isTabLoading}
-                                        hasMore={currentHasMore}
-                                        onLoadMore={handleLoadMore}
-                                        emptyMessage={t('search.no_results_title', { defaultValue: 'No results' })}
-                                        isActive={activeTab === tab.id}
-                                    />
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+                                            </UserHoverCard>
 
-            {/* Advanced Filter Modal */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1">
+                                                    <UserHoverCard user={user}>
+                                                        <span className="font-bold text-gray-900 dark:text-dark-text truncate">{user.displayName || user.handle || 'Unknown'}</span>
+                                                    </UserHoverCard>
+                                                    {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />}
+                                                </div>
+                                                <div className="text-gray-500 dark:text-dark-text-secondary text-[15px] truncate">@{user.handle}</div>
+                                                {user.bio && (
+                                                    <div className="text-gray-900 dark:text-dark-text text-[15px] mt-1 line-clamp-2">{user.bio}</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Feed 
+                                    feedId={`search_${tab.id}_${query}`}
+                                    posts={currentPosts} 
+                                    isLoading={isTabLoading}
+                                    hasMore={currentHasMore}
+                                    onLoadMore={handleLoadMore}
+                                    emptyMessage={t('search.no_results_title', { defaultValue: 'No results' })}
+                                    isActive={activeTab === tab.id}
+                                />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Redesigned Search Filter Modal */}
             <SearchFilterModal
                 isOpen={isFilterOpen}
                 onClose={() => setIsFilterOpen(false)}
                 filters={filters}
+                initialQuery={query}
                 onApplyFilters={handleApplyFilters}
                 onResetFilters={handleResetFilters}
             />
