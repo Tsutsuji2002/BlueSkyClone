@@ -527,9 +527,9 @@ export const createPost = createAsyncThunk(
                 formData.append('AllowQuotes', String(postData.allowQuotes));
             }
 
-            // Use AbortController for custom timeout (120 seconds for large image processing)
+            // Use AbortController for custom timeout (300 seconds / 5 minutes for large video/image uploads)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
+            const timeoutId = setTimeout(() => controller.abort(), 300000);
 
             try {
                 const response = await fetch(`${API_BASE_URL}/posts`, {

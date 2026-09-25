@@ -281,7 +281,8 @@ export const setupFetchInterceptor = () => {
             retryArgs = [input.clone(), fetchOptions];
         }
 
-        const finalTimeout = 25000; // Standardize on 25s to allow for cold starts on VPS
+        const isUploadRequest = url.includes('/posts') || url.includes('/uploadBlob') || url.includes('/media');
+        const finalTimeout = isUploadRequest ? 300000 : 25000; // 5 minutes for uploads, 25s for standard API requests
         const response = await fetchWithTimeout(input, fetchOptions, finalTimeout);
 
         // Avoid infinite loops: if a request marked as a retry still returns 401, don't try to refresh again.
