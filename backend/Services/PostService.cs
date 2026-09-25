@@ -1372,9 +1372,14 @@ public class PostService : IPostService
                                 chunkClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                             var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                            var baseUrl = "https://public.api.bsky.app";
+                            var baseUrl = !string.IsNullOrEmpty(token) ? "https://api.bsky.app" : "https://public.api.bsky.app";
                             
-                            using var response = await chunkClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}", ctsTotal.Token);
+                            var response = await chunkClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}", ctsTotal.Token);
+                            if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+                            {
+                                response = await chunkClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}", ctsTotal.Token);
+                            }
+
                             if (response.IsSuccessStatusCode)
                             {
                                 return await response.Content.ReadAsStringAsync();
@@ -7165,7 +7170,13 @@ public class PostService : IPostService
             foreach (var chunk in remoteUris.Chunk(25))
             {
                 var queryStr = string.Join("&", chunk.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                var response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                var baseUrl = !string.IsNullOrEmpty(token) ? "https://api.bsky.app" : "https://public.api.bsky.app";
+                var response = await client.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
+
+                if (!response.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+                {
+                    response = await client.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                }
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -7276,23 +7287,31 @@ public class PostService : IPostService
 
         var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
 
-        var likes = await _unitOfWork.Likes.Query()
+        var rawLikes = await _unitOfWork.Likes.Query()
             .AsNoTracking()
-            .Where(l => l.UserId == userId && (matchedIds.Contains(l.PostId) || (l.Tid != null && rkeys.Contains(l.Tid))))
+            .Where(l => l.UserId == userId)
             .Select(l => new { l.PostId, Uri = l.Post != null ? l.Post.Uri : null, Tid = l.Tid, LikeUri = l.Uri })
             .ToListAsync();
 
-        var reposts = await _unitOfWork.Reposts.Query()
+        var rawReposts = await _unitOfWork.Reposts.Query()
             .AsNoTracking()
-            .Where(r => r.UserId == userId && (matchedIds.Contains(r.PostId) || (r.Tid != null && rkeys.Contains(r.Tid))))
+            .Where(r => r.UserId == userId)
             .Select(r => new { r.PostId, Uri = r.Post != null ? r.Post.Uri : null, Tid = r.Tid, RepostUri = r.Uri })
             .ToListAsync();
 
-        var bookmarks = await _unitOfWork.Bookmarks.Query()
+        var rawBookmarks = await _unitOfWork.Bookmarks.Query()
             .AsNoTracking()
-            .Where(b => b.UserId == userId && (matchedIds.Contains(b.PostId) || (b.Tid != null && rkeys.Contains(b.Tid))))
+            .Where(b => b.UserId == userId)
             .Select(b => new { b.PostId, Uri = b.Post != null ? b.Post.Uri : null, Tid = b.Tid })
             .ToListAsync();
+
+        var loweredUrisSet = loweredUris.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var rkeysSet = rkeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var matchedIdsSet = matchedIds.ToHashSet();
+
+        var likes = rawLikes.Where(l => matchedIdsSet.Contains(l.PostId) || (l.Uri != null && loweredUrisSet.Contains(l.Uri.ToLowerInvariant())) || (l.Tid != null && rkeysSet.Contains(l.Tid.ToLowerInvariant()))).ToList();
+        var reposts = rawReposts.Where(r => matchedIdsSet.Contains(r.PostId) || (r.Uri != null && loweredUrisSet.Contains(r.Uri.ToLowerInvariant())) || (r.Tid != null && rkeysSet.Contains(r.Tid.ToLowerInvariant()))).ToList();
+        var bookmarks = rawBookmarks.Where(b => matchedIdsSet.Contains(b.PostId) || (b.Uri != null && loweredUrisSet.Contains(b.Uri.ToLowerInvariant())) || (b.Tid != null && rkeysSet.Contains(b.Tid.ToLowerInvariant()))).ToList();
 
         var likeByUri = likes
             .Where(x => !string.IsNullOrWhiteSpace(x.Uri))
