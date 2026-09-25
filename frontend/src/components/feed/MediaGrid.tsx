@@ -46,9 +46,10 @@ interface GridItemProps {
     totalCount: number;
     onImageClick?: (index: number) => void;
     isDetailView?: boolean;
+    onVideoNativeDimensions?: (w: number, h: number) => void;
 }
 
-const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay, totalCount, onImageClick, isDetailView: isDetailViewProp }) => {
+const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay, totalCount, onImageClick, isDetailView: isDetailViewProp, onVideoNativeDimensions }) => {
     const { t } = useTranslation();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const [imageError, setImageError] = useState(false);
@@ -348,6 +349,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         onLoadedMetadata={() => {
                             if (videoRef.current) {
                                 setDuration(videoRef.current.duration);
+                                // Report native dimensions to parent so it can set the right container size
+                                if (onVideoNativeDimensions && videoRef.current.videoWidth && videoRef.current.videoHeight) {
+                                    onVideoNativeDimensions(videoRef.current.videoWidth, videoRef.current.videoHeight);
+                                }
                                 // If autoplay is enabled and it's muted, try to play immediately
                                 if (autoplayEnabled && videoRef.current.muted) {
                                     videoRef.current.play().catch(() => {});
@@ -732,48 +737,37 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
 
     useEffect(() => {
         if (!firstMediaUrl) {
-            setOrientation('landscape'); // Default
+            setOrientation('landscape');
             setImageNativeRatio(null);
             setVideoNativeRatio(null);
             return;
         }
 
+        // For videos: we get native dimensions via the real player's onLoadedMetadata callback
+        // (a temp video element can't load HLS m3u8 streams in Chrome without hls.js)
         if (firstMediaIsVideo) {
-            const vid = document.createElement('video');
-            vid.src = firstMediaUrl;
-            vid.onloadedmetadata = () => {
-                const w = vid.videoWidth || 16;
-                const h = vid.videoHeight || 9;
-                setOrientation(w >= h ? 'landscape' : 'portrait');
-                setVideoNativeRatio(w / h);
-            };
-            vid.onerror = () => {
-                setOrientation('landscape');
-                setVideoNativeRatio(16 / 9);
-            };
-            return () => {
-                vid.onloadedmetadata = null;
-                vid.onerror = null;
-                vid.src = '';
-            };
-        } else {
-            const img = new Image();
-            img.src = firstMediaUrl;
-            img.onload = () => {
-                setOrientation(img.width >= img.height ? 'landscape' : 'portrait');
-                if (img.width && img.height) {
-                    setImageNativeRatio(img.width / img.height);
-                }
-            };
-            img.onerror = () => {
-                setOrientation('landscape');
-            };
-            return () => {
-                img.onload = null;
-                img.onerror = null;
-                img.src = '';
-            };
+            // Reset until the real player reports back
+            setVideoNativeRatio(null);
+            return;
         }
+
+        // For images: use a temp Image element to get natural dimensions
+        const img = new Image();
+        img.src = firstMediaUrl;
+        img.onload = () => {
+            setOrientation(img.width >= img.height ? 'landscape' : 'portrait');
+            if (img.width && img.height) {
+                setImageNativeRatio(img.width / img.height);
+            }
+        };
+        img.onerror = () => {
+            setOrientation('landscape');
+        };
+        return () => {
+            img.onload = null;
+            img.onerror = null;
+            img.src = '';
+        };
     }, [firstMediaUrl, firstMediaIsVideo]);
 
     if (mediaList.length === 0) return null;
@@ -829,6 +823,11 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
                     totalCount={count}
                     onImageClick={onImageClick}
                     isDetailView={isDetailView}
+                    onVideoNativeDimensions={(w, h) => {
+                        const r = w / h;
+                        setVideoNativeRatio(r);
+                        setOrientation(r >= 1 ? 'landscape' : 'portrait');
+                    }}
                 />
             </div>
         );
