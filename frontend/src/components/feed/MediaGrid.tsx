@@ -105,9 +105,12 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 hlsInstance = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
-                    startLevel: -1, // Auto start level based on bandwidth
-                    capLevelToPlayerSize: true, // Cap level to player size
+                    // Do NOT cap to player size — let ABR choose the highest quality
+                    // that fits the available bandwidth regardless of rendered element size
+                    capLevelToPlayerSize: false,
+                    startLevel: -1, // Start at ABR auto-selection
                     maxBufferLength: 30,
+                    abrEwmaDefaultEstimate: 5000000, // Hint ABR to start at ~5Mbps estimate
                 });
                 hlsInstance.on(Hls.Events.ERROR, (_event: any, data: any) => {
                     if (data.fatal) {
@@ -119,13 +122,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
                     hlsInstance.loadSource(url);
                 });
-                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-                    console.log('[MediaGrid] HLS manifest parsed, ready to play');
-                    // Enable auto level capping to select optimal HD quality
-                    if (hlsInstance.levels && hlsInstance.levels.length > 0) {
-                        hlsInstance.currentLevel = -1; // Auto select highest available bandwidth stream
-                    }
-                    // FIX 2: use ref so this reads the current setting, not a stale closure
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, (_: any, data: any) => {
+                    console.log('[MediaGrid] HLS manifest parsed, ready to play. Levels:', data.levels.length);
+                    // Force ABR auto level so it picks the best rendition by network speed
+                    hlsInstance.currentLevel = -1;
                     if (autoplayEnabledRef.current && !isDetailView) {
                         video.play().catch(err => console.warn('[MediaGrid] Autoplay blocked:', err.name));
                     }
@@ -339,10 +339,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     <video
                         ref={videoRef}
                         poster={item.thumbnail}
-                        className={cn(
-                            "w-full h-full",
-                            isDetailView ? "object-contain bg-black" : "object-contain bg-black/5 dark:bg-white/5"
-                        )}
+                        className="w-full h-full object-fill"
                         muted={isMuted}
                         playsInline
                         autoPlay={false} // Managed by effects for reliability
@@ -522,13 +519,13 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     )}
                 </div>
             ) : (
-                <div className="w-full h-full relative" style={{ aspectRatio: '16/9', background: '#f0f0f0' }}>
+                <div className="w-full h-full relative">
                     <img
                         src={item.url}
                         alt={item.alt || ''}
                         className={cn(
                             "w-full h-full hover:opacity-90 transition-opacity duration-300",
-                            totalCount === 1 ? (isDetailView ? "object-contain bg-black" : "object-contain bg-black/10 dark:bg-white/5") : "object-cover",
+                            totalCount === 1 ? "object-cover" : "object-cover",
                             isLoading ? "opacity-0" : "opacity-100"
                         )}
                         loading="lazy"
