@@ -6956,7 +6956,7 @@ public class PostService : IPostService
         _logger.LogInformation("[PostService] GetBookmarkedPostsAsync: Fetching bookmarks for UserId: {UserId}, skip={Skip}, take={Take}", userId, skip, take);
 
         // 1. Distributed Cache Check (60s TTL)
-        var cacheKey = $"Bookmarks_{userId}_{skip}_{take}";
+        var cacheKey = $"bookmarks:v2:{userId}:{skip}:{take}";
         try
         {
             var cachedJson = await _distributedCache.GetStringAsync(cacheKey);
@@ -7026,7 +7026,12 @@ public class PostService : IPostService
                     hydrateClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                 var queryStr = string.Join("&", stubUris.Select(u => $"uris={Uri.EscapeDataString(u)}"));
-                var res = await hydrateClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                var baseUrl = !string.IsNullOrEmpty(token) ? "https://api.bsky.app" : "https://public.api.bsky.app";
+                var res = await hydrateClient.GetAsync($"{baseUrl}/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                if (!res.IsSuccessStatusCode && !string.IsNullOrEmpty(token))
+                {
+                    res = await hydrateClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?{queryStr}");
+                }
                 
                 if (res.IsSuccessStatusCode)
                 {
@@ -7088,6 +7093,7 @@ public class PostService : IPostService
         // 5. Cache result for 60 seconds
         try
         {
+            cacheKey = $"bookmarks:v2:{userId}:{skip}:{take}";
             await _distributedCache.SetStringAsync(cacheKey, System.Text.Json.JsonSerializer.Serialize(resultDto), new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60) });
         }
         catch { }
