@@ -83,7 +83,7 @@ export const fetchInteractionStatuses = async (uris: string[]): Promise<Interact
     const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second hard cap
 
     try {
-        const [localStatuses, viewerStatuses] = await Promise.all([
+        const [localRes, viewerRes] = await Promise.allSettled([
             // (1) Local DB: authoritative for interactions done through this app
             (async (): Promise<InteractionStatus[]> => {
                 try {
@@ -121,6 +121,9 @@ export const fetchInteractionStatuses = async (uris: string[]): Promise<Interact
                 }
             })(),
         ]);
+
+        const localStatuses = localRes.status === 'fulfilled' ? localRes.value : [];
+        const viewerStatuses = viewerRes.status === 'fulfilled' ? viewerRes.value : [];
         
         // Merge both sources with prefer-true: if either source says liked/reposted, it wins
         const merged = new Map<string, InteractionStatus>();

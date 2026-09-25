@@ -1335,10 +1335,12 @@ public class PostService : IPostService
                 var cachedInteractions = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
                 var missingUris = new List<string>();
 
+                var userCacheTag = !string.IsNullOrEmpty(token) && viewerId != Guid.Empty ? viewerId.ToString() : "anon";
+                
                 // 1. Parallel Cache Check (Individual)
                 var cacheCheckTasks = remoteUrisList.Select(async uri =>
                 {
-                    var individualCacheKey = $"appview:v2:{uri}";
+                    var individualCacheKey = $"appview:v2:{userCacheTag}:{uri}";
                     var cachedJson = !bypassRemoteCache ? await _cacheService.GetAsync<string>(individualCacheKey) : null;
                     return new { uri, cachedJson };
                 });
@@ -1397,8 +1399,8 @@ public class PostService : IPostService
                                     {
                                         var cloned = rp.Clone();
                                         cachedInteractions[uri] = cloned;
-                                        // Cache individually for 3 minutes
-                                        await _cacheService.SetAsync($"appview:v2:{uri}", cloned.ToString(), TimeSpan.FromMinutes(3));
+                                        // Cache individually for 3 minutes per user
+                                        await _cacheService.SetAsync($"appview:v2:{userCacheTag}:{uri}", cloned.ToString(), TimeSpan.FromMinutes(3));
                                     }
                                 }
                             }
@@ -7263,7 +7265,9 @@ public class PostService : IPostService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
+        // Fast AsNoTracking queries on single DbContext instance
         var matchedPosts = await _unitOfWork.Posts.Query()
+            .AsNoTracking()
             .Where(p =>
                 (p.Uri != null && loweredUris.Contains(p.Uri)) ||
                 (p.Tid != null && rkeys.Contains(p.Tid)))
@@ -7273,18 +7277,21 @@ public class PostService : IPostService
         var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
 
         var likes = await _unitOfWork.Likes.Query()
-            .Where(l => l.UserId == userId && matchedIds.Contains(l.PostId))
-            .Select(l => new { l.PostId, Uri = l.Post.Uri, Tid = l.Tid, LikeUri = l.Uri })
+            .AsNoTracking()
+            .Where(l => l.UserId == userId && (matchedIds.Contains(l.PostId) || (l.Tid != null && rkeys.Contains(l.Tid))))
+            .Select(l => new { l.PostId, Uri = l.Post != null ? l.Post.Uri : null, Tid = l.Tid, LikeUri = l.Uri })
             .ToListAsync();
 
         var reposts = await _unitOfWork.Reposts.Query()
-            .Where(r => r.UserId == userId && matchedIds.Contains(r.PostId))
-            .Select(r => new { r.PostId, Uri = r.Post.Uri, Tid = r.Tid, RepostUri = r.Uri })
+            .AsNoTracking()
+            .Where(r => r.UserId == userId && (matchedIds.Contains(r.PostId) || (r.Tid != null && rkeys.Contains(r.Tid))))
+            .Select(r => new { r.PostId, Uri = r.Post != null ? r.Post.Uri : null, Tid = r.Tid, RepostUri = r.Uri })
             .ToListAsync();
 
         var bookmarks = await _unitOfWork.Bookmarks.Query()
-            .Where(b => b.UserId == userId && matchedIds.Contains(b.PostId))
-            .Select(b => new { b.PostId, Uri = b.Post.Uri, Tid = b.Tid })
+            .AsNoTracking()
+            .Where(b => b.UserId == userId && (matchedIds.Contains(b.PostId) || (b.Tid != null && rkeys.Contains(b.Tid))))
+            .Select(b => new { b.PostId, Uri = b.Post != null ? b.Post.Uri : null, Tid = b.Tid })
             .ToListAsync();
 
         var likeByUri = likes
