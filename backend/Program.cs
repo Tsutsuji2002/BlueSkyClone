@@ -54,15 +54,15 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// Increase Max Upload Size (500MB)
+// Increase Max Upload Size (300MB for 10-minute video uploads)
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 524288000; // 500 MB
+    options.Limits.MaxRequestBodySize = 314572800; // 300 MB (300 * 1024 * 1024)
 });
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 524288000; // 500 MB
+    options.MultipartBodyLengthLimit = 314572800; // 300 MB (300 * 1024 * 1024)
 });
 
 // Configure Forwarded Headers for Nginx SSL

@@ -393,16 +393,28 @@ const CreatePostModal: React.FC = () => {
                 if (file.type.startsWith('video/')) {
                     if (images.length > 0 || video) return; // Only one video or images
 
-                    // Check file size (500MB Limit)
-                    const MAX_SIZE = 500 * 1024 * 1024; // 500MB
+                    // Check file size (300MB Limit)
+                    const MAX_SIZE = 300 * 1024 * 1024; // 300MB
                     if (file.size > MAX_SIZE) {
-                        dispatch(showToast({ message: t('post.video_too_large', 'Video too large (Max 500MB)'), type: 'error' }));
+                        dispatch(showToast({ message: t('post.video_too_large', 'Video too large (Max 300MB)'), type: 'error' }));
                         return;
                     }
 
-                    setVideoFile(file);
-                    const url = URL.createObjectURL(file);
-                    setVideo({ url });
+                    // Check video duration (10 Minutes / 600s Max)
+                    const MAX_DURATION = 600; // 10 minutes in seconds
+                    const tempVideo = document.createElement('video');
+                    tempVideo.preload = 'metadata';
+                    const objectUrl = URL.createObjectURL(file);
+                    tempVideo.src = objectUrl;
+                    tempVideo.onloadedmetadata = () => {
+                        if (tempVideo.duration > MAX_DURATION) {
+                            URL.revokeObjectURL(objectUrl);
+                            dispatch(showToast({ message: t('post.video_too_long', 'Video exceeds 10 minutes maximum duration'), type: 'error' }));
+                            return;
+                        }
+                        setVideoFile(file);
+                        setVideo({ url: objectUrl });
+                    };
                     return;
                 }
 

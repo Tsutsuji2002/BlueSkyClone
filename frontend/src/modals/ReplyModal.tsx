@@ -261,9 +261,29 @@ const ReplyModal: React.FC = () => {
         Array.from(files).forEach(file => {
             if (file.type.startsWith('video/')) {
                 if (images.length > 0 || video) return;
-                const r = new FileReader();
-                r.onloadend = () => setVideo({ url: r.result as string, file });
-                r.readAsDataURL(file); return;
+
+                // Check file size (300MB Limit)
+                const MAX_SIZE = 300 * 1024 * 1024; // 300MB
+                if (file.size > MAX_SIZE) {
+                    dispatch(showToast({ message: t('post.video_too_large', 'Video too large (Max 300MB)'), type: 'error' }));
+                    return;
+                }
+
+                // Check video duration (10 Minutes / 600s Max)
+                const MAX_DURATION = 600; // 10 minutes in seconds
+                const tempVideo = document.createElement('video');
+                tempVideo.preload = 'metadata';
+                const objectUrl = URL.createObjectURL(file);
+                tempVideo.src = objectUrl;
+                tempVideo.onloadedmetadata = () => {
+                    if (tempVideo.duration > MAX_DURATION) {
+                        URL.revokeObjectURL(objectUrl);
+                        dispatch(showToast({ message: t('post.video_too_long', 'Video exceeds 10 minutes maximum duration'), type: 'error' }));
+                        return;
+                    }
+                    setVideo({ url: objectUrl, file });
+                };
+                return;
             }
             if (video || images.length >= 4) return;
             setImageFiles(p => [...p, file]);
