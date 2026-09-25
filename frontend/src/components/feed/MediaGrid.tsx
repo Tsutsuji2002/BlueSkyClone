@@ -784,18 +784,32 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         const isVideo = mediaList[0].isVideo;
         const ratio = isVideo ? (videoNativeRatio ?? 16 / 9) : imageNativeRatio;
         const isPortrait = ratio ? ratio < 1 : orientation === 'portrait';
-        const feedMaxH = isDetailView ? 'min(85vh, 750px)' : (isLandscape ? 'min(75vh, 600px)' : 'min(65vh, 520px)');
 
+        // Max height in pixels — use windowHeight since we already have it from the hook
+        const maxHPx = isDetailView
+            ? Math.min(windowHeight * 0.75, 600)
+            : (isLandscape ? Math.min(windowHeight * 0.65, 520) : Math.min(windowHeight * 0.55, 460));
+
+        // For portrait media: width is DERIVED from height × ratio (like bsky.app)
+        // For landscape/square: width fills column, height derived from aspect-ratio
         const singleContainerStyle: React.CSSProperties = ratio
-            ? {
-                aspectRatio: String(ratio),
-                maxHeight: feedMaxH,
-                maxWidth: isPortrait ? (isDetailView ? 'min(100%, 550px)' : 'min(90%, 450px)') : '100%',
-                width: '100%',
-                margin: '0 auto',
-              }
+            ? isPortrait
+                ? {
+                    // Portrait: fix height, compute narrow width from height × ratio
+                    height: `${maxHPx}px`,
+                    width: `${Math.floor(maxHPx * ratio)}px`,
+                    maxWidth: '100%',
+                    margin: '0 auto',
+                  }
+                : {
+                    // Landscape/square: fill width, let height be derived via aspect-ratio
+                    width: '100%',
+                    aspectRatio: String(ratio),
+                    maxHeight: `${maxHPx}px`,
+                    margin: '0 auto',
+                  }
             : {
-                maxHeight: feedMaxH,
+                maxHeight: `${maxHPx}px`,
                 width: '100%',
                 margin: '0 auto',
               };
@@ -803,15 +817,15 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
         return (
             <div
                 className={cn(
-                    "rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface mx-auto flex items-center justify-center transition-all",
-                    isVideo && "bg-black"
+                    "rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface mx-auto transition-all",
+                    isVideo && "bg-black border-black"
                 )}
                 style={singleContainerStyle}
             >
                 <GridItem
                     item={mediaList[0]}
                     index={0}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full"
                     totalCount={count}
                     onImageClick={onImageClick}
                     isDetailView={isDetailView}
