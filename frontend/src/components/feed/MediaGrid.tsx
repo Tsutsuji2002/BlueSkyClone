@@ -105,6 +105,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 hlsInstance = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
+                    startLevel: -1, // Auto start level based on bandwidth
+                    capLevelToPlayerSize: true, // Cap level to player size
+                    maxBufferLength: 30,
                 });
                 hlsInstance.on(Hls.Events.ERROR, (_event: any, data: any) => {
                     if (data.fatal) {
@@ -118,6 +121,10 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                 });
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     console.log('[MediaGrid] HLS manifest parsed, ready to play');
+                    // Enable auto level capping to select optimal HD quality
+                    if (hlsInstance.levels && hlsInstance.levels.length > 0) {
+                        hlsInstance.currentLevel = -1; // Auto select highest available bandwidth stream
+                    }
                     // FIX 2: use ref so this reads the current setting, not a stale closure
                     if (autoplayEnabledRef.current && !isDetailView) {
                         video.play().catch(err => console.warn('[MediaGrid] Autoplay blocked:', err.name));
@@ -575,6 +582,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     const [videoNativeRatio, setVideoNativeRatio] = useState<number | null>(null);
 
 
+    const [imageNativeRatio, setImageNativeRatio] = useState<number | null>(null);
+
     // Route images/videos through resize or use pre-generated thumbnails
     const getOptimizedUrl = (originalRelativePath: string, resolvedUrl: string, isVideo: boolean, thumbnailUrl?: string) => {
         if (isDetailView) return resolvedUrl;
@@ -727,6 +736,8 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
     useEffect(() => {
         if (!firstMediaUrl) {
             setOrientation('landscape'); // Default
+            setImageNativeRatio(null);
+            setVideoNativeRatio(null);
             return;
         }
 
@@ -753,6 +764,9 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
             img.src = firstMediaUrl;
             img.onload = () => {
                 setOrientation(img.width >= img.height ? 'landscape' : 'portrait');
+                if (img.width && img.height) {
+                    setImageNativeRatio(img.width / img.height);
+                }
             };
             img.onerror = () => {
                 setOrientation('landscape');
@@ -769,58 +783,38 @@ const MediaGrid: React.FC<MediaGridProps> = ({ images = [], imageUrls = [], medi
 
     const count = mediaList.length;
 
-
     if (count === 1) {
         const isVideo = mediaList[0].isVideo;
-        // Use the video's real aspect ratio. Fall back to 16:9 while metadata loads.
-        const ratio = isVideo ? (videoNativeRatio ?? 16 / 9) : null;
+        const ratio = isVideo ? (videoNativeRatio ?? 16 / 9) : imageNativeRatio;
+        const isPortrait = ratio ? ratio < 1 : orientation === 'portrait';
+        const feedMaxH = isDetailView ? 'min(85vh, 750px)' : (isLandscape ? 'min(75vh, 600px)' : 'min(65vh, 520px)');
 
-        // Key: set BOTH maxHeight AND maxWidth = maxHeight * ratio.
-        // When height cap activates (portrait video), width shrinks proportionally too —
-        // keeping the real aspect ratio without distortion or black bars.
-        // Stabilize feedMaxH
-        const feedMaxH = isLandscape ? Math.min(windowHeight * 0.75, 600) : Math.min(windowHeight * 0.6, 500);
-        const isPortraitVideo = ratio && ratio < 1;
-
-        const videoContainerStyle: React.CSSProperties = isVideo && ratio
-            ? isDetailView
-                ? {
-                    maxHeight: isPortraitVideo ? 'min(75dvh, 650px)' : 'min(85dvh, 800px)',
-                    width: '100%',
-                    aspectRatio: isPortraitVideo ? '4/3' : '16/9', // Standard container ratios for letterboxing in detail view
-                    margin: '0 auto',
-                  }
-                : {
-                    aspectRatio: String(ratio),
-                    maxHeight: `${feedMaxH}px`,
-                    maxWidth: isPortraitVideo ? 'min(80%, 420px)' : '100%',
-                    width: '100%',
-                    margin: '0 auto',
-                  }
-            : {};
-
-        const imageContainerClass = !isVideo
-            ? (orientation === 'portrait'
-                ? (isDetailView ? "max-h-[min(75dvh,650px)] w-full aspect-[4/3] mx-auto" : "aspect-auto max-h-[550px] max-w-[420px] mx-auto")
-                : (isDetailView ? "max-h-[min(85dvh,800px)] w-full aspect-[16/9]" : "max-h-[550px] w-full"))
-            : '';
+        const singleContainerStyle: React.CSSProperties = ratio
+            ? {
+                aspectRatio: String(ratio),
+                maxHeight: feedMaxH,
+                maxWidth: isPortrait ? (isDetailView ? 'min(100%, 550px)' : 'min(90%, 450px)') : '100%',
+                width: '100%',
+                margin: '0 auto',
+              }
+            : {
+                maxHeight: feedMaxH,
+                width: '100%',
+                margin: '0 auto',
+              };
 
         return (
             <div
                 className={cn(
-                    "rounded-xl overflow-hidden border border-gray-100 dark:border-dark-border bg-black/5 dark:bg-white/5 mx-auto",
-                    !isVideo && imageContainerClass,
+                    "rounded-2xl overflow-hidden border border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-surface mx-auto flex items-center justify-center transition-all",
                     isVideo && "bg-black"
                 )}
-                style={isVideo ? videoContainerStyle : undefined}
+                style={singleContainerStyle}
             >
                 <GridItem
                     item={mediaList[0]}
                     index={0}
-                    className={cn(
-                        "w-full h-full min-h-[150px]",
-                        !isVideo && orientation === 'portrait' ? "object-contain" : ""
-                    )}
+                    className="w-full h-full object-cover"
                     totalCount={count}
                     onImageClick={onImageClick}
                     isDetailView={isDetailView}
