@@ -47,6 +47,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<PostMedium> PostMedia => _postMedia ??= new Repository<PostMedium>(_context);
     public IRepository<Report> Reports => _reports ??= new Repository<Report>(_context);
     public IRepository<Label> Labels => _labels ??= new Repository<Label>(_context);
+    public IRepository<HiddenRepostAccount> HiddenRepostAccounts => _hiddenRepostAccounts ??= new Repository<HiddenRepostAccount>(_context);
 
     private IBlockRepository? _blocks;
     private IMuteRepository? _mutes;
@@ -66,6 +67,7 @@ public class UnitOfWork : IUnitOfWork
     private IRepository<Hashtag>? _hashtags;
     private IRepository<MutedWord>? _mutedWords;
     private IRepository<UserSetting>? _userSettings;
+    private IRepository<HiddenRepostAccount>? _hiddenRepostAccounts;
 
     public async Task<int> CompleteAsync()
     {

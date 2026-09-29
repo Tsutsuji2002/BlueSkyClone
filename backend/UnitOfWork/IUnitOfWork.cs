@@ -31,5 +31,6 @@ public interface IUnitOfWork : IDisposable
     IRepository<PostMedium> PostMedia { get; }
     IRepository<Report> Reports { get; }
     IRepository<Label> Labels { get; }
+    IRepository<HiddenRepostAccount> HiddenRepostAccounts { get; }
     Task<int> CompleteAsync();
 }

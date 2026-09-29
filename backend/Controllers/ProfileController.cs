@@ -92,6 +92,7 @@ public class ProfileController : ControllerBase
         bool isBlockedBy = false;
         bool isBlocking = false;
         bool isMuted = false;
+        bool isRepostsHidden = false;
         MutedByListDto? mutedBy = null;
         PostMuteDto? muteInfo = null;
 
@@ -175,6 +176,11 @@ public class ProfileController : ControllerBase
                     if (await userService.IsBlockedAsync(currentUserId, user.Id))
                         block = await userService.GetBlockAsync(currentUserId, user.Id);
                 }));
+                relationshipTasks.Add(Task.Run(async () => {
+                    using var scope = _scopeFactory.CreateScope();
+                    var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                    isRepostsHidden = await userService.IsRepostsHiddenAsync(currentUserId, user.Id);
+                }));
             }
         }
 
@@ -205,12 +211,6 @@ public class ProfileController : ControllerBase
                 catch (Exception) { /* Ignore */ }
             }));
         }
-
-        relationshipTasks.Add(Task.Run(async () => {
-            using var scope = _scopeFactory.CreateScope();
-            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-            isRepostsHidden = await userService.IsRepostsHiddenAsync(currentUserId, user.Id);
-        }));
 
         await Task.WhenAll(relationshipTasks);
 

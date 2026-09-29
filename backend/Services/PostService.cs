@@ -1546,7 +1546,7 @@ public class PostService : IPostService
                 : Task.FromResult(new List<Guid>());
 
             var hiddenRepostUserIdsTask = viewerId != Guid.Empty
-                ? RunInParallel((uow, ct) => uow.DbContext.HiddenRepostAccounts.Where(h => h.UserId == viewerId).Select(h => h.TargetUserId).ToListAsync(ct))
+                ? RunInParallel((uow, ct) => uow.HiddenRepostAccounts.Query().Where(h => h.UserId == viewerId).Select(h => h.TargetUserId).ToListAsync(ct))
                 : Task.FromResult(new List<Guid>());
 
             var subModListsTask = viewerId != Guid.Empty
