@@ -41,6 +41,7 @@ public partial class BSkyDbContext : DbContext
     public virtual DbSet<MessageReaction> MessageReactions { get; set; }
 
     public virtual DbSet<MutedAccount> MutedAccounts { get; set; }
+    public virtual DbSet<HiddenRepostAccount> HiddenRepostAccounts { get; set; }
 
     public virtual DbSet<MutedWord> MutedWords { get; set; }
 
@@ -287,6 +288,23 @@ public partial class BSkyDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_MutedOwner");
+        });
+
+        modelBuilder.Entity<HiddenRepostAccount>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.TargetUserId }).HasName("PK_HiddenRepostAccounts");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+
+            entity.HasOne(d => d.TargetUser).WithMany()
+                .HasForeignKey(d => d.TargetUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HiddenRepostTargetUser");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_HiddenRepostOwner");
         });
 
         modelBuilder.Entity<MutedWord>(entity =>

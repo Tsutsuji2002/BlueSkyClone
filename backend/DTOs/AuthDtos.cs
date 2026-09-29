@@ -68,6 +68,9 @@ public record UserDto(
     [JsonPropertyName("isMuted")]
     public bool? IsMuted { get; init; }
     
+    [JsonPropertyName("isRepostsHidden")]
+    public bool? IsRepostsHidden { get; init; }
+    
     [JsonPropertyName("isFollowedBy")]
     public bool? IsFollowedBy { get; init; }
 

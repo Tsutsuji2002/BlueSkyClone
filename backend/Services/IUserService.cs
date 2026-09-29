@@ -30,6 +30,10 @@ public interface IUserService
     Task<MutedByListDto?> GetMutingListAsync(Guid viewerId, Guid targetUserId);
     Task<bool> UnmuteUserAsync(Guid userId, Guid mutedUserId);
     Task<bool> IsMutedAsync(Guid userId, Guid potentialMutedUserId);
+    Task<bool> HideRepostsAsync(Guid userId, Guid targetUserId);
+    Task<bool> ShowRepostsAsync(Guid userId, Guid targetUserId);
+    Task<bool> IsRepostsHiddenAsync(Guid userId, Guid targetUserId);
+    Task<List<Guid>> GetHiddenRepostUserIdsAsync(Guid userId);
     Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<(List<User> Users, string? Cursor)> GetBlockedUsersAsync(Guid userId, int limit = 50, string? cursor = null);
     Task<List<User>> SearchUsersAsync(string query, int limit = 10);

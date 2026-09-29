@@ -206,6 +206,12 @@ public class ProfileController : ControllerBase
             }));
         }
 
+        relationshipTasks.Add(Task.Run(async () => {
+            using var scope = _scopeFactory.CreateScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            isRepostsHidden = await userService.IsRepostsHiddenAsync(currentUserId, user.Id);
+        }));
+
         await Task.WhenAll(relationshipTasks);
 
 
@@ -235,6 +241,7 @@ public class ProfileController : ControllerBase
             IsBlocking = isBlocking,
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
+            IsRepostsHidden = isRepostsHidden,
             IsFollowedBy = isFollowedBy,
             BlockingReference = block?.Uri,
             MutedBy = mutedBy,
@@ -295,6 +302,7 @@ public class ProfileController : ControllerBase
         bool isBlockedBy = false;
         bool isBlocking = false;
         bool isMuted = false;
+        bool isRepostsHidden = false;
 
         Guid? currentUserIdGuid = Guid.TryParse(currentUserIdString, out var cid) ? cid : null;
         MutedByListDto? mutedById = null;
@@ -337,6 +345,11 @@ public class ProfileController : ControllerBase
                 {
                     mutedById = await userService.GetMutingListAsync(currentUserId, user.Id);
                 }
+            }));
+            relationshipTasks.Add(Task.Run(async () => {
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                isRepostsHidden = await userService.IsRepostsHiddenAsync(currentUserId, user.Id);
             }));
 
             // Add follow and block entity fetching tasks
@@ -412,6 +425,7 @@ public class ProfileController : ControllerBase
             IsBlocking = isBlocking,
             IsBlockedBy = isBlockedBy,
             IsMuted = isMuted,
+            IsRepostsHidden = isRepostsHidden,
             BlockingReference = block?.Uri,
             MutedBy = mutedById,
             MuteInfo = muteInfo,
@@ -424,7 +438,8 @@ public class ProfileController : ControllerBase
             isFollowedBy,
             isBlockedBy,
             isBlocking,
-            isMuted
+            isMuted,
+            isRepostsHidden
         });
     }
 
@@ -571,6 +586,34 @@ public class ProfileController : ControllerBase
 
         await _userService.UnmuteUserAsync(currentUserId, targetUser.Id);
         return Ok(new { isMuted = false });
+    }
+
+    [HttpPost("hide-reposts/{userIdOrDid}")]
+    public async Task<IActionResult> HideReposts(string userIdOrDid)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
+        var currentUserId = Guid.Parse(userIdStr);
+
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound(new { message = "User not found" });
+
+        await _userService.HideRepostsAsync(currentUserId, targetUser.Id);
+        return Ok(new { isRepostsHidden = true });
+    }
+
+    [HttpPost("show-reposts/{userIdOrDid}")]
+    public async Task<IActionResult> ShowReposts(string userIdOrDid)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized(new { message = "Unauthorized" });
+        var currentUserId = Guid.Parse(userIdStr);
+
+        var targetUser = await ResolveUserAsync(userIdOrDid);
+        if (targetUser == null) return NotFound(new { message = "User not found" });
+
+        await _userService.ShowRepostsAsync(currentUserId, targetUser.Id);
+        return Ok(new { isRepostsHidden = false });
     }
 
     [AllowAnonymous]

@@ -2290,6 +2290,48 @@ public class UserService : IUserService
         return true;
     }
 
+    public async Task<bool> HideRepostsAsync(Guid userId, Guid targetUserId)
+    {
+        var existing = await _context.HiddenRepostAccounts
+            .AnyAsync(h => h.UserId == userId && h.TargetUserId == targetUserId);
+        if (existing) return true;
+
+        var item = new HiddenRepostAccount
+        {
+            UserId = userId,
+            TargetUserId = targetUserId,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _context.HiddenRepostAccounts.AddAsync(item);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> ShowRepostsAsync(Guid userId, Guid targetUserId)
+    {
+        var item = await _context.HiddenRepostAccounts
+            .FirstOrDefaultAsync(h => h.UserId == userId && h.TargetUserId == targetUserId);
+        if (item == null) return true;
+
+        _context.HiddenRepostAccounts.Remove(item);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> IsRepostsHiddenAsync(Guid userId, Guid targetUserId)
+    {
+        return await _context.HiddenRepostAccounts
+            .AnyAsync(h => h.UserId == userId && h.TargetUserId == targetUserId);
+    }
+
+    public async Task<List<Guid>> GetHiddenRepostUserIdsAsync(Guid userId)
+    {
+        return await _context.HiddenRepostAccounts
+            .Where(h => h.UserId == userId)
+            .Select(h => h.TargetUserId)
+            .ToListAsync();
+    }
+
 
     public async Task<(List<User> Users, string? Cursor)> GetMutedUsersAsync(Guid userId, int limit = 50, string? cursor = null)
     {

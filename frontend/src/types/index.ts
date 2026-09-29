@@ -29,6 +29,7 @@ export interface User {
     isBlockedBy?: boolean;
     isBlocking?: boolean;
     isMuted?: boolean;
+    isRepostsHidden?: boolean;
     role?: 'user' | 'admin';
     listMembershipStatus?: number; // 0: Pending, 1: Accepted, 2: Rejected, null: None
     isVerified?: boolean;

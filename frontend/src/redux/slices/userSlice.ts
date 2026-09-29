@@ -200,6 +200,7 @@ export const fetchUserProfile = createAsyncThunk<
                 isBlocking: data.isBlocking,
                 isBlockedBy: data.isBlockedBy,
                 isMuted: data.isMuted,
+                isRepostsHidden: data.isRepostsHidden ?? u.isRepostsHidden ?? false,
                 muteInfo: u.muteInfo,
                 mutedBy: u.mutedBy,
             } as any;
@@ -639,6 +640,50 @@ export const unmuteUserAsync = createAsyncThunk<
                 return rejectWithValue(data.message || 'Failed to unmute user');
             }
             return { isMuted: false };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const hideRepostsAsync = createAsyncThunk<
+    { isRepostsHidden: boolean },
+    string,
+    { rejectValue: string }
+>(
+    'user/hideReposts',
+    async (userId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/hide-reposts/${userId}`, {
+                method: 'POST'
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to hide reposts');
+            }
+            return { isRepostsHidden: true };
+        } catch (error: any) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const showRepostsAsync = createAsyncThunk<
+    { isRepostsHidden: boolean },
+    string,
+    { rejectValue: string }
+>(
+    'user/showReposts',
+    async (userId: string, { rejectWithValue }) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/show-reposts/${userId}`, {
+                method: 'POST'
+            });
+            if (!response.ok) {
+                const data = await response.json();
+                return rejectWithValue(data.message || 'Failed to show reposts');
+            }
+            return { isRepostsHidden: false };
         } catch (error: any) {
             return rejectWithValue(error.message);
         }
@@ -1145,8 +1190,22 @@ const userSlice = createSlice({
             // Unmute User
             .addCase(unmuteUserAsync.fulfilled, (state: UserState, action) => {
                 const userId = action.meta.arg;
-                if (state.profile && state.profile.id === userId) {
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
                     state.profile.isMuted = false;
+                }
+            })
+            // Hide Reposts
+            .addCase(hideRepostsAsync.fulfilled, (state: UserState, action) => {
+                const userId = action.meta.arg;
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isRepostsHidden = true;
+                }
+            })
+            // Show Reposts
+            .addCase(showRepostsAsync.fulfilled, (state: UserState, action) => {
+                const userId = action.meta.arg;
+                if (state.profile && profileMatchesIdentifier(state.profile, userId)) {
+                    state.profile.isRepostsHidden = false;
                 }
             })
             // Fetch Selected Interests

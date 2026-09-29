@@ -1545,6 +1545,10 @@ public class PostService : IPostService
                 ? RunInParallel((uow, ct) => uow.Blocks.Query().Where(b => b.BlockedUserId == viewerId).Select(b => b.UserId).ToListAsync(ct))
                 : Task.FromResult(new List<Guid>());
 
+            var hiddenRepostUserIdsTask = viewerId != Guid.Empty
+                ? RunInParallel((uow, ct) => uow.DbContext.HiddenRepostAccounts.Where(h => h.UserId == viewerId).Select(h => h.TargetUserId).ToListAsync(ct))
+                : Task.FromResult(new List<Guid>());
+
             var subModListsTask = viewerId != Guid.Empty
                 ? RunInParallel((uow, ct) => uow.UserListSubscriptions.Query()
                     .Where(uls => uls.UserId == viewerId)
@@ -1579,7 +1583,7 @@ public class PostService : IPostService
 
             await Task.WhenAll(
                 followersTask, likedItemsTask, repostItemsTask, followingUrisTask, followListTask, 
-                mutedWordsTask, mutedAccountsTask, blockedUserIdsTask, blockedByUserIdsTask, 
+                mutedWordsTask, mutedAccountsTask, blockedUserIdsTask, blockedByUserIdsTask, hiddenRepostUserIdsTask,
                 subModListsTask, bookmarksTask, blockingUrisTask, viewerUserTask,
                 localLikesCountsTask, localRepostsCountsTask, localBookmarksCountsTask, 
                 localRepliesCountsTask, localQuotesCountsTask, localBookmarksCountsByUriTask, userSettingsTask
@@ -1594,6 +1598,7 @@ public class PostService : IPostService
             var mutedAccounts = await mutedAccountsTask;
             var blockedUserIds = await blockedUserIdsTask;
             var blockedByUserIds = await blockedByUserIdsTask;
+            var hiddenRepostUserIds = await hiddenRepostUserIdsTask;
             var subscribedModListIdRows = await subModListsTask;
             var queryResultBookmarks = await bookmarksTask;
             var blockingUris = await blockingUrisTask;
@@ -1995,6 +2000,12 @@ public class PostService : IPostService
                     if (sReposts == false && post.RepostedBy != null)
                     {
                         post.RepostedBy = null;
+                    }
+
+                    // Filter Reposts from accounts with "Hide Reposts" enabled
+                    if (post.RepostedBy != null && hiddenRepostUserIds.Contains(post.RepostedBy.Id))
+                    {
+                        continue;
                     }
                 }
                 // Filter out deleted, muted or blocked users

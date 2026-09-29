@@ -4,7 +4,7 @@ import Skeleton from '../components/common/Skeleton';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { API_BASE_URL } from '../constants';
 import { useAppDispatch } from '../hooks/useAppDispatch';
-import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, setActiveProfileTab, profileMatchesIdentifier } from '../redux/slices/userSlice';
+import { fetchUserProfile, followUserAsync, unfollowUserAsync, clearProfile, blockUserAsync, unblockUserAsync, muteUserAsync, unmuteUserAsync, hideRepostsAsync, showRepostsAsync, setActiveProfileTab, profileMatchesIdentifier } from '../redux/slices/userSlice';
 import { fetchUserFeeds, clearUserFeeds } from '../redux/slices/feedsSlice';
 import { fetchUserLists, clearUserLists } from '../redux/slices/listsSlice';
 import { openEditProfile, openCreatePost, openReport, openAuthWall, openAddToList } from '../redux/slices/modalsSlice';
@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import Avatar from '../components/common/Avatar';
 import Button from '../components/common/Button';
 import Dropdown, { DropdownItem } from '../components/common/Dropdown';
-import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle, FiLock, FiStar } from 'react-icons/fi';
+import { FiArrowLeft, FiMoreHorizontal, FiEdit3, FiLink, FiSearch, FiBellOff, FiUserX, FiMail, FiImage, FiList, FiRss, FiAlertTriangle, FiLock, FiStar, FiEyeOff, FiEye } from 'react-icons/fi';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import ListAvatar from '../components/common/ListAvatar';
 import { showToast } from '../redux/slices/toastSlice';
@@ -281,6 +281,22 @@ const ProfilePage: React.FC = () => {
         });
     };
 
+    const handleHideRepostsToggle = async () => {
+        if (!profileUser) return;
+        try {
+            const targetId = profileUser.did || profileUser.id;
+            if (profileUser.isRepostsHidden) {
+                await dispatch(showRepostsAsync(targetId)).unwrap();
+                dispatch(showToast({ message: t('profile.show_reposts_success', 'Reposts will now appear in your feed'), type: 'success' }));
+            } else {
+                await dispatch(hideRepostsAsync(targetId)).unwrap();
+                dispatch(showToast({ message: t('profile.hide_reposts_success', 'Reposts hidden from your feed'), type: 'success' }));
+            }
+        } catch (error: any) {
+            dispatch(showToast({ message: error || 'Failed to update repost preference', type: 'error' }));
+        }
+    };
+
     const dropdownItems: DropdownItem[] = [
         {
             id: 'copy-link',
@@ -301,6 +317,14 @@ const ProfilePage: React.FC = () => {
             hasDivider: !isOwnProfile
         },
         ...(!isOwnProfile && isAuthenticated ? [
+            {
+                id: 'hide-reposts',
+                label: profileUser?.isRepostsHidden 
+                    ? t('profile.show_reposts', 'Turn on reposts') 
+                    : t('profile.hide_reposts', 'Turn off reposts'),
+                icon: profileUser?.isRepostsHidden ? <FiEye size={18} /> : <FiEyeOff size={18} />,
+                onClick: handleHideRepostsToggle
+            },
             {
                 id: 'add-to-lists',
                 label: t('profile.add_to_lists'),
