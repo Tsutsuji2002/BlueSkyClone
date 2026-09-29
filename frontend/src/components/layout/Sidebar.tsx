@@ -399,7 +399,7 @@ const Sidebar: React.FC = () => {
                             onClick={() => dispatch(openCreatePost())}
                             className={cn(
                                 "flex items-center justify-center bg-[#006AFF] hover:bg-[#0059E0] text-white transition-colors rounded-full shadow-sm gap-2.5",
-                                isMessagesPage ? "w-[48px] h-[48px]" : "xl:w-full xl:py-3 xl:px-6 w-[48px] h-[48px]"
+                                isMessagesPage ? "w-[48px] h-[48px]" : "xl:w-fit xl:py-[10px] xl:px-5 w-[48px] h-[48px]"
                             )}
                         >
                             <div className="flex items-center justify-center w-[20px] h-[20px] flex-shrink-0">
@@ -408,7 +408,7 @@ const Sidebar: React.FC = () => {
                                 </svg>
                             </div>
                             <span className={cn(
-                                "hidden text-[15px] font-medium tracking-[0.25px]",
+                                "hidden text-[15px] font-bold tracking-[0.25px]",
                                 !isMessagesPage && "xl:inline"
                             )}>
                                 {t('common.new_post')}
