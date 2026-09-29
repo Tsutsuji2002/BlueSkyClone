@@ -1,0 +1,97 @@
+[
+  {
+    "Id": "ed41a546-f71b-4ae2-8731-18427e4e45ae",
+    "Name": "Tech",
+    "Handle": "tech.official"
+  },
+  {
+    "Id": "c9a34220-a27e-4782-8a1d-1ee3a6be80d3",
+    "Name": "Trending",
+    "Handle": "trending.official"
+  },
+  {
+    "Id": "3fa97b04-ff91-4e05-8f6e-20c4d8f024b3",
+    "Name": "Gaming",
+    "Handle": "gaming.official"
+  },
+  {
+    "Id": "a234222d-4d48-495a-95e2-2210faa2d781",
+    "Name": "Movies",
+    "Handle": "movies.official"
+  },
+  {
+    "Id": "5f252ec5-92e4-47a6-9d0f-25c47ffe246d",
+    "Name": "News",
+    "Handle": "news.official"
+  },
+  {
+    "Id": "1c7ee051-7bc1-46a2-a1aa-26cdb3565565",
+    "Name": "Art",
+    "Handle": "art.official"
+  },
+  {
+    "Id": "41d5fe89-74f9-4b41-bf21-3f1a3a336f88",
+    "Name": "Fitness",
+    "Handle": "fitness.official"
+  },
+  {
+    "Id": "7ab05dbf-4cff-4a79-ac74-43af3c07fce0",
+    "Name": "Science",
+    "Handle": "science.official"
+  },
+  {
+    "Id": "770d49de-26bc-4697-beb8-4cdf94fa26ef",
+    "Name": "Anime",
+    "Handle": "anime.official"
+  },
+  {
+    "Id": "e778e399-2ea4-4cad-b266-69c74256ae2e",
+    "Name": "Sports",
+    "Handle": "sports.official"
+  },
+  {
+    "Id": "ebdc2c23-7b12-4e63-8ad9-781c4e0bde45",
+    "Name": "Environment",
+    "Handle": "environment.official"
+  },
+  {
+    "Id": "3a8718b9-35c9-42ce-b503-7c491fba6260",
+    "Name": "Fashion",
+    "Handle": "fashion.official"
+  },
+  {
+    "Id": "354ce3eb-f074-44bf-b558-7fdf57a8d874",
+    "Name": "Photography",
+    "Handle": "photo.official"
+  },
+  {
+    "Id": "de806225-78f2-4440-87e9-8f4e416a777d",
+    "Name": "Food",
+    "Handle": "food.official"
+  },
+  {
+    "Id": "e823c6a7-416e-45c0-b105-9ae497855e1d",
+    "Name": "Travel",
+    "Handle": "travel.official"
+  },
+  {
+    "Id": "bb49e212-d0c5-4e6a-ba22-b67fd9d1ef1e",
+    "Name": "Music",
+    "Handle": "music.official"
+  },
+  {
+    "Id": "d38ab5b8-ad81-43e2-a279-d584ca199c72",
+    "Name": "Politics",
+    "Handle": "politics.official"
+  },
+  {
+    "Id": "d9591c01-d945-4460-8317-e28044e4f32d",
+    "Name": "Nature",
+    "Handle": "nature.official"
+  },
+  {
+    "Id": "3609d0f4-d4d1-4e10-ad08-e95120969ae3",
+    "Name": "Health",
+    "Handle": "health.official"
+  }
+]
