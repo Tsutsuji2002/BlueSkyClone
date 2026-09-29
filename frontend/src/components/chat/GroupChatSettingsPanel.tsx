@@ -404,7 +404,7 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                                     {t('messages.members', 'Members')}
                                 </h3>
                                 <span className="text-xs font-medium text-gray-500 dark:text-dark-text-secondary">
-                                    {conversation.participants.length}/50
+                                    {conversation.participants.length}/100
                                 </span>
                             </div>
                         </div>
