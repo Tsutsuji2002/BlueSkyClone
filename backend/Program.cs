@@ -46,18 +46,85 @@ builder.Services.AddRateLimiter(options =>
     // Return 429 Too Many Requests (not the default 503) so clients can distinguish
     // a rate limit from a real server outage and retry with appropriate backoff.
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // 1. Auth Rate Limiter (Brute Force / Credential Stuffing Defense)
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // Alias "login" to auth policy for backward compatibility
     options.AddFixedWindowLimiter("login", opt =>
     {
         opt.PermitLimit = 5;
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });
+
+    // 2. Post Creation Rate Limiter (Spam Flooding Defense)
+    options.AddFixedWindowLimiter("post_creation", opt =>
+    {
+        opt.PermitLimit = 15;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // 3. Media Upload Rate Limiter (Bandwidth / Pipeline Defense)
+    options.AddFixedWindowLimiter("media_upload", opt =>
+    {
+        opt.PermitLimit = 6;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // 4. Global IP Sliding Window Limiter (Volumetric Scraping & API Flood Defense)
+    options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        // Extract IP address from X-Forwarded-For or RemoteIpAddress
+        var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        var clientIp = !string.IsNullOrWhiteSpace(forwardedFor) 
+            ? forwardedFor.Split(',')[0].Trim() 
+            : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return System.Threading.RateLimiting.RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: clientIp,
+            factory: _ => new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = 120, // 120 requests per minute
+                Window = TimeSpan.FromMinutes(1),
+                SegmentsPerWindow = 6,
+                QueueLimit = 0
+            }
+        );
+    });
 });
 
-// Increase Max Upload Size (300MB for 10-minute video uploads)
+// Configure Kestrel Server DDoS & Slowloris Defenses
 builder.WebHost.ConfigureKestrel(options =>
 {
+    // Increase Max Upload Size (300MB for 10-minute video uploads)
     options.Limits.MaxRequestBodySize = 314572800; // 300 MB (300 * 1024 * 1024)
+
+    // Slowloris Attack Defense: Drop connections sending request body data slower than 240 bytes/sec
+    options.Limits.MinRequestBodyDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(
+        bytesPerSecond: 240, 
+        gracePeriod: TimeSpan.FromSeconds(5)
+    );
+
+    // Drop connection if response download stalls below 240 bytes/sec
+    options.Limits.MinResponseDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(
+        bytesPerSecond: 240, 
+        gracePeriod: TimeSpan.FromSeconds(5)
+    );
+
+    // Socket Exhaustion Defense: Limit request header timeout to 10 seconds
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
+
+    // Max concurrent connection limits
+    options.Limits.MaxConcurrentConnections = 5000;
+    options.Limits.MaxConcurrentUpgradedConnections = 1000;
 });
 
 builder.Services.Configure<FormOptions>(options =>
@@ -316,6 +383,7 @@ app.UseHttpsRedirection();
 app.UseWebSockets(); // Required for SignalR to not fallback to Long Polling
 
 app.UseCors("AllowFrontend");
+app.UseMiddleware<BSkyClone.Middleware.IpAbuseMitigationMiddleware>();
 app.UseRateLimiter(); // Apply rate limiting middleware
 
 // Configure static files
