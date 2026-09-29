@@ -65,25 +65,40 @@ const TrendingSection: React.FC = () => {
                         <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
-                    topics && topics.slice(0, 5).map((topic, index) => (
-                        <button
-                            key={topic.id || topic.hashtag}
-                            onClick={() => {
-                                const searchUrl = topic.link || `/search?query=${encodeURIComponent(topic.hashtag)}`;
-                                navigate(searchUrl);
-                            }}
-                            className="flex flex-row items-center justify-start group cursor-pointer hover:underline decoration-white/20 w-full min-w-0"
-                        >
-                            <div className="flex flex-row items-center gap-1 min-w-0 w-full">
-                                <span className="text-[13.1px] text-[#526580] dark:text-[#8798b0] min-w-[16px] leading-[17px] shrink-0">
-                                    {index + 1}.
-                                </span>
-                                <span className="text-[13.1px] text-[#1D2B3D] dark:text-[#a5b2c5] group-hover:text-[#006AFF] dark:group-hover:text-white transition-colors truncate leading-[17px]">
-                                    {topic.hashtag.replace('#', '')}
-                                </span>
-                            </div>
-                        </button>
-                    ))
+                    topics && topics.slice(0, 5).map((topic, index) => {
+                        const title = topic.displayName || topic.hashtag.replace('#', '');
+                        return (
+                            <button
+                                key={topic.id || topic.hashtag}
+                                onClick={() => {
+                                    if (topic.link) {
+                                        if (topic.link.startsWith('http://') || topic.link.startsWith('https://')) {
+                                            window.open(topic.link, '_blank', 'noopener,noreferrer');
+                                        } else {
+                                            navigate(topic.link);
+                                        }
+                                    } else {
+                                        navigate(`/search?query=${encodeURIComponent(topic.hashtag)}`);
+                                    }
+                                }}
+                                className="flex flex-col items-start justify-start group cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 p-1.5 -mx-1.5 rounded-lg transition-colors w-full min-w-0 text-left"
+                            >
+                                <div className="flex flex-row items-center gap-1.5 min-w-0 w-full">
+                                    <span className="text-[13px] font-semibold text-[#526580] dark:text-[#8798b0] min-w-[16px] shrink-0">
+                                        {index + 1}.
+                                    </span>
+                                    <span className="text-[14px] font-bold text-[#1D2B3D] dark:text-white group-hover:text-[#006AFF] dark:group-hover:text-blue-400 transition-colors truncate leading-[18px]">
+                                        {title}
+                                    </span>
+                                </div>
+                                {topic.description && (
+                                    <p className="text-[12px] text-[#687a8f] dark:text-[#8c9eb5] pl-[22px] line-clamp-2 leading-[16px] mt-0.5 font-normal">
+                                        {topic.description}
+                                    </p>
+                                )}
+                            </button>
+                        );
+                    })
                 )}
             </div>
 

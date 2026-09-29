@@ -296,6 +296,8 @@ export interface MutedWord {
 export interface TrendingTopic {
     id: string;
     hashtag: string;
+    displayName?: string;
+    description?: string;
     postsCount: number;
     category?: string;
     link?: string;

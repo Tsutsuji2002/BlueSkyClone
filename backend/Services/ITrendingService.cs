@@ -19,6 +19,8 @@ namespace BSkyClone.Services
     {
         public string Id { get; set; } = "";
         public string Hashtag { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Description { get; set; } = "";
         public int PostsCount { get; set; }
         public string Category { get; set; } = "";
         public string? Link { get; set; }

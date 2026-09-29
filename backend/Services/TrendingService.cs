@@ -20,7 +20,7 @@ namespace BSkyClone.Services
         private readonly ILogger<TrendingService> _logger;
         private TrendingData _cachedData = new();
         private readonly SemaphoreSlim _refreshLock = new SemaphoreSlim(1, 1);
-        private readonly TimeSpan _refreshInterval = TimeSpan.FromMinutes(30);
+        private readonly TimeSpan _refreshInterval = TimeSpan.FromMinutes(10);
 
         public TrendingService(
             IServiceScopeFactory scopeFactory,
@@ -92,17 +92,17 @@ namespace BSkyClone.Services
                     newData.Topics = await ComputeTrendingFromLocalAsync();
                 }
 
-                // 3. Last Respose Fallback: If still empty, use some static "interesting" topics
+                // 3. Last Resort Fallback: If still empty, use static fallback topics with descriptions
                 if (!newData.Topics.Any())
                 {
                     _logger.LogWarning("Both ATProto and Local trending failed. Using hardcoded fallback topics.");
                     newData.Topics = new List<TrendingTopicDto>
                     {
-                        new() { Id = "f1", Hashtag = "Art", PostsCount = 500, Category = "Featured" },
-                        new() { Id = "f2", Hashtag = "Photography", PostsCount = 450, Category = "Featured" },
-                        new() { Id = "f3", Hashtag = "Tech", PostsCount = 400, Category = "Featured" },
-                        new() { Id = "f4", Hashtag = "Gaming", PostsCount = 350, Category = "Featured" },
-                        new() { Id = "f5", Hashtag = "Bluesky", PostsCount = 300, Category = "Featured" }
+                        new() { Id = "f1", Hashtag = "Art", DisplayName = "Art & Creativity", Description = "Popular artwork, illustrations, and visual design", PostsCount = 500, Category = "Featured" },
+                        new() { Id = "f2", Hashtag = "Photography", DisplayName = "Photography", Description = "Stunning original photos and camera discussion", PostsCount = 450, Category = "Featured" },
+                        new() { Id = "f3", Hashtag = "Tech", DisplayName = "Tech & Software", Description = "Software engineering, AI, and developer tools", PostsCount = 400, Category = "Featured" },
+                        new() { Id = "f4", Hashtag = "Gaming", DisplayName = "Gaming News", Description = "Latest game releases, reviews, and community clips", PostsCount = 350, Category = "Featured" },
+                        new() { Id = "f5", Hashtag = "Bluesky", DisplayName = "Bluesky Ecosystem", Description = "Updates, custom feeds, and protocol discussion", PostsCount = 300, Category = "Featured" }
                     };
                 }
 
@@ -135,9 +135,9 @@ namespace BSkyClone.Services
             try
             {
                 using var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(3); // Fast timeout for responsiveness
+                client.Timeout = TimeSpan.FromSeconds(5); // 5s timeout for network call
                 
-                var url = "https://public.api.bsky.app/xrpc/app.bsky.unspecced.getTrendingTopics";
+                var url = "https://public.api.bsky.app/xrpc/app.bsky.unspecced.getTrendingTopics?limit=15";
                 var response = await client.GetAsync(url, ct);
 
                 if (response.IsSuccessStatusCode)
@@ -150,17 +150,23 @@ namespace BSkyClone.Services
                         var topics = new List<TrendingTopicDto>();
                         foreach (var item in topicsArray.EnumerateArray())
                         {
-                            var topicStr = item.TryGetProperty("topic", out var tEl) ? tEl.GetString() : "";
-                            if (!string.IsNullOrEmpty(topicStr))
+                            var topicStr = item.TryGetProperty("topic", out var tEl) ? (tEl.GetString() ?? "") : "";
+                            var displayName = item.TryGetProperty("displayName", out var dEl) ? (dEl.GetString() ?? "") : "";
+                            var description = item.TryGetProperty("description", out var descEl) ? (descEl.GetString() ?? "") : "";
+                            var link = item.TryGetProperty("link", out var lEl) ? lEl.GetString() : null;
+
+                            if (!string.IsNullOrEmpty(topicStr) || !string.IsNullOrEmpty(displayName))
                             {
-                                var hashtag = topicStr.StartsWith("#") ? topicStr.Substring(1) : topicStr;
-                                var link = item.TryGetProperty("link", out var lEl) ? lEl.GetString() : null;
+                                var label = !string.IsNullOrEmpty(displayName) ? displayName : topicStr;
+                                var hashtag = label.StartsWith("#") ? label.Substring(1) : label;
                                 
                                 topics.Add(new TrendingTopicDto
                                 {
                                     Id = topics.Count.ToString(),
                                     Hashtag = hashtag,
-                                    PostsCount = 1000 - topics.Count,
+                                    DisplayName = label,
+                                    Description = description,
+                                    PostsCount = Math.Max(100, 1000 - (topics.Count * 50)),
                                     Category = "Trending",
                                     Link = link
                                 });
@@ -184,7 +190,7 @@ namespace BSkyClone.Services
                 using var scope = _scopeFactory.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<BSkyDbContext>();
 
-                // Optimized local retrieval: Use the Hashtags table which is pre-aggregated
+                // Optimized local retrieval: Use Hashtags pre-aggregated counts
                 var topHashtags = await context.Hashtags
                     .AsNoTracking()
                     .Where(h => h.IsDeleted != true)
@@ -196,6 +202,8 @@ namespace BSkyClone.Services
                 {
                     Id = index.ToString(),
                     Hashtag = t.Name,
+                    DisplayName = t.Name.StartsWith("#") ? t.Name : $"#{t.Name}",
+                    Description = $"{t.PostsCount ?? 1} post{(t.PostsCount == 1 ? "" : "s")} in community",
                     PostsCount = t.PostsCount ?? 1,
                     Category = "Global"
                 }).ToList();
