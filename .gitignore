@@ -21,8 +21,10 @@ node_modules/
 #Uploads
 backend/wwwroot/uploads/
 certbot/
-# Random logs and errors
+# Random logs, archives and storage
+storage/
 logs/
+archive/
 *.log
 *.txt
 
