@@ -1,9 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import {
-    FiHome, FiSearch, FiBell, FiSettings,
-    FiSun, FiMoon, FiLogOut, FiEdit, FiList, FiBookmark, FiShield, FiHash, FiMessageCircle, FiUser, FiPlus
-} from 'react-icons/fi';
+import { FiLogOut, FiUser, FiPlus, FiShield } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import ScrollToTopButton from '../common/ScrollToTopButton';
 import { NAV_ITEMS } from '../../constants';
@@ -11,7 +8,7 @@ import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useTheme } from '../../hooks/useTheme';
 import { openCreatePost } from '../../redux/slices/modalsSlice';
-import { logout, logoutAll, setSessionExpired } from '../../redux/slices/authSlice';
+import { logoutAll, setSessionExpired } from '../../redux/slices/authSlice';
 import ConfirmModal from '../common/ConfirmModal';
 import { useLogoutMutation, useSwitchAccountMutation } from '../../redux/api/authApi';
 import Avatar from '../common/Avatar';
@@ -19,20 +16,54 @@ import Dropdown from '../common/Dropdown';
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { cn } from '../../utils/classNames';
 import ButterflyLogo from '../common/ButterflyLogo';
-import { fetchUnreadCount } from '../../redux/slices/notificationsSlice';
-import { fetchConversations } from '../../redux/slices/messagesSlice';
 
-const iconMap: Record<string, React.ReactNode> = {
-    home: <FiHome size={28} strokeWidth={2} />,
-    search: <FiSearch size={28} strokeWidth={2} />,
-    bell: <FiBell size={28} strokeWidth={2} />,
-    mail: <FiMessageCircle size={28} strokeWidth={2} />,
-    notifications: <FiBell size={28} strokeWidth={2} />,
-    feeds: <FiHash size={28} strokeWidth={2} />,
-    lists: <FiList size={28} strokeWidth={2} />,
-    saved: <FiBookmark size={28} strokeWidth={2} />,
-    user: <FiUser size={28} strokeWidth={2} />,
-    settings: <FiSettings size={28} strokeWidth={2} />,
+// Official Bluesky SVG Icons (Extracted from real bsky.app HTML)
+const BlueskyIcons: Record<string, React.ReactNode> = {
+    home: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M12.63 1.724a1 1 0 0 0-1.26 0l-8 6.5A1 1 0 0 0 3 9v11a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-6h4v6a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V9a1 1 0 0 0-.37-.776l-8-6.5Z" />
+        </svg>
+    ),
+    search: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 14.32 4.906l3.387 3.387a1 1 0 0 1-1.414 1.414l-3.387-3.387A8 8 0 0 1 3 11Z" />
+        </svg>
+    ),
+    notifications: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M4.216 8.815a7.853 7.853 0 0 1 15.568 0l1.207 9.053A1 1 0 0 1 20 19h-3.354c-.904 1.748-2.607 3-4.646 3-2.039 0-3.742-1.252-4.646-3H4a1 1 0 0 1-.991-1.132l1.207-9.053ZM9.778 19c.61.637 1.399 1 2.222 1s1.613-.363 2.222-1H9.778ZM12 4a5.853 5.853 0 0 0-5.802 5.08L5.142 17h13.716l-1.056-7.92A5.853 5.853 0 0 0 12 4Z" />
+        </svg>
+    ),
+    mail: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M4 12a8 8 0 1 1 4.445 7.169 1 1 0 0 0-.629-.088l-3.537.662.7-3.415a1 1 0 0 0-.09-.66A7.961 7.961 0 0 1 4 12Zm8-10C6.477 2 2 6.477 2 12c0 1.523.341 2.968.951 4.262l-.93 4.537a1 1 0 0 0 1.163 1.184l4.68-.876A9.968 9.968 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2ZM7.5 13.25a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm4.5 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Zm4.5 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5Z" />
+        </svg>
+    ),
+    feeds: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M9.124 3.008a1 1 0 0 1 .868 1.116L9.632 7h5.985l.39-3.124a1 1 0 0 1 1.985.248L17.632 7H20a1 1 0 1 1 0 2h-2.617l-.75 6H20a1 1 0 1 1 0 2h-3.617l-.39 3.124a1 1 0 1 1-1.985-.248l.36-2.876H8.382l-.39 3.124a1 1 0 1 1-1.985-.248L6.368 17H4a1 1 0 1 1 0-2h2.617l.75-6H4a1 1 0 1 1 0-2h3.617l.39-3.124a1 1 0 0 1 1.117-.868ZM9.383 9l-.75 6h5.984l.75-6H9.383Z" />
+        </svg>
+    ),
+    lists: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M6 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM3 7a3 3 0 1 1 6 0 3 3 0 0 1-6 0Zm9 0a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2h-7a1 1 0 0 1-1-1Zm-6 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm-3 1a3 3 0 1 1 6 0 3 3 0 0 1-6 0Zm9 0a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2h-7a1 1 0 0 1-1-1Z" />
+        </svg>
+    ),
+    saved: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M9.7 16.895a4 4 0 0 1 4.6 0l3.7 2.6V6.5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v12.995l3.7-2.6Zm10.3 2.6c0 1.62-1.825 2.567-3.15 1.636l-3.7-2.6a2.001 2.001 0 0 0-2.3 0l-3.7 2.6C5.825 22.062 4 21.115 4 19.495V6.5a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v12.995Z" />
+        </svg>
+    ),
+    user: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M12 4a8 8 0 0 0-5.935 13.365C7.56 15.895 9.612 15 12 15c2.388 0 4.44.894 5.935 2.365A8 8 0 0 0 12 4Zm4.412 14.675C15.298 17.636 13.792 17 12 17c-1.791 0-3.298.636-4.412 1.675A7.96 7.96 0 0 0 12 20a7.96 7.96 0 0 0 4.412-1.325ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10a9.98 9.98 0 0 1-3.462 7.567A9.965 9.965 0 0 1 12 22a9.965 9.965 0 0 1-6.538-2.433A9.98 9.98 0 0 1 2 12Zm10-4a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-4 2a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z" />
+        </svg>
+    ),
+    settings: (
+        <svg fill="none" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true" style={{ color: 'currentColor' }}>
+            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M11.1 2a1 1 0 0 0-.832.445L8.851 4.57 6.6 4.05a1 1 0 0 0-.932.268l-1.35 1.35a1 1 0 0 0-.267.932l.52 2.251-2.126 1.417A1 1 0 0 0 2 11.1v1.8a1 1 0 0 0 .445.832l2.125 1.417-.52 2.251a1 1 0 0 0 .268.932l1.35 1.35a1 1 0 0 0 .932.267l2.251-.52 1.417 2.126A1 1 0 0 0 11.1 22h1.8a1 1 0 0 0 .832-.445l1.417-2.125 2.251.52a1 1 0 0 0 .932-.268l1.35-1.35a1 1 0 0 0 .267-.932l-.52-2.251 2.126-1.417A1 1 0 0 0 22 12.9v-1.8a1 1 0 0 0-.445-.832L19.43 8.851l.52-2.251a1 1 0 0 0-.268-.932l-1.35-1.35a1 1 0 0 0-.932-.267l-2.251.52-1.417-2.126A1 1 0 0 0 12.9 2h-1.8Zm-.968 4.255L11.635 4h.73l1.503 2.255a1 1 0 0 0 1.057.42l2.385-.551.566.566-.55 2.385a1 1 0 0 0 .42 1.057L20 11.635v.73l-2.255 1.503a1 1 0 0 0-.42 1.057l.551 2.385-.566.566-2.385-.55a1 1 0 0 0-1.057.42L12.365 20h-.73l-1.503-2.255a1 1 0 0 0-1.057-.42l-2.385.551-.566-.566.55-2.385a1 1 0 0 0-.42-1.057L4 12.365v-.73l2.255-1.503a1 1 0 0 0 .42-1.057L6.123 6.69l.566-.566 2.385.55a1 1 0 0 0 1.057-.42ZM8 12a4 4 0 1 1 8 0 4 4 0 0 1-8 0Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+        </svg>
+    ),
 };
 
 const Sidebar: React.FC = () => {
@@ -40,7 +71,6 @@ const Sidebar: React.FC = () => {
     const location = useLocation();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
-    const { toggle, isDark } = useTheme();
     const { user, savedAccounts } = useAppSelector((state) => state.auth);
     const unreadNotifications = useAppSelector((state) => state.notifications.unreadCount);
     const conversations = useAppSelector((state) => state.messages.conversations);
@@ -95,207 +125,227 @@ const Sidebar: React.FC = () => {
             "h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 transition-all overflow-y-auto no-scrollbar border-r border-transparent",
             isMessagesPage ? "w-[72px]" : "w-[72px] xl:w-full"
         )}>
-            
             <div className={cn(
                 "flex flex-col w-full xl:ml-auto",
                 !isMessagesPage && "xl:w-[240px]"
             )}>
-            
-            {user ? (
-                <div className="w-full flex justify-center xl:justify-start">
-                    <Dropdown
-                        trigger={
-                            <button aria-label="Switch accounts" className="group flex items-center justify-center xl:justify-between py-1.5 px-2 xl:w-full rounded-xl bg-transparent hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 gap-2.5 outline-none">
-                                <div className="flex-shrink-0 relative z-10 transform origin-left transition-transform duration-150 group-hover:scale-[0.85] group-hover:-translate-x-0.5">
-                                    <Avatar
-                                        src={user.avatarUrl || user.avatar}
-                                        alt={user.displayName}
-                                        size="md"
-                                    />
-                                </div>
-                                <div className={cn(
-                                    "flex-1 min-w-0 hidden flex-col text-left opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out -ml-2",
-                                    !isMessagesPage && "xl:flex"
-                                )}>
-                                    <div className="font-bold text-[13.5px] text-gray-900 dark:text-dark-text truncate leading-tight flex items-center gap-1">
-                                        <span className="truncate">{user.displayName}</span>
-                                        {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
-                                    </div>
-                                    <div className="text-[11.5px] text-gray-500 dark:text-dark-text-secondary truncate mt-[0.5px]">
-                                        @{user.handle.length > 15 ? `${user.handle.substring(0, 15)}...` : user.handle}
-                                    </div>
-                                </div>
-                                <div className={cn(
-                                    "hidden flex-shrink-0 text-gray-400 dark:text-gray-500 pl-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out items-center",
-                                    !isMessagesPage && "xl:flex"
-                                )}>
-                                    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{color: 'currentcolor'}}><path fill="currentColor" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path></svg>
-                                </div>
-                            </button>
-                        }
-                        items={[
-                            {
-                                id: 'header',
-                                content: (
-                                    <div className="text-[13.1px] tracking-[0.25px] text-[#8798B0] font-semibold px-[10px] py-1 leading-[17px] select-none">
-                                        {t('auth.login.switch_account')}
-                                    </div>
-                                ),
-                                disabled: true,
-                            },
-                            {
-                                id: 'active-user',
-                                content: (
-                                    <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                                        <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="xs" className="w-5 h-5" />
-                                        <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate flex-1">
-                                            @{user.handle}
+                {/* Top Profile / Account Switcher Button */}
+                {user ? (
+                    <div className="w-full flex justify-center xl:justify-start mb-2">
+                        <Dropdown
+                            trigger={
+                                <button
+                                    aria-label="Switch accounts"
+                                    type="button"
+                                    className="group flex items-center justify-between w-full p-2 xl:px-3 rounded-full hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 outline-none cursor-pointer gap-2"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="flex-shrink-0 w-11 h-11 xl:w-12 xl:h-12 rounded-full overflow-hidden relative">
+                                            <Avatar
+                                                src={user.avatarUrl || user.avatar}
+                                                alt={user.displayName}
+                                                size="md"
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                        <div className={cn(
+                                            "hidden flex-col text-left min-w-0 flex-1",
+                                            !isMessagesPage && "xl:flex"
+                                        )}>
+                                            <div className="font-bold text-[13.5px] tracking-[0.25px] text-gray-900 dark:text-white truncate leading-[17px] flex items-center gap-1">
+                                                <span className="truncate">{user.displayName}</span>
+                                                {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
+                                            </div>
+                                            <div className="text-[11.3px] tracking-[0.25px] text-[#405168] dark:text-[#8798B0] truncate leading-[15px] mt-0.5">
+                                                @{user.handle}
+                                            </div>
                                         </div>
                                     </div>
-                                ),
-                                disabled: true,
-                            },
-                            ...savedAccounts
-                                .filter(acc => acc.did !== user.did)
-                                .map(acc => ({
-                                    id: `switch-${acc.did}`,
+                                    <div className={cn(
+                                        "hidden flex-shrink-0 text-[#405168] dark:text-[#8798B0] items-center pr-1",
+                                        !isMessagesPage && "xl:flex"
+                                    )}>
+                                        <svg fill="none" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{ color: 'currentColor' }}>
+                                            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+                                        </svg>
+                                    </div>
+                                </button>
+                            }
+                            items={[
+                                {
+                                    id: 'header',
+                                    content: (
+                                        <div className="text-[13.1px] tracking-[0.25px] text-[#8798B0] font-semibold px-[10px] py-1 leading-[17px] select-none">
+                                            {t('auth.login.switch_account')}
+                                        </div>
+                                    ),
+                                    disabled: true,
+                                },
+                                {
+                                    id: 'active-user',
                                     content: (
                                         <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                                            <Avatar src={acc.avatar} alt={acc.displayName} size="xs" className="w-5 h-5" />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate w-full text-left">
-                                                    @{acc.handle}
-                                                </div>
+                                            <Avatar src={user.avatarUrl || user.avatar} alt={user.displayName} size="xs" className="w-5 h-5" />
+                                            <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate flex-1">
+                                                @{user.handle}
                                             </div>
                                         </div>
                                     ),
-                                    onClick: () => handleSwitchAccount(acc),
-                                })),
-                            { h: true, id: 'divider-1' } as any,
-                            {
-                                id: 'go-profile',
-                                label: t('nav.go_profile'),
-                                icon: <FiUser className="text-[20px]" />,
-                                onClick: () => navigate(`/profile/${user.handle}`),
-                            },
-                            {
-                                id: 'add-account',
-                                label: t('auth.login.other_account'),
-                                icon: <FiPlus className="text-[20px]" />,
-                                onClick: handleAddAccount,
-                            },
-                            {
-                                id: 'logout',
-                                label: t('auth.login.sign_out'),
-                                icon: <FiLogOut className="text-[20px]" />,
-                                onClick: handleLogout,
-                            },
-                        ]}
-                        align="left"
-                    />
-                </div>
-            ) : (
-                <div className="px-3 mb-4 mt-2 flex justify-center xl:justify-start" onClick={() => navigate('/')}>
-                    <ButterflyLogo className="w-9 h-9 text-primary-500 cursor-pointer" />
-                </div>
-            )}
+                                    disabled: true,
+                                },
+                                ...savedAccounts
+                                    .filter(acc => acc.did !== user.did)
+                                    .map(acc => ({
+                                        id: `switch-${acc.did}`,
+                                        content: (
+                                            <div className="flex items-center gap-2 px-[10px] py-2 rounded-[4px] hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                                                <Avatar src={acc.avatar} alt={acc.displayName} size="xs" className="w-5 h-5" />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-[13.1px] tracking-[0.25px] font-bold text-gray-900 dark:text-dark-text truncate w-full text-left">
+                                                        @{acc.handle}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ),
+                                        onClick: () => handleSwitchAccount(acc),
+                                    })),
+                                { h: true, id: 'divider-1' } as any,
+                                {
+                                    id: 'go-profile',
+                                    label: t('nav.go_profile'),
+                                    icon: <FiUser className="text-[20px]" />,
+                                    onClick: () => navigate(`/profile/${user.handle}`),
+                                },
+                                {
+                                    id: 'add-account',
+                                    label: t('auth.login.other_account'),
+                                    icon: <FiPlus className="text-[20px]" />,
+                                    onClick: handleAddAccount,
+                                },
+                                {
+                                    id: 'logout',
+                                    label: t('auth.login.sign_out'),
+                                    icon: <FiLogOut className="text-[20px]" />,
+                                    onClick: handleLogout,
+                                },
+                            ]}
+                            align="left"
+                        />
+                    </div>
+                ) : (
+                    <div className="px-3 mb-4 mt-2 flex justify-center xl:justify-start" onClick={() => navigate('/')}>
+                        <ButterflyLogo className="w-9 h-9 text-primary-500 cursor-pointer" />
+                    </div>
+                )}
 
-            <nav className="flex-1 flex flex-col w-full" role="navigation">
-                {NAV_ITEMS.map((item) => {
-                    const isActive = location.pathname === item.path ||
-                        (item.path === '/profile' && location.pathname.startsWith('/profile'));
-                    const badgeCount = item.id === 'notifications' ? unreadNotifications : (item.id === 'messages' ? unreadMessages : 0);
+                {/* Navigation Links */}
+                <nav className="flex-1 flex flex-col w-full" role="navigation">
+                    {NAV_ITEMS.map((item) => {
+                        const isActive = location.pathname === item.path ||
+                            (item.path === '/profile' && location.pathname.startsWith('/profile'));
+                        const badgeCount = item.id === 'notifications' ? unreadNotifications : (item.id === 'messages' ? unreadMessages : 0);
 
-                    return (
-                        <div key={item.id} className="flex justify-center xl:justify-start w-full">
-                            <Link
-                                aria-label={t(`nav.${item.id}`)!}
-                                to={item.id === 'profile' ? `/profile/${user?.handle}` : item.path}
+                        return (
+                            <div key={item.id} className="flex justify-center xl:justify-start w-full">
+                                <Link
+                                    aria-label={t(`nav.${item.id}`)!}
+                                    to={item.id === 'profile' ? `/profile/${user?.handle}` : item.path}
+                                    className={cn(
+                                        'group flex items-center p-3 rounded-full transition-colors outline-none hover:bg-gray-200 dark:hover:bg-[#161e27] gap-3.5',
+                                        isActive 
+                                            ? 'text-gray-900 dark:text-white font-bold'
+                                            : 'text-gray-900 dark:text-gray-100 font-normal'
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px]",
+                                        !isMessagesPage && "xl:mr-1"
+                                    )}>
+                                        {BlueskyIcons[item.icon] || BlueskyIcons.home}
+                                        {badgeCount > 0 && (
+                                            <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] bg-primary-500 text-white text-[11px] px-1 rounded-full flex items-center justify-center font-bold shadow-sm border border-white dark:border-dark-bg">
+                                                {badgeCount > 9 ? '9+' : badgeCount}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className={cn(
+                                        "hidden flex-shrink-0 pr-2",
+                                        !isMessagesPage && "xl:block"
+                                    )}>
+                                        <span className={cn(
+                                            "text-[18.8px] leading-[24px] tracking-[0.25px] truncate",
+                                            isActive ? "font-bold" : "font-normal"
+                                        )}>
+                                            {t(`nav.${item.id}`)}
+                                        </span>
+                                    </div>
+                                </Link>
+                            </div>
+                        );
+                    })}
+
+                    {/* Admin Nav Item (if user is admin) */}
+                    {user?.role === 'admin' && (
+                        <div className="flex justify-center xl:justify-start w-full">
+                            <button
+                                aria-label={t('nav.admin')!}
+                                onClick={() => navigate('/admin')}
                                 className={cn(
-                                    'group flex items-center p-3 rounded-xl transition-none outline-none hover:bg-gray-200 dark:hover:bg-[#161e27]',
-                                    isActive 
-                                        ? 'font-bold text-gray-900 dark:text-white'
-                                        : 'text-gray-800 dark:text-gray-100'
+                                    'group flex items-center p-3 rounded-full transition-colors outline-none hover:bg-gray-200 dark:hover:bg-[#161e27] gap-3.5',
+                                    location.pathname.startsWith('/admin')
+                                        ? 'text-gray-900 dark:text-white font-bold'
+                                        : 'text-gray-900 dark:text-gray-100 font-normal'
                                 )}
                             >
                                 <div className={cn(
                                     "relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px]",
-                                    !isMessagesPage && "xl:mr-4"
+                                    !isMessagesPage && "xl:mr-1"
                                 )}>
-                                    {iconMap[item.icon]}
-                                    {badgeCount > 0 && (
-                                        <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] bg-primary-500 text-white text-[11px] px-1 rounded-full flex items-center justify-center font-bold shadow-sm border border-white dark:border-dark-bg">
-                                            {badgeCount > 9 ? '9+' : badgeCount}
-                                        </span>
-                                    )}
+                                    <FiShield size={28} strokeWidth={2} />
                                 </div>
                                 <div className={cn(
-                                    "hidden flex-shrink-0 xl:pr-5",
+                                    "hidden flex-shrink-0 pr-2",
                                     !isMessagesPage && "xl:block"
                                 )}>
-                                    <span className="text-[19px] truncate tracking-wide">{t(`nav.${item.id}`)}</span>
+                                    <span className={cn(
+                                        "text-[18.8px] leading-[24px] tracking-[0.25px] truncate",
+                                        location.pathname.startsWith('/admin') ? "font-bold" : "font-normal"
+                                    )}>
+                                        {t('nav.admin')}
+                                    </span>
                                 </div>
-                            </Link>
+                            </button>
                         </div>
-                    );
-                })}
+                    )}
 
-                {user?.role === 'admin' && (
-                    <div className="flex justify-center xl:justify-start w-full">
+                    {/* Compose / New Post Button */}
+                    <div className="mt-3 mb-4 flex justify-center xl:justify-start w-full">
                         <button
-                            aria-label={t('nav.admin')!}
-                            onClick={() => navigate('/admin')}
+                            aria-label={t('common.create_post')}
+                            onClick={() => dispatch(openCreatePost())}
                             className={cn(
-                                'group flex items-center p-3 rounded-xl transition-none outline-none hover:bg-gray-200 dark:hover:bg-[#161e27]',
-                                location.pathname.startsWith('/admin')
-                                    ? 'font-bold text-gray-900 dark:text-white'
-                                    : 'text-gray-800 dark:text-gray-100'
+                                "flex items-center justify-center bg-[#006AFF] hover:bg-[#0059E0] text-white transition-colors rounded-full shadow-sm gap-2.5",
+                                isMessagesPage ? "w-[48px] h-[48px]" : "xl:w-full xl:py-3 xl:px-6 w-[48px] h-[48px]"
                             )}
                         >
-                            <div className={cn(
-                                "relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px]",
-                                !isMessagesPage && "xl:mr-4"
-                            )}>
-                                <FiShield size={28} strokeWidth={2} />
+                            <div className="flex items-center justify-center w-[20px] h-[20px] flex-shrink-0">
+                                <svg fill="none" width="16" height="16" viewBox="0 0 24 24" style={{ color: 'rgb(255, 255, 255)', pointerEvents: 'none' }}>
+                                    <path fill="#FFFFFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 16.8V7.2c0-.544-.001-1.011.03-1.395.033-.395.104-.789.297-1.167a3 3 0 0 1 1.31-1.31c.379-.193.772-.265 1.168-.297C6.188 2.999 6.657 3 7.2 3H11a1 1 0 1 1 0 2H7.2c-.576 0-.949 0-1.232.023-.272.022-.373.06-.422.085a1 1 0 0 0-.437.437c-.025.05-.062.15-.085.422C5.001 6.251 5 6.623 5 7.2v9.6c0 .577.001.95.024 1.232.023.272.06.373.085.422a1 1 0 0 0 .437.437c.05.025.15.063.422.085.283.023.656.024 1.232.024h9.6c.576 0 .949-.001 1.232-.024.272-.022.373-.06.422-.085a1 1 0 0 0 .437-.437c.025-.049.062-.15.085-.422.023-.283.024-.655.024-1.232V13a1 1 0 1 1 2 0v3.8c0 .543.001 1.011-.03 1.395-.033.395-.104.788-.297 1.167a3 3 0 0 1-1.31 1.311c-.379.193-.772.264-1.168.296-.383.031-.852.031-1.395.031H7.2c-.543 0-1.012 0-1.395-.031-.396-.032-.789-.103-1.167-.296a3 3 0 0 1-1.31-1.311c-.194-.379-.265-.772-.298-1.167C3 17.81 3 17.343 3 16.8M16.629 2.957a3 3 0 0 1 4.242 0l.172.171a3 3 0 0 1 0 4.243L13 15.414a2 2 0 0 1-1.414.586H9a1 1 0 0 1-1-1v-2.586A2 2 0 0 1 8.586 11zM10 14h1.586l8.043-8.043a1 1 0 0 0 0-1.414l-.172-.172a1 1 0 0 0-1.414 0L10 12.414z" />
+                                </svg>
                             </div>
-                            <div className={cn(
-                                "hidden flex-shrink-0 xl:pr-5",
-                                !isMessagesPage && "xl:block"
+                            <span className={cn(
+                                "hidden text-[15px] font-medium tracking-[0.25px]",
+                                !isMessagesPage && "xl:inline"
                             )}>
-                                <span className="text-[19px] truncate tracking-wide">{t('nav.admin')}</span>
-                            </div>
+                                {t('common.new_post')}
+                            </span>
                         </button>
                     </div>
-                )}
-
-            <div className="mt-1 mb-4 flex justify-center xl:justify-start w-full">
-                <button
-                    aria-label={t('common.create_post')}
-                    onClick={() => dispatch(openCreatePost())}
-                    className={cn(
-                        "flex items-center justify-center bg-[#0085FF] hover:bg-[#0070DF] text-white transition-colors rounded-full shadow-md gap-3",
-                        isMessagesPage ? "w-[52px] h-[52px]" : "xl:w-fit xl:py-[10px] xl:pl-[12px] xl:pr-[24px] w-[52px] h-[52px]"
-                    )}
-                >
-                    <div className={cn(
-                        "flex items-center justify-center w-[18px] h-[18px]",
-                        !isMessagesPage && "xl:mr-0.5"
-                    )}>
-                        <svg fill="none" width="16" viewBox="0 0 24 24" height="16" style={{color: 'rgb(255, 255, 255)'}}><path fill="#FFFFFF" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M17.293 2.293a1 1 0 0 1 1.414 0l3 3a1 1 0 0 1 0 1.414l-9 9A1 1 0 0 1 12 16H9a1 1 0 0 1-1-1v-3a1 1 0 0 1 .293-.707l9-9ZM10 12.414V14h1.586l8-8L18 4.414l-8 8ZM3 4a1 1 0 0 1 1-1h7a1 1 0 1 1 0 2H5v14h14v-6a1 1 0 1 1 2 0v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4Z"></path></svg>
-                    </div>
-                    <span className={cn(
-                        "hidden text-[15px] font-bold tracking-wide",
-                        !isMessagesPage && "xl:inline"
-                    )}>
-                        {t('common.new_post')}
-                    </span>
-                </button>
-            </div>
-            </nav>
+                </nav>
             </div>
 
             <ScrollToTopButton />
-            
+
             <ConfirmModal
                 isOpen={showLogoutConfirm}
                 onClose={() => setShowLogoutConfirm(false)}
