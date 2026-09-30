@@ -195,57 +195,57 @@ const Sidebar: React.FC = () => {
     };
 
     return (
-        <div className={cn(
-            "h-screen sticky top-0 flex flex-col py-3 px-1 sm:px-2 transition-all overflow-y-auto no-scrollbar border-r border-transparent items-end",
-            isMessagesPage ? "w-[72px]" : "w-[72px] lg:w-full"
-        )}>
-            <div className={cn(
-                "flex flex-col w-full lg:ml-auto items-start",
-                !isMessagesPage && "lg:w-[240px]"
-            )}>
-                {/* Top Profile / Account Switcher Button */}
-                {user ? (
-                    <div className="w-full flex justify-center lg:justify-start mb-2">
-                        <Dropdown
-                            className="w-full"
-                            trigger={
-                                <button
-                                    aria-label="Switch accounts"
-                                    type="button"
-                                    className="group flex items-center justify-between w-fit lg:w-full rounded-full hover:bg-[#f0f3f4] active:bg-[#e4e7eb] dark:hover:bg-[#161e27] transition-all duration-200 outline-none cursor-pointer p-1 pr-2.5 gap-2 overflow-hidden"
-                                >
-                                    <div className="relative z-10 flex-shrink-0 transition-transform duration-200 group-hover:scale-[0.82] group-hover:-translate-x-1 origin-left">
-                                        <div className="w-[44px] h-[44px] relative">
-                                            <div className="overflow-hidden w-[44px] h-[44px] rounded-full bg-gray-50">
-                                                <Avatar
-                                                    src={user.avatarUrl || user.avatar}
-                                                    alt={user.displayName}
-                                                    size="md"
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border opacity-60 pointer-events-none rounded-full" />
+        <nav
+            role="navigation"
+            className={cn(
+                "h-screen sticky top-0 flex flex-col p-4 transition-all no-scrollbar border-r border-transparent items-start justify-start",
+                isMessagesPage ? "w-[72px]" : "w-[72px] lg:w-[240px] lg:ml-auto"
+            )}
+        >
+            {/* Top Profile / Account Switcher Button */}
+            {user ? (
+                <div className="pb-3 w-full flex items-start">
+                    <Dropdown
+                        className="w-full"
+                        trigger={
+                            <button
+                                aria-label="Switch accounts"
+                                type="button"
+                                className="group flex items-center justify-between w-full rounded-full hover:bg-[#f0f3f4] active:bg-[#e4e7eb] dark:hover:bg-[#161e27] transition-all duration-100 outline-none cursor-pointer gap-[6px] pl-4 pr-3 py-1"
+                                style={{ transitionDelay: '50ms' }}
+                            >
+                                <div className="relative z-10 flex-shrink-0 transition-transform duration-250 group-hover:scale-[0.88] origin-left" style={{ transitionDelay: '50ms' }}>
+                                    <div className="w-[48px] h-[48px] relative">
+                                        <div className="overflow-hidden w-[48px] h-[48px] rounded-full bg-gray-50">
+                                            <Avatar
+                                                src={user.avatarUrl || user.avatar}
+                                                alt={user.displayName}
+                                                size="md"
+                                                className="w-full h-full object-cover"
+                                            />
                                         </div>
+                                        <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border opacity-60 pointer-events-none rounded-full" />
                                     </div>
-                                    <div className={cn(
-                                        "hidden group-hover:flex flex-1 flex-col text-left min-w-0 transition-opacity duration-200 opacity-0 group-hover:opacity-100 overflow-hidden",
-                                        isMessagesPage && "!hidden"
-                                    )}>
-                                        <div className="font-bold text-[12px] tracking-[0.1px] text-gray-900 dark:text-white truncate leading-[15px] max-w-full">
-                                            {user.displayName}
-                                        </div>
-                                        <div className="text-[10.5px] tracking-[0.1px] text-[#536471] dark:text-[#8798B0] truncate leading-[13.5px] max-w-full">
-                                            @{user.handle}
-                                        </div>
+                                </div>
+                                <div className={cn(
+                                    "hidden group-hover:flex flex-1 flex-col text-left min-w-0 transition-opacity duration-100 opacity-0 group-hover:opacity-100 -ml-[20px] overflow-hidden",
+                                    isMessagesPage && "!hidden"
+                                )} style={{ transitionDelay: '50ms' }}>
+                                    <div className="font-bold text-[13.1px] tracking-[0.25px] text-gray-900 dark:text-white truncate leading-[17px] max-w-full">
+                                        {user.displayName}
                                     </div>
-                                    <svg fill="none" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" className={cn(
-                                        "hidden group-hover:block flex-shrink-0 text-[#536471] dark:text-[#8798B0] transition-opacity duration-200 opacity-0 group-hover:opacity-100 ml-auto",
-                                        isMessagesPage && "!hidden"
-                                    )}>
-                                        <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
-                                    </svg>
-                                </button>
-                            }
+                                    <div className="text-[11.3px] tracking-[0.25px] text-[#405168] dark:text-[#8798B0] truncate leading-[15px] max-w-full">
+                                        @{user.handle}
+                                    </div>
+                                </div>
+                                <svg fill="none" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" className={cn(
+                                    "hidden group-hover:block flex-shrink-0 text-[#405168] dark:text-[#8798B0] transition-opacity duration-100 opacity-0 group-hover:opacity-100 ml-auto",
+                                    isMessagesPage && "!hidden"
+                                )}>
+                                    <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+                                </svg>
+                            </button>
+                        }
                             items={[
                                 {
                                     id: 'header',
@@ -314,7 +314,7 @@ const Sidebar: React.FC = () => {
                 )}
 
                 {/* Navigation Links */}
-                <nav className="flex-1 flex flex-col w-full" role="navigation">
+                <div className="flex-1 flex flex-col w-full">
                     {NAV_ITEMS.map((item) => {
                         const isActive = location.pathname === item.path ||
                             (item.path === '/profile' && location.pathname.startsWith('/profile'));
@@ -416,8 +416,7 @@ const Sidebar: React.FC = () => {
                             </span>
                         </button>
                     </div>
-                </nav>
-            </div>
+                </div>
 
             <ScrollToTopButton />
 
@@ -430,7 +429,7 @@ const Sidebar: React.FC = () => {
                 confirmLabel={t('auth.logout_confirm_btn', 'Sign out')}
                 variant="danger"
             />
-        </div>
+        </nav>
     );
 };
 
