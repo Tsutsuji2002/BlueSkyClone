@@ -457,7 +457,7 @@ const ProfilePage: React.FC = () => {
             <div className="flex flex-col bg-white dark:bg-dark-bg">
                 {/* Header/Cover Section */}
                 <div className="relative w-full">
-                    <div className="h-40 lg:h-48 w-full bg-gray-200 dark:bg-dark-surface overflow-hidden">
+                    <div className="h-[150px] w-full bg-gray-200 dark:bg-dark-surface overflow-hidden">
                         {(coverImage || profileUser?.coverImage) ? (
                             <img
                                 src={coverImage || profileUser?.coverImage}
@@ -469,81 +469,63 @@ const ProfilePage: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="absolute top-3 left-3 z-20">
+                    <div className="absolute top-[10px] left-[18px] z-20">
                         <button
                             onClick={() => navigate(-1)}
-                            className="bg-black/50 hover:bg-black/60 text-white p-2 rounded-full transition-colors flex items-center justify-center"
+                            className="bg-black/50 hover:bg-black/60 text-white rounded-full w-[31px] h-[31px] transition-colors flex items-center justify-center"
                         >
-                            <FiArrowLeft size={20} />
+                            <FiArrowLeft size={18} />
                         </button>
                     </div>
 
-
                     {/* Avatar Overlap */}
-                    <div className="absolute -bottom-12 lg:-bottom-16 left-4 lg:left-6 z-20">
-                        <Avatar
-                            key={displayProfile?.avatarUrl || displayProfile?.avatar || 'default'}
-                            src={displayProfile?.avatarUrl || displayProfile?.avatar}
-                            alt={displayProfile?.displayName || 'User'}
-                            size="2xl"
-                            className="border-[4px] lg:border-[6px] border-white dark:border-dark-bg cursor-pointer shadow-sm"
-                        />
+                    <div className="absolute top-[104px] left-[10px] z-20">
+                        <div className="bg-white dark:bg-dark-bg rounded-full p-[2px] w-[94px] h-[94px] border-2 border-white dark:border-dark-bg shadow-sm">
+                            <div className="overflow-hidden w-[88px] h-[88px] rounded-full bg-gray-50">
+                                <Avatar
+                                    key={displayProfile?.avatarUrl || displayProfile?.avatar || 'default'}
+                                    src={displayProfile?.avatarUrl || displayProfile?.avatar}
+                                    alt={displayProfile?.displayName || 'User'}
+                                    size="2xl"
+                                    className="w-full h-full object-cover cursor-pointer"
+                                />
+                            </div>
+                        </div>
                     </div>
-
                 </div>
 
-                {/* Muted by List Indicator */}
-                {profileUser?.mutedBy && (
-                    <div className="bg-gray-50 dark:bg-dark-surface/30 px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-dark-border/50">
-                        <div className="flex items-center gap-3 text-[14px]">
-                            <FiBellOff size={18} className="text-gray-500 dark:text-dark-text-secondary" />
-                            <span className="text-gray-600 dark:text-dark-text-secondary">
-                                {t('profile.muted_by_list')} <span className="font-bold text-gray-900 dark:text-dark-text cursor-pointer hover:underline" onClick={() => navigate(`/lists/${profileUser.mutedBy!.id}`)}>{profileUser.mutedBy.name}</span>
-                            </span>
-                        </div>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            className="rounded-full h-8 text-[13px] px-3 font-bold bg-gray-200 dark:bg-dark-surface hover:bg-gray-300 dark:hover:bg-dark-surface/80"
-                            onClick={() => navigate(`/lists/${profileUser.mutedBy!.id}`)}
-                        >
-                            {t('profile.view_list')}
-                        </Button>
-                    </div>
-                )}
-
                 {/* Profile Info & Actions Section */}
-                <div className="flex flex-col px-4 lg:px-6 pt-2 pb-1">
+                <div className="p-[12px_16px_8px] overflow-hidden">
                     {/* Actions Row (Right Aligned) */}
-                    <div className="flex justify-end gap-2 mb-1 items-center">
+                    <div className="pl-[90px] flex flex-wrap items-center justify-end gap-1.5 pb-2 min-h-[42px]">
                         {isOwnProfile ? (
-                            <Button
-                                variant="secondary"
-                                size="sm"
+                            <button
+                                type="button"
                                 onClick={() => dispatch(openEditProfile())}
-                                className="rounded-full border-none text-[15px] font-bold bg-gray-200 dark:bg-dark-surface px-5 py-2 hover:bg-gray-300 dark:hover:bg-dark-surface/80 text-gray-900 dark:text-dark-text transition-colors"
+                                className="bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full px-3.5 py-2 text-[13.1px] font-medium transition-colors cursor-pointer"
                             >
                                 {t('profile.edit_profile_title')}
-                            </Button>
+                            </button>
                         ) : (
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5 items-center">
                                 {!profileUser?.isBlockedBy && (
                                     <>
                                         <button
                                             onClick={handleMessageClick}
-                                            className="bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full p-2.5 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors flex items-center justify-center"
+                                            className="bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full w-[33px] h-[33px] transition-colors flex items-center justify-center"
                                             title={t('messages.title')}
                                         >
-                                            <FiMail size={20} className="text-gray-900 dark:text-dark-text" />
+                                            <FiMail size={16} />
                                         </button>
-                                        <Button
-                                            variant={profileUser?.isFollowing ? 'outline' : 'primary'}
-                                            size="sm"
+                                        <button
+                                            type="button"
                                             onClick={handleFollowToggle}
                                             disabled={profileUser ? (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) : false}
                                             className={cn(
-                                                "rounded-full text-[15px] font-bold px-5 py-2 min-w-[100px]",
-                                                profileUser && (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) && "opacity-80 animate-pulse"
+                                                "rounded-full px-4 py-2 text-[13.1px] font-medium transition-colors cursor-pointer",
+                                                profileUser?.isFollowing
+                                                    ? "bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] text-[#405168] dark:text-dark-text"
+                                                    : "bg-[#006AFF] hover:bg-[#0059E0] text-white"
                                             )}
                                         >
                                             {profileUser?.isFollowing
@@ -551,16 +533,15 @@ const ProfilePage: React.FC = () => {
                                                 : profileUser?.isFollowedBy
                                                     ? t('profile.follow_back', 'Follow back')
                                                     : t('profile.follow')}
-                                        </Button>
+                                        </button>
                                     </>
                                 )}
                             </div>
-                        )
-                        }
+                        )}
                         <Dropdown
                             trigger={
-                                <button className="bg-gray-50 dark:bg-dark-surface border border-gray-200 dark:border-dark-border rounded-full p-2.5 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors flex items-center justify-center">
-                                    <FiMoreHorizontal size={20} className="text-gray-900 dark:text-dark-text" />
+                                <button className="bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full w-[33px] h-[33px] transition-colors flex items-center justify-center cursor-pointer">
+                                    <FiMoreHorizontal size={16} />
                                 </button>
                             }
                             items={dropdownItems}
@@ -568,25 +549,26 @@ const ProfilePage: React.FC = () => {
                         />
                     </div>
 
-                    <div className="mt-4 lg:mt-6 mb-1 min-w-0">
+                    {/* Name & Handle Section */}
+                    <div className="flex flex-col gap-1 pb-2 pt-0.5">
                         <div className="flex items-center gap-1.5 min-w-0">
                             {displayProfile ? (
                                 <h1
-                                    className="min-w-0 max-w-full truncate text-[24px] lg:text-[28px] font-black text-gray-900 dark:text-dark-text tracking-tight leading-tight"
+                                    className="min-w-0 max-w-full truncate text-[30px] font-bold text-gray-900 dark:text-white tracking-[0.25px] leading-[35px]"
                                     title={displayProfile?.displayName || displayProfile?.handle || ''}
                                 >
                                     {displayProfile?.displayName || displayProfile?.handle}
                                 </h1>
                             ) : (
-                                <Skeleton variant="text" width={200} height={32} />
+                                <Skeleton variant="text" width={200} height={35} />
                             )}
                             {profileUser?.isVerified && (
-                                <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={20} />
+                                <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={22} />
                             )}
                         </div>
                         {displayProfile ? (
                             <p
-                                className="mt-0.5 max-w-full truncate text-[15px] text-gray-500 dark:text-dark-text-secondary"
+                                className="max-w-full truncate text-[15px] text-[#405168] dark:text-[#8798B0] leading-[20px]"
                                 title={displayProfile?.handle || ''}
                             >
                                 {formatHandleText(displayProfile?.handle)}
@@ -598,19 +580,19 @@ const ProfilePage: React.FC = () => {
 
                     {!profileUser?.isBlockedBy && (
                         <>
-                            {/* Stats Section (One-line compact) */}
-                            <div className="flex items-center gap-3 mb-3 mt-1 text-[15px]">
+                            {/* Stats Section */}
+                            <div className="flex items-center gap-3 mb-2 text-[15px]">
                                 <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/followers`)}>
-                                    <span className="font-bold text-black dark:text-dark-text">{formatCount(profileUser?.followersCount || 0)}</span>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.followers')}</p>
+                                    <span className="font-semibold text-gray-900 dark:text-white">{formatCount(profileUser?.followersCount || 0)}</span>
+                                    <p className="text-[#405168] dark:text-[#8798B0]">{t('profile.followers')}</p>
                                 </div>
                                 <div className="flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/profile/${profileUser?.handle}/following`)}>
-                                    <span className="font-bold text-black dark:text-dark-text">{formatCount(profileUser?.followingCount || 0)}</span>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.following')}</p>
+                                    <span className="font-semibold text-gray-900 dark:text-white">{formatCount(profileUser?.followingCount || 0)}</span>
+                                    <p className="text-[#405168] dark:text-[#8798B0]">{t('profile.following')}</p>
                                 </div>
                                 <div className="flex items-center gap-1 cursor-pointer">
-                                    <span className="font-bold text-black dark:text-dark-text">{formatCount(profileUser?.postsCount || 0)}</span>
-                                    <p className="text-gray-500 dark:text-dark-text-secondary">{t('profile.posts_stat')}</p>
+                                    <span className="font-semibold text-gray-900 dark:text-white">{formatCount(profileUser?.postsCount || 0)}</span>
+                                    <p className="text-[#405168] dark:text-[#8798B0]">{t('profile.posts_stat')}</p>
                                 </div>
                             </div>
 
