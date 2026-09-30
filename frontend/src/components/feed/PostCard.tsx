@@ -525,8 +525,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                         {/* Header */}
-                        <div className="flex items-center gap-1 pb-1 min-w-0 flex-nowrap leading-[17px] z-20">
-                            <div className="flex items-baseline shrink flex-1 min-w-0">
+                        <div className="flex items-center pb-1 min-w-0 flex-nowrap leading-[17px] z-20">
+                            <div className="flex items-baseline shrink min-w-0 max-w-full">
                                 <UserHoverCard user={displayAuthor} className="inline-flex min-w-0 max-w-[70%] shrink-0">
                                     <span
                                         className="font-semibold text-[15px] text-gray-900 dark:text-white truncate hover:underline inline-flex items-center gap-0.5 min-w-0 max-w-full"
@@ -545,10 +545,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                 >
                                     {displayAuthor.handle?.startsWith('did:') ? '' : formatHandleText(displayAuthor.handle)}
                                 </span>
+                                <span className="text-[15px] text-[#405168] dark:text-[#8798B0] pl-1 whitespace-nowrap shrink-0">
+                                    · {formatPostDate(post.createdAt, i18n.language)}
+                                </span>
                             </div>
-                            <span className="text-[15px] text-[#405168] dark:text-[#8798B0] pl-1 whitespace-nowrap shrink-0">
-                                · {formatPostDate(post.createdAt, i18n.language)}
-                            </span>
                         </div>
 
                         {post.replyToHandle && !hasTopLine && (

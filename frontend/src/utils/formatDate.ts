@@ -76,39 +76,33 @@ export const formatPostDate = (date: string | Date, lang: string = 'en'): string
     try {
         const dateObj = typeof date === 'string' ? new Date(date) : date;
         const now = new Date();
-        const diffInHours = (now.getTime() - dateObj.getTime()) / (1000 * 60 * 60);
-        const locale = dateLocales[lang] || enUS;
+        const diffInSeconds = Math.max(0, Math.floor((now.getTime() - dateObj.getTime()) / 1000));
 
-        if (diffInHours < 24 * 7) {
-            const formatted = formatDistanceToNowStrict(dateObj, {
-                locale,
-                addSuffix: false
-            });
-
-            if (lang === 'vi') {
-                return formatted
-                    .replace(' phút', 'phút')
-                    .replace(' giờ', 'giờ')
-                    .replace(' ngày', 'ngày')
-                    .replace(' giây', 'giây')
-                    .replace('phút', ' phút') // Ensure space
-                    .replace('giờ', ' giờ')
-                    .replace('ngày', ' ngày')
-                    .trim();
-            }
-
-            return formatted
-                .replace(' minutes', 'm')
-                .replace(' minute', 'm')
-                .replace(' hours', 'h')
-                .replace(' hour', 'h')
-                .replace(' days', 'd')
-                .replace(' day', 'd')
-                .replace(' seconds', 's')
-                .replace(' second', 's');
-        } else {
-            return format(dateObj, 'MMM d', { locale });
+        if (diffInSeconds < 60) {
+            return `${diffInSeconds}s`;
         }
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        if (diffInMinutes < 60) {
+            return `${diffInMinutes}m`;
+        }
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours < 24) {
+            return `${diffInHours}h`;
+        }
+        const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays < 7) {
+            return `${diffInDays}d`;
+        }
+        const diffInWeeks = Math.floor(diffInDays / 7);
+        if (diffInDays < 30) {
+            return `${diffInWeeks}w`;
+        }
+        const diffInMonths = Math.floor(diffInDays / 30.4375);
+        if (diffInMonths < 12) {
+            return `${diffInMonths}mo`;
+        }
+        const diffInYears = Math.floor(diffInDays / 365.25);
+        return `${Math.max(1, diffInYears)}y`;
     } catch (error) {
         return '';
     }
