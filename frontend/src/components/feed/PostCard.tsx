@@ -451,58 +451,68 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
         >
             {/* Repost Banner */}
             {(post.isReposted || post.repostedBy) && (
-                <div
-                    className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold hover:underline cursor-pointer transition-colors"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        const handle = post.repostedBy?.handle || currentUser?.handle;
-                        if (handle) navigate(`/profile/${handle}`);
-                    }}
-                >
-                    <FiRepeat size={14} className={post.isReposted ? "text-green-500" : "text-gray-500"} />
-                    <span>
-                        {post.repostedBy
-                            ? ((post.repostedBy.did !== currentUser?.did && post.repostedBy.handle !== currentUser?.handle)
-                                ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
-                                : t('post.reposted_by_you', 'Reposted by you'))
-                            : (post.isReposted ? t('post.reposted_by_you', 'Reposted by you') : t('post.reposted', 'Reposted'))}
-                    </span>
+                <div className="flex flex-row gap-[10px] px-3 pt-2 pb-0">
+                    <div className="w-[42px] shrink-0" />
+                    <div
+                        className="flex items-center gap-1.5 text-[13.1px] font-medium text-[#405168] dark:text-dark-text-secondary hover:underline cursor-pointer transition-colors leading-[17px] min-w-0 truncate"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const handle = post.repostedBy?.handle || currentUser?.handle;
+                            if (handle) navigate(`/profile/${handle}`);
+                        }}
+                    >
+                        <FiRepeat size={13} className={post.isReposted ? "text-green-500 flex-shrink-0" : "text-[#405168] flex-shrink-0"} />
+                        <span className="truncate">
+                            {post.repostedBy
+                                ? ((post.repostedBy.did !== currentUser?.did && post.repostedBy.handle !== currentUser?.handle)
+                                    ? t('post.reposted_by', { name: post.repostedBy.displayName || post.repostedBy.handle || 'Unknown' })
+                                    : t('post.reposted_by_you', 'Reposted by you'))
+                                : (post.isReposted ? t('post.reposted_by_you', 'Reposted by you') : t('post.reposted', 'Reposted'))}
+                        </span>
+                    </div>
                 </div>
             )}
 
             {/* Pinned Banner */}
             {post.isPinned && (
-                <div className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold transition-colors">
-                    <FiPin size={14} className="text-primary-500" />
-                    <span>{t('post.pinned', 'Pinned')}</span>
+                <div className="flex flex-row gap-[10px] px-3 pt-2 pb-0">
+                    <div className="w-[42px] shrink-0" />
+                    <div className="flex items-center gap-1.5 text-[13.1px] font-medium text-[#405168] dark:text-dark-text-secondary transition-colors leading-[17px]">
+                        <svg fill="none" width="13" height="13" viewBox="0 0 24 24" className="text-[#405168] dark:text-dark-text-secondary flex-shrink-0">
+                            <path fill="currentColor" stroke="none" strokeWidth="0" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z" />
+                        </svg>
+                        <span>{t('post.pinned', 'Pinned')}</span>
+                    </div>
                 </div>
             )}
             {/* Feed Banner */}
             {post.listCaption && (
-                <div
-                    className="flex items-center gap-2 px-4 pt-3 pb-0 ml-8 text-[13px] text-gray-500 dark:text-dark-text-secondary font-semibold transition-colors"
-                >
-                    <FiHash size={14} className="text-gray-500" />
-                    <span>{post.listCaption}</span>
+                <div className="flex flex-row gap-[10px] px-3 pt-2 pb-0">
+                    <div className="w-[42px] shrink-0" />
+                    <div className="flex items-center gap-1.5 text-[13.1px] font-medium text-[#405168] dark:text-dark-text-secondary transition-colors leading-[17px]">
+                        <FiHash size={13} className="text-[#405168] flex-shrink-0" />
+                        <span>{post.listCaption}</span>
+                    </div>
                 </div>
             )}
             <div
-                className={cn("p-4 pt-3", isComment && "pb-3")}
-                style={{ paddingLeft: indentFactor ? `${16 + indentFactor * 32}px` : undefined }}
+                className={cn("px-3 pt-2 pb-2", isComment && "pb-3")}
+                style={{ paddingLeft: indentFactor ? `${12 + indentFactor * 32}px` : undefined }}
             >
-                <div className="flex gap-3">
+                <div className="flex gap-[10px]">
                     {/* Avatar */}
-                    <div className="flex-shrink-0 relative flex flex-col items-center">
+                    <div className="flex-shrink-0 relative flex flex-col items-center w-[42px]">
                         {hasTopLine && (
                             <div className="absolute top-[-12px] bottom-[auto] w-[2px] h-[12px] bg-gray-200 dark:bg-dark-border z-0" />
                         )}
-                        <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0">
+                        <div className="z-10 bg-white dark:bg-dark-bg cursor-pointer rounded-full flex-shrink-0 w-[42px] h-[42px] overflow-hidden">
                             <UserHoverCard user={displayAuthor}>
-                                <div onClick={handleAvatarClick}>
+                                <div onClick={handleAvatarClick} className="w-full h-full">
                                     <Avatar
                                         src={displayAuthor.avatarUrl || displayAuthor.avatar}
                                         alt={displayAuthor.displayName || displayAuthor.handle || '?'}
                                         size="md"
+                                        className="w-[42px] h-[42px] rounded-full object-cover"
                                     />
                                 </div>
                             </UserHoverCard>
@@ -515,10 +525,10 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                         {/* Header */}
-                        <div className="flex items-center gap-1 mb-0.5 min-w-0">
+                        <div className="flex items-center gap-1 pb-1 min-w-0 flex-wrap leading-[17px]">
                             <UserHoverCard user={displayAuthor}>
                                 <span
-                                    className="font-bold text-[15px] text-gray-900 dark:text-dark-text truncate hover:underline flex items-center gap-0.5 min-w-0 max-w-[140px] sm:max-w-[220px]"
+                                    className="font-semibold text-[15px] text-gray-900 dark:text-white truncate hover:underline flex items-center gap-0.5 min-w-0 max-w-[70%]"
                                     onClick={handleAvatarClick}
                                     title={displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
                                 >
@@ -529,14 +539,13 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                 </span>
                             </UserHoverCard>
                             <span
-                                className="text-[15px] text-gray-500 dark:text-dark-text-secondary truncate max-w-[100px] sm:max-w-[160px]"
+                                className="text-[15px] text-[#405168] dark:text-[#8798B0] truncate flex-shrink-1"
                                 title={displayAuthor.handle || ''}
                             >
                                 {displayAuthor.handle?.startsWith('did:') ? '' : formatHandleText(displayAuthor.handle)}
                             </span>
-                            <span className="text-[15px] text-gray-400 dark:text-dark-text-secondary">·</span>
-                            <span className="text-[15px] text-gray-500 dark:text-dark-text-secondary whitespace-nowrap">
-                                {formatPostDate(post.createdAt, i18n.language)}
+                            <span className="text-[15px] text-[#405168] dark:text-[#8798B0] pl-1 whitespace-nowrap">
+                                · {formatPostDate(post.createdAt, i18n.language)}
                             </span>
                         </div>
 
@@ -582,7 +591,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                     <ExpandableRichText
                                         content={post.content}
                                         facets={post.facets}
-                                        className="text-[15px] text-gray-900 dark:text-dark-text whitespace-pre-wrap break-words leading-normal"
+                                        className="text-[15px] text-gray-900 dark:text-white whitespace-pre-wrap break-words leading-[20px] tracking-[0.25px]"
                                         maxLines={6}
                                         maxChars={400}
                                     />
@@ -601,7 +610,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                     })()}
 
                                     {/* Media */}
-                                    <div className="mb-3">
+                                    <div className="mb-2 mt-2">
                                         <MediaGrid
                                             images={post.images}
                                             imageUrls={post.imageUrls}
@@ -626,117 +635,121 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                         {/* Interaction Status */}
 
                         {/* Actions */}
-                        <div className="flex items-center justify-between mt-1 max-w-[420px] -ml-2">
-                            <button
-                                className={cn(
-                                    "flex items-center gap-1.5 group transition-colors p-2 rounded-full hover:bg-blue-500/10",
-                                    post.canReply === false
-                                        ? "text-gray-300 dark:text-gray-700 cursor-not-allowed"
-                                        : "text-gray-500 dark:text-dark-text-secondary hover:text-blue-500"
-                                )}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    ensureAuth(() => {
-                                        if (post.canReply === false) {
-                                            dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
-                                            return;
-                                        }
-                                        dispatch(openReply(post));
-                                    });
-                                }}
-                                title={post.canReply === false ? t('post.replies_disabled') : undefined}
-                            >
-                                <FiMessageCircle size={18} />
-                                <span className={cn("text-[13px] font-medium", post.repliesCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>{post.repliesCount}</span>
-                            </button>
+                        <div className="flex items-center justify-between pt-1 gap-3 text-[#667B99] dark:text-[#8798B0]">
+                            <div className="flex items-center flex-1 max-w-[320px] justify-between">
+                                <button
+                                    className={cn(
+                                        "flex items-center gap-1 group transition-colors p-1.5 rounded-full hover:bg-blue-500/10",
+                                        post.canReply === false
+                                            ? "text-gray-300 dark:text-gray-700 cursor-not-allowed"
+                                            : "hover:text-blue-500"
+                                    )}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        ensureAuth(() => {
+                                            if (post.canReply === false) {
+                                                dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
+                                                return;
+                                            }
+                                            dispatch(openReply(post));
+                                        });
+                                    }}
+                                    title={post.canReply === false ? t('post.replies_disabled') : undefined}
+                                >
+                                    <FiMessageCircle size={18} />
+                                    <span className={cn("text-[13.1px] font-normal", post.repliesCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>{post.repliesCount}</span>
+                                </button>
 
-                            <div onClick={(e) => e.stopPropagation()} className="flex items-center">
-                                <Dropdown
-                                    trigger={
-                                        <button
-                                            className={cn(
-                                                "flex items-center gap-1.5 group transition-colors p-2 rounded-full hover:bg-green-500/10",
-                                                post.isReposted ? "text-green-500" : "text-gray-500 dark:text-dark-text-secondary hover:text-green-500"
-                                            )}
-                                        >
-                                            <FiRepeat size={18} className={post.isReposted ? "stroke-[2.5px]" : ""} />
-                                            <span className={cn("text-[13px] font-medium", post.repostsCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>{post.repostsCount}</span>
-                                        </button>
-                                    }
-                                    items={[
-                                        {
-                                            id: 'repost',
-                                            label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
-                                            icon: <FiRepeat />,
-                                            onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted, repostUri: post.viewer?.repost, currentRepostsCount: post.repostsCount })))
-                                        },
-                                        {
-                                            id: 'quote',
-                                            label: t('post.quote_post', 'Quote post'),
-                                            icon: <FiType />,
-                                            onClick: () => ensureAuth(() => dispatch(openQuote(post)))
+                                <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                                    <Dropdown
+                                        trigger={
+                                            <button
+                                                className={cn(
+                                                    "flex items-center gap-1 group transition-colors p-1.5 rounded-full hover:bg-green-500/10",
+                                                    post.isReposted ? "text-green-500" : "hover:text-green-500"
+                                                )}
+                                            >
+                                                <FiRepeat size={18} className={post.isReposted ? "stroke-[2.5px]" : ""} />
+                                                <span className={cn("text-[13.1px] font-normal", post.repostsCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>{post.repostsCount}</span>
+                                            </button>
                                         }
-                                    ]}
-                                    align="left"
-                                />
+                                        items={[
+                                            {
+                                                id: 'repost',
+                                                label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
+                                                icon: <FiRepeat />,
+                                                onClick: () => ensureAuth(() => dispatch(repostPost({ uri: post.uri!, cid: post.cid!, isReposted: !!post.isReposted, repostUri: post.viewer?.repost, currentRepostsCount: post.repostsCount })))
+                                            },
+                                            {
+                                                id: 'quote',
+                                                label: t('post.quote_post', 'Quote post'),
+                                                icon: <FiType />,
+                                                onClick: () => ensureAuth(() => dispatch(openQuote(post)))
+                                            }
+                                        ]}
+                                        align="left"
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked, likeUri: post.viewer?.like ?? post.likeUri, currentLikesCount: post.likesCount })));
+                                    }}
+                                    className={cn(
+                                        "flex items-center gap-1 group transition-colors p-1.5 rounded-full hover:bg-red-500/10",
+                                        post.isLiked ? "text-red-600" : "hover:text-red-500"
+                                    )}
+                                >
+                                    <FiHeart size={18} className={post.isLiked ? "fill-current stroke-red-600" : ""} />
+                                    <span className={cn("text-[13.1px] font-normal", post.likesCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>{post.likesCount > 1000 ? `${(post.likesCount / 1000).toFixed(1)} ${t('common.user').startsWith('N') ? 'N' : 'K'}` : post.likesCount}</span>
+                                </button>
                             </div>
 
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    ensureAuth(() => dispatch(toggleLike({ uri: post.uri!, cid: post.cid!, isLiked: !!post.isLiked, likeUri: post.viewer?.like ?? post.likeUri, currentLikesCount: post.likesCount })));
-                                }}
-                                className={cn(
-                                    "flex items-center gap-1.5 group transition-colors p-2 rounded-full hover:bg-red-500/10",
-                                    post.isLiked ? "text-red-600" : "text-gray-500 dark:text-dark-text-secondary hover:text-red-500"
-                                )}
-                            >
-                                <FiHeart size={18} className={post.isLiked ? "fill-current stroke-red-600" : ""} />
-                                <span className={cn("text-[13px] font-medium", post.likesCount > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>{post.likesCount > 1000 ? `${(post.likesCount / 1000).toFixed(1)} ${t('common.user').startsWith('N') ? 'N' : 'K'}` : post.likesCount}</span>
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        ensureAuth(() => dispatch(toggleBookmark({ post })));
+                                    }}
+                                    className={cn(
+                                        "flex items-center group transition-colors p-1.5 rounded-full hover:bg-yellow-500/10",
+                                        post.isBookmarked ? "text-yellow-600" : "hover:text-yellow-500"
+                                    )}
+                                >
+                                    <FiBookmark size={18} className={post.isBookmarked ? "fill-current" : ""} />
+                                </button>
 
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    ensureAuth(() => dispatch(toggleBookmark({ post })));
-                                }}
-                                className={cn(
-                                    "flex items-center group transition-colors p-2 rounded-full hover:bg-yellow-500/10",
-                                    post.isBookmarked ? "text-yellow-600" : "text-gray-500 dark:text-dark-text-secondary hover:text-yellow-500"
-                                )}
-                            >
-                                <FiBookmark size={18} className={post.isBookmarked ? "fill-current" : ""} />
-                            </button>
+                                <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                                    <Dropdown
+                                        trigger={
+                                            <button className="flex items-center hover:text-primary-500 transition-colors p-1.5 rounded-full hover:bg-primary-500/10">
+                                                <FiShare2 size={18} />
+                                            </button>
+                                        }
+                                        items={shareDropdownItems}
+                                        align="right"
+                                    />
+                                </div>
 
-                            <div onClick={(e) => e.stopPropagation()} className="flex items-center">
-                                <Dropdown
-                                    trigger={
-                                        <button className="flex items-center text-gray-500 dark:text-dark-text-secondary hover:text-primary-500 transition-colors p-2 rounded-full hover:bg-primary-500/10">
-                                            <FiShare2 size={18} />
-                                        </button>
-                                    }
-                                    items={shareDropdownItems}
-                                    align="right"
-                                />
-                            </div>
-
-                            <div onClick={(e) => e.stopPropagation()} className="flex items-center">
-                                <Dropdown
-                                    trigger={
-                                        <button className="flex items-center text-gray-500 dark:text-dark-text-secondary hover:text-primary-500 transition-colors p-2 rounded-full hover:bg-primary-500/10">
-                                            <FiMoreHorizontal size={18} />
-                                        </button>
-                                    }
-                                    items={moreDropdownItems}
-                                    align="right"
-                                />
+                                <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                                    <Dropdown
+                                        trigger={
+                                            <button className="flex items-center hover:text-primary-500 transition-colors p-1.5 rounded-full hover:bg-primary-500/10">
+                                                <FiMoreHorizontal size={18} />
+                                            </button>
+                                        }
+                                        items={moreDropdownItems}
+                                        align="right"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-            </div >
-        </div >
+            </div>
+        </div>
     );
 });
 
