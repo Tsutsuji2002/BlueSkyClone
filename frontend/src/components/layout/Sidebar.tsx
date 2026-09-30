@@ -228,7 +228,7 @@ const Sidebar: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className={cn(
-                                        "flex-1 flex flex-col text-left min-w-0 transition-opacity duration-100 -ml-[20px] opacity-0 group-hover:opacity-100",
+                                        "flex-1 flex flex-col text-left min-w-0 transition-opacity duration-100 opacity-0 group-hover:opacity-100",
                                         !isMessagesPage && "lg:flex"
                                     )}>
                                         <div className="font-bold text-[13.1px] tracking-[0.25px] text-gray-900 dark:text-white truncate leading-[17px] flex items-center gap-1">
