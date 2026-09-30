@@ -495,9 +495,9 @@ const ProfilePage: React.FC = () => {
                 </div>
 
                 {/* Profile Info & Actions Section */}
-                <div className="p-[12px_16px_8px] overflow-hidden">
+                <div className="w-full p-[12px_16px_8px] overflow-hidden">
                     {/* Actions Row (Right Aligned) */}
-                    <div className="pl-[108px] flex flex-nowrap items-center justify-end gap-1.5 pb-2 min-h-[42px]">
+                    <div className="w-full pl-[108px] flex flex-nowrap items-center justify-end gap-1.5 pb-2 min-h-[42px]">
                         {isOwnProfile ? (
                             <button
                                 type="button"
