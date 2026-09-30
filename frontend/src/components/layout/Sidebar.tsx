@@ -207,6 +207,7 @@ const Sidebar: React.FC = () => {
                 {user ? (
                     <div className="w-full flex justify-center lg:justify-start mb-2">
                         <Dropdown
+                            className="w-full"
                             trigger={
                                 <button
                                     aria-label="Switch accounts"

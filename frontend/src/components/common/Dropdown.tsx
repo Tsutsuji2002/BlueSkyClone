@@ -126,8 +126,8 @@ const Dropdown: React.FC<DropdownProps> = ({
     };
 
     return (
-        <div className={cn("inline-block", className)} ref={dropdownRef}>
-            <div className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <div className={cn("relative w-full block", className)} ref={dropdownRef}>
+            <div className="cursor-pointer w-full" onClick={() => setIsOpen(!isOpen)}>
                 {trigger}
             </div>
 
