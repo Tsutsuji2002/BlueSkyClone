@@ -497,22 +497,22 @@ const ProfilePage: React.FC = () => {
                 {/* Profile Info & Actions Section */}
                 <div className="p-[12px_16px_8px] overflow-hidden">
                     {/* Actions Row (Right Aligned) */}
-                    <div className="pl-[90px] flex flex-wrap items-center justify-end gap-1.5 pb-2 min-h-[42px]">
+                    <div className="pl-[90px] flex flex-nowrap items-center justify-end gap-1.5 pb-2 min-h-[42px]">
                         {isOwnProfile ? (
                             <button
                                 type="button"
                                 onClick={() => dispatch(openEditProfile())}
-                                className="bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full px-3.5 py-2 text-[13.1px] font-medium transition-colors cursor-pointer"
+                                className="flex-shrink-0 bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full px-3.5 py-2 text-[13.1px] font-medium transition-colors cursor-pointer"
                             >
                                 {t('profile.edit_profile_title')}
                             </button>
                         ) : (
-                            <div className="flex gap-1.5 items-center">
+                            <div className="flex gap-1.5 items-center flex-shrink-0">
                                 {!profileUser?.isBlockedBy && (
                                     <>
                                         <button
                                             onClick={handleMessageClick}
-                                            className="bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full w-[33px] h-[33px] transition-colors flex items-center justify-center"
+                                            className="flex-shrink-0 bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full w-[33px] h-[33px] transition-colors flex items-center justify-center"
                                             title={t('messages.title')}
                                         >
                                             <FiMail size={16} />
@@ -522,7 +522,7 @@ const ProfilePage: React.FC = () => {
                                             onClick={handleFollowToggle}
                                             disabled={profileUser ? (!!actionLoading[profileUser.did || profileUser.handle || profileUser.id] || !!actionLoading[profileUser.id]) : false}
                                             className={cn(
-                                                "rounded-full px-4 py-2 text-[13.1px] font-medium transition-colors cursor-pointer",
+                                                "flex-shrink-0 rounded-full px-4 py-2 text-[13.1px] font-medium transition-colors cursor-pointer",
                                                 profileUser?.isFollowing
                                                     ? "bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] text-[#405168] dark:text-dark-text"
                                                     : "bg-[#006AFF] hover:bg-[#0059E0] text-white"
@@ -539,8 +539,9 @@ const ProfilePage: React.FC = () => {
                             </div>
                         )}
                         <Dropdown
+                            className="flex-shrink-0"
                             trigger={
-                                <button className="bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full w-[33px] h-[33px] transition-colors flex items-center justify-center cursor-pointer">
+                                <button className="flex-shrink-0 bg-[#eff2f6] dark:bg-dark-surface hover:bg-[#e4e7eb] dark:hover:bg-dark-hover text-[#405168] dark:text-dark-text rounded-full w-[33px] h-[33px] transition-colors flex items-center justify-center cursor-pointer">
                                     <FiMoreHorizontal size={16} />
                                 </button>
                             }
