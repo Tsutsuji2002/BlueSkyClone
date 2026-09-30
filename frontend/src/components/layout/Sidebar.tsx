@@ -212,9 +212,9 @@ const Sidebar: React.FC = () => {
                                 <button
                                     aria-label="Switch accounts"
                                     type="button"
-                                    className="group flex items-center justify-between w-full rounded-full hover:bg-[#f0f3f4] active:bg-[#e4e7eb] dark:hover:bg-[#161e27] transition-all duration-200 outline-none cursor-pointer p-1 pr-2.5 gap-2"
+                                    className="group flex items-center justify-between w-full rounded-full hover:bg-[#f0f3f4] active:bg-[#e4e7eb] dark:hover:bg-[#161e27] transition-all duration-200 outline-none cursor-pointer p-1 pr-2.5 gap-2 overflow-hidden"
                                 >
-                                    <div className="relative z-10 flex-shrink-0 transition-transform duration-200 group-hover:scale-90 origin-left">
+                                    <div className="relative z-10 flex-shrink-0 transition-transform duration-200 group-hover:scale-[0.85] group-hover:-translate-x-1 origin-left">
                                         <div className="w-10 h-10 relative">
                                             <div className="overflow-hidden w-10 h-10 rounded-full bg-gray-50">
                                                 <Avatar
@@ -228,18 +228,18 @@ const Sidebar: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className={cn(
-                                        "flex-1 flex flex-col text-left min-w-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100",
+                                        "flex-1 flex flex-col text-left min-w-0 transition-opacity duration-150 opacity-0 group-hover:opacity-100 overflow-hidden",
                                         !isMessagesPage && "lg:flex"
                                     )}>
-                                        <div className="font-bold text-[12.5px] tracking-[0.1px] text-gray-900 dark:text-white truncate leading-[15px]">
+                                        <div className="font-bold text-[12.5px] tracking-[0.1px] text-gray-900 dark:text-white truncate leading-[15px] max-w-full">
                                             {user.displayName}
                                         </div>
-                                        <div className="text-[10.8px] tracking-[0.1px] text-[#536471] dark:text-[#8798B0] truncate leading-[13.5px]">
+                                        <div className="text-[10.8px] tracking-[0.1px] text-[#536471] dark:text-[#8798B0] truncate leading-[13.5px] max-w-full">
                                             @{user.handle}
                                         </div>
                                     </div>
                                     <svg fill="none" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" className={cn(
-                                        "flex-shrink-0 text-[#536471] dark:text-[#8798B0] transition-opacity duration-150 opacity-0 group-hover:opacity-100",
+                                        "flex-shrink-0 text-[#536471] dark:text-[#8798B0] transition-opacity duration-150 opacity-0 group-hover:opacity-100 ml-auto",
                                         !isMessagesPage && "lg:block"
                                     )}>
                                         <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
