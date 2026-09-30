@@ -57,6 +57,7 @@ interface UserHoverCardProps {
     user: HoverCardUser;
     children: React.ReactNode;
     disabled?: boolean;
+    className?: string;
 }
 
 const CARD_WIDTH = 300;
@@ -66,7 +67,7 @@ const LEAVE_CLOSE_DELAY_MS = 200;
 // Simple in-memory cache so we don't re-fetch for same handle
 const profileCache = new Map<string, FullProfile>();
 
-const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled = false }) => {
+const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled = false, className }) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
@@ -313,7 +314,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
             ref={triggerRef}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            className="inline-block"
+            className={cn("inline-block", className)}
         >
             {children}
 

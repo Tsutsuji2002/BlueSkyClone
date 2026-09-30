@@ -527,9 +527,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                         {/* Header */}
                         <div className="flex items-center gap-1 pb-1 min-w-0 flex-nowrap leading-[17px] z-20">
                             <div className="flex items-baseline shrink flex-1 min-w-0">
-                                <UserHoverCard user={displayAuthor}>
+                                <UserHoverCard user={displayAuthor} className="inline-flex min-w-0 max-w-[70%] shrink-0">
                                     <span
-                                        className="font-semibold text-[15px] text-gray-900 dark:text-white truncate hover:underline flex items-center gap-0.5 shrink-0 max-w-[70%]"
+                                        className="font-semibold text-[15px] text-gray-900 dark:text-white truncate hover:underline inline-flex items-center gap-0.5 min-w-0 max-w-full"
                                         onClick={handleAvatarClick}
                                         title={displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
                                     >
@@ -726,7 +726,9 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                                     <Dropdown
                                         trigger={
                                             <button className="flex items-center hover:text-primary-500 transition-colors p-1.5 rounded-full hover:bg-primary-500/10">
-                                                <FiShare2 size={18} />
+                                                <svg fill="none" width="18" height="18" viewBox="0 0 24 24" className="text-current">
+                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M11.839 4.744a1 1 0 0 1 1.417.012l6.002 6.002a1 1 0 0 1 0 1.414l-6.002 6.002a1 1 0 0 1-1.428-1.402l4.303-4.372H8.502A5.503 5.503 0 0 0 3 17.899a1 1 0 1 1-2 0A7.503 7.503 0 0 1 8.502 10.4h7.629l-4.303-4.24a1 1 0 0 1 .012-1.416Z" />
+                                                </svg>
                                             </button>
                                         }
                                         items={shareDropdownItems}
