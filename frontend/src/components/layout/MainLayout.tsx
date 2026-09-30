@@ -46,11 +46,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
 
             <div className="flex justify-center min-h-screen">
                 <div className={cn(
-                    "flex w-full justify-center px-4 transition-all duration-300",
-                    isMessagesPage ? "max-w-[1120px] lg:gap-x-0" : "max-w-[1260px] lg:gap-x-8 xl:gap-x-12"
+                    "flex w-full justify-center px-2 sm:px-4 transition-all duration-300",
+                    isMessagesPage ? "max-w-[1120px] lg:gap-x-0" : "max-w-[1260px] lg:gap-x-4"
                 )}>
                     {/* Left Sidebar - Desktop only */}
-                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-20 xl:w-[280px]" : "w-64 xl:w-[280px]"))}>
+                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[240px]"))}>
                         {isAuthenticated ? (
                             <Sidebar />
                         ) : (

@@ -196,25 +196,25 @@ const Sidebar: React.FC = () => {
 
     return (
         <div className={cn(
-            "h-screen sticky top-0 flex flex-col py-3 px-2 lg:px-4 transition-all overflow-y-auto no-scrollbar border-r border-transparent",
-            isMessagesPage ? "w-[72px]" : "w-[72px] xl:w-full"
+            "h-screen sticky top-0 flex flex-col py-3 px-1 sm:px-2 transition-all overflow-y-auto no-scrollbar border-r border-transparent items-end",
+            isMessagesPage ? "w-[72px]" : "w-[72px] lg:w-full"
         )}>
             <div className={cn(
-                "flex flex-col w-full xl:ml-auto",
-                !isMessagesPage && "xl:w-[240px]"
+                "flex flex-col w-full lg:ml-auto items-start",
+                !isMessagesPage && "lg:w-[240px]"
             )}>
                 {/* Top Profile / Account Switcher Button */}
                 {user ? (
-                    <div className="w-full flex justify-center xl:justify-start mb-2">
+                    <div className="w-full flex justify-center lg:justify-start mb-2">
                         <Dropdown
                             trigger={
                                 <button
                                     aria-label="Switch accounts"
                                     type="button"
-                                    className="group flex items-center justify-between w-full p-2 xl:px-3 rounded-full hover:bg-gray-200 dark:hover:bg-[#161e27] transition-all duration-150 outline-none cursor-pointer gap-2"
+                                    className="group flex items-center justify-between w-full p-2 lg:px-3 rounded-full hover:bg-[#f0f3f4] dark:hover:bg-[#161e27] transition-all duration-150 outline-none cursor-pointer gap-2"
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="flex-shrink-0 w-11 h-11 xl:w-12 xl:h-12 rounded-full overflow-hidden relative">
+                                        <div className="flex-shrink-0 w-10 h-10 lg:w-11 lg:h-11 rounded-full overflow-hidden relative">
                                             <Avatar
                                                 src={user.avatarUrl || user.avatar}
                                                 alt={user.displayName}
@@ -224,7 +224,7 @@ const Sidebar: React.FC = () => {
                                         </div>
                                         <div className={cn(
                                             "hidden flex-col text-left min-w-0 flex-1",
-                                            !isMessagesPage && "xl:flex"
+                                            !isMessagesPage && "lg:flex"
                                         )}>
                                             <div className="font-bold text-[13.5px] tracking-[0.25px] text-gray-900 dark:text-white truncate leading-[17px] flex items-center gap-1">
                                                 <span className="truncate">{user.displayName}</span>
@@ -237,7 +237,7 @@ const Sidebar: React.FC = () => {
                                     </div>
                                     <div className={cn(
                                         "hidden flex-shrink-0 text-[#405168] dark:text-[#8798B0] items-center pr-1",
-                                        !isMessagesPage && "xl:flex"
+                                        !isMessagesPage && "lg:flex"
                                     )}>
                                         <svg fill="none" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{ color: 'currentColor' }}>
                                             <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
@@ -307,7 +307,7 @@ const Sidebar: React.FC = () => {
                         />
                     </div>
                 ) : (
-                    <div className="px-3 mb-4 mt-2 flex justify-center xl:justify-start" onClick={() => navigate('/')}>
+                    <div className="px-3 mb-4 mt-2 flex justify-center lg:justify-start" onClick={() => navigate('/')}>
                         <ButterflyLogo className="w-9 h-9 text-primary-500 cursor-pointer" />
                     </div>
                 )}
@@ -320,20 +320,20 @@ const Sidebar: React.FC = () => {
                         const badgeCount = item.id === 'notifications' ? unreadNotifications : (item.id === 'messages' ? unreadMessages : 0);
 
                         return (
-                            <div key={item.id} className="flex justify-center xl:justify-start w-full">
+                            <div key={item.id} className="flex justify-center lg:justify-start w-full my-[1px]">
                                 <Link
                                     aria-label={t(`nav.${item.id}`)!}
                                     to={item.id === 'profile' ? `/profile/${user?.handle}` : item.path}
                                     className={cn(
-                                        'group flex items-center p-3 rounded-full transition-colors outline-none hover:bg-gray-200 dark:hover:bg-[#161e27] gap-3.5',
+                                        'group flex items-center py-2.5 px-3 rounded-full transition-colors outline-none gap-3.5',
                                         isActive 
-                                            ? 'text-gray-900 dark:text-white font-bold'
-                                            : 'text-gray-900 dark:text-gray-100 font-normal'
+                                            ? 'text-gray-900 dark:text-white font-bold bg-[#f0f3f4] dark:bg-[#161e27]'
+                                            : 'text-gray-900 dark:text-gray-100 font-normal hover:bg-[#f0f3f4] dark:hover:bg-[#161e27]'
                                     )}
                                 >
                                     <div className={cn(
                                         "relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px]",
-                                        !isMessagesPage && "xl:mr-1"
+                                        !isMessagesPage && "lg:mr-0.5"
                                     )}>
                                         {renderIcon(item.icon, isActive) || renderIcon(item.id, isActive)}
                                         {badgeCount > 0 && (
@@ -344,7 +344,7 @@ const Sidebar: React.FC = () => {
                                     </div>
                                     <div className={cn(
                                         "hidden flex-shrink-0 pr-2",
-                                        !isMessagesPage && "xl:block"
+                                        !isMessagesPage && "lg:block"
                                     )}>
                                         <span className={cn(
                                             "text-[18.8px] leading-[24px] tracking-[0.25px] truncate",
@@ -360,26 +360,26 @@ const Sidebar: React.FC = () => {
 
                     {/* Admin Nav Item (if user is admin) */}
                     {user?.role === 'admin' && (
-                        <div className="flex justify-center xl:justify-start w-full">
+                        <div className="flex justify-center lg:justify-start w-full my-[1px]">
                             <button
                                 aria-label={t('nav.admin')!}
                                 onClick={() => navigate('/admin')}
                                 className={cn(
-                                    'group flex items-center p-3 rounded-full transition-colors outline-none hover:bg-gray-200 dark:hover:bg-[#161e27] gap-3.5',
+                                    'group flex items-center py-2.5 px-3 rounded-full transition-colors outline-none gap-3.5',
                                     location.pathname.startsWith('/admin')
-                                        ? 'text-gray-900 dark:text-white font-bold'
-                                        : 'text-gray-900 dark:text-gray-100 font-normal'
+                                        ? 'text-gray-900 dark:text-white font-bold bg-[#f0f3f4] dark:bg-[#161e27]'
+                                        : 'text-gray-900 dark:text-gray-100 font-normal hover:bg-[#f0f3f4] dark:hover:bg-[#161e27]'
                                 )}
                             >
                                 <div className={cn(
                                     "relative flex-shrink-0 flex items-center justify-center w-[28px] h-[28px]",
-                                    !isMessagesPage && "xl:mr-1"
+                                    !isMessagesPage && "lg:mr-0.5"
                                 )}>
                                     <FiShield size={28} strokeWidth={2} />
                                 </div>
                                 <div className={cn(
                                     "hidden flex-shrink-0 pr-2",
-                                    !isMessagesPage && "xl:block"
+                                    !isMessagesPage && "lg:block"
                                 )}>
                                     <span className={cn(
                                         "text-[18.8px] leading-[24px] tracking-[0.25px] truncate",
@@ -393,13 +393,13 @@ const Sidebar: React.FC = () => {
                     )}
 
                     {/* Compose / New Post Button */}
-                    <div className="mt-3 mb-4 flex justify-center xl:justify-start w-full">
+                    <div className="mt-3 mb-4 flex justify-center lg:justify-start w-full">
                         <button
                             aria-label={t('common.create_post')}
                             onClick={() => dispatch(openCreatePost())}
                             className={cn(
                                 "flex items-center justify-center bg-[#006AFF] hover:bg-[#0059E0] text-white transition-colors rounded-full shadow-sm gap-2.5",
-                                isMessagesPage ? "w-[48px] h-[48px]" : "xl:w-fit xl:py-[10px] xl:px-5 w-[48px] h-[48px]"
+                                isMessagesPage ? "w-[48px] h-[48px]" : "lg:w-fit lg:py-[10px] lg:px-5 w-[48px] h-[48px]"
                             )}
                         >
                             <div className="flex items-center justify-center w-[20px] h-[20px] flex-shrink-0">
@@ -409,7 +409,7 @@ const Sidebar: React.FC = () => {
                             </div>
                             <span className={cn(
                                 "hidden text-[15px] font-bold tracking-[0.25px]",
-                                !isMessagesPage && "xl:inline"
+                                !isMessagesPage && "lg:inline"
                             )}>
                                 {t('common.new_post')}
                             </span>
