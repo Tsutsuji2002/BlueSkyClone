@@ -212,38 +212,39 @@ const Sidebar: React.FC = () => {
                                 <button
                                     aria-label="Switch accounts"
                                     type="button"
-                                    className="group flex items-center justify-between p-1.5 rounded-full hover:bg-[#f0f3f4] active:bg-[#e4e7eb] dark:hover:bg-[#161e27] transition-all duration-200 outline-none cursor-pointer gap-2 max-w-[240px]"
+                                    className="group flex items-center justify-between w-full rounded-full hover:bg-[#f0f3f4] active:bg-[#e4e7eb] dark:hover:bg-[#161e27] transition-all duration-100 outline-none cursor-pointer gap-[6px] pl-4 pr-3 py-1"
                                 >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="flex-shrink-0 w-10 h-10 lg:w-11 lg:h-11 rounded-full overflow-hidden relative">
-                                            <Avatar
-                                                src={user.avatarUrl || user.avatar}
-                                                alt={user.displayName}
-                                                size="md"
-                                                className="w-full h-full object-cover"
-                                            />
-                                        </div>
-                                        <div className={cn(
-                                            "hidden flex-col text-left min-w-0 flex-1 transition-all duration-200",
-                                            !isMessagesPage && "group-hover:flex"
-                                        )}>
-                                            <div className="font-bold text-[13.5px] tracking-[0.25px] text-gray-900 dark:text-white truncate leading-[17px] flex items-center gap-1">
-                                                <span className="truncate">{user.displayName}</span>
-                                                {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
+                                    <div className="relative z-10 flex-shrink-0 transition-transform duration-250">
+                                        <div className="w-[48px] h-[48px] relative">
+                                            <div className="overflow-hidden w-[48px] h-[48px] rounded-full bg-gray-50">
+                                                <Avatar
+                                                    src={user.avatarUrl || user.avatar}
+                                                    alt={user.displayName}
+                                                    size="md"
+                                                    className="w-full h-full object-cover"
+                                                />
                                             </div>
-                                            <div className="text-[11.3px] tracking-[0.25px] text-[#405168] dark:text-[#8798B0] truncate leading-[15px] mt-0.5">
-                                                @{user.handle}
-                                            </div>
+                                            <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border opacity-60 pointer-events-none rounded-full" />
                                         </div>
                                     </div>
                                     <div className={cn(
-                                        "hidden flex-shrink-0 text-[#405168] dark:text-[#8798B0] items-center pr-1.5",
-                                        !isMessagesPage && "group-hover:flex"
+                                        "flex-1 flex flex-col text-left min-w-0 transition-opacity duration-100 -ml-[20px] opacity-0 group-hover:opacity-100",
+                                        !isMessagesPage && "lg:flex"
                                     )}>
-                                        <svg fill="none" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style={{ color: 'currentColor' }}>
-                                            <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
-                                        </svg>
+                                        <div className="font-bold text-[13.1px] tracking-[0.25px] text-gray-900 dark:text-white truncate leading-[17px] flex items-center gap-1">
+                                            <span className="truncate">{user.displayName}</span>
+                                            {user.isVerified && <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={13} />}
+                                        </div>
+                                        <div className="text-[11.3px] tracking-[0.25px] text-[#405168] dark:text-[#8798B0] truncate leading-[15px]">
+                                            @{user.handle}
+                                        </div>
                                     </div>
+                                    <svg fill="none" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" className={cn(
+                                        "flex-shrink-0 text-[#405168] dark:text-[#8798B0] transition-opacity duration-100 opacity-0 group-hover:opacity-100",
+                                        !isMessagesPage && "lg:block"
+                                    )}>
+                                        <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+                                    </svg>
                                 </button>
                             }
                             items={[
