@@ -525,26 +525,28 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                         {/* Header */}
-                        <div className="flex items-center gap-1 pb-1 min-w-0 flex-wrap leading-[17px]">
-                            <UserHoverCard user={displayAuthor}>
+                        <div className="flex items-center gap-1 pb-1 min-w-0 flex-nowrap leading-[17px] z-20">
+                            <div className="flex items-baseline shrink flex-1 min-w-0">
+                                <UserHoverCard user={displayAuthor}>
+                                    <span
+                                        className="font-semibold text-[15px] text-gray-900 dark:text-white truncate hover:underline flex items-center gap-0.5 shrink-0 max-w-[70%]"
+                                        onClick={handleAvatarClick}
+                                        title={displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
+                                    >
+                                        {displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
+                                        {post.author.isVerified && (
+                                            <BsPatchCheckFill className="text-blue-500 shrink-0" size={14} />
+                                        )}
+                                    </span>
+                                </UserHoverCard>
                                 <span
-                                    className="font-semibold text-[15px] text-gray-900 dark:text-white truncate hover:underline flex items-center gap-0.5 min-w-0 max-w-[70%]"
-                                    onClick={handleAvatarClick}
-                                    title={displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
+                                    className="text-[15px] text-[#405168] dark:text-[#8798B0] truncate shrink-[10] min-w-0 pl-1"
+                                    title={displayAuthor.handle || ''}
                                 >
-                                    {displayAuthor.displayName || displayAuthor.handle || 'Unknown'}
-                                    {post.author.isVerified && (
-                                        <BsPatchCheckFill className="text-blue-500 flex-shrink-0" size={14} />
-                                    )}
+                                    {displayAuthor.handle?.startsWith('did:') ? '' : formatHandleText(displayAuthor.handle)}
                                 </span>
-                            </UserHoverCard>
-                            <span
-                                className="text-[15px] text-[#405168] dark:text-[#8798B0] truncate flex-shrink-1"
-                                title={displayAuthor.handle || ''}
-                            >
-                                {displayAuthor.handle?.startsWith('did:') ? '' : formatHandleText(displayAuthor.handle)}
-                            </span>
-                            <span className="text-[15px] text-[#405168] dark:text-[#8798B0] pl-1 whitespace-nowrap">
+                            </div>
+                            <span className="text-[15px] text-[#405168] dark:text-[#8798B0] pl-1 whitespace-nowrap shrink-0">
                                 · {formatPostDate(post.createdAt, i18n.language)}
                             </span>
                         </div>

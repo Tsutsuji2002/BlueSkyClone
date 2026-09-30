@@ -115,11 +115,12 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
     if (embedUrl) {
         if (!isPlaying) {
             return (
-                <div className={cn(
-                    "relative block border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors bg-white dark:bg-dark-bg group max-w-full cursor-pointer mt-3 w-full"
-                )} onClick={(e) => { e.stopPropagation(); setIsPlaying(true); }}>
-                    {preview.image && !imageError ? (
-                        <div className="w-full relative aspect-video bg-gray-100 dark:bg-dark-surface border-b border-gray-100 dark:border-dark-border">
+                <div
+                    className="relative block border border-[#dce2ea] dark:border-dark-border rounded-[12px] overflow-hidden hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors bg-white dark:bg-dark-bg group max-w-full cursor-pointer mt-2 w-full"
+                    onClick={(e) => { e.stopPropagation(); setIsPlaying(true); }}
+                >
+                    <div className="w-full relative aspect-[1.77778/1] overflow-hidden bg-gray-100 dark:bg-dark-surface">
+                        {preview.image && !imageError ? (
                             <img
                                 src={preview.image}
                                 alt={preview.title || t('nav.link_preview')}
@@ -133,35 +134,42 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                                     setIsImageLoading(false);
                                 }}
                             />
-                            {isImageLoading && (
-                                <div className="absolute inset-0">
-                                    <Skeleton variant="rectangular" width="100%" height="100%" />
-                                </div>
-                            )}
-                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/20 transition-colors">
-                                <div className="w-16 h-16 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-black/80 transition-colors">
-                                    <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M8 5v14l11-7z" />
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="w-full aspect-video bg-gray-900 flex items-center justify-center relative">
-                            <div className="w-16 h-16 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-black/80 transition-colors">
-                                <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z" />
+                        ) : (
+                            <div className="w-full h-full bg-[#111822]" />
+                        )}
+                        <div className="absolute inset-0 bg-[#111822]/30 pointer-events-none" />
+                        <div className="absolute inset-0 flex items-center justify-center z-10">
+                            <button
+                                type="button"
+                                className="relative flex items-center justify-center cursor-pointer outline-none group/play"
+                            >
+                                <div className="w-[53.33px] h-[53.33px] rounded-full bg-[#F9FAFB] opacity-70 shadow-[0_0_32px_rgba(0,0,0,0.5)] group-hover/play:opacity-90 transition-opacity" />
+                                <svg fill="none" width="32" height="32" viewBox="0 0 24 24" className="absolute">
+                                    <path fill="#111822" stroke="none" strokeWidth="0" fillRule="evenodd" clipRule="evenodd" d="M6.514 2.143A1 1 0 0 0 5 3v18a1 1 0 0 0 1.514.858l15-9a1 1 0 0 0 0-1.716l-15-9Z" />
                                 </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-1 pt-2 bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
+                        <div className="px-3 pb-1 flex flex-col gap-[3px]">
+                            <div className="font-semibold text-[15px] text-gray-900 dark:text-white leading-[20px] tracking-[0.25px] line-clamp-3">
+                                {preview.title || preview.url}
+                            </div>
+                            <div className="text-[13.1px] text-gray-900 dark:text-gray-200 leading-[17px] tracking-[0.25px] line-clamp-4">
+                                {preview.description || (preview.domain?.includes('youtube') || preview.url?.includes('youtube') ? `YouTube video by ${preview.title ? preview.title.split(' - ')[0] : 'creator'}` : '')}
                             </div>
                         </div>
-                    )}
-                    <div className="p-3 bg-white dark:bg-dark-bg">
-                        <h4 className="font-bold text-gray-900 dark:text-dark-text leading-snug line-clamp-1 transition-colors text-[15px]">
-                            {preview.title || preview.url}
-                        </h4>
-                        <span className="font-medium text-gray-500 dark:text-dark-text-secondary line-clamp-1 text-[12px] mt-0.5">
-                            {preview.domain || new URL(preview.url).hostname.replace('www.', '')}
-                        </span>
+                        <div className="px-3">
+                            <div className="w-full border-t border-[#dce2ea] dark:border-dark-border" />
+                            <div className="flex items-center gap-[2px] pt-[6px] pb-[8px]">
+                                <svg fill="none" viewBox="0 0 24 24" width="12" height="12" className="text-[#8798B0] flex-shrink-0">
+                                    <path fill="#8798B0" stroke="none" fillRule="evenodd" clipRule="evenodd" d="M4.4 9.493C4.14 10.28 4 11.124 4 12a8 8 0 1 0 10.899-7.459l-.953 3.81a1 1 0 0 1-.726.727l-3.444.866-.772 1.533a1 1 0 0 1-1.493.35L4.4 9.493Zm.883-1.84L7.756 9.51l.44-.874a1 1 0 0 1 .649-.52l3.306-.832.807-3.227a7.993 7.993 0 0 0-7.676 3.597ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Zm8.43.162a1 1 0 0 1 .77-.29l1.89.121a1 1 0 0 1 .494.168l2.869 1.928a1 1 0 0 1 .336 1.277l-.973 1.946a1 1 0 0 1-.894.553h-2.92a1 1 0 0 1-.831-.445L9.225 14.5a1 1 0 0 1 .126-1.262l1.08-1.076Zm.915 1.913.177-.177 1.171.074 1.914 1.286-.303.607h-1.766l-1.194-1.79Z" />
+                                </svg>
+                                <div className="text-[11.3px] text-[#405168] dark:text-[#8798B0] leading-[15px] tracking-[0.25px]">
+                                    {preview.domain || new URL(preview.url).hostname}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             );

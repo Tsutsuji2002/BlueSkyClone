@@ -21,6 +21,14 @@ const splitTrailingPunctuation = (value: string): { core: string; trailing: stri
     };
 };
 
+const formatUrlDisplay = (url: string): string => {
+    let cleaned = url.replace(/^https?:\/\//i, '');
+    if (cleaned.length > 30) {
+        return cleaned.substring(0, 27) + '...';
+    }
+    return cleaned;
+};
+
 const renderFallbackRichText = (text: string, keyPrefix: string) => {
     const parts = text.split(FALLBACK_TOKEN_REGEX).filter(Boolean);
 
@@ -71,6 +79,7 @@ const renderFallbackRichText = (text: string, keyPrefix: string) => {
                 : isUrl
                     ? token
                     : `https://${token}`;
+            const displayLabel = (isUrl || isBareDomain) ? formatUrlDisplay(token) : token;
             return (
                 <React.Fragment key={`${keyPrefix}-${index}`}>
                     <a
@@ -80,7 +89,7 @@ const renderFallbackRichText = (text: string, keyPrefix: string) => {
                         className="text-primary-500 dark:text-primary-400 hover:underline"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {token}
+                        {displayLabel}
                     </a>
                     {tail}
                 </React.Fragment>
