@@ -158,7 +158,22 @@ const ProfilePage: React.FC = () => {
 
 
 
-    const isOwnProfile = currentUser?.did === profileUser?.did;
+    const isOwnProfile = React.useMemo(() => {
+        if (!currentUser) return false;
+        if (profileUser?.did && currentUser.did === profileUser.did) return true;
+        if (profileUser?.handle && currentUser.handle?.toLowerCase() === profileUser.handle.toLowerCase()) return true;
+
+        if (handle) {
+            const cleanHandle = handle.toLowerCase();
+            const cleanUserHandle = currentUser.handle?.toLowerCase();
+            const cleanUserDid = currentUser.did?.toLowerCase();
+
+            if (cleanUserHandle && cleanHandle === cleanUserHandle) return true;
+            if (cleanUserDid && cleanHandle === cleanUserDid) return true;
+            if (cleanHandle === 'me') return true;
+        }
+        return false;
+    }, [currentUser, profileUser, handle]);
 
     useEffect(() => {
         if (!isOwnProfile && activeTab === 'likes') {
@@ -168,16 +183,18 @@ const ProfilePage: React.FC = () => {
 
     const visibleTabs = React.useMemo(() => {
         return PROFILE_TABS.filter(tab => {
-            if (tab.id === 'likes' && !isOwnProfile) return false;
+            if (tab.id === 'likes') {
+                return isOwnProfile;
+            }
             if (tab.id === 'feeds') {
-                return (userFeeds && userFeeds.length > 0) || (isOwnProfile && (isUserFeedsLoading || isProfileLoading));
+                return isOwnProfile || (userFeeds && userFeeds.length > 0);
             }
             if (tab.id === 'lists') {
-                return (userLists && userLists.length > 0) || (isOwnProfile && (isListsLoading || isProfileLoading));
+                return isOwnProfile || (userLists && userLists.length > 0);
             }
             return true;
         });
-    }, [isOwnProfile, userFeeds, isUserFeedsLoading, userLists, isListsLoading, isProfileLoading]);
+    }, [isOwnProfile, userFeeds, userLists]);
 
     // CRITICAL FIX: When viewing own profile, ALWAYS prefer currentUser data
     // currentUser comes from auth state which is updated by handshake

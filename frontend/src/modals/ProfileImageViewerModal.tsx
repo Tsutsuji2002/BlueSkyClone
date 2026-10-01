@@ -4,6 +4,8 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { showToast } from '../redux/slices/toastSlice';
 import { useTranslation } from 'react-i18next';
 
+import { API_BASE_URL } from '../constants';
+
 interface ProfileImageViewerModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -62,72 +64,35 @@ const ProfileImageViewerModal: React.FC<ProfileImageViewerModalProps> = ({
         }
     };
 
-    const handleDownload = (e: React.MouseEvent) => {
+    const handleDownload = async (e: React.MouseEvent) => {
         e.stopPropagation();
         setShowMenu(false);
 
-        const filename = type === 'avatar' ? 'profile-avatar.jpg' : 'profile-banner.jpg';
+        try {
+            let filename = imageUrl.split('?')[0].split('/').pop() || (type === 'avatar' ? 'profile-avatar.jpg' : 'profile-banner.jpg');
+            if (!filename.includes('.')) {
+                filename += '.jpeg';
+            }
 
-        const triggerDownload = (url: string) => {
+            const downloadUrl = `${API_BASE_URL}/media/download?url=${encodeURIComponent(imageUrl)}`;
+            const response = await fetch(downloadUrl);
+            if (!response.ok) throw new Error('Download failed');
+
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+
             const a = document.createElement('a');
-            a.href = url;
+            a.href = blobUrl;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-        };
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = imageUrl;
-
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth || img.width;
-                canvas.height = img.naturalHeight || img.height;
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0);
-                    canvas.toBlob(
-                        (blob) => {
-                            if (blob) {
-                                const blobUrl = URL.createObjectURL(blob);
-                                triggerDownload(blobUrl);
-                                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-                                dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
-                            } else {
-                                fallbackFetch();
-                            }
-                        },
-                        'image/jpeg',
-                        0.95
-                    );
-                } else {
-                    fallbackFetch();
-                }
-            } catch {
-                fallbackFetch();
-            }
-        };
-
-        img.onerror = () => {
-            fallbackFetch();
-        };
-
-        const fallbackFetch = async () => {
-            try {
-                const response = await fetch(imageUrl);
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                triggerDownload(blobUrl);
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-                dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
-            } catch {
-                triggerDownload(imageUrl);
-                dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
-            }
-        };
+            dispatch(showToast({ message: t('common.image_saved', 'Image saved'), type: 'success' }));
+        } catch {
+            dispatch(showToast({ message: 'Failed to download image', type: 'error' }));
+        }
     };
 
     return (

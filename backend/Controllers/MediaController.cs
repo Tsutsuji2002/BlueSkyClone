@@ -157,4 +157,42 @@ public class MediaController : ControllerBase
             return File(originalBytes, contentType);
         }
     }
+
+    /// <summary>
+    /// Proxy endpoint for image downloading to bypass cross-origin browser restrictions.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("download")]
+    public async Task<IActionResult> Download([FromQuery] string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return BadRequest("URL is required");
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode((int)response.StatusCode, "Failed to fetch image");
+
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+
+            var filename = Path.GetFileName(new Uri(url).AbsolutePath);
+            if (string.IsNullOrWhiteSpace(filename) || filename.Length < 3)
+            {
+                filename = "image";
+            }
+            if (!Path.HasExtension(filename))
+            {
+                filename += ".jpeg";
+            }
+
+            return File(bytes, contentType, filename);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
+    }
 }
