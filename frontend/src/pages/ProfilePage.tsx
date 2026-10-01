@@ -22,6 +22,7 @@ import { clearPosts } from '../redux/slices/postsSlice';
 import { startConversation } from '../redux/slices/messagesSlice';
 import ProfileSkeleton from '../components/profile/ProfileSkeleton';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
+import ProfileImageViewerModal from '../modals/ProfileImageViewerModal';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -82,6 +83,11 @@ const ProfilePage: React.FC = () => {
     }>({ isOpen: false, type: null });
     const isFetchingRef = React.useRef(false);
     const [showWarn, setShowWarn] = useState(true);
+    const [imageZoom, setImageZoom] = useState<{
+        isOpen: boolean;
+        url: string;
+        type: 'avatar' | 'cover';
+    }>({ isOpen: false, url: '', type: 'avatar' });
 
     const lastFetchedHandle = React.useRef<string | null>(null);
 
@@ -164,10 +170,10 @@ const ProfilePage: React.FC = () => {
         return PROFILE_TABS.filter(tab => {
             if (tab.id === 'likes' && !isOwnProfile) return false;
             if (tab.id === 'feeds') {
-                return (userFeeds && userFeeds.length > 0) || isUserFeedsLoading || isProfileLoading;
+                return (userFeeds && userFeeds.length > 0) || (isOwnProfile && (isUserFeedsLoading || isProfileLoading));
             }
             if (tab.id === 'lists') {
-                return (userLists && userLists.length > 0) || isListsLoading || isProfileLoading;
+                return (userLists && userLists.length > 0) || (isOwnProfile && (isListsLoading || isProfileLoading));
             }
             return true;
         });
@@ -476,7 +482,15 @@ const ProfilePage: React.FC = () => {
             <div className="flex flex-col bg-white dark:bg-dark-bg">
                 {/* Header/Cover Section */}
                 <div className="relative w-full">
-                    <div className="h-[150px] w-full bg-gray-200 dark:bg-dark-surface overflow-hidden">
+                    <div
+                        className="h-[150px] w-full bg-gray-200 dark:bg-dark-surface overflow-hidden cursor-pointer"
+                        onClick={() => {
+                            const banner = coverImage || profileUser?.coverImage;
+                            if (banner && banner !== COVER_PLACEHOLDER) {
+                                setImageZoom({ isOpen: true, url: banner, type: 'cover' });
+                            }
+                        }}
+                    >
                         {(coverImage || profileUser?.coverImage) ? (
                             <img
                                 src={coverImage || profileUser?.coverImage}
@@ -499,7 +513,15 @@ const ProfilePage: React.FC = () => {
 
                     {/* Avatar Overlap */}
                     <div className="absolute top-[104px] left-[10px] z-20">
-                        <div className="bg-white dark:bg-dark-bg rounded-full p-[2px] w-[94px] h-[94px] border-2 border-white dark:border-dark-bg shadow-sm">
+                        <div
+                            className="bg-white dark:bg-dark-bg rounded-full p-[2px] w-[94px] h-[94px] border-2 border-white dark:border-dark-bg shadow-sm cursor-pointer hover:opacity-95 transition-opacity"
+                            onClick={() => {
+                                const avatar = displayProfile?.avatarUrl || displayProfile?.avatar;
+                                if (avatar) {
+                                    setImageZoom({ isOpen: true, url: avatar, type: 'avatar' });
+                                }
+                            }}
+                        >
                             <div className="overflow-hidden w-[88px] h-[88px] rounded-full bg-gray-50">
                                 <Avatar
                                     key={displayProfile?.avatarUrl || displayProfile?.avatar || 'default'}
@@ -738,6 +760,13 @@ const ProfilePage: React.FC = () => {
                 message={t(`moderation.${confirmModal.type}_confirm`, { name: profileUser?.displayName || profileUser?.handle || '' })}
                 confirmLabel={t(`profile.${confirmModal.type}`)}
                 variant={confirmModal.type === 'block' || confirmModal.type === 'mute' ? 'danger' : 'primary'}
+            />
+
+            <ProfileImageViewerModal
+                isOpen={imageZoom.isOpen}
+                onClose={() => setImageZoom((prev) => ({ ...prev, isOpen: false }))}
+                imageUrl={imageZoom.url}
+                type={imageZoom.type}
             />
         </>
     );
