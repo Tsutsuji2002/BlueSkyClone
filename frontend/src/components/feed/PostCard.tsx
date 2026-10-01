@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Post, MutedWord } from '../../types';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { toggleLike, repostPost, toggleBookmark, pinPost, unpinPost } from '../../redux/slices/postsSlice';
@@ -60,6 +60,9 @@ interface PostCardProps {
     hasBottomLine?: boolean;
     hideBorder?: boolean;
     indentFactor?: number;
+    // Feed interaction signals
+    onSeen?: (uri: string) => void;
+    feedContext?: string;
 }
 
 const normalizeLowercaseStrings = (values: unknown[]): string[] => {
@@ -79,7 +82,8 @@ const normalizeLowercaseStrings = (values: unknown[]): string[] => {
         .map((value) => value.toLowerCase());
 };
 
-const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor }) => {
+const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPost: isOwnPostProp, isComment = false, isInListContext = false, onRemoveFromList, hasTopLine, hasBottomLine, hideBorder, indentFactor, onSeen, feedContext }) => {
+    const cardRef = useRef<HTMLDivElement>(null);
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const { t, i18n } = useTranslation();
@@ -113,6 +117,26 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
 
     const [isUnmuted, setIsUnmuted] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
+
+    // Report interactionSeen when this card scrolls into view (≥50% visible, ≥100ms dwell)
+    useEffect(() => {
+        if (!onSeen || !postData.uri || !postData.uri.startsWith('at://')) return;
+        const el = cardRef.current;
+        if (!el) return;
+        let timer: ReturnType<typeof setTimeout> | null = null;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    timer = setTimeout(() => onSeen(postData.uri!), 100);
+                } else {
+                    if (timer) { clearTimeout(timer); timer = null; }
+                }
+            },
+            { threshold: 0.5 }
+        );
+        observer.observe(el);
+        return () => { observer.disconnect(); if (timer) clearTimeout(timer); };
+    }, [postData.uri, onSeen]);
 
     const isOwnPost = isOwnPostProp ?? (
         currentUser?.id === post.author?.id ||
@@ -443,6 +467,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
 
     return (
         <div
+            ref={cardRef}
             className={cn(
                 "hover:bg-gray-100/50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer",
                 hideBorder ? "" : "border-b border-gray-200 dark:border-dark-border"

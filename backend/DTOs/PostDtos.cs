@@ -213,3 +213,19 @@ public class PagedFeedsDto
     public string? Cursor { get; set; }
 }
 
+/// <summary>A single interaction event to report to the feed generator.</summary>
+public record InteractionSignal(
+    /// <summary>AT-URI of the post item.</summary>
+    string Item,
+    /// <summary>Event name, e.g. interactionSeen, interactionLike, interactionRepost, clickthroughItem.</summary>
+    string Event,
+    /// <summary>Opaque context string returned by getFeedSkeleton — optional.</summary>
+    string? FeedContext = null
+);
+
+public class SendInteractionsRequest
+{
+    public List<InteractionSignal> Interactions { get; set; } = new();
+}
+
+

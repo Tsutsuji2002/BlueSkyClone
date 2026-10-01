@@ -52,4 +52,9 @@ public interface IPostService
     /// </summary>
     Task IncrementRemoteInteractionAsync(string? subjectUri, string type, int delta, string? actorDid = null, string? recordPath = null);
     Task IngestThreadRecursiveAsync(Newtonsoft.Json.Linq.JToken? node);
+    /// <summary>
+    /// Fire-and-forget: proxy interaction signals (seen, liked, reposted, etc.) to app.bsky.feed.sendInteractions on the user's PDS.
+    /// </summary>
+    Task SendInteractionsAsync(Guid userId, List<InteractionSignal> signals);
 }
+

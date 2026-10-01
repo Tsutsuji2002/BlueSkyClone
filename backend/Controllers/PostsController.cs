@@ -153,6 +153,33 @@ public class PostsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Proxy interaction signals (impressions, likes, reposts, etc.) to app.bsky.feed.sendInteractions on the user's PDS.
+    /// Returns immediately — the actual PDS call is fire-and-forget.
+    /// </summary>
+    [HttpPost("interactions/send")]
+    public async Task<IActionResult> SendInteractions([FromBody] SendInteractionsRequest? request)
+    {
+        try
+        {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+            var signals = request?.Interactions ?? new List<InteractionSignal>();
+            if (signals.Count == 0) return Ok();
+
+            // Fire-and-forget — returns 200 immediately
+            _ = _postService.SendInteractionsAsync(userId, signals);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "[PostsController] SendInteractions error (non-critical)");
+            return Ok(); // Never fail the client for telemetry
+        }
+    }
+
+
     [AllowAnonymous]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserPosts(string userId, [FromQuery] string? type = null, [FromQuery] int take = 30, [FromQuery] int skip = 0, [FromQuery] string? cursor = null, [FromQuery] bool refresh = false, [FromQuery] bool includePins = false, [FromQuery] bool stream = false)

@@ -8993,4 +8993,72 @@ public class PostService : IPostService
             return new Guid(guidBytes);
         }
     }
+
+    /// <inheritdoc />
+    public async Task SendInteractionsAsync(Guid userId, List<InteractionSignal> signals)
+    {
+        if (signals == null || signals.Count == 0) return;
+
+        // Only forward signals for real AT-URIs (skip local-only posts)
+        var validSignals = signals
+            .Where(s => !string.IsNullOrEmpty(s.Item) && s.Item.StartsWith("at://"))
+            .Take(50) // AT Proto spec recommends ≤50 per batch
+            .ToList();
+
+        if (validSignals.Count == 0) return;
+
+        // Run completely fire-and-forget — never let this block the caller
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+                var xrpcProxy = scope.ServiceProvider.GetRequiredService<IXrpcProxyService>();
+                var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+                var user = await unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null || string.IsNullOrEmpty(user.Did)) return;
+
+                var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
+                if (string.IsNullOrEmpty(token)) return;
+
+                // Build the payload matching app.bsky.feed.sendInteractions lexicon
+                var body = new
+                {
+                    interactions = validSignals.Select(s => new
+                    {
+                        item = s.Item,
+                        @event = s.Event,
+                        feedContext = s.FeedContext
+                    }).ToArray()
+                };
+
+                var result = await xrpcProxy.ProxyRequestAsync(
+                    user.Did,
+                    "app.bsky.feed.sendInteractions",
+                    new Dictionary<string, string?>(),
+                    token,
+                    "POST",
+                    body,
+                    userId
+                );
+
+                if (!result.Success)
+                {
+                    _logger.LogDebug("[SendInteractionsAsync] PDS returned {Status}: {Content}", result.StatusCode, result.Content);
+                }
+                else
+                {
+                    _logger.LogDebug("[SendInteractionsAsync] Sent {Count} interaction signals for user {UserId}", validSignals.Count, userId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Silently swallow — this is a best-effort telemetry call
+                _logger.LogDebug(ex, "[SendInteractionsAsync] Non-critical failure sending interaction signals for user {UserId}", userId);
+            }
+        });
+    }
 }
+

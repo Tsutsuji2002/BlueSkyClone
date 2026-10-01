@@ -9,6 +9,7 @@ import { detectLanguage } from '../../utils/languageDetector';
 
 import postSignalrService from '../../services/postSignalrService';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import { useSendInteractions } from '../../hooks/useSendInteractions';
 
 interface FeedProps {
     feedId?: string; // Optional identifier to persist scroll state across unmounts
@@ -32,6 +33,7 @@ const Feed: React.FC<FeedProps> = ({
     feedId
 }) => {
     const { t } = useTranslation();
+    const { reportSeen } = useSendInteractions();
     const reduxPosts = useAppSelector((state) => state.posts.posts);
     const reduxLoading = useAppSelector((state) => state.posts.isLoading);
     const contentLanguages = useAppSelector((state) => state.language.contentLanguages);
@@ -240,11 +242,13 @@ const Feed: React.FC<FeedProps> = ({
                             post={post.parentPost}
                             hasBottomLine={true}
                             hideBorder={true}
+                            onSeen={reportSeen}
                         />
                     )}
                     <PostCard
                         post={post}
                         hasTopLine={!!post.parentPost}
+                        onSeen={reportSeen}
                     />
                 </div>
             )}
