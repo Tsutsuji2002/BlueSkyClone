@@ -685,40 +685,38 @@ const ProfilePage: React.FC = () => {
                 <>
                     {/* Tabs Selection Section */}
                     <div className="border-b border-gray-100 dark:border-dark-border w-full sticky top-0 bg-white dark:bg-dark-bg z-30">
-                        <div className="flex overflow-x-auto no-scrollbar scroll-smooth">
-                            <div className="flex w-full">
-                                {visibleTabs.map((tab: { id: string; label: string }, idx: number) => (
-                                    <button
-                                        key={tab.id}
-                                        type="button"
-                                        role="tab"
-                                        tabIndex={0}
-                                        data-testid={`profilePager-selector-${idx}`}
-                                        onClick={() => handleTabChange(tab.id)}
-                                        className="flex-1 flex justify-center items-center hover:bg-gray-100/50 dark:hover:bg-dark-surface/40 transition-colors cursor-pointer select-none"
-                                    >
-                                        <div className="relative py-[13px] flex items-center justify-center">
-                                            <span
-                                                data-testid={`profilePager-${t(`nav.${tab.id}`)}`}
-                                                className={cn(
-                                                    "text-[15px] leading-[20px] tracking-[0.25px] text-center font-semibold transition-colors",
-                                                    activeTab === tab.id
-                                                        ? "text-black dark:text-white"
-                                                        : "text-[#536471] dark:text-[#8798B0]"
-                                                )}
-                                            >
-                                                {t(`nav.${tab.id}`)}
-                                            </span>
-                                            {activeTab === tab.id && (
-                                                <div
-                                                    className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full"
-                                                    style={{ backgroundColor: "rgb(0, 106, 255)" }}
-                                                />
+                        <div className="flex w-full no-scrollbar">
+                            {visibleTabs.map((tab: { id: string; label: string }, idx: number) => (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    role="tab"
+                                    tabIndex={0}
+                                    data-testid={`profilePager-selector-${idx}`}
+                                    onClick={() => handleTabChange(tab.id)}
+                                    className="flex-1 min-w-0 px-1.5 flex justify-center items-center hover:bg-gray-100/50 dark:hover:bg-dark-surface/40 transition-colors cursor-pointer select-none"
+                                >
+                                    <div className="relative py-[13px] flex items-center justify-center min-w-0">
+                                        <span
+                                            data-testid={`profilePager-${t(`nav.${tab.id}`)}`}
+                                            className={cn(
+                                                "text-[15px] leading-[20px] tracking-[0.25px] text-center font-semibold transition-colors whitespace-nowrap",
+                                                activeTab === tab.id
+                                                    ? "text-black dark:text-white"
+                                                    : "text-[#536471] dark:text-[#8798B0]"
                                             )}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
+                                        >
+                                            {t(`nav.${tab.id}`)}
+                                        </span>
+                                        {activeTab === tab.id && (
+                                            <div
+                                                className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full"
+                                                style={{ backgroundColor: "rgb(0, 106, 255)" }}
+                                            />
+                                        )}
+                                    </div>
+                                </button>
+                            ))}
                         </div>
                     </div>
 

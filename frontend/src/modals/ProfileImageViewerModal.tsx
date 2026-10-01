@@ -62,30 +62,72 @@ const ProfileImageViewerModal: React.FC<ProfileImageViewerModalProps> = ({
         }
     };
 
-    const handleDownload = async (e: React.MouseEvent) => {
+    const handleDownload = (e: React.MouseEvent) => {
         e.stopPropagation();
         setShowMenu(false);
-        try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
+
+        const filename = type === 'avatar' ? 'profile-avatar.jpg' : 'profile-banner.jpg';
+
+        const triggerDownload = (url: string) => {
             const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = type === 'avatar' ? 'profile-avatar.jpg' : 'profile-banner.jpg';
+            a.href = url;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-            dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
-        } catch {
-            const a = document.createElement('a');
-            a.href = imageUrl;
-            a.target = '_blank';
-            a.download = type === 'avatar' ? 'profile-avatar.jpg' : 'profile-banner.jpg';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+        };
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = imageUrl;
+
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                const blobUrl = URL.createObjectURL(blob);
+                                triggerDownload(blobUrl);
+                                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                                dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
+                            } else {
+                                fallbackFetch();
+                            }
+                        },
+                        'image/jpeg',
+                        0.95
+                    );
+                } else {
+                    fallbackFetch();
+                }
+            } catch {
+                fallbackFetch();
+            }
+        };
+
+        img.onerror = () => {
+            fallbackFetch();
+        };
+
+        const fallbackFetch = async () => {
+            try {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                triggerDownload(blobUrl);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
+            } catch {
+                triggerDownload(imageUrl);
+                dispatch(showToast({ message: 'Image downloaded', type: 'success' }));
+            }
+        };
     };
 
     return (
@@ -176,12 +218,13 @@ const ProfileImageViewerModal: React.FC<ProfileImageViewerModalProps> = ({
 
             {/* Image Container (sample HTML) */}
             <div
-                className="flex-1 flex justify-center items-center p-4 w-full h-full"
-                onClick={(e) => e.stopPropagation()}
+                className="flex-1 flex justify-center items-center p-4 w-full h-full cursor-pointer"
+                onClick={onClose}
             >
                 <img
                     src={imageUrl}
                     alt={type === 'avatar' ? 'Avatar' : 'Banner'}
+                    onClick={onClose}
                     style={
                         type === 'avatar'
                             ? {
