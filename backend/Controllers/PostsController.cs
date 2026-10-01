@@ -598,7 +598,7 @@ public class PostsController : ControllerBase
     }
 
     [HttpPost("{id}/like")]
-    public async Task<IActionResult> LikePost(string id, [FromQuery] string? uri = null, [FromQuery] bool? isLiked = null, [FromQuery] string? likeUri = null)
+    public async Task<IActionResult> LikePost(string id, [FromQuery] string? uri = null, [FromQuery] string? cid = null, [FromQuery] bool? isLiked = null, [FromQuery] string? likeUri = null)
     {
         try
         {
@@ -633,7 +633,7 @@ public class PostsController : ControllerBase
             
             _logger.LogInformation("[PostsController] LikePost: Toggling interaction for PostId={PostId} (OriginalId={Id})", postId, id);
             string? fallbackUri = uri ?? (id.StartsWith("at://") ? id : null);
-            var result = (dynamic)await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri, fallbackUri);
+            var result = (dynamic)await _postService.ToggleLikeAsync(userId, postId, isLiked, likeUri, fallbackUri, cid);
             
             // Check for service-level errors and return as BadRequest so frontend detects failure
             try {

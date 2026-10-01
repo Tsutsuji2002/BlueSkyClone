@@ -130,10 +130,11 @@ export const postApi = apiSlice.injectEndpoints({
                     : [{ type: 'Post', id: 'DETAILS' }],
         }),
         toggleLike: builder.mutation<{ uri: string; isLiked: boolean; likeUri?: string }, { uri: string; cid: string; isLiked: boolean; likeUri?: string }>({
-            query: ({ uri, isLiked, likeUri }) => {
+            query: ({ uri, cid, isLiked, likeUri }) => {
                 const postId = uri.includes('/') ? uri.split('/').pop()! : uri;
                 const params: any = { isLiked };
                 if (uri.startsWith('at://')) params.uri = uri;
+                if (cid) params.cid = cid;
                 if (likeUri) params.likeUri = likeUri;
                 return {
                     url: `/posts/${postId}/like`,

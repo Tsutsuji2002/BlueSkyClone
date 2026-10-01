@@ -5986,7 +5986,7 @@ public class PostService : IPostService
         return affectedIds;
     }
 
-    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null, string? fallbackUri = null)
+    public async Task<object> ToggleLikeAsync(Guid userId, Guid postId, bool? clientIsLiked = null, string? clientLikeUri = null, string? fallbackUri = null, string? clientCid = null)
     {
         var lockKey = $"lock:like:{userId}:{postId}-{fallbackUri}";
         if (!await _cacheService.TryLockAsync(lockKey, TimeSpan.FromSeconds(4))) 
@@ -6018,8 +6018,11 @@ public class PostService : IPostService
                 if (post == null) return new { isLiked = false, error = "Post not found" };
                 freshPost = MapToDto(post);
 
-                // If CID is still missing or looks like a placeholder, try to resolve it from cache or remote
-                if (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy"))
+                if (!string.IsNullOrEmpty(clientCid) && clientCid.StartsWith("bafy"))
+                {
+                    freshPost.Cid = clientCid;
+                }
+                else if (string.IsNullOrEmpty(freshPost.Cid) || !freshPost.Cid.StartsWith("bafy"))
                 {
                     // Check local DB for any other post with this URI that might have a CID
                     var otherCid = await _unitOfWork.Posts.Query()
@@ -6039,7 +6042,7 @@ public class PostService : IPostService
             }
             else
             {
-                freshPost = new PostDto { Id = Guid.Empty, Uri = fallbackUri, Cid = "" };
+                freshPost = new PostDto { Id = Guid.Empty, Uri = fallbackUri, Cid = clientCid ?? "" };
             }
 
             // Determine current state

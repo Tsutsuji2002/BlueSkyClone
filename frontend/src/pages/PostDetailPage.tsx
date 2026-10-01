@@ -1003,14 +1003,18 @@ const PostDetailPage: React.FC = () => {
                                 onClick={handleLike}
                                 className={cn(
                                     "flex items-center gap-1 p-1.5 rounded-full transition-colors",
-                                    post.isLiked ? "text-red-500 hover:bg-red-500/10" : "text-[#667B99] hover:bg-red-500/10 hover:text-red-500"
+                                    post.isLiked ? "text-[#EC4899] hover:bg-[#EC4899]/10" : "text-[#667B99] hover:bg-red-500/10 hover:text-red-500"
                                 )}
                             >
                                 <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
-                                    <path fill={post.isLiked ? "#EC4899" : "currentColor"} fillRule="evenodd" clipRule="evenodd" d="M16.734 5.091c-1.238-.276-2.708.047-4.022 1.38a1 1 0 0 1-1.424 0C9.974 5.137 8.504 4.814 7.266 5.09c-1.263.282-2.379 1.206-2.92 2.556C3.33 10.18 4.252 14.84 12 19.348c7.747-4.508 8.67-9.168 7.654-11.7-.541-1.351-1.657-2.275-2.92-2.557Zm4.777 1.812c1.604 4-.494 9.69-9.022 14.47a1 1 0 0 1-.978 0C2.983 16.592.885 10.902 2.49 6.902c.779-1.942 2.414-3.334 4.342-3.764 1.697-.378 3.552.003 5.169 1.286 1.617-1.283 3.472-1.664 5.17-1.286 1.927.43 3.562 1.822 4.34 3.764Z" />
+                                    {post.isLiked ? (
+                                        <path fill="#EC4899" fillRule="evenodd" clipRule="evenodd" d="M12.489 21.372c8.528-4.78 10.626-10.47 9.022-14.47-.779-1.941-2.414-3.333-4.342-3.763-1.697-.378-3.552.003-5.169 1.287-1.617-1.284-3.472-1.665-5.17-1.287-1.927.43-3.562 1.822-4.34 3.764-1.605 4 .493 9.69 9.021 14.47a1 1 0 0 0 .978 0Z" />
+                                    ) : (
+                                        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M16.734 5.091c-1.238-.276-2.708.047-4.022 1.38a1 1 0 0 1-1.424 0C9.974 5.137 8.504 4.814 7.266 5.09c-1.263.282-2.379 1.206-2.92 2.556C3.33 10.18 4.252 14.84 12 19.348c7.747-4.508 8.67-9.168 7.654-11.7-.541-1.351-1.657-2.275-2.92-2.557Zm4.777 1.812c1.604 4-.494 9.69-9.022 14.47a1 1 0 0 1-.978 0C2.983 16.592.885 10.902 2.49 6.902c.779-1.942 2.414-3.334 4.342-3.764 1.697-.378 3.552.003 5.169 1.286 1.617-1.283 3.472-1.664 5.17-1.286 1.927.43 3.562 1.822 4.34 3.764Z" />
+                                    )}
                                 </svg>
                                 {post.likesCount ? (
-                                    <span className="text-[15px] leading-[20px] font-normal">{post.likesCount}</span>
+                                    <span className={cn("text-[15px] leading-[20px] font-normal tracking-[0.25px]", post.isLiked ? "text-[#EC4899] font-semibold" : "")}>{post.likesCount}</span>
                                 ) : null}
                             </button>
                         </div>
