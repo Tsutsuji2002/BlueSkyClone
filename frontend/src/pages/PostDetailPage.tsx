@@ -59,6 +59,7 @@ import {
     FiFlag,
     FiLock
 } from 'react-icons/fi';
+import { BsPatchCheckFill } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
 import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
@@ -769,42 +770,41 @@ const PostDetailPage: React.FC = () => {
                                     </span>
                                 </div>
                             )}
-                            <div className="flex justify-between items-start">
-                                <div className="flex gap-3 mb-4 min-w-0">
-                                    <div className="flex-shrink-0 relative flex flex-col items-center">
-                                        {/* Connection line to parent if this post is a reply */}
-                                        {parentPost && (
-                                            <div className="absolute top-[-16px] w-[2px] h-[16px] bg-gray-200 dark:bg-dark-border z-0" />
-                                        )}
-                                        <div className="z-10 bg-white dark:bg-dark-bg rounded-full" style={{ cursor: 'pointer' }}>
-                                            <UserHoverCard user={post.author}>
-                                                <div onClick={() => navigate(`/profile/${post.author.handle}`)}>
-                                                    <Avatar
-                                                        src={post.author.avatarUrl || post.author.avatar}
-                                                        alt={post.author.displayName}
-                                                        size="md"
-                                                    />
-                                                </div>
-                                            </UserHoverCard>
-                                        </div>
+                            <div className="flex items-center gap-3 pb-3">
+                                <UserHoverCard user={post.author}>
+                                    <div 
+                                        onClick={() => navigate(`/profile/${post.author.handle}`)}
+                                        className="w-[42px] h-[42px] rounded-full overflow-hidden relative border border-gray-200/60 dark:border-dark-border/60 cursor-pointer flex-shrink-0"
+                                    >
+                                        <Avatar
+                                            src={post.author.avatarUrl || post.author.avatar}
+                                            alt={post.author.displayName}
+                                            size={42}
+                                            hasBorder={false}
+                                            className="w-[42px] h-[42px] object-cover"
+                                        />
                                     </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <UserHoverCard user={post.author}>
-                                            <span
-                                                className="block truncate font-bold text-gray-900 dark:text-dark-text hover:underline cursor-pointer"
-                                                onClick={() => navigate(`/profile/${post.author.handle}`)}
-                                                title={post.author.displayName || post.author.handle || 'Unknown'}
-                                            >
-                                                {post.author.displayName || post.author.handle || 'Unknown'}
-                                            </span>
-                                        </UserHoverCard>
+                                </UserHoverCard>
+                                <div className="flex flex-col min-w-0 flex-1 justify-center">
+                                    <UserHoverCard user={post.author} className="inline-flex min-w-0 max-w-full">
                                         <span
-                                            className="truncate text-gray-500 dark:text-dark-text-secondary"
-                                            title={post.author.handle || ''}
+                                            className="font-semibold text-[16.9px] leading-[22px] text-gray-900 dark:text-white truncate hover:underline cursor-pointer flex items-center gap-1 font-sans"
+                                            onClick={() => navigate(`/profile/${post.author.handle}`)}
+                                            title={post.author.displayName || post.author.handle || 'Unknown'}
                                         >
-                                            {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle)}
+                                            {post.author.displayName || post.author.handle || 'Unknown'}
+                                            {post.author.isVerified && (
+                                                <BsPatchCheckFill className="text-blue-500 shrink-0" size={15} />
+                                            )}
                                         </span>
-                                    </div>
+                                    </UserHoverCard>
+                                    <span
+                                        className="text-[15px] leading-[20px] text-[#405168] dark:text-[#8798B0] truncate cursor-pointer"
+                                        onClick={() => navigate(`/profile/${post.author.handle}`)}
+                                        title={post.author.handle || ''}
+                                    >
+                                        {post.author.handle?.startsWith('did:') ? '' : formatHandleText(post.author.handle)}
+                                    </span>
                                 </div>
                             </div>
 
@@ -812,7 +812,7 @@ const PostDetailPage: React.FC = () => {
                             <ExpandableRichText
                                 content={post.content}
                                 facets={post.facets}
-                                className="text-lg text-gray-900 dark:text-dark-text mb-2 whitespace-pre-wrap break-words leading-relaxed"
+                                className="text-[16.9px] leading-[22px] text-gray-900 dark:text-white mb-2 whitespace-pre-wrap break-words font-sans tracking-[0.25px]"
                                 maxLines={8}
                                 maxChars={450}
                                 isDetailView={true}
@@ -829,7 +829,7 @@ const PostDetailPage: React.FC = () => {
                             ) : (
                                 <>
                                     {/* Media */}
-                                    <div className="mb-4">
+                                    <div className="mb-3">
                                         <MediaGrid
                                             images={post.images}
                                             imageUrls={post.imageUrls}
@@ -846,15 +846,17 @@ const PostDetailPage: React.FC = () => {
 
                                     {/* Link Preview */}
                                     {(post.linkPreview || post.isLinkPreviewPending) && (
-                                        <LinkPreviewCard
-                                            preview={post.linkPreview}
-                                            isLoading={post.isLinkPreviewPending}
-                                        />
+                                        <div className="mb-3">
+                                            <LinkPreviewCard
+                                                preview={post.linkPreview}
+                                                isLoading={post.isLinkPreviewPending}
+                                            />
+                                        </div>
                                     )}
 
                                     {/* Quoted Post */}
                                     {post.quotePost && (
-                                        <div className="mb-4">
+                                        <div className="mb-3">
                                             <QuotedPost post={post.quotePost} isCard={true} />
                                         </div>
                                     )}
@@ -864,18 +866,18 @@ const PostDetailPage: React.FC = () => {
                     );
                 })()}
 
-                {/* Interaction Status & Details */}
-
-                {/* Footer Info */}
-                <div className="flex items-center gap-2 text-gray-500 dark:text-dark-text-secondary text-sm mb-4">
-                    <span>{new Date(post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    <span>·</span>
-                    <span>{new Date(post.createdAt).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                    <span>·</span>
-                    <div
+                {/* Footer Info: Date & Reply Permission Row */}
+                <div className="flex items-center gap-2 pt-3 text-[13.1px] leading-[17px] text-[#405168] dark:text-[#8798B0]">
+                    <span>
+                        {new Date(post.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                        {' · '}
+                        {new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                    <button
+                        type="button"
                         className={cn(
-                            "flex items-center gap-1.5 cursor-default",
-                            isOwnPost && "text-[#0085FF] cursor-pointer hover:underline"
+                            "flex items-center gap-1 hover:opacity-80 transition-opacity",
+                            isOwnPost && "cursor-pointer"
                         )}
                         onClick={() => {
                             if (isOwnPost) {
@@ -883,9 +885,11 @@ const PostDetailPage: React.FC = () => {
                             }
                         }}
                     >
-                        <FiMessageSquare size={14} />
-                        <span>{
-                            post.replyRestriction === 'nobody'
+                        <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-[#8798B0]">
+                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4.4 9.493C4.14 10.28 4 11.124 4 12a8 8 0 1 0 10.899-7.459l-.953 3.81a1 1 0 0 1-.726.727l-3.444.866-.772 1.533a1 1 0 0 1-1.493.35L4.4 9.493Zm.883-1.84L7.756 9.51l.44-.874a1 1 0 0 1 .649-.52l3.306-.832.807-3.227a7.993 7.993 0 0 0-7.676 3.597ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Zm8.43.162a1 1 0 0 1 .77-.29l1.89.121a1 1 0 0 1 .494.168l2.869 1.928a1 1 0 0 1 .336 1.277l-.973 1.946a1 1 0 0 1-.894.553h-2.92a1 1 0 0 1-.831-.445L9.225 14.5a1 1 0 0 1 .126-1.262l1.08-1.076Zm.915 1.913.177-.177 1.171.074 1.914 1.286-.303.607h-1.766l-1.194-1.79Z" />
+                        </svg>
+                        <span className="text-[13.1px] text-[#405168] dark:text-[#8798B0]">
+                            {post.replyRestriction === 'nobody'
                                 ? t('post.reply_nobody', 'Replies disabled')
                                 : post.replyRestriction === 'following'
                                     ? t('post.reply_following', 'People you follow')
@@ -893,125 +897,171 @@ const PostDetailPage: React.FC = () => {
                                         ? t('post.reply_followers', 'Followers')
                                         : post.replyRestriction === 'mentioned'
                                             ? t('post.reply_mentioned', 'People you mention')
-                                            : post.replyRestriction === 'custom' || (post.replyRestriction && post.replyRestriction.includes(','))
-                                                ? t('post.interaction_limited', 'Interaction limited')
-                                                : t('post.anyone_can_reply', 'Everybody can reply')
-                        }</span>
-                        {currentUser?.id === post.author.id && <FiChevronDown size={14} />}
-                    </div>
-                    <span>·</span>
-                    <button
-                        onClick={() => handleTranslate(post.content)}
-                        className="text-primary-500 hover:underline"
-                    >
-                        {`${t('post.translate')} → ${primaryLangName}`}
+                                            : t('post.anyone_can_reply', 'Everybody can reply')}
+                        </span>
                     </button>
                 </div>
 
-                {/* Stats */}
-                <div className="flex items-center gap-4 py-3 border-t border-gray-100 dark:border-dark-border/50 text-sm">
-                    <button 
-                        className="flex items-center gap-1 hover:underline group disabled:opacity-50 disabled:hover:no-underline"
-                        onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/reposted-by`)}
-                        disabled={post.repostsCount === 0}
-                    >
-                        <span className="font-bold text-gray-900 dark:text-dark-text group-hover:text-primary-500">{post.repostsCount}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-primary-500">{t('post.reposts')}</span>
-                    </button>
-                    <button 
-                        className="flex items-center gap-1 hover:underline group disabled:opacity-50 disabled:hover:no-underline"
-                        onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/quotes`)}
-                        disabled={!post.quotesCount || post.quotesCount === 0}
-                    >
-                        <span className="font-bold text-gray-900 dark:text-dark-text group-hover:text-primary-500">{post.quotesCount || 0}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-primary-500">{t('post.quotes')}</span>
-                    </button>
-                    <button 
-                        className="flex items-center gap-1 hover:underline group disabled:opacity-50 disabled:hover:no-underline"
-                        onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/liked-by`)}
-                        disabled={post.likesCount === 0}
-                    >
-                        <span className="font-bold text-gray-900 dark:text-dark-text group-hover:text-primary-500">{post.likesCount}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary group-hover:text-primary-500">{t('post.likes')}</span>
-                    </button>
-                    <div className="flex items-center gap-1">
-                        <span className="font-bold text-gray-900 dark:text-dark-text">{post.bookmarksCount || 0}</span>
-                        <span className="text-gray-500 dark:text-dark-text-secondary">{t('post.saves')}</span>
+                {/* Stats Row */}
+                {(post.likesCount > 0 || post.repostsCount > 0 || (post.quotesCount && post.quotesCount > 0)) && (
+                    <div className="flex items-center gap-4 border-t border-gray-200 dark:border-dark-border mt-3 py-2 text-[15px] leading-[20px] text-[#405168] dark:text-[#8798B0]">
+                        {post.repostsCount > 0 && (
+                            <button 
+                                className="flex items-center gap-1 hover:underline group cursor-pointer"
+                                onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/reposted-by`)}
+                            >
+                                <span className="font-semibold text-gray-900 dark:text-white">{post.repostsCount}</span>
+                                <span>{t('post.reposts')}</span>
+                            </button>
+                        )}
+                        {post.quotesCount && post.quotesCount > 0 && (
+                            <button 
+                                className="flex items-center gap-1 hover:underline group cursor-pointer"
+                                onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/quotes`)}
+                            >
+                                <span className="font-semibold text-gray-900 dark:text-white">{post.quotesCount}</span>
+                                <span>{t('post.quotes')}</span>
+                            </button>
+                        )}
+                        {post.likesCount > 0 && (
+                            <button 
+                                className="flex items-center gap-1 hover:underline group cursor-pointer"
+                                onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/liked-by`)}
+                            >
+                                <span className="font-semibold text-gray-900 dark:text-white">{post.likesCount}</span>
+                                <span>{t('post.likes')}</span>
+                            </button>
+                        )}
                     </div>
-                </div>
+                )}
 
-                {/* Actions */}
-                <div className="flex items-center justify-between py-1 border-t border-gray-100 dark:border-dark-border/50">
-                    <IconButton
-                        icon={<FiMessageCircle size={22} className={post.canReply === false ? 'text-gray-300 dark:text-gray-700' : ''} />}
-                        onClick={() => {
-                            if (!currentUser) {
-                                dispatch(openAuthWall());
-                                return;
-                            }
-                            if (post.canReply === false) {
-                                dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' }));
-                                return;
-                            }
-                            dispatch(openReply(post));
-                        }}
+                {/* Actions Row */}
+                <div className="flex items-center justify-between border-t border-gray-200 dark:border-dark-border py-1 mt-1 -ml-1">
+                    <div className="flex items-center flex-1 max-w-[320px]">
+                        {/* Reply */}
+                        <div className="flex-1 flex items-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!currentUser) { dispatch(openAuthWall()); return; }
+                                    if (post.canReply === false) { dispatch(showToast({ message: t('post.replies_disabled'), type: 'info' })); return; }
+                                    dispatch(openReply(post));
+                                }}
+                                disabled={post.canReply === false}
+                                className="flex items-center gap-1 p-1.5 rounded-full text-[#667B99] hover:bg-primary-500/10 hover:text-primary-500 transition-colors"
+                            >
+                                <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
+                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M20.002 7a2 2 0 0 0-2-2h-12a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2a1 1 0 0 1 1 1v1.918l3.375-2.7a1 1 0 0 1 .625-.218h5a2 2 0 0 0 2-2V7Zm2 8a4 4 0 0 1-4 4h-4.648l-4.727 3.781A1.001 1.001 0 0 1 7.002 22v-3h-1a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v8Z" />
+                                </svg>
+                                {post.repliesCount ? (
+                                    <span className="text-[15px] leading-[20px] font-normal">{post.repliesCount}</span>
+                                ) : null}
+                            </button>
+                        </div>
 
-                        variant="default"
-                        disabled={post.canReply === false}
-                        tooltip={post.canReply === false ? t('post.replies_disabled') : undefined}
-                    />
-                    <Dropdown
-                        trigger={
-                            <IconButton
-                                icon={<FiRepeat size={22} className={post.isReposted ? 'text-green-500' : ''} />}
-                                variant="default"
+                        {/* Repost */}
+                        <div className="flex-1 flex items-center">
+                            <Dropdown
+                                trigger={
+                                    <button
+                                        type="button"
+                                        className={cn(
+                                            "flex items-center gap-1 p-1.5 rounded-full transition-colors",
+                                            post.isReposted ? "text-green-500 hover:bg-green-500/10" : "text-[#667B99] hover:bg-green-500/10 hover:text-green-500"
+                                        )}
+                                    >
+                                        <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M17.957 2.293a1 1 0 1 0-1.414 1.414L17.836 5H6a3 3 0 0 0-3 3v3a1 1 0 1 0 2 0V8a1 1 0 0 1 1-1h11.836l-1.293 1.293a1 1 0 0 0 1.414 1.414l2.47-2.47a1.75 1.75 0 0 0 0-2.474l-2.47-2.47ZM20 12a1 1 0 0 1 1 1v3a3 3 0 0 1-3 3H6.164l1.293 1.293a1 1 0 1 1-1.414 1.414l-2.47-2.47a1.75 1.75 0 0 1 0-2.474l2.47-2.47a1 1 0 0 1 1.414 1.414L6.164 17H18a1 1 0 0 0 1-1v-3a1 1 0 0 1 1-1Z" />
+                                        </svg>
+                                        {post.repostsCount ? (
+                                            <span className="text-[15px] leading-[20px] font-normal">{post.repostsCount}</span>
+                                        ) : null}
+                                    </button>
+                                }
+                                items={[
+                                    {
+                                        id: 'repost',
+                                        label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
+                                        icon: <FiRepeat className={post.isReposted ? 'text-green-500' : ''} />,
+                                        onClick: handleRepost
+                                    },
+                                    {
+                                        id: 'quote',
+                                        label: t('post.quote_post', 'Quote post'),
+                                        icon: <FiType />,
+                                        onClick: () => dispatch(openQuote(post))
+                                    }
+                                ]}
+                                align="left"
                             />
-                        }
-                        items={[
-                            {
-                                id: 'repost',
-                                label: post.isReposted ? t('post.undo_repost', 'Undo repost') : t('post.repost', 'Repost'),
-                                icon: <FiRepeat className={post.isReposted ? 'text-green-500' : ''} />,
-                                onClick: handleRepost
-                            },
-                            {
-                                id: 'quote',
-                                label: t('post.quote_post', 'Quote post'),
-                                icon: <FiType />,
-                                onClick: () => dispatch(openQuote(post))
-                            }
-                        ]}
-                        align="left"
-                    />
-                    <IconButton
-                        icon={<FiHeart size={22} className={post.isLiked ? 'fill-red-500 text-red-500' : ''} />}
-                        onClick={handleLike}
-                        variant="default"
-                    />
-                    <IconButton
-                        icon={<FiBookmark size={22} className={post.isBookmarked ? 'fill-primary-500 text-primary-500' : ''} />}
-                        onClick={handleBookmark}
-                        variant="default"
-                    />
-                    <Dropdown
-                        trigger={
-                            <IconButton
-                                icon={<FiShare2 size={22} />}
-                                variant="default"
+                        </div>
+
+                        {/* Like */}
+                        <div className="flex-1 flex items-center">
+                            <button
+                                type="button"
+                                onClick={handleLike}
+                                className={cn(
+                                    "flex items-center gap-1 p-1.5 rounded-full transition-colors",
+                                    post.isLiked ? "text-red-500 hover:bg-red-500/10" : "text-[#667B99] hover:bg-red-500/10 hover:text-red-500"
+                                )}
+                            >
+                                <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
+                                    <path fill={post.isLiked ? "#EC4899" : "currentColor"} fillRule="evenodd" clipRule="evenodd" d="M16.734 5.091c-1.238-.276-2.708.047-4.022 1.38a1 1 0 0 1-1.424 0C9.974 5.137 8.504 4.814 7.266 5.09c-1.263.282-2.379 1.206-2.92 2.556C3.33 10.18 4.252 14.84 12 19.348c7.747-4.508 8.67-9.168 7.654-11.7-.541-1.351-1.657-2.275-2.92-2.557Zm4.777 1.812c1.604 4-.494 9.69-9.022 14.47a1 1 0 0 1-.978 0C2.983 16.592.885 10.902 2.49 6.902c.779-1.942 2.414-3.334 4.342-3.764 1.697-.378 3.552.003 5.169 1.286 1.617-1.283 3.472-1.664 5.17-1.286 1.927.43 3.562 1.822 4.34 3.764Z" />
+                                </svg>
+                                {post.likesCount ? (
+                                    <span className="text-[15px] leading-[20px] font-normal">{post.likesCount}</span>
+                                ) : null}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Right Action Icons */}
+                    <div className="flex items-center gap-1 justify-end">
+                        {/* Bookmark */}
+                        <button
+                            type="button"
+                            onClick={handleBookmark}
+                            className={cn(
+                                "p-1.5 rounded-full transition-colors",
+                                post.isBookmarked ? "text-primary-500 hover:bg-primary-500/10" : "text-[#667B99] hover:bg-primary-500/10 hover:text-primary-500"
+                            )}
+                        >
+                            <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
+                                <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M9.7 16.895a4 4 0 0 1 4.6 0l3.7 2.6V6.5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v12.995l3.7-2.6Zm10.3 2.6c0 1.62-1.825 2.567-3.15 1.636l-3.7-2.6a2.001 2.001 0 0 0-2.3 0l-3.7 2.6C5.825 22.062 4 21.115 4 19.495V6.5a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v12.995Z" />
+                            </svg>
+                        </button>
+
+                        {/* Share */}
+                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                            <Dropdown
+                                trigger={
+                                    <button type="button" className="p-1.5 rounded-full text-[#667B99] hover:bg-primary-500/10 hover:text-primary-500 transition-colors">
+                                        <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M11.839 4.744c0-1.488 1.724-2.277 2.846-1.364l.107.094 7.66 7.256.128.134c.558.652.558 1.62 0 2.272l-.128.135-7.66 7.255c-1.115 1.057-2.953.267-2.953-1.27v-2.748c-3.503.055-5.417.41-6.592.97-.997.474-1.525 1.122-2.084 2.14l-.243.46c-.558 1.088-2.09.583-2.08-.515l.015-.748c.111-3.68.777-6.5 2.546-8.415 1.83-1.98 4.63-2.771 8.438-2.884V4.744Zm2 3.256c0 .79-.604 1.41-1.341 1.494l-.149.01c-3.9.057-6.147.813-7.48 2.254-.963 1.043-1.562 2.566-1.842 4.79.38-.327.826-.622 1.361-.877 1.656-.788 4.08-1.14 7.938-1.169l.153.007c.754.071 1.36.704 1.36 1.491v2.675L20.884 12l-7.045-6.676V8Z" />
+                                        </svg>
+                                    </button>
+                                }
+                                items={shareDropdownItems}
+                                align="right"
                             />
-                        }
-                        items={shareDropdownItems}
-                    />
-                    <Dropdown
-                        trigger={
-                            <IconButton
-                                icon={<FiMoreHorizontal size={22} />}
-                                variant="default"
-                                onClick={() => { }} // Explicitly interactive
+                        </div>
+
+                        {/* More */}
+                        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                            <Dropdown
+                                trigger={
+                                    <button type="button" className="p-1.5 rounded-full text-[#667B99] hover:bg-gray-500/10 hover:text-gray-900 dark:hover:text-white transition-colors">
+                                        <svg fill="none" width="22" height="22" viewBox="0 0 24 24" className="text-current pointer-events-none">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
+                                        </svg>
+                                    </button>
+                                }
+                                items={moreDropdownItems}
+                                align="right"
                             />
-                        }
-                        items={moreDropdownItems}
-                    />
+                        </div>
+                    </div>
                 </div>
             </div>
             );

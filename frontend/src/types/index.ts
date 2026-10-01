@@ -629,7 +629,7 @@ export interface InputProps {
 export interface AvatarProps {
     src?: string;
     alt: string;
-    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | number;
     online?: boolean;
     hasBorder?: boolean;
     borderColor?: string;

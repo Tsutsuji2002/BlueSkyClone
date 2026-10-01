@@ -103,7 +103,7 @@ const Avatar: React.FC<AvatarProps> = ({
             {online && (
                 <span
                     className={cn(
-                        onlineIndicatorSize[size],
+                        typeof size === 'number' ? 'w-2.5 h-2.5' : onlineIndicatorSize[size as keyof typeof onlineIndicatorSize],
                         'absolute bottom-0 right-0 bg-green-500 rounded-full border-2 border-white dark:border-dark-bg'
                     )}
                 />
