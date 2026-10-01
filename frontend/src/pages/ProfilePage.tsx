@@ -154,6 +154,25 @@ const ProfilePage: React.FC = () => {
 
     const isOwnProfile = currentUser?.did === profileUser?.did;
 
+    useEffect(() => {
+        if (!isOwnProfile && activeTab === 'likes') {
+            dispatch(setActiveProfileTab('posts'));
+        }
+    }, [isOwnProfile, activeTab, dispatch]);
+
+    const visibleTabs = React.useMemo(() => {
+        return PROFILE_TABS.filter(tab => {
+            if (tab.id === 'likes' && !isOwnProfile) return false;
+            if (tab.id === 'feeds') {
+                return (userFeeds && userFeeds.length > 0) || isUserFeedsLoading || isProfileLoading;
+            }
+            if (tab.id === 'lists') {
+                return (userLists && userLists.length > 0) || isListsLoading || isProfileLoading;
+            }
+            return true;
+        });
+    }, [isOwnProfile, userFeeds, isUserFeedsLoading, userLists, isListsLoading, isProfileLoading]);
+
     // CRITICAL FIX: When viewing own profile, ALWAYS prefer currentUser data
     // currentUser comes from auth state which is updated by handshake
     // profileUser might be stale if fetched before profile update
@@ -645,31 +664,36 @@ const ProfilePage: React.FC = () => {
                     {/* Tabs Selection Section */}
                     <div className="border-b border-gray-100 dark:border-dark-border w-full sticky top-0 bg-white dark:bg-dark-bg z-30">
                         <div className="flex overflow-x-auto no-scrollbar scroll-smooth">
-                            <div className="flex w-full px-2">
-                                {PROFILE_TABS.filter(tab => {
-                                    if (isOwnProfile) return true;
-                                    if (tab.id === 'feeds') {
-                                        return (userFeeds && userFeeds.length > 0) || isUserFeedsLoading || isProfileLoading;
-                                    }
-                                    if (tab.id === 'lists') {
-                                        return (userLists && userLists.length > 0) || isListsLoading || isProfileLoading;
-                                    }
-                                    return true;
-                                }).map((tab: { id: string; label: string }) => (
+                            <div className="flex w-full">
+                                {visibleTabs.map((tab: { id: string; label: string }, idx: number) => (
                                     <button
                                         key={tab.id}
+                                        type="button"
+                                        role="tab"
+                                        tabIndex={0}
+                                        data-testid={`profilePager-selector-${idx}`}
                                         onClick={() => handleTabChange(tab.id)}
-                                        className={cn(
-                                            'px-3 py-3 text-[14px] font-bold transition-all whitespace-nowrap relative flex-1',
-                                            activeTab === tab.id
-                                                ? 'text-gray-900 dark:text-dark-text'
-                                                : 'text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50'
-                                        )}
+                                        className="flex-1 flex justify-center items-center hover:bg-gray-100/50 dark:hover:bg-dark-surface/40 transition-colors cursor-pointer select-none"
                                     >
-                                        {t(`nav.${tab.id}`)}
-                                        {activeTab === tab.id && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-primary-500" />
-                                        )}
+                                        <div className="relative py-[13px] flex items-center justify-center">
+                                            <span
+                                                data-testid={`profilePager-${t(`nav.${tab.id}`)}`}
+                                                className={cn(
+                                                    "text-[15px] leading-[20px] tracking-[0.25px] text-center font-semibold transition-colors",
+                                                    activeTab === tab.id
+                                                        ? "text-black dark:text-white"
+                                                        : "text-[#536471] dark:text-[#8798B0]"
+                                                )}
+                                            >
+                                                {t(`nav.${tab.id}`)}
+                                            </span>
+                                            {activeTab === tab.id && (
+                                                <div
+                                                    className="absolute bottom-0 left-0 right-0 h-[3px] rounded-full"
+                                                    style={{ backgroundColor: "rgb(0, 106, 255)" }}
+                                                />
+                                            )}
+                                        </div>
                                     </button>
                                 ))}
                             </div>
@@ -678,12 +702,7 @@ const ProfilePage: React.FC = () => {
 
                     {/* Content Section — only render tabs that are visible */}
                     <div className="flex-1 bg-white dark:bg-dark-bg min-h-screen">
-                        {PROFILE_TABS.filter(tab => {
-                            if (isOwnProfile) return true;
-                            if (tab.id === 'feeds') return (userFeeds && userFeeds.length > 0) || isUserFeedsLoading || isProfileLoading;
-                            if (tab.id === 'lists') return (userLists && userLists.length > 0) || isListsLoading || isProfileLoading;
-                            return true;
-                        }).map((tab: any) => {
+                        {visibleTabs.map((tab: any) => {
                             if (!visitedTabs.has(tab.id)) return null;
                             return (
                                 <div 
