@@ -37,6 +37,7 @@ const ExplorePage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const [isSearchUIActive, setIsSearchUIActive] = useState(false);
+    const [hideInterestsCard, setHideInterestsCard] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
     const observerTarget = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -387,187 +388,298 @@ const ExplorePage: React.FC = () => {
                                 )}
                             </div>
                         </section>
-                    ) : isAuthenticated ? (
-                        <>
-                            {/* Interests Section */}
-                            <section className="flex flex-col relative px-2">
-                                <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 dark:hover:text-dark-text transition-colors">
-                                    <FiX size={20} />
-                                </button>
+                    ) : (
+                        <div className="w-full max-w-[600px] mx-auto pb-[100px] flex flex-col">
+                            {/* 1. Your interests card */}
+                            {!hideInterestsCard && (
+                                <div className="p-4 border-b border-[#c0ca98] dark:border-dark-border gap-3 flex flex-col relative bg-white dark:bg-dark-bg">
+                                    <button
+                                        aria-label="Hide this card"
+                                        onClick={() => setHideInterestsCard(true)}
+                                        className="flex flex-row items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full absolute top-2 right-2 hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors z-20"
+                                    >
+                                        <div className="w-[17px] h-[17px] relative">
+                                            <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                                <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-[#526580] pointer-events-none">
+                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L12 10.586l6.293-6.293a1 1 0 1 1 1.414 1.414L13.414 12l6.293 6.293a1 1 0 0 1-1.414 1.414L12 13.414l-6.293 6.293a1 1 0 0 1-1.414-1.414L10.586 12 4.293 5.707a1 1 0 0 1 0-1.414Z"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </button>
 
-                                <div className="flex items-center gap-2 mb-3 text-primary-500">
-                                    <FiGrid size={18} />
-                                    <h2 className="text-[17px] font-bold text-gray-900 dark:text-white">{t('explore.interests')}</h2>
-                                </div>
-
-                                <div className="mb-4">
-                                    <InterestsEditor variant="full" limit={18} />
-                                </div>
-
-                                <p className="text-[14px] text-gray-900 dark:text-gray-100 mb-4 font-medium">
-                                    {t('explore.interests_desc')}
-                                </p>
-
-                                <button
-                                    onClick={() => navigate('/interests')}
-                                    className="w-full py-2.5 rounded-full bg-[#0085ff] hover:bg-[#0070d6] text-white font-bold text-[15px] transition-colors mb-2"
-                                >
-                                    {t('explore.edit_interests')}
-                                </button>
-                            </section>
-
-                            {/* Trending Section */}
-                            <section className="flex flex-col border-b border-gray-200 dark:border-dark-border pb-4">
-                                {topics.length === 0 ? (
-                                    <div className="p-8 flex justify-center">
-                                        <LoadingIndicator text={t('explore.loading_topics')} />
+                                    <div className="flex flex-row gap-2 items-center">
+                                        <svg fill="none" viewBox="0 0 24 24" width="20" height="20" className="text-black dark:text-white shrink-0">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M7 3a1 1 0 0 1 1 1v2h2a1 1 0 1 1 0 2H8v2a1 1 0 1 1-2 0V8H4a1 1 0 0 1 0-2h2V4a1 1 0 0 1 1-1Zm6 4a4 4 0 1 1 8 0 4 4 0 0 1-8 0Zm4-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM3 14a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6Zm2 1v4h4v-4H5Zm9.171-.829a1 1 0 0 1 1.415 0L17 15.585l1.414-1.414a1 1 0 1 1 1.414 1.414L18.414 17l1.414 1.414a1 1 0 0 1-1.414 1.414L17 18.414l-1.415 1.414a1 1 0 0 1-1.414-1.414l1.415-1.415-1.415-1.414a1 1 0 0 1 0-1.414Z"></path>
+                                        </svg>
+                                        <div className="text-[16.9px] leading-[22px] font-semibold tracking-[0.25px] text-black dark:text-white">
+                                            Your interests
+                                        </div>
                                     </div>
-                                ) : topics.slice(0, 5).map((item, index) => {
-                                    const hashtagStr = item.hashtag || (item as any).topic || item.id || '';
-                                    // Generate stable mock values to match exact UI screenshot
-                                    let hash = 0;
-                                    for (let i = 0; i < hashtagStr.length; i++) hash = hashtagStr.charCodeAt(i) + ((hash << 5) - hash);
-                                    const hours = (Math.abs(hash) % 12) + 1;
-                                    const timeAgo = `${hours}h ago`;
-                                    
-                                    // Get some avatars from accounts to mock the overlap if available, otherwise fallback
-                                    const mockAvatars = accounts.length >= 3 
-                                        ? accounts.slice(index % accounts.length, (index % accounts.length) + 3).map((a: any) => a.avatar || `https://ui-avatars.com/api/?name=${a.displayName || 'U'}&background=random`)
-                                        : [
-                                            `https://ui-avatars.com/api/?name=${hashtagStr.charAt(0) || 'A'}&background=random`,
-                                            `https://ui-avatars.com/api/?name=${hashtagStr.charAt(1) || 'B'}&background=random`,
-                                            `https://ui-avatars.com/api/?name=${hashtagStr.charAt(2) || 'C'}&background=random`
-                                          ];
+
+                                    <div className="flex flex-wrap gap-[6px]">
+                                        {['Art', 'Comics', 'Books', 'Culture', 'Software Dev', 'Video Games', 'Journalism', 'Movies', 'Music', 'News', 'Tech', 'Sports', 'Science', 'Writers', 'Food', 'Politics', 'Photography', 'Animals'].map((tag) => (
+                                            <div key={tag} className="flex justify-center items-center rounded-full bg-[#f9fafb] dark:bg-dark-surface px-4 h-8">
+                                                <span className="text-[13.1px] leading-[17px] tracking-[0.25px] text-[#232e3e] dark:text-dark-text">
+                                                    {tag}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="text-[13.1px] leading-[17px] tracking-[0.25px] text-black dark:text-white">
+                                        Your interests help us find what you like!
+                                    </div>
+
+                                    <button
+                                        onClick={() => navigate('/settings/interests')}
+                                        aria-label="Edit interests"
+                                        className="flex flex-row items-center justify-center bg-[#006aff] hover:bg-[#005cd6] text-white rounded-full py-2 px-3.5 gap-[5px] transition-colors"
+                                    >
+                                        <span className="text-[13.1px] leading-[17px] font-medium tracking-[0.25px]">
+                                            Edit interests
+                                        </span>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* 2. Trending Section */}
+                            <div className="flex flex-col pb-3 bg-white dark:bg-dark-bg">
+                                <div className="flex flex-row items-center px-4 pt-6 pb-3 gap-1 bg-white dark:bg-dark-bg border-b border-[#dce2ea] dark:border-dark-border">
+                                    <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
+                                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
+                                        Trending
+                                    </div>
+                                    <button aria-label="Trending options" className="flex items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors">
+                                        <div className="w-[17px] h-[17px] relative">
+                                            <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                                <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-[#526580]">
+                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                {/* Trending Topics List */}
+                                {(topics.length > 0 ? topics.slice(0, 5) : [
+                                    { id: '1', hashtag: 'Trump weighs diesel export ban', title: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '14.3K posts' },
+                                    { id: '2', hashtag: 'Andy Burnham pushes socialist reforms', title: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '627 posts' },
+                                    { id: '3', hashtag: 'HorrorWritersChat weekly music prompt', title: 'HorrorWritersChat weekly music prompt', description: 'Writers share favorite music and horror genres in a weekly HorrorWritersChat thread.', postsCount: '2.6K posts' },
+                                    { id: '4', hashtag: 'AI data center costs', title: 'AI data center costs', description: 'Posts cover tax breaks for Meta, strain on power grids, and political fights over regulation.', postsCount: '553 posts' },
+                                    { id: '5', hashtag: 'Man City financial charges case', title: 'Man City financial charges case', description: "Panel decision on City's financial charges; legal costs reportedly at issue.", postsCount: '6.8K posts' }
+                                ]).map((item: any, index: number) => {
+                                    const hashtagStr = item.hashtag || item.title || item.topic || '';
+                                    const descStr = item.description || item.bio || 'Recent discussions and trending activity on Bluesky.';
+                                    const postsLabel = item.postsCount || `${((index + 1) * 2.4).toFixed(1)}K posts`;
+
+                                    const avatarList = [
+                                        `https://images.unsplash.com/photo-${1534528741775 + index}?auto=format&fit=crop&w=80&q=80`,
+                                        `https://images.unsplash.com/photo-${1517841905240 + index}?auto=format&fit=crop&w=80&q=80`,
+                                        `https://images.unsplash.com/photo-${1539571696357 + index}?auto=format&fit=crop&w=80&q=80`
+                                    ];
 
                                     return (
                                         <div
                                             key={item.id || index}
-                                            onClick={() => {
-                                                if (item.link) {
-                                                    navigate(item.link);
-                                                } else {
-                                                    navigate(`/search?q=${encodeURIComponent(hashtagStr)}`);
-                                                }
-                                            }}
-                                            className="flex items-start gap-3 py-3 px-4 hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer border-b border-gray-100 dark:border-dark-border last:border-0"
+                                            onClick={() => navigate(`/search?q=${encodeURIComponent(hashtagStr)}`)}
+                                            className="flex flex-row items-center justify-start border-b border-[#dce2ea] dark:border-dark-border cursor-pointer hover:bg-[#eff2f6]/50 dark:hover:bg-dark-surface/50 transition-colors"
                                         >
-                                            <span className="text-[15px] font-bold text-gray-900 dark:text-white w-5 text-left mt-0.5">
-                                                {index + 1}.
-                                            </span>
-
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-start gap-2">
-                                                    <span className="font-bold text-[15px] text-gray-900 dark:text-white truncate">
-                                                        {hashtagStr.replace('#', '')}
-                                                    </span>
-                                                    
-                                                    {index === 0 ? (
-                                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#3e141a] dark:bg-[#3e141a] text-[#ef4444] text-[11px] font-bold shrink-0 self-start">
-                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                                <path d="M12 2C12 2 12 10 18 13C22 15 23 20 20 23C17 26 12 25 10 21C8 17 9 14 9 14C9 14 6 17 5 19C4 21 0 17 2 12C4 7 12 2 12 2Z" />
-                                                            </svg>
-                                                            Hot
-                                                        </span>
-                                                    ) : (
-                                                        <span className="px-2 py-[3px] rounded-full bg-gray-200 dark:bg-[#202E39] text-gray-600 dark:text-[#8b98a5] text-[12px] shrink-0 font-medium">
-                                                            {timeAgo}
-                                                        </span>
-                                                    )}
+                                            <div className="p-[12px_20px] w-full flex flex-row gap-2">
+                                                <div className="text-[15px] leading-[20px] font-medium text-[#8798b0] tabular-nums">
+                                                    {index + 1}.
                                                 </div>
-                                                
-                                                <div className="flex items-center gap-2 text-[13px] text-gray-500 dark:text-[#8b98a5] mt-1">
-                                                    <div className="flex -space-x-1.5 grayscale shrink-0">
-                                                        {mockAvatars.map((url, i) => (
-                                                            <img key={i} src={url} alt="" className="w-4 h-4 rounded-full border border-white dark:border-dark-bg object-cover" />
-                                                        ))}
+
+                                                <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                                                    <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white line-clamp-2">
+                                                        {hashtagStr.replace('#', '')}
                                                     </div>
-                                                    <span className="truncate">{item.category || 'Topic'}</span>
+
+                                                    <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary line-clamp-2">
+                                                        {descStr}
+                                                    </div>
+
+                                                    <div className="mt-[4px] flex flex-row gap-2 items-center">
+                                                        <div className="flex flex-row items-center relative w-[56px]">
+                                                            {avatarList.map((url, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="bg-[#f9fafb] relative w-6 h-6 border border-white dark:border-dark-bg rounded-full"
+                                                                    style={{ left: `${-i * 8}px`, zIndex: 3 - i }}
+                                                                >
+                                                                    <div className="w-[22px] h-[22px] rounded-full overflow-hidden">
+                                                                        <img src={url} alt="" className="w-full h-full object-cover" />
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary min-w-0">
+                                                            {postsLabel}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     );
                                 })}
-                            </section>
+                            </div>
 
-                            {/* Discover Feeds Section */}
-                            <section className="flex flex-col gap-4 mt-2">
-                                <div className="flex items-center justify-between px-2">
-                                    <div className="flex items-center gap-2 text-primary-600 dark:text-primary-400">
-                                        <span className="p-1 px-2 border-2 border-primary-500 rounded text-xs font-bold">Ξ</span>
-                                        <h2 className="text-lg font-bold">{t('feeds.discover_new_feeds')}</h2>
+                            {/* 3. Discover feeds Section */}
+                            <div className="flex flex-col bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
+                                <div className="flex flex-row items-center p-[24px_16px_12px] gap-1 bg-white dark:bg-dark-bg">
+                                    <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
+                                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4 5a1 1 0 0 0 0 2h16a1 1 0 1 0 0-2H4Zm0 12a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H4Zm-1-5a1 1 0 0 1 1-1h5a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Zm14-3a1 1 0 0 1 .92.606l1.342 3.132 3.132 1.343a1 1 0 0 1 0 1.838l-3.132 1.343-1.343 3.132a1 1 0 0 1-1.838 0l-1.343-3.132-3.132-1.343a1 1 0 0 1 0-1.838l3.132-1.343 1.343-3.132A1 1 0 0 1 17 9Zm0 3.539-.58 1.355a1 1 0 0 1-.526.525L14.539 15l1.355.58a1 1 0 0 1 .525.526L17 17.461l.58-1.355a1 1 0 0 1 .526-.525L19.461 15l-1.355-.58a1 1 0 0 1-.525-.526L17 12.539Z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
+                                        Discover feeds
                                     </div>
                                     <button 
+                                        aria-label="Search for more feeds"
                                         onClick={() => setIsSearchUIActive(true)}
-                                        className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors"
+                                        className="flex flex-row items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors"
                                     >
-                                        <FiSearch className="text-gray-400" size={20} />
+                                        <div className="w-[17px] h-[17px] relative">
+                                            <div className="absolute w-[24px] h-[24px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                                <svg fill="none" width="24" viewBox="0 0 24 24" height="24" className="text-[#526580] pointer-events-none">
+                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 14.32 4.906l3.387 3.387a1 1 0 0 1-1.414 1.414l-3.387-3.387A8 8 0 0 1 3 11Z"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
                                     </button>
                                 </div>
 
-                                <div className="flex flex-col gap-4">
-                                     {feeds.map((feed: Feed) => (
+                                {/* Feed Items */}
+                                {(feeds.length > 0 ? feeds : [
+                                    { uri: '1', name: 'SciArt 🐡', handle: 'flyingtrilobite.com', description: '🔸The intersection of art + science\n🔸Science communication across visual art disciplines\n🔸Medical illustration, paleoart, fine art, bioart, webcomics +more', followersCount: 5043, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
+                                    { uri: '2', name: '#Housing+', handle: 'fema.monster', description: '#Housing+ is a place that includes many aspects of housing--tenant rights, YIMBY, zoning, rent control, gentrification, and the unhoused.', followersCount: 88, avatar: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=80&q=80' },
+                                    { uri: '3', name: 'NFL+', handle: 'parkermolloy.com', description: 'Football talk on Bluesky.', followersCount: 7598, avatar: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=80&q=80' },
+                                    { uri: '4', name: 'MySky', handle: 'mysky.social', description: 'Own your algorithm. A personalized feed with a control panel.', followersCount: 130, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=80&q=80' }
+                                ]).map((feed: any) => (
+                                    <div key={feed.uri || feed.name} className="border-t border-[#dce2ea] dark:border-dark-border p-4">
                                         <div
-                                            key={feedActionKey(feed)}
-                                            onClick={() => {
-                                                navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
-                                            }}
-                                            className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-all cursor-pointer shadow-sm group"
+                                            onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                            className="flex flex-col items-center justify-start cursor-pointer group"
                                         >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="flex gap-3 min-w-0">
-                                                    <FeedAvatar
-                                                        src={feed.avatarUrl || feed.avatar}
-                                                        alt={feed.name}
-                                                        size="lg"
-                                                    />
-                                                    <div className="flex flex-col min-w-0 mt-0.5">
-                                                        <span className="font-bold text-gray-900 dark:text-dark-text hover:underline truncate">
-                                                            {feed.name}
-                                                        </span>
-                                                        <span className="text-sm text-gray-500 dark:text-dark-text-secondary truncate mt-0.5">
-                                                            {t('profile.feed_by')} @{feed.handle}
-                                                        </span>
+                                            <div className="w-full flex flex-col gap-2">
+                                                <div className="flex flex-row items-center gap-2">
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#f9fafb] dark:bg-dark-surface shrink-0 relative">
+                                                        <img
+                                                            src={feed.avatarUrl || feed.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed.name)}&background=random`}
+                                                            alt=""
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                        <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border rounded-lg opacity-60 pointer-events-none" />
                                                     </div>
-                                                </div>
-                                                <button
-                                                    onClick={(e) => handlePinToggle(e, feed)}
-                                                    className={cn(
-                                                        "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-md",
-                                                        feed.isPinned
-                                                            ? "bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 shadow-none"
-                                                            : "bg-primary-600 hover:bg-primary-700 text-white shadow-primary-500/20"
-                                                    )}
-                                                >
-                                                    {feed.isPinned ? (
-                                                        <>
-                                                            <FiCheck size={16} />
-                                                            {t('feeds.pinned')}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <FiPlus size={16} />
-                                                            {t('feeds.pin_feed')}
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
 
-                                            <p className="text-sm text-gray-600 dark:text-dark-text-secondary line-clamp-3 leading-relaxed">
-                                                {feed.description}
-                                            </p>
-                                            <span className="text-sm text-gray-500 dark:text-dark-text-secondary group-hover:text-gray-600 dark:group-hover:text-dark-text-secondary/80 transition-colors">
-                                                {t('feeds.liked_by', { count: feed.followersCount || 0 })}
-                                            </span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                                                            {feed.name}
+                                                        </div>
+                                                        <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
+                                                            Feed by @{feed.handle || feed.creator?.handle}
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={(e) => handlePinToggle(e, feed)}
+                                                        className={cn(
+                                                            "flex flex-row items-center justify-center rounded-full px-[14px] py-2 gap-[5px] text-[13.1px] font-medium leading-[17px] transition-colors",
+                                                            feed.isPinned
+                                                                ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-[#dce2ea] dark:border-dark-border"
+                                                                : "bg-[#006aff] hover:bg-[#005cd6] text-white"
+                                                        )}
+                                                    >
+                                                        <div className="z-20 w-[17px] h-[17px] -ml-[2px] -mr-[2px] relative">
+                                                            <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                                                <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-white pointer-events-none">
+                                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z"></path>
+                                                                </svg>
+                                                            </div>
+                                                        </div>
+                                                        <span>{feed.isPinned ? t('feeds.pinned') : 'Pin feed'}</span>
+                                                    </button>
+                                                </div>
+
+                                                <div className="text-[13.1px] leading-[17px] text-black dark:text-white whitespace-pre-line">
+                                                    {feed.description}
+                                                </div>
+
+                                                <div className="text-[13.1px] leading-[17px] font-semibold text-[#405168] dark:text-dark-text-secondary">
+                                                    Liked by {(feed.followersCount || feed.likeCount || 5043).toLocaleString()} users
+                                                </div>
+                                            </div>
                                         </div>
-                                    ))}
+                                    </div>
+                                ))}
+
+                                <div className="border-t border-[#dce2ea] dark:border-dark-border">
+                                    <button
+                                        type="button"
+                                        aria-label="Load more"
+                                        className="w-full flex flex-row items-center justify-center p-[12px_16px] gap-2 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                                    >
+                                        <span className="text-[13.1px] leading-[17px] text-black dark:text-white font-medium">
+                                            Load more suggested feeds
+                                        </span>
+                                        <svg fill="none" viewBox="0 0 24 24" width="16" height="16" className="text-[#405168]">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M3.293 8.293a1 1 0 0 1 1.414 0L12 15.586l7.293-7.293a1 1 0 1 1 1.414 1.414l-8 8a1 1 0 0 1-1.414 0l-8-8a1 1 0 0 1 0-1.414Z"></path>
+                                        </svg>
+                                    </button>
                                 </div>
-                            </section>
-                            
+                            </div>
+
+                            {/* 4. Suggested Accounts Section */}
                             <SuggestedUsersForExplore />
 
-                        </>
-                    ) : (
-                        <div className="p-12 text-center text-gray-500 dark:text-dark-text-secondary">
+                            {/* 5. Starter Packs Section */}
+                            <div className="flex flex-col bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
+                                <div className="flex flex-row items-center p-[24px_16px_12px] gap-1">
+                                    <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
+                                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M11.26 5.227 5.02 6.899c-.734.197-1.17.95-.973 1.685l1.672 6.24c.197.734.951 1.17 1.685.973l6.24-1.672c.734-.197 1.17-.951.973-1.685L12.945 6.2a1.375 1.375 0 0 0-1.685-.973Zm-6.566.459a2.632 2.632 0 0 0-1.86 3.223l1.672 6.24a2.632 2.632 0 0 0 3.223 1.861l6.24-1.672a2.631 2.631 0 0 0 1.861-3.223l-1.672-6.24a2.632 2.632 0 0 0-3.223-1.861l-6.24 1.672Z"></path>
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M15.138 18.411a4.606 4.606 0 1 0 0-9.211 4.606 4.606 0 0 0 0 9.211Zm0 1.257a5.862 5.862 0 1 0 0-11.724 5.862 5.862 0 0 0 0 11.724Z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
+                                        Starter Packs
+                                    </div>
+                                </div>
+
+                                <div className="px-4 pb-4">
+                                    <div 
+                                        onClick={() => navigate('/starter-pack/create')}
+                                        className="w-full p-4 gap-3 border border-[#dce2ea] dark:border-dark-border rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                                    >
+                                        <div className="flex flex-row items-center relative w-full">
+                                            {[
+                                                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
+                                                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80',
+                                                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
+                                                'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80'
+                                            ].map((url, i) => (
+                                                <div key={i} className="w-[53px] h-[53px] rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#f9fafb] relative -mr-4 shadow-sm" style={{ zIndex: 10 - i }}>
+                                                    <img src={url} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <div className="flex flex-col gap-1">
+                                            <div className="text-[15px] font-semibold text-black dark:text-white">
+                                                Film &amp; TV Magazines
+                                            </div>
+                                            <div className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary">
+                                                A collection of film critics, cinema writers, and movie enthusiasts on Bluesky.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
