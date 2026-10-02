@@ -16,7 +16,7 @@ import { RootState } from '../../redux/store';
 import { saveFeed, unsaveFeed, pinFeed, unpinFeed } from '../../redux/slices/feedsSlice';
 import { getDynamicBatchSize } from '../../utils/pagination';
 import { matchesPost } from '../../utils/postUtils';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import ListAvatar from '../common/ListAvatar';
 import { cn } from '../../utils/classNames';
 import { useGetActorStarterPacksQuery } from '../../redux/api/starterPackApi';
@@ -39,6 +39,7 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const [initialLoading, setInitialLoading] = useState(true);
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
     const fetchVersionRef = useRef(0);
     const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -250,34 +251,46 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
         return (
             <div className="p-4">
-                {isOwnProfile && (
-                    <div className="mb-4 flex justify-end">
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-full transition-colors shadow-sm"
-                        >
-                            <FiPlus size={16} />
-                            <span>Create Starter Pack</span>
-                        </button>
-                    </div>
-                )}
-
                 {isStarterPacksLoading ? (
                     <div className="flex items-center justify-center py-20">
                         <LoadingIndicator size="md" />
                     </div>
                 ) : starterPacks.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                        <FiGrid size={80} className="text-gray-300 dark:text-dark-border mb-4" strokeWidth={1.2} />
-                        <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-2">
-                            No starter packs found
-                        </h3>
+                    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-400 dark:text-gray-500 mb-3">
+                            <rect x="22" y="10" width="30" height="30" rx="8" stroke="currentColor" strokeWidth="2.2" transform="rotate(10 37 25)" />
+                            <rect x="12" y="18" width="30" height="30" rx="8" stroke="currentColor" strokeWidth="2.2" className="fill-white dark:fill-dark-bg" />
+                        </svg>
+                        <p className="text-[15px] font-medium text-gray-700 dark:text-gray-300 max-w-[280px] leading-snug text-center mb-4">
+                            Starter Packs let you share your favorite feeds and people with your friends.
+                        </p>
+                        {isOwnProfile && (
+                            <button
+                                onClick={() => navigate('/starter-pack/create')}
+                                className="px-5 py-2.5 bg-[#006aff] hover:bg-blue-600 text-white font-bold text-[15px] rounded-full transition-colors shadow-sm"
+                            >
+                                Create a Starter Pack
+                            </button>
+                        )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {starterPacks.map((pack: any, idx: number) => (
-                            <StarterPackCard key={pack.uri || idx} starterPack={pack} />
-                        ))}
+                    <div>
+                        {isOwnProfile && (
+                            <div className="mb-4 flex justify-end">
+                                <button
+                                    onClick={() => navigate('/starter-pack/create')}
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#006aff] hover:bg-blue-600 text-white font-bold text-sm rounded-full transition-colors shadow-sm"
+                                >
+                                    <FiPlus size={16} />
+                                    <span>Create Starter Pack</span>
+                                </button>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {starterPacks.map((pack: any, idx: number) => (
+                                <StarterPackCard key={pack.uri || idx} starterPack={pack} />
+                            ))}
+                        </div>
                     </div>
                 )}
 

@@ -713,15 +713,15 @@ const ProfilePage: React.FC = () => {
                                         tabIndex={0}
                                         data-testid={`profilePager-selector-${idx}`}
                                         onClick={() => handleTabChange(tab.id)}
-                                        className="flex-1 min-w-0 px-3 flex justify-center items-center hover:bg-gray-100/50 dark:hover:bg-dark-surface/40 transition-colors cursor-pointer select-none"
+                                        className="flex-1 shrink-0 min-w-max px-3.5 flex justify-center items-center hover:bg-gray-100/50 dark:hover:bg-dark-surface/40 transition-colors cursor-pointer select-none"
                                     >
-                                        <div className="relative py-[13px] flex items-center justify-center min-w-0">
+                                        <div className="relative py-[13px] flex items-center justify-center min-w-0 w-full">
                                             <span
                                                 data-testid={`profilePager-${tabLabel}`}
                                                 className={cn(
-                                                    "text-[15px] leading-[20px] tracking-[0.25px] text-center font-semibold transition-colors whitespace-nowrap",
+                                                    "text-[15px] leading-[20px] tracking-[0.25px] text-center font-semibold transition-colors whitespace-nowrap px-1",
                                                     activeTab === tab.id
-                                                        ? "text-black dark:text-white"
+                                                        ? "text-black dark:text-white font-bold"
                                                         : "text-[#536471] dark:text-[#8798B0]"
                                                 )}
                                             >
