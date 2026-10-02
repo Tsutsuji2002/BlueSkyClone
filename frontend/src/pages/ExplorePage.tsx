@@ -133,25 +133,21 @@ const StarterPacksExploreSection: React.FC = () => {
                         {/* Card matching sample HTML: p-4 gap-3 border rounded-lg overflow-hidden */}
                         <div className="w-full p-4 gap-3 border border-[#dce2ea] dark:border-dark-border rounded-lg overflow-hidden flex flex-col hover:bg-[#eff2f6]/30 dark:hover:bg-dark-surface/30 transition-colors">
                             {/* Avatar row: each slot = 8.33% width, inner wrapper = 120% for overlap */}
-                            <div className="flex flex-row items-center" style={{ position: 'relative', width: '98.33%' }}>
+                            <div className="flex flex-row items-center w-[98.33%] relative">
                                 {visibleMembers.map((item: any, i: number) => {
                                     const sub = item.subject || item;
                                     const avatarSrc = sub.avatar || uiAvatar(sub.displayName || sub.handle || String(i));
-                                    const totalSlots = visibleMembers.length + (extraCount > 0 ? 1 : 0);
                                     return (
-                                        <div key={sub.did || i} style={{ width: '8.33333%', zIndex: 100 - i }}>
-                                            <div style={{ position: 'relative', width: '120%' }}>
-                                                <div style={{ borderRadius: '999px', backgroundColor: 'rgb(249,250,251)', paddingTop: '100%' }}>
-                                                    <div style={{ width: 53, height: 53, position: 'absolute', inset: 0 }}>
-                                                        <div style={{ overflow: 'hidden', width: 53, height: 53, borderRadius: 26, backgroundColor: 'rgb(249,250,251)' }}>
-                                                            <img
-                                                                src={avatarSrc}
-                                                                alt=""
-                                                                style={{ objectPosition: 'left 50% top 50%', width: '100%', height: '100%', position: 'absolute', left: 0, top: 0, objectFit: 'cover' }}
-                                                                onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
-                                                            />
-                                                        </div>
-                                                        <div style={{ position: 'absolute', inset: 0, borderWidth: 1, borderColor: 'rgb(220,226,234)', opacity: 0.6, pointerEvents: 'none', borderRadius: 26 }} />
+                                        <div key={sub.did || i} className="relative flex-shrink-0" style={{ width: '8.33333%', zIndex: 100 - i }}>
+                                            <div className="relative w-[120%]">
+                                                <div className="w-full pt-[100%] rounded-full bg-[#f9fafb] dark:bg-dark-surface relative overflow-hidden">
+                                                    <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#dce2ea]">
+                                                        <img
+                                                            src={avatarSrc}
+                                                            alt=""
+                                                            className="w-full h-full object-cover rounded-full"
+                                                            onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
+                                                        />
                                                     </div>
                                                 </div>
                                             </div>
@@ -159,12 +155,12 @@ const StarterPacksExploreSection: React.FC = () => {
                                     );
                                 })}
                                 {extraCount > 0 && (
-                                    <div style={{ width: '8.33333%', zIndex: 1 }}>
-                                        <div style={{ position: 'relative', width: '120%' }}>
-                                            <div style={{ paddingTop: '100%' }}>
-                                                <div style={{ position: 'absolute', inset: 0, borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgb(135,152,176)' }}>
-                                                    <span style={{ fontSize: 15, letterSpacing: '0.25px', color: 'rgb(255,255,255)', lineHeight: '20px', fontWeight: 600 }}>+{extraCount}</span>
-                                                </div>
+                                    <div className="relative flex-shrink-0" style={{ width: '8.33333%', zIndex: 1 }}>
+                                        <div className="relative w-[120%]">
+                                            <div className="w-full pt-[100%] rounded-full bg-[#8798b0] border-2 border-white dark:border-dark-bg relative flex items-center justify-center">
+                                                <span className="absolute inset-0 flex items-center justify-center text-[13px] sm:text-[15px] font-semibold text-white">
+                                                    +{extraCount}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
