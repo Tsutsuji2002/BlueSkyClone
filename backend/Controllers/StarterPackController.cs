@@ -56,6 +56,18 @@ public class StarterPackController : ControllerBase
             method: "GET"
         );
 
+        // Fallback: If token expired/invalid (401/400), retry without token
+        if (!response.Success && token != null)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: "public.api.bsky.app",
+                nsid: "app.bsky.graph.getStarterPack",
+                queryParams: queryParams,
+                token: null,
+                method: "GET"
+            );
+        }
+
         if (!response.Success)
         {
             return StatusCode(response.StatusCode, response.Content);
@@ -95,6 +107,30 @@ public class StarterPackController : ControllerBase
             token: token,
             method: "GET"
         );
+
+        // Fallback 1: Retry without token if initial authenticated request failed
+        if (!response.Success && token != null)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: actor,
+                nsid: "app.bsky.graph.getActorStarterPacks",
+                queryParams: queryParams,
+                token: null,
+                method: "GET"
+            );
+        }
+
+        // Fallback 2: Fallback to public.api.bsky.app if actor PDS proxy failed
+        if (!response.Success)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: "public.api.bsky.app",
+                nsid: "app.bsky.graph.getActorStarterPacks",
+                queryParams: queryParams,
+                token: null,
+                method: "GET"
+            );
+        }
 
         if (!response.Success)
         {

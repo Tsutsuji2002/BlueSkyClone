@@ -723,7 +723,7 @@ const ProfilePage: React.FC = () => {
                                                     : "text-[#536471] dark:text-[#8798B0]"
                                             )}
                                         >
-                                            {t(`nav.${tab.id}`)}
+                                            {t(`nav.${tab.id}`, tab.label)}
                                         </span>
                                         {activeTab === tab.id && (
                                             <div
