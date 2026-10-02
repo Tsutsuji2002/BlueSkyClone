@@ -23,6 +23,158 @@ import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
+import { useGetActorStarterPacksQuery } from '../redux/api/starterPackApi';
+
+// Deterministic avatar colour from handle string
+const AVATAR_COLORS = ['4f46e5','0284c7','059669','d97706','dc2626','7c3aed','0891b2','65a30d'];
+const avatarBg = (seed: string) => AVATAR_COLORS[seed.charCodeAt(0) % AVATAR_COLORS.length];
+const uiAvatar = (name: string) => `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=${avatarBg(name)}&color=fff&size=80&bold=true`;
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StarterPacksExploreSection – Bluesky-style starter pack cards with
+// a wide member avatar strip, pack name, creator, and "Open pack" button.
+// ─────────────────────────────────────────────────────────────────────────────
+const FALLBACK_STARTER_PACKS = [
+    {
+        uri: 'at://did:plc:filmcritics/app.bsky.graph.starterpack/1',
+        record: { name: 'Film & TV Magazines', description: 'A collection of film critics, cinema writers, and movie enthusiasts on Bluesky.' },
+        creator: { handle: 'filmcritics.org.uk', displayName: 'Film Critics' },
+        listItemsSample: [
+            { subject: { did: '1', handle: 'a', displayName: 'A', avatar: uiAvatar('FT') } },
+            { subject: { did: '2', handle: 'b', displayName: 'B', avatar: uiAvatar('MP') } },
+            { subject: { did: '3', handle: 'c', displayName: 'C', avatar: uiAvatar('LW') } },
+            { subject: { did: '4', handle: 'd', displayName: 'D', avatar: uiAvatar('GR') } },
+            { subject: { did: '5', handle: 'e', displayName: 'E', avatar: uiAvatar('RT') } },
+            { subject: { did: '6', handle: 'f', displayName: 'F', avatar: uiAvatar('SX') } },
+            { subject: { did: '7', handle: 'g', displayName: 'G', avatar: uiAvatar('FC') } },
+            { subject: { did: '8', handle: 'h', displayName: 'H', avatar: uiAvatar('LN') } },
+            { subject: { did: '9', handle: 'i', displayName: 'I', avatar: uiAvatar('MS') } },
+        ],
+        list: { listItemCount: 85 },
+    },
+    {
+        uri: 'at://did:plc:streetphoto/app.bsky.graph.starterpack/1',
+        record: { name: 'Street Photographers', description: 'The best street photographers on Bluesky — from documentary to fine art.' },
+        creator: { handle: 'antonpodolsky.bsky.social', displayName: 'Anton Podolsky' },
+        listItemsSample: [
+            { subject: { did: '10', handle: 'sp1', displayName: 'SP1', avatar: uiAvatar('NM') } },
+            { subject: { did: '11', handle: 'sp2', displayName: 'SP2', avatar: uiAvatar('TC') } },
+            { subject: { did: '12', handle: 'sp3', displayName: 'SP3', avatar: uiAvatar('JB') } },
+            { subject: { did: '13', handle: 'sp4', displayName: 'SP4', avatar: uiAvatar('PW') } },
+            { subject: { did: '14', handle: 'sp5', displayName: 'SP5', avatar: uiAvatar('KL') } },
+            { subject: { did: '15', handle: 'sp6', displayName: 'SP6', avatar: uiAvatar('MR') } },
+            { subject: { did: '16', handle: 'sp7', displayName: 'SP7', avatar: uiAvatar('DC') } },
+            { subject: { did: '17', handle: 'sp8', displayName: 'SP8', avatar: uiAvatar('AH') } },
+            { subject: { did: '18', handle: 'sp9', displayName: 'SP9', avatar: uiAvatar('RG') } },
+        ],
+        list: { listItemCount: 24 },
+    },
+    {
+        uri: 'at://did:plc:naturephoto/app.bsky.graph.starterpack/1',
+        record: { name: 'Top-Notch Nature Photographers 📷 Starter Pack', description: 'Wildlife, landscape, and macro photographers documenting the natural world.' },
+        creator: { handle: 'nickchillphoto.com', displayName: 'Nick Chill Photo' },
+        listItemsSample: [
+            { subject: { did: '19', handle: 'np1', displayName: 'NP1', avatar: uiAvatar('WL') } },
+            { subject: { did: '20', handle: 'np2', displayName: 'NP2', avatar: uiAvatar('SD') } },
+            { subject: { did: '21', handle: 'np3', displayName: 'NP3', avatar: uiAvatar('BF') } },
+            { subject: { did: '22', handle: 'np4', displayName: 'NP4', avatar: uiAvatar('GH') } },
+            { subject: { did: '23', handle: 'np5', displayName: 'NP5', avatar: uiAvatar('YK') } },
+            { subject: { did: '24', handle: 'np6', displayName: 'NP6', avatar: uiAvatar('OS') } },
+            { subject: { did: '25', handle: 'np7', displayName: 'NP7', avatar: uiAvatar('CJ') } },
+            { subject: { did: '26', handle: 'np8', displayName: 'NP8', avatar: uiAvatar('RF') } },
+            { subject: { did: '27', handle: 'np9', displayName: 'NP9', avatar: uiAvatar('AL') } },
+        ],
+        list: { listItemCount: 96 },
+    },
+] as any[];
+
+const MAX_VISIBLE_AVATARS = 9;
+
+const StarterPacksExploreSection: React.FC = () => {
+    const navigate = useNavigate();
+    const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const { data, isLoading } = useGetActorStarterPacksQuery(
+        { actor: currentUser?.did || currentUser?.handle || 'bsky.app', limit: 10 },
+        { skip: !currentUser }
+    );
+
+    const packs: any[] = (data?.starterPacks?.length ? data.starterPacks : FALLBACK_STARTER_PACKS);
+
+    return (
+        <div className="flex flex-col bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
+            {/* Header */}
+            <div className="flex flex-row items-center p-[24px_16px_12px] gap-1">
+                <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
+                    <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
+                        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M11.26 5.227 5.02 6.899c-.734.197-1.17.95-.973 1.685l1.672 6.24c.197.734.951 1.17 1.685.973l6.24-1.672c.734-.197 1.17-.951.973-1.685L12.945 6.2a1.375 1.375 0 0 0-1.685-.973Zm-6.566.459a2.632 2.632 0 0 0-1.86 3.223l1.672 6.24a2.632 2.632 0 0 0 3.223 1.861l6.24-1.672a2.631 2.631 0 0 0 1.861-3.223l-1.672-6.24a2.632 2.632 0 0 0-3.223-1.861l-6.24 1.672Z"></path>
+                        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M15.138 18.411a4.606 4.606 0 1 0 0-9.211 4.606 4.606 0 0 0 0 9.211Zm0 1.257a5.862 5.862 0 1 0 0-11.724 5.862 5.862 0 0 0 0 11.724Z"></path>
+                    </svg>
+                </div>
+                <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
+                    Starter Packs
+                </div>
+            </div>
+
+            {/* Pack cards */}
+            {packs.map((pack: any) => {
+                const members: any[] = pack.listItemsSample || [];
+                const totalCount: number = pack.list?.listItemCount ?? members.length;
+                const visibleMembers = members.slice(0, MAX_VISIBLE_AVATARS);
+                const extraCount = Math.max(0, totalCount - MAX_VISIBLE_AVATARS);
+
+                return (
+                    <div
+                        key={pack.uri}
+                        onClick={() => navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`)}
+                        className="mx-4 mb-3 rounded-lg border border-[#dce2ea] dark:border-dark-border overflow-hidden cursor-pointer hover:bg-[#f9fafb] dark:hover:bg-dark-surface/50 transition-colors"
+                    >
+                        {/* Wide member avatar strip */}
+                        <div className="flex flex-row items-center overflow-hidden bg-[#f9fafb] dark:bg-dark-surface px-3 pt-3 pb-2 gap-[2px]">
+                            {visibleMembers.map((item: any, i: number) => {
+                                const sub = item.subject || item;
+                                const avatarSrc = sub.avatar || uiAvatar(sub.displayName || sub.handle || String(i));
+                                return (
+                                    <div key={sub.did || i} className="w-[42px] h-[42px] rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#dce2ea] flex-shrink-0">
+                                        <img
+                                            src={avatarSrc}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
+                                        />
+                                    </div>
+                                );
+                            })}
+                            {extraCount > 0 && (
+                                <div className="w-[42px] h-[42px] rounded-full bg-[#e2e8f0] dark:bg-dark-surface border-2 border-white dark:border-dark-bg flex items-center justify-center flex-shrink-0">
+                                    <span className="text-[12px] font-semibold text-[#526580]">+{extraCount}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Pack info row */}
+                        <div className="flex flex-row items-center justify-between px-3 py-2 gap-2">
+                            <div className="flex flex-col min-w-0">
+                                <div className="text-[15px] font-semibold text-black dark:text-white truncate">
+                                    {pack.record?.name || pack.name || 'Starter Pack'}
+                                </div>
+                                <div className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary truncate">
+                                    By @{pack.creator?.handle || 'unknown'}
+                                </div>
+                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`); }}
+                                className="flex-shrink-0 px-4 py-[7px] rounded-full border border-[#dce2ea] dark:border-dark-border text-[13.1px] font-medium text-black dark:text-white hover:bg-[#eff2f6] dark:hover:bg-dark-surface transition-colors"
+                            >
+                                Open pack
+                            </button>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
@@ -466,21 +618,21 @@ const ExplorePage: React.FC = () => {
 
                                 {/* Trending Topics List */}
                                 {(topics.length > 0 ? topics.slice(0, 5) : [
-                                    { id: '1', hashtag: 'Trump weighs diesel export ban', title: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '14.3K posts' },
-                                    { id: '2', hashtag: 'Andy Burnham pushes socialist reforms', title: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '627 posts' },
-                                    { id: '3', hashtag: 'HorrorWritersChat weekly music prompt', title: 'HorrorWritersChat weekly music prompt', description: 'Writers share favorite music and horror genres in a weekly HorrorWritersChat thread.', postsCount: '2.6K posts' },
-                                    { id: '4', hashtag: 'AI data center costs', title: 'AI data center costs', description: 'Posts cover tax breaks for Meta, strain on power grids, and political fights over regulation.', postsCount: '553 posts' },
-                                    { id: '5', hashtag: 'Man City financial charges case', title: 'Man City financial charges case', description: "Panel decision on City's financial charges; legal costs reportedly at issue.", postsCount: '6.8K posts' }
+                                    { id: '1', hashtag: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '627 posts' },
+                                    { id: '2', hashtag: 'Celebrity Traitors series 2 premieres', description: 'Reality TV fans react to the new season premiere of Celebrity Traitors.', postsCount: '2.1K posts' },
+                                    { id: '3', hashtag: 'Man City financial charges case', description: "Panel decision on City's financial charges; legal costs reportedly at issue.", postsCount: '6.8K posts' },
+                                    { id: '4', hashtag: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '14.3K posts' },
+                                    { id: '5', hashtag: 'Big Brother 26 jury prepares finale', description: 'Houseguests prepare for the season finale as the jury deliberates.', postsCount: '3.2K posts' }
                                 ]).map((item: any, index: number) => {
                                     const hashtagStr = item.hashtag || item.title || item.topic || '';
-                                    const descStr = item.description || item.bio || 'Recent discussions and trending activity on Bluesky.';
+                                    const descStr = item.description || 'Recent discussions and trending activity on Bluesky.';
                                     const postsLabel = item.postsCount || `${((index + 1) * 2.4).toFixed(1)}K posts`;
 
-                                    const avatarList = [
-                                        `https://images.unsplash.com/photo-${1534528741775 + index}?auto=format&fit=crop&w=80&q=80`,
-                                        `https://images.unsplash.com/photo-${1517841905240 + index}?auto=format&fit=crop&w=80&q=80`,
-                                        `https://images.unsplash.com/photo-${1539571696357 + index}?auto=format&fit=crop&w=80&q=80`
-                                    ];
+                                    // Use real Account avatars from redux, falling back to deterministic ui-avatars
+                                    const avatarSeeds = [hashtagStr, hashtagStr + '1', hashtagStr + '2'];
+                                    const avatarList = accounts.length >= 3
+                                        ? accounts.slice(index % Math.max(accounts.length - 2, 1), (index % Math.max(accounts.length - 2, 1)) + 3).map((a: any) => (a.avatar && a.avatar.startsWith('http')) ? a.avatar : uiAvatar(a.displayName || a.handle || 'U'))
+                                        : avatarSeeds.map(s => uiAvatar(s.slice(0, 2)));
 
                                     return (
                                         <div
@@ -503,16 +655,19 @@ const ExplorePage: React.FC = () => {
                                                     </div>
 
                                                     <div className="mt-[4px] flex flex-row gap-2 items-center">
-                                                        <div className="flex flex-row items-center relative w-[56px]">
+                                                        <div className="flex flex-row" style={{ width: '56px' }}>
                                                             {avatarList.map((url, i) => (
                                                                 <div
                                                                     key={i}
-                                                                    className="bg-[#f9fafb] relative w-6 h-6 border border-white dark:border-dark-bg rounded-full"
-                                                                    style={{ left: `${-i * 8}px`, zIndex: 3 - i }}
+                                                                    className="w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#e8edf3] flex-shrink-0"
+                                                                    style={{ marginLeft: i === 0 ? 0 : '-8px', zIndex: 3 - i, position: 'relative' }}
                                                                 >
-                                                                    <div className="w-[22px] h-[22px] rounded-full overflow-hidden">
-                                                                        <img src={url} alt="" className="w-full h-full object-cover" />
-                                                                    </div>
+                                                                    <img
+                                                                        src={url}
+                                                                        alt=""
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(hashtagStr.slice(i, i + 2)); }}
+                                                                    />
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -638,48 +793,7 @@ const ExplorePage: React.FC = () => {
                             <SuggestedUsersForExplore />
 
                             {/* 5. Starter Packs Section */}
-                            <div className="flex flex-col bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
-                                <div className="flex flex-row items-center p-[24px_16px_12px] gap-1">
-                                    <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
-                                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
-                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M11.26 5.227 5.02 6.899c-.734.197-1.17.95-.973 1.685l1.672 6.24c.197.734.951 1.17 1.685.973l6.24-1.672c.734-.197 1.17-.951.973-1.685L12.945 6.2a1.375 1.375 0 0 0-1.685-.973Zm-6.566.459a2.632 2.632 0 0 0-1.86 3.223l1.672 6.24a2.632 2.632 0 0 0 3.223 1.861l6.24-1.672a2.631 2.631 0 0 0 1.861-3.223l-1.672-6.24a2.632 2.632 0 0 0-3.223-1.861l-6.24 1.672Z"></path>
-                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M15.138 18.411a4.606 4.606 0 1 0 0-9.211 4.606 4.606 0 0 0 0 9.211Zm0 1.257a5.862 5.862 0 1 0 0-11.724 5.862 5.862 0 0 0 0 11.724Z"></path>
-                                        </svg>
-                                    </div>
-                                    <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
-                                        Starter Packs
-                                    </div>
-                                </div>
-
-                                <div className="px-4 pb-4">
-                                    <div 
-                                        onClick={() => navigate('/starter-pack/create')}
-                                        className="w-full p-4 gap-3 border border-[#dce2ea] dark:border-dark-border rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
-                                    >
-                                        <div className="flex flex-row items-center relative w-full">
-                                            {[
-                                                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-                                                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80',
-                                                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
-                                                'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80'
-                                            ].map((url, i) => (
-                                                <div key={i} className="w-[53px] h-[53px] rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#f9fafb] relative -mr-4 shadow-sm" style={{ zIndex: 10 - i }}>
-                                                    <img src={url} alt="" className="w-full h-full object-cover" />
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="flex flex-col gap-1">
-                                            <div className="text-[15px] font-semibold text-black dark:text-white">
-                                                Film &amp; TV Magazines
-                                            </div>
-                                            <div className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary">
-                                                A collection of film critics, cinema writers, and movie enthusiasts on Bluesky.
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <StarterPacksExploreSection />
                         </div>
                     )}
                 </div>
