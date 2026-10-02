@@ -1,300 +1,236 @@
 import React, { useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useGetStarterPackQuery, useFollowAllMembersMutation } from '../redux/api/starterPackApi';
 import { useAppDispatch } from '../redux/hooks';
 import { showToast } from '../redux/slices/toastSlice';
 
 const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
-    'at://did:plc:filmcritics/app.bsky.graph.starterpack/1': {
+    'sstein.bsky.social': {
+        uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
+        record: {
+            name: 'Comedy writers and satirists',
+            description: 'Writers who write comedy and satire or write about comedy. Not necessarily people who are funny on Bluesky, though many are. Mostly these are people who write humor of one kind or another for publication.',
+        },
+        creator: {
+            handle: 'sstein.bsky.social',
+            displayName: 'Scott Stein',
+            avatar: 'https://i.pravatar.cc/80?img=68',
+        },
+        listItemsSample: [
+            { subject: { did: 's1', handle: 'sstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Latest novel: THE GREAT AMERICAN BETRAYAL *Best Comedy Books of 2022* -Vulture\nEnglish professor, novelist, satirist, editor, father, husband, dog owner, gardener...' } },
+            { subject: { did: 's2', handle: 'kashana.bsky.app', displayName: 'Kashana', avatar: 'https://i.pravatar.cc/80?img=47', description: 'TV writer. Author of the novels THE PAYBACK and THE SURVIVALISTS. Deadly with a butter knife.' } },
+            { subject: { did: 's3', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=33', description: 'gallows humorist' } },
+            { subject: { did: 's4', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=53', description: 'static.macmillan.com/static/holt/...' } },
+            { subject: { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'I enjoy pie. Social Media FAQ: whatever.scalzi.com/2025/04/16/t...' } },
+            { subject: { did: 's6', handle: 'theauthor.bsky.social', displayName: 'Christopher Moore', avatar: 'https://i.pravatar.cc/80?img=15', description: 'Author of Lamb, Fool, Sacre Bleu, Noir, Shakespeare for Squirrels...' } },
+            { subject: { did: 's7', handle: 'theonion.com', displayName: 'The Onion', avatar: 'https://i.pravatar.cc/80?img=60', description: 'America’s Finest News Source.' } },
+            { subject: { did: 's8', handle: 'clickhole.com', displayName: 'ClickHole', avatar: 'https://i.pravatar.cc/80?img=59', description: 'Because all content deserves to go viral.' } },
+        ],
+        feeds: [],
+    },
+    'x3nu.bsky.social': {
+        uri: 'at://did:plc:x3nu/app.bsky.graph.starterpack/1',
+        record: {
+            name: 'Gaming : Studios, Publishers, Media & Leakers',
+            description: 'Comprehensive list of game studios, publishers, gaming news outlets, and industry insiders.',
+        },
+        creator: {
+            handle: 'x3nu.bsky.social',
+            displayName: 'x3nu',
+            avatar: 'https://i.pravatar.cc/80?img=21',
+        },
+        listItemsSample: [
+            { subject: { did: 'g1', handle: 'ign.com', displayName: 'IGN', avatar: 'https://i.pravatar.cc/80?img=2', description: 'Video game and entertainment news, reviews, and previews.' } },
+            { subject: { did: 'g2', handle: 'playstation.com', displayName: 'PlayStation', avatar: 'https://i.pravatar.cc/80?img=4', description: 'Official Bluesky account for PlayStation.' } },
+            { subject: { did: 'g3', handle: 'nintendo.com', displayName: 'Nintendo of America', avatar: 'https://i.pravatar.cc/80?img=6', description: 'Official news and updates from Nintendo.' } },
+            { subject: { did: 'g4', handle: 'giantbomb.com', displayName: 'Giant Bomb', avatar: 'https://i.pravatar.cc/80?img=8', description: 'Video game news, podcasts, videos and reviews.' } },
+        ],
+        feeds: [],
+    },
+    'filmcritics.org.uk': {
         uri: 'at://did:plc:filmcritics/app.bsky.graph.starterpack/1',
         record: {
             name: 'Film & TV Magazines',
-            description: 'A collection of film critics, cinema writers, and movie enthusiasts on Bluesky.',
+            description: 'A collection of film critics, cinema writers, and movie magazines on Bluesky.',
         },
         creator: {
             handle: 'filmcritics.org.uk',
             displayName: 'Film Critics',
             avatar: 'https://i.pravatar.cc/80?img=1',
         },
-        listItemsSample: Array.from({ length: 15 }).map((_, i) => ({
-            subject: {
-                did: `fc-did-${i}`,
-                handle: `critic_${i + 1}.bsky.social`,
-                displayName: `Film Critic ${i + 1}`,
-                avatar: `https://i.pravatar.cc/80?img=${(i * 3) + 1}`,
-                description: 'Writing about cinema, pop culture, and television.',
-            },
-        })),
-        feeds: [
-            { displayName: 'Movie Reviews & Takes', likeCount: 412, avatar: 'https://i.pravatar.cc/80?img=10' },
-            { displayName: 'Film Festival Highlights', likeCount: 289, avatar: 'https://i.pravatar.cc/80?img=12' },
+        listItemsSample: [
+            { subject: { did: 'f1', handle: 'empire.com', displayName: 'Empire Magazine', avatar: 'https://i.pravatar.cc/80?img=1', description: 'The world’s biggest movie magazine.' } },
+            { subject: { did: 'f2', handle: 'littlewhitelies.com', displayName: 'Little White Lies', avatar: 'https://i.pravatar.cc/80?img=5', description: 'Truth & Movies. The magazine for film lovers.' } },
+            { subject: { did: 'f3', handle: 'rottentomatoes.com', displayName: 'Rotten Tomatoes', avatar: 'https://i.pravatar.cc/80?img=9', description: 'Recommendations, reviews, and entertainment news.' } },
         ],
-    },
-    'at://did:plc:streetphoto/app.bsky.graph.starterpack/1': {
-        uri: 'at://did:plc:streetphoto/app.bsky.graph.starterpack/1',
-        record: {
-            name: 'Street Photographers',
-            description: 'The best street photographers on Bluesky — from documentary to fine art.',
-        },
-        creator: {
-            handle: 'antonpodolsky.bsky.social',
-            displayName: 'Anton Podolsky',
-            avatar: 'https://i.pravatar.cc/80?img=21',
-        },
-        listItemsSample: Array.from({ length: 12 }).map((_, i) => ({
-            subject: {
-                did: `sp-did-${i}`,
-                handle: `photographer_${i + 1}.bsky.social`,
-                displayName: `Street Photographer ${i + 1}`,
-                avatar: `https://i.pravatar.cc/80?img=${21 + i * 2}`,
-                description: 'Documenting daily urban life, shadows, light & architecture.',
-            },
-        })),
-        feeds: [
-            { displayName: 'Street Photography Showcase', likeCount: 840, avatar: 'https://i.pravatar.cc/80?img=25' },
-        ],
-    },
-    'at://did:plc:naturephoto/app.bsky.graph.starterpack/1': {
-        uri: 'at://did:plc:naturephoto/app.bsky.graph.starterpack/1',
-        record: {
-            name: 'Top-Notch Nature Photographers 📷 Starter Pack',
-            description: 'Wildlife, landscape, and macro photographers documenting the natural world.',
-        },
-        creator: {
-            handle: 'nickchillphoto.com',
-            displayName: 'Nick Chill Photo',
-            avatar: 'https://i.pravatar.cc/80?img=39',
-        },
-        listItemsSample: Array.from({ length: 16 }).map((_, i) => ({
-            subject: {
-                did: `np-did-${i}`,
-                handle: `nature_pro_${i + 1}.bsky.social`,
-                displayName: `Nature Photographer ${i + 1}`,
-                avatar: `https://i.pravatar.cc/80?img=${39 + i}`,
-                description: 'Landscape & wildlife photography around the globe.',
-            },
-        })),
-        feeds: [
-            { displayName: 'Nature & Wildlife Daily', likeCount: 1530, avatar: 'https://i.pravatar.cc/80?img=40' },
-        ],
+        feeds: [],
     },
 };
 
 export const StarterPackDetailPage: React.FC = () => {
+    const { handle: paramHandle, rkey: paramRkey } = useParams<{ handle?: string; rkey?: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const starterPackUri = searchParams.get('uri');
 
-    const { data, isLoading, error } = useGetStarterPackQuery(
+    const starterPackUri = searchParams.get('uri') || (paramHandle && paramRkey ? `at://${paramHandle}/app.bsky.graph.starterpack/${paramRkey}` : '');
+
+    const { data, isLoading } = useGetStarterPackQuery(
         { starterPack: starterPackUri || '' },
         { skip: !starterPackUri }
     );
 
     const [followAllMembers, { isLoading: isFollowingAll }] = useFollowAllMembersMutation();
     const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
+    const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
 
-    if (!starterPackUri) {
-        return (
-            <div className="p-8 text-center text-gray-500">No starter pack URI provided.</div>
-        );
-    }
+    const fallbackKey = paramHandle || (starterPackUri ? (Object.keys(MOCK_FALLBACK_STARTER_PACKS).find(k => starterPackUri.includes(k)) || 'sstein.bsky.social') : 'sstein.bsky.social');
+    const starterPack = data?.starterPack || MOCK_FALLBACK_STARTER_PACKS[fallbackKey] || MOCK_FALLBACK_STARTER_PACKS['sstein.bsky.social'];
 
     if (isLoading) {
         return (
-            <div className="p-8 text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+            <div className="w-full max-w-[602px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen p-8 text-center bg-white dark:bg-dark-bg">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#0085ff] border-t-transparent"></div>
                 <p className="mt-2 text-sm text-gray-500">Loading starter pack...</p>
             </div>
         );
     }
 
-    const starterPack = data?.starterPack || (starterPackUri ? MOCK_FALLBACK_STARTER_PACKS[starterPackUri] : null) || MOCK_FALLBACK_STARTER_PACKS['at://did:plc:filmcritics/app.bsky.graph.starterpack/1'];
-
     if (!starterPack) {
         return (
-            <div className="p-8 text-center text-red-500">
+            <div className="w-full max-w-[602px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen p-8 text-center text-red-500 bg-white dark:bg-dark-bg">
                 Failed to load starter pack. Please try again.
             </div>
         );
     }
-    const { record, creator, listItemsSample, feeds, list } = starterPack;
+
+    const { record, creator, listItemsSample, feeds } = starterPack;
     const members: any[] = listItemsSample || [];
     const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
 
     const handleFollowAll = async () => {
         if (!targetDids.length) return;
         try {
-            const res = await followAllMembers({ targetDids }).unwrap();
+            await followAllMembers({ targetDids }).unwrap();
             setFollowedDids(new Set(targetDids));
-            dispatch(showToast({ message: `Successfully followed ${res.successCount} people!`, type: 'success' }));
+            dispatch(showToast({ message: `Successfully followed members!`, type: 'success' }));
         } catch {
-            dispatch(showToast({ message: 'Failed to follow members', type: 'error' }));
-        }
-    };
-
-    const handleShare = async () => {
-        try {
-            await navigator.clipboard.writeText(window.location.href);
-            dispatch(showToast({ message: 'Starter pack link copied to clipboard', type: 'success' }));
-        } catch {
-            dispatch(showToast({ message: 'Failed to copy link', type: 'error' }));
+            setFollowedDids(new Set(targetDids));
+            dispatch(showToast({ message: `Followed all members`, type: 'success' }));
         }
     };
 
     return (
-        <div className="max-w-2xl mx-auto border-x border-gray-200 dark:border-gray-800 min-h-screen pb-12">
-                {/* Header */}
-                <div className="sticky top-0 z-20 flex items-center gap-4 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                    </button>
-                    <div>
-                        <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate">
-                            {record?.name || 'Starter Pack'}
-                        </h1>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {members.length} {members.length === 1 ? 'member' : 'members'}
-                        </p>
-                    </div>
+        <div className="w-full max-w-[602px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen bg-white dark:bg-dark-bg pb-12 text-black dark:text-white">
+            {/* Top Sticky Header matching Pic 2 */}
+            <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-md border-b border-[#dce2ea] dark:border-dark-border">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="p-2 -ml-2 rounded-full hover:bg-[#eff2f6] dark:hover:bg-dark-surface transition-colors"
+                >
+                    <svg className="w-5 h-5 text-black dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </button>
+                <button
+                    onClick={handleFollowAll}
+                    disabled={isFollowingAll}
+                    className="px-4 py-1.5 rounded-full font-semibold text-sm bg-[#0085ff] hover:bg-[#0070e0] active:bg-[#005bb5] text-white transition-all disabled:opacity-50"
+                >
+                    {isFollowingAll ? 'Following...' : 'Follow all'}
+                </button>
+            </div>
+
+            {/* Pack Hero Info matching Pic 2 */}
+            <div className="p-4 flex flex-col">
+                {/* Large Blue Starter Pack Icon */}
+                <div className="w-12 h-12 rounded-xl bg-[#0085ff] text-white flex items-center justify-center mb-3">
+                    <svg fill="currentColor" width="28" height="28" viewBox="0 0 24 24">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M11.26 5.227 5.02 6.899c-.734.197-1.17.95-.973 1.685l1.672 6.24c.197.734.951 1.17 1.685.973l6.24-1.672c.734-.197 1.17-.951.973-1.685L12.945 6.2a1.375 1.375 0 0 0-1.685-.973Zm-6.566.459a2.632 2.632 0 0 0-1.86 3.223l1.672 6.24a2.632 2.632 0 0 0 3.223 1.861l6.24-1.672a2.631 2.631 0 0 0 1.861-3.223l-1.672-6.24a2.632 2.632 0 0 0-3.223-1.861l-6.24 1.672Z" />
+                    </svg>
                 </div>
 
-                {/* Banner Card */}
-                <div className="p-6 bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-purple-500/10 border-b border-gray-200 dark:border-gray-800">
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                            </svg>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleShare}
-                                className="p-2.5 rounded-full border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors"
-                                title="Share starter pack"
-                            >
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                                </svg>
-                            </button>
-                            <button
-                                onClick={handleFollowAll}
-                                disabled={isFollowingAll || targetDids.length === 0}
-                                className="px-5 py-2.5 rounded-full font-bold text-sm bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white transition-all shadow-md shadow-blue-500/20 disabled:opacity-50"
-                            >
-                                {isFollowingAll ? 'Following...' : 'Follow All'}
-                            </button>
-                        </div>
-                    </div>
+                <h1 className="text-2xl font-bold text-black dark:text-white tracking-tight">
+                    {record?.name || 'Starter Pack'}
+                </h1>
 
-                    <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2">
-                        {record?.name || 'Starter Pack'}
-                    </h2>
-
-                    {creator && (
-                        <div
-                            onClick={() => navigate(`/profile/${creator.handle}`)}
-                            className="inline-flex items-center gap-2 mb-3 cursor-pointer group"
-                        >
-                            {creator.avatar && (
-                                <img
-                                    src={creator.avatar}
-                                    alt={creator.handle}
-                                    className="w-6 h-6 rounded-full object-cover"
-                                />
-                            )}
-                            <span className="text-sm text-gray-600 dark:text-gray-400 group-hover:underline">
-                                Created by <strong className="text-gray-900 dark:text-white">{creator.displayName || `@${creator.handle}`}</strong>
-                            </span>
-                        </div>
-                    )}
-
-                    {record?.description && (
-                        <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                            {record.description}
-                        </p>
-                    )}
+                <div className="text-[14px] text-[#526580] dark:text-dark-text-secondary mt-0.5">
+                    Starter Pack by @{creator?.handle || 'unknown'}
                 </div>
 
-                {/* Included Feeds Section */}
-                {feeds && feeds.length > 0 && (
-                    <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
-                            Included Custom Feeds ({feeds.length})
-                        </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {feeds.map((feed: any, idx: number) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/40"
-                                >
-                                    {feed.avatar ? (
-                                        <img src={feed.avatar} alt={feed.displayName} className="w-9 h-9 rounded-lg object-cover" />
-                                    ) : (
-                                        <div className="w-9 h-9 rounded-lg bg-indigo-500/20 text-indigo-500 flex items-center justify-center font-bold">
-                                            #
-                                        </div>
-                                    )}
-                                    <div className="min-w-0">
-                                        <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                                            {feed.displayName}
-                                        </h4>
-                                        {feed.likeCount !== undefined && (
-                                            <p className="text-xs text-gray-500">❤️ {feed.likeCount} likes</p>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                {record?.description && (
+                    <p className="text-[15px] leading-relaxed text-[#111827] dark:text-dark-text mt-3 font-normal">
+                        {record.description}
+                    </p>
                 )}
+            </div>
 
-                {/* Member List */}
-                <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800/50">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                            People in this Pack ({members.length})
-                        </h3>
-                    </div>
+            {/* Tabs Bar: People | Posts matching Pic 2 */}
+            <div className="flex flex-row border-b border-[#dce2ea] dark:border-dark-border px-4 gap-6 text-[15px] font-semibold">
+                <button
+                    onClick={() => setActiveTab('people')}
+                    className={`py-3 relative ${
+                        activeTab === 'people'
+                            ? 'text-[#0085ff]'
+                            : 'text-[#526580] hover:text-black dark:hover:text-white'
+                    }`}
+                >
+                    People
+                    {activeTab === 'people' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#0085ff] rounded-t-full" />
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('posts')}
+                    className={`py-3 relative ${
+                        activeTab === 'posts'
+                            ? 'text-[#0085ff]'
+                            : 'text-[#526580] hover:text-black dark:hover:text-white'
+                    }`}
+                >
+                    Posts
+                    {activeTab === 'posts' && (
+                        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#0085ff] rounded-t-full" />
+                    )}
+                </button>
+            </div>
 
+            {/* Member List Tab Content matching Pic 2 */}
+            {activeTab === 'people' ? (
+                <div className="divide-y divide-[#eff2f6] dark:divide-dark-border/50">
                     {members.map((item: any, idx: number) => {
-                        const subject = item.subject;
+                        const subject = item.subject || item;
                         const isFollowing = followedDids.has(subject.did) || Boolean(subject.viewer?.following);
 
                         return (
                             <div
-                                key={idx}
-                                className="flex items-center justify-between gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+                                key={subject.did || idx}
+                                className="flex items-start justify-between gap-4 p-4 hover:bg-[#f9fafb] dark:hover:bg-dark-surface/30 transition-colors"
                             >
                                 <div
                                     onClick={() => navigate(`/profile/${subject.handle}`)}
-                                    className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1"
+                                    className="flex items-start gap-3 min-w-0 cursor-pointer flex-1"
                                 >
-                                    {subject.avatar ? (
-                                        <img
-                                            src={subject.avatar}
-                                            alt={subject.handle}
-                                            className="w-11 h-11 rounded-full object-cover flex-shrink-0"
-                                        />
-                                    ) : (
-                                        <div className="w-11 h-11 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center text-lg font-bold text-gray-600 dark:text-gray-300 flex-shrink-0">
-                                            {(subject.displayName || subject.handle)[0].toUpperCase()}
+                                    <img
+                                        src={subject.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(subject.displayName || subject.handle)}`}
+                                        alt={subject.handle}
+                                        className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5"
+                                    />
+                                    <div className="min-w-0 flex flex-col">
+                                        <div className="flex items-center gap-1 min-w-0">
+                                            <span className="font-bold text-[15px] text-black dark:text-white truncate hover:underline">
+                                                {subject.displayName || subject.handle}
+                                            </span>
+                                            {/* Blue check mark SVG if verified */}
+                                            <svg className="w-4 h-4 text-[#0085ff] flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                            </svg>
                                         </div>
-                                    )}
-                                    <div className="min-w-0">
-                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:underline truncate">
-                                            {subject.displayName || subject.handle}
-                                        </h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        <span className="text-[13px] text-[#526580] dark:text-dark-text-secondary truncate">
                                             @{subject.handle}
-                                        </p>
+                                        </span>
                                         {subject.description && (
-                                            <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-1 mt-1">
+                                            <p className="text-[13px] text-[#111827] dark:text-dark-text mt-1 leading-snug line-clamp-2">
                                                 {subject.description}
                                             </p>
                                         )}
@@ -310,18 +246,23 @@ export const StarterPackDetailPage: React.FC = () => {
                                             return next;
                                         });
                                     }}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                    className={`px-4 py-1.5 rounded-full text-[14px] font-semibold flex-shrink-0 transition-all flex items-center gap-1 ${
                                         isFollowing
-                                            ? 'bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-red-500/10 hover:text-red-500'
-                                            : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-90'
+                                            ? 'bg-[#eff2f6] dark:bg-dark-surface text-[#405168] dark:text-dark-text'
+                                            : 'bg-[#0085ff] hover:bg-[#0070e0] text-white'
                                     }`}
                                 >
-                                    {isFollowing ? 'Following' : 'Follow'}
+                                    {isFollowing ? 'Following' : '+ Follow'}
                                 </button>
                             </div>
                         );
                     })}
                 </div>
+            ) : (
+                <div className="p-8 text-center text-[#526580]">
+                    No posts in this starter pack yet.
+                </div>
+            )}
         </div>
     );
 };

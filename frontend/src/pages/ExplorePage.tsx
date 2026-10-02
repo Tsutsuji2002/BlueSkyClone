@@ -37,70 +37,86 @@ const uiAvatar = (name: string) => `https://ui-avatars.com/api/?name=${encodeURI
 // ─────────────────────────────────────────────────────────────────────────────
 const FALLBACK_STARTER_PACKS = [
     {
+        uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
+        cleanUrl: '/starter-pack/sstein.bsky.social/3laohb5gt6t2j',
+        record: { name: 'Comedy writers and satirists', description: 'Writers who write comedy and satire or write about comedy. Not necessarily people who are funny on Bluesky, though many are. Mostly these are people who write humor of one kind or another for publication.' },
+        creator: { handle: 'sstein.bsky.social', displayName: 'Scott Stein' },
+        listItemsSample: [
+            { subject: { did: 's1', handle: 'theonion.com', avatar: 'https://i.pravatar.cc/80?img=68' } },
+            { subject: { did: 's2', handle: 'clickhole.com', avatar: 'https://i.pravatar.cc/80?img=60' } },
+            { subject: { did: 's3', handle: 'hardtimes.net', avatar: 'https://i.pravatar.cc/80?img=59' } },
+            { subject: { did: 's4', handle: 'kashana.bsky.app', avatar: 'https://i.pravatar.cc/80?img=47' } },
+            { subject: { did: 's5', handle: 'reductress.com', avatar: 'https://i.pravatar.cc/80?img=45' } },
+            { subject: { did: 's6', handle: 'tomtomorrow.bsky.social', avatar: 'https://i.pravatar.cc/80?img=33' } },
+            { subject: { did: 's7', handle: 'ditzkoff.bsky.social', avatar: 'https://i.pravatar.cc/80?img=53' } },
+            { subject: { did: 's8', handle: 'scalzi.com', avatar: 'https://i.pravatar.cc/80?img=12' } },
+            { subject: { did: 's9', handle: 'theauthor.bsky.social', avatar: 'https://i.pravatar.cc/80?img=15' } },
+            { subject: { did: 's10', handle: 'satirist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=22' } },
+            { subject: { did: 's11', handle: 'humorist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=32' } },
+        ],
+        list: { listItemCount: 80 },
+    },
+    {
+        uri: 'at://did:plc:x3nu/app.bsky.graph.starterpack/1',
+        cleanUrl: '/starter-pack/x3nu.bsky.social/1',
+        record: { name: 'Gaming : Studios, Publishers, Media & Leakers', description: 'Comprehensive list of game studios, publishers, gaming news outlets, and industry insiders.' },
+        creator: { handle: 'x3nu.bsky.social', displayName: 'x3nu' },
+        listItemsSample: [
+            { subject: { did: 'g1', handle: 'ign.com', avatar: 'https://i.pravatar.cc/80?img=2' } },
+            { subject: { did: 'g2', handle: 'playstation.com', avatar: 'https://i.pravatar.cc/80?img=4' } },
+            { subject: { did: 'g3', handle: 'nintendo.com', avatar: 'https://i.pravatar.cc/80?img=6' } },
+            { subject: { did: 'g4', handle: 'giantbomb.com', avatar: 'https://i.pravatar.cc/80?img=8' } },
+            { subject: { did: 'g5', handle: 'annapurnainter.com', avatar: 'https://i.pravatar.cc/80?img=10' } },
+            { subject: { did: 'g6', handle: 'rockpapershotgun.com', avatar: 'https://i.pravatar.cc/80?img=14' } },
+            { subject: { did: 'g7', handle: 'destructoid.com', avatar: 'https://i.pravatar.cc/80?img=16' } },
+            { subject: { did: 'g8', handle: 'arcsystemworks.com', avatar: 'https://i.pravatar.cc/80?img=18' } },
+            { subject: { did: 'g9', handle: 'nichegamer.com', avatar: 'https://i.pravatar.cc/80?img=20' } },
+            { subject: { did: 'g10', handle: 'revolvermag.com', avatar: 'https://i.pravatar.cc/80?img=24' } },
+            { subject: { did: 'g11', handle: 'kotaku.com', avatar: 'https://i.pravatar.cc/80?img=26' } },
+        ],
+        list: { listItemCount: 72 },
+    },
+    {
         uri: 'at://did:plc:filmcritics/app.bsky.graph.starterpack/1',
-        record: { name: 'Film & TV Magazines', description: 'A collection of film critics, cinema writers, and movie enthusiasts on Bluesky.' },
+        cleanUrl: '/starter-pack/filmcritics.org.uk/1',
+        record: { name: 'Film & TV Magazines', description: 'A collection of film critics, cinema writers, and movie magazines on Bluesky.' },
         creator: { handle: 'filmcritics.org.uk', displayName: 'Film Critics' },
         listItemsSample: [
-            { subject: { did: '1',  handle: 'a', avatar: 'https://i.pravatar.cc/80?img=1'  } },
-            { subject: { did: '2',  handle: 'b', avatar: 'https://i.pravatar.cc/80?img=3'  } },
-            { subject: { did: '3',  handle: 'c', avatar: 'https://i.pravatar.cc/80?img=5'  } },
-            { subject: { did: '4',  handle: 'd', avatar: 'https://i.pravatar.cc/80?img=7'  } },
-            { subject: { did: '5',  handle: 'e', avatar: 'https://i.pravatar.cc/80?img=11' } },
-            { subject: { did: '6',  handle: 'f', avatar: 'https://i.pravatar.cc/80?img=13' } },
-            { subject: { did: '7',  handle: 'g', avatar: 'https://i.pravatar.cc/80?img=15' } },
-            { subject: { did: '8',  handle: 'h', avatar: 'https://i.pravatar.cc/80?img=17' } },
-            { subject: { did: '9',  handle: 'i', avatar: 'https://i.pravatar.cc/80?img=19' } },
+            { subject: { did: 'f1', handle: 'empire.com', avatar: 'https://i.pravatar.cc/80?img=1' } },
+            { subject: { did: 'f2', handle: 'fangoria.com', avatar: 'https://i.pravatar.cc/80?img=3' } },
+            { subject: { did: 'f3', handle: 'littlewhitelies.com', avatar: 'https://i.pravatar.cc/80?img=5' } },
+            { subject: { did: 'f4', handle: 'sightandsound.com', avatar: 'https://i.pravatar.cc/80?img=7' } },
+            { subject: { did: 'f5', handle: 'rottentomatoes.com', avatar: 'https://i.pravatar.cc/80?img=9' } },
+            { subject: { did: 'f6', handle: 'sfx.com', avatar: 'https://i.pravatar.cc/80?img=11' } },
+            { subject: { did: 'f7', handle: 'filmcriticsassoc.com', avatar: 'https://i.pravatar.cc/80?img=13' } },
+            { subject: { did: 'f8', handle: 'lmmounds.com', avatar: 'https://i.pravatar.cc/80?img=17' } },
+            { subject: { did: 'f9', handle: 'latenightpicture.com', avatar: 'https://i.pravatar.cc/80?img=19' } },
+            { subject: { did: 'f10', handle: 'cinema.com', avatar: 'https://i.pravatar.cc/80?img=23' } },
+            { subject: { did: 'f11', handle: 'moviebuff.com', avatar: 'https://i.pravatar.cc/80?img=27' } },
         ],
-        list: { listItemCount: 141 },
-    },
-    {
-        uri: 'at://did:plc:streetphoto/app.bsky.graph.starterpack/1',
-        record: { name: 'Street Photographers', description: 'The best street photographers on Bluesky — from documentary to fine art.' },
-        creator: { handle: 'antonpodolsky.bsky.social', displayName: 'Anton Podolsky' },
-        listItemsSample: [
-            { subject: { did: '10', handle: 'sp1', avatar: 'https://i.pravatar.cc/80?img=21' } },
-            { subject: { did: '11', handle: 'sp2', avatar: 'https://i.pravatar.cc/80?img=23' } },
-            { subject: { did: '12', handle: 'sp3', avatar: 'https://i.pravatar.cc/80?img=25' } },
-            { subject: { did: '13', handle: 'sp4', avatar: 'https://i.pravatar.cc/80?img=27' } },
-            { subject: { did: '14', handle: 'sp5', avatar: 'https://i.pravatar.cc/80?img=29' } },
-            { subject: { did: '15', handle: 'sp6', avatar: 'https://i.pravatar.cc/80?img=31' } },
-            { subject: { did: '16', handle: 'sp7', avatar: 'https://i.pravatar.cc/80?img=33' } },
-            { subject: { did: '17', handle: 'sp8', avatar: 'https://i.pravatar.cc/80?img=35' } },
-            { subject: { did: '18', handle: 'sp9', avatar: 'https://i.pravatar.cc/80?img=37' } },
-        ],
-        list: { listItemCount: 24 },
-    },
-    {
-        uri: 'at://did:plc:naturephoto/app.bsky.graph.starterpack/1',
-        record: { name: 'Top-Notch Nature Photographers 📷 Starter Pack', description: 'Wildlife, landscape, and macro photographers documenting the natural world.' },
-        creator: { handle: 'nickchillphoto.com', displayName: 'Nick Chill Photo' },
-        listItemsSample: [
-            { subject: { did: '19', handle: 'np1', avatar: 'https://i.pravatar.cc/80?img=39' } },
-            { subject: { did: '20', handle: 'np2', avatar: 'https://i.pravatar.cc/80?img=41' } },
-            { subject: { did: '21', handle: 'np3', avatar: 'https://i.pravatar.cc/80?img=43' } },
-            { subject: { did: '22', handle: 'np4', avatar: 'https://i.pravatar.cc/80?img=45' } },
-            { subject: { did: '23', handle: 'np5', avatar: 'https://i.pravatar.cc/80?img=47' } },
-            { subject: { did: '24', handle: 'np6', avatar: 'https://i.pravatar.cc/80?img=49' } },
-            { subject: { did: '25', handle: 'np7', avatar: 'https://i.pravatar.cc/80?img=51' } },
-            { subject: { did: '26', handle: 'np8', avatar: 'https://i.pravatar.cc/80?img=53' } },
-            { subject: { did: '27', handle: 'np9', avatar: 'https://i.pravatar.cc/80?img=55' } },
-        ],
-        list: { listItemCount: 96 },
+        list: { listItemCount: 143 },
     },
 ] as any[];
 
 
-const MAX_VISIBLE_AVATARS = 9;
+const MAX_VISIBLE_AVATARS = 11;
 
 const StarterPacksExploreSection: React.FC = () => {
     const navigate = useNavigate();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
-    const { data, isLoading } = useGetActorStarterPacksQuery(
+    const { data } = useGetActorStarterPacksQuery(
         { actor: currentUser?.did || currentUser?.handle || 'bsky.app', limit: 10 },
         { skip: !currentUser }
     );
 
     const packs: any[] = (data?.starterPacks?.length ? data.starterPacks : FALLBACK_STARTER_PACKS);
+
+    const getPackDetailUrl = (pack: any) => {
+        if (pack.cleanUrl) return pack.cleanUrl;
+        const rkey = pack.uri ? pack.uri.split('/').pop() : '1';
+        const handle = pack.creator?.handle || 'unknown';
+        return `/starter-pack/${handle}/${rkey}`;
+    };
 
     return (
         <div className="flex flex-col bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
@@ -117,37 +133,43 @@ const StarterPacksExploreSection: React.FC = () => {
                 </div>
             </div>
 
-            {/* Pack cards */}
+            {/* Pack cards matching sample HTML */}
             {packs.map((pack: any) => {
                 const members: any[] = pack.listItemsSample || [];
                 const totalCount: number = pack.list?.listItemCount ?? members.length;
                 const visibleMembers = members.slice(0, MAX_VISIBLE_AVATARS);
                 const extraCount = Math.max(0, totalCount - MAX_VISIBLE_AVATARS);
+                const packUrl = getPackDetailUrl(pack);
 
                 return (
                     <div
-                        key={pack.uri}
-                        onClick={() => navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`)}
-                        className="mx-4 mb-3 cursor-pointer"
+                        key={pack.uri || packUrl}
+                        className="px-4 pb-4"
                     >
-                        {/* Card matching sample HTML: p-4 gap-3 border rounded-lg overflow-hidden */}
-                        <div className="w-full p-4 gap-3 border border-[#dce2ea] dark:border-dark-border rounded-lg overflow-hidden flex flex-col hover:bg-[#eff2f6]/30 dark:hover:bg-dark-surface/30 transition-colors">
-                            {/* Avatar row: each slot = 8.33% width, inner wrapper = 120% for overlap */}
-                            <div className="flex flex-row items-center w-[98.33%] relative">
+                        <div
+                            onClick={() => navigate(packUrl)}
+                            className="w-full p-4 gap-3 border border-[#dce2ea] dark:border-dark-border rounded-[8px] overflow-hidden flex flex-col cursor-pointer hover:bg-[#eff2f6]/40 dark:hover:bg-dark-surface/40 transition-colors"
+                        >
+                            {/* Avatar row: matches sample HTML 98.3333% row width */}
+                            <div className="flex flex-row items-center w-[98.3333%] relative">
                                 {visibleMembers.map((item: any, i: number) => {
                                     const sub = item.subject || item;
                                     const avatarSrc = sub.avatar || uiAvatar(sub.displayName || sub.handle || String(i));
                                     return (
                                         <div key={sub.did || i} className="relative flex-shrink-0" style={{ width: '8.33333%', zIndex: 100 - i }}>
                                             <div className="relative w-[120%]">
-                                                <div className="w-full pt-[100%] rounded-full bg-[#f9fafb] dark:bg-dark-surface relative overflow-hidden">
-                                                    <div className="absolute inset-0 rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#dce2ea]">
-                                                        <img
-                                                            src={avatarSrc}
-                                                            alt=""
-                                                            className="w-full h-full object-cover rounded-full"
-                                                            onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
-                                                        />
+                                                <div className="w-full pt-[100%] rounded-[999px] bg-[#f9fafb] dark:bg-dark-surface relative">
+                                                    <div className="absolute inset-0">
+                                                        <div className="overflow-hidden w-full h-full rounded-[999px] bg-[#f9fafb] dark:bg-dark-surface relative">
+                                                            <img
+                                                                src={avatarSrc}
+                                                                alt=""
+                                                                className="w-full h-full absolute left-0 top-0 object-cover"
+                                                                style={{ objectPosition: '50% 50%' }}
+                                                                onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
+                                                            />
+                                                        </div>
+                                                        <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border opacity-60 pointer-events-none rounded-[999px]" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -157,30 +179,31 @@ const StarterPacksExploreSection: React.FC = () => {
                                 {extraCount > 0 && (
                                     <div className="relative flex-shrink-0" style={{ width: '8.33333%', zIndex: 1 }}>
                                         <div className="relative w-[120%]">
-                                            <div className="w-full pt-[100%] rounded-full bg-[#8798b0] border-2 border-white dark:border-dark-bg relative flex items-center justify-center">
-                                                <span className="absolute inset-0 flex items-center justify-center text-[13px] sm:text-[15px] font-semibold text-white">
-                                                    +{extraCount}
-                                                </span>
+                                            <div className="w-full pt-[100%] rounded-[999px] relative">
+                                                <div className="absolute inset-0 rounded-[999px] flex items-center justify-center bg-[#8798b0]">
+                                                    <span className="text-[15px] tracking-[0.25px] text-white leading-[20px] font-semibold">
+                                                        +{extraCount}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Pack info row + Open pack button */}
-                            <div className="w-full flex flex-row items-start gap-4">
+                            {/* Info row */}
+                            <div className="w-full flex flex-row items-start gap-4 z-10">
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                                    <div className="text-[15px] leading-[20px] tracking-[0.25px] font-semibold text-black dark:text-white truncate">
                                         {pack.record?.name || pack.name || 'Starter Pack'}
                                     </div>
-                                    <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
+                                    <div className="text-[13.1px] leading-[17px] tracking-[0.25px] text-[#405168] dark:text-dark-text-secondary truncate">
                                         By @{pack.creator?.handle || 'unknown'}
                                     </div>
                                 </div>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`); }}
-                                    style={{ backgroundColor: 'rgb(239,242,246)', borderRadius: '999px', padding: '8px 14px', zIndex: 50 }}
-                                    className="flex-shrink-0 text-[13.1px] leading-[17px] font-medium text-[#405168] dark:text-dark-text-secondary hover:brightness-95 transition-all"
+                                    onClick={(e) => { e.stopPropagation(); navigate(packUrl); }}
+                                    className="flex-shrink-0 flex flex-row items-center justify-center bg-[#eff2f6] dark:bg-dark-surface rounded-[999px] px-3.5 py-2 gap-1 text-[13.1px] leading-[17px] font-medium text-[#405168] dark:text-dark-text hover:brightness-95 transition-all"
                                 >
                                     Open pack
                                 </button>
