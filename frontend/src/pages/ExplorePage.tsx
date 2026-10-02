@@ -41,32 +41,32 @@ const FALLBACK_STARTER_PACKS = [
         record: { name: 'Film & TV Magazines', description: 'A collection of film critics, cinema writers, and movie enthusiasts on Bluesky.' },
         creator: { handle: 'filmcritics.org.uk', displayName: 'Film Critics' },
         listItemsSample: [
-            { subject: { did: '1', handle: 'a', displayName: 'A', avatar: uiAvatar('FT') } },
-            { subject: { did: '2', handle: 'b', displayName: 'B', avatar: uiAvatar('MP') } },
-            { subject: { did: '3', handle: 'c', displayName: 'C', avatar: uiAvatar('LW') } },
-            { subject: { did: '4', handle: 'd', displayName: 'D', avatar: uiAvatar('GR') } },
-            { subject: { did: '5', handle: 'e', displayName: 'E', avatar: uiAvatar('RT') } },
-            { subject: { did: '6', handle: 'f', displayName: 'F', avatar: uiAvatar('SX') } },
-            { subject: { did: '7', handle: 'g', displayName: 'G', avatar: uiAvatar('FC') } },
-            { subject: { did: '8', handle: 'h', displayName: 'H', avatar: uiAvatar('LN') } },
-            { subject: { did: '9', handle: 'i', displayName: 'I', avatar: uiAvatar('MS') } },
+            { subject: { did: '1',  handle: 'a', avatar: 'https://i.pravatar.cc/80?img=1'  } },
+            { subject: { did: '2',  handle: 'b', avatar: 'https://i.pravatar.cc/80?img=3'  } },
+            { subject: { did: '3',  handle: 'c', avatar: 'https://i.pravatar.cc/80?img=5'  } },
+            { subject: { did: '4',  handle: 'd', avatar: 'https://i.pravatar.cc/80?img=7'  } },
+            { subject: { did: '5',  handle: 'e', avatar: 'https://i.pravatar.cc/80?img=11' } },
+            { subject: { did: '6',  handle: 'f', avatar: 'https://i.pravatar.cc/80?img=13' } },
+            { subject: { did: '7',  handle: 'g', avatar: 'https://i.pravatar.cc/80?img=15' } },
+            { subject: { did: '8',  handle: 'h', avatar: 'https://i.pravatar.cc/80?img=17' } },
+            { subject: { did: '9',  handle: 'i', avatar: 'https://i.pravatar.cc/80?img=19' } },
         ],
-        list: { listItemCount: 85 },
+        list: { listItemCount: 141 },
     },
     {
         uri: 'at://did:plc:streetphoto/app.bsky.graph.starterpack/1',
         record: { name: 'Street Photographers', description: 'The best street photographers on Bluesky — from documentary to fine art.' },
         creator: { handle: 'antonpodolsky.bsky.social', displayName: 'Anton Podolsky' },
         listItemsSample: [
-            { subject: { did: '10', handle: 'sp1', displayName: 'SP1', avatar: uiAvatar('NM') } },
-            { subject: { did: '11', handle: 'sp2', displayName: 'SP2', avatar: uiAvatar('TC') } },
-            { subject: { did: '12', handle: 'sp3', displayName: 'SP3', avatar: uiAvatar('JB') } },
-            { subject: { did: '13', handle: 'sp4', displayName: 'SP4', avatar: uiAvatar('PW') } },
-            { subject: { did: '14', handle: 'sp5', displayName: 'SP5', avatar: uiAvatar('KL') } },
-            { subject: { did: '15', handle: 'sp6', displayName: 'SP6', avatar: uiAvatar('MR') } },
-            { subject: { did: '16', handle: 'sp7', displayName: 'SP7', avatar: uiAvatar('DC') } },
-            { subject: { did: '17', handle: 'sp8', displayName: 'SP8', avatar: uiAvatar('AH') } },
-            { subject: { did: '18', handle: 'sp9', displayName: 'SP9', avatar: uiAvatar('RG') } },
+            { subject: { did: '10', handle: 'sp1', avatar: 'https://i.pravatar.cc/80?img=21' } },
+            { subject: { did: '11', handle: 'sp2', avatar: 'https://i.pravatar.cc/80?img=23' } },
+            { subject: { did: '12', handle: 'sp3', avatar: 'https://i.pravatar.cc/80?img=25' } },
+            { subject: { did: '13', handle: 'sp4', avatar: 'https://i.pravatar.cc/80?img=27' } },
+            { subject: { did: '14', handle: 'sp5', avatar: 'https://i.pravatar.cc/80?img=29' } },
+            { subject: { did: '15', handle: 'sp6', avatar: 'https://i.pravatar.cc/80?img=31' } },
+            { subject: { did: '16', handle: 'sp7', avatar: 'https://i.pravatar.cc/80?img=33' } },
+            { subject: { did: '17', handle: 'sp8', avatar: 'https://i.pravatar.cc/80?img=35' } },
+            { subject: { did: '18', handle: 'sp9', avatar: 'https://i.pravatar.cc/80?img=37' } },
         ],
         list: { listItemCount: 24 },
     },
@@ -75,19 +75,20 @@ const FALLBACK_STARTER_PACKS = [
         record: { name: 'Top-Notch Nature Photographers 📷 Starter Pack', description: 'Wildlife, landscape, and macro photographers documenting the natural world.' },
         creator: { handle: 'nickchillphoto.com', displayName: 'Nick Chill Photo' },
         listItemsSample: [
-            { subject: { did: '19', handle: 'np1', displayName: 'NP1', avatar: uiAvatar('WL') } },
-            { subject: { did: '20', handle: 'np2', displayName: 'NP2', avatar: uiAvatar('SD') } },
-            { subject: { did: '21', handle: 'np3', displayName: 'NP3', avatar: uiAvatar('BF') } },
-            { subject: { did: '22', handle: 'np4', displayName: 'NP4', avatar: uiAvatar('GH') } },
-            { subject: { did: '23', handle: 'np5', displayName: 'NP5', avatar: uiAvatar('YK') } },
-            { subject: { did: '24', handle: 'np6', displayName: 'NP6', avatar: uiAvatar('OS') } },
-            { subject: { did: '25', handle: 'np7', displayName: 'NP7', avatar: uiAvatar('CJ') } },
-            { subject: { did: '26', handle: 'np8', displayName: 'NP8', avatar: uiAvatar('RF') } },
-            { subject: { did: '27', handle: 'np9', displayName: 'NP9', avatar: uiAvatar('AL') } },
+            { subject: { did: '19', handle: 'np1', avatar: 'https://i.pravatar.cc/80?img=39' } },
+            { subject: { did: '20', handle: 'np2', avatar: 'https://i.pravatar.cc/80?img=41' } },
+            { subject: { did: '21', handle: 'np3', avatar: 'https://i.pravatar.cc/80?img=43' } },
+            { subject: { did: '22', handle: 'np4', avatar: 'https://i.pravatar.cc/80?img=45' } },
+            { subject: { did: '23', handle: 'np5', avatar: 'https://i.pravatar.cc/80?img=47' } },
+            { subject: { did: '24', handle: 'np6', avatar: 'https://i.pravatar.cc/80?img=49' } },
+            { subject: { did: '25', handle: 'np7', avatar: 'https://i.pravatar.cc/80?img=51' } },
+            { subject: { did: '26', handle: 'np8', avatar: 'https://i.pravatar.cc/80?img=53' } },
+            { subject: { did: '27', handle: 'np9', avatar: 'https://i.pravatar.cc/80?img=55' } },
         ],
         list: { listItemCount: 96 },
     },
 ] as any[];
+
 
 const MAX_VISIBLE_AVATARS = 9;
 
@@ -127,47 +128,67 @@ const StarterPacksExploreSection: React.FC = () => {
                     <div
                         key={pack.uri}
                         onClick={() => navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`)}
-                        className="mx-4 mb-3 rounded-lg border border-[#dce2ea] dark:border-dark-border overflow-hidden cursor-pointer hover:bg-[#f9fafb] dark:hover:bg-dark-surface/50 transition-colors"
+                        className="mx-4 mb-3 cursor-pointer"
                     >
-                        {/* Wide member avatar strip */}
-                        <div className="flex flex-row items-center overflow-hidden bg-[#f9fafb] dark:bg-dark-surface px-3 pt-3 pb-2 gap-[2px]">
-                            {visibleMembers.map((item: any, i: number) => {
-                                const sub = item.subject || item;
-                                const avatarSrc = sub.avatar || uiAvatar(sub.displayName || sub.handle || String(i));
-                                return (
-                                    <div key={sub.did || i} className="w-[42px] h-[42px] rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#dce2ea] flex-shrink-0">
-                                        <img
-                                            src={avatarSrc}
-                                            alt=""
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
-                                        />
+                        {/* Card matching sample HTML: p-4 gap-3 border rounded-lg overflow-hidden */}
+                        <div className="w-full p-4 gap-3 border border-[#dce2ea] dark:border-dark-border rounded-lg overflow-hidden flex flex-col hover:bg-[#eff2f6]/30 dark:hover:bg-dark-surface/30 transition-colors">
+                            {/* Avatar row: each slot = 8.33% width, inner wrapper = 120% for overlap */}
+                            <div className="flex flex-row items-center" style={{ position: 'relative', width: '98.33%' }}>
+                                {visibleMembers.map((item: any, i: number) => {
+                                    const sub = item.subject || item;
+                                    const avatarSrc = sub.avatar || uiAvatar(sub.displayName || sub.handle || String(i));
+                                    const totalSlots = visibleMembers.length + (extraCount > 0 ? 1 : 0);
+                                    return (
+                                        <div key={sub.did || i} style={{ width: '8.33333%', zIndex: 100 - i }}>
+                                            <div style={{ position: 'relative', width: '120%' }}>
+                                                <div style={{ borderRadius: '999px', backgroundColor: 'rgb(249,250,251)', paddingTop: '100%' }}>
+                                                    <div style={{ width: 53, height: 53, position: 'absolute', inset: 0 }}>
+                                                        <div style={{ overflow: 'hidden', width: 53, height: 53, borderRadius: 26, backgroundColor: 'rgb(249,250,251)' }}>
+                                                            <img
+                                                                src={avatarSrc}
+                                                                alt=""
+                                                                style={{ objectPosition: 'left 50% top 50%', width: '100%', height: '100%', position: 'absolute', left: 0, top: 0, objectFit: 'cover' }}
+                                                                onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(sub.handle || String(i)); }}
+                                                            />
+                                                        </div>
+                                                        <div style={{ position: 'absolute', inset: 0, borderWidth: 1, borderColor: 'rgb(220,226,234)', opacity: 0.6, pointerEvents: 'none', borderRadius: 26 }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {extraCount > 0 && (
+                                    <div style={{ width: '8.33333%', zIndex: 1 }}>
+                                        <div style={{ position: 'relative', width: '120%' }}>
+                                            <div style={{ paddingTop: '100%' }}>
+                                                <div style={{ position: 'absolute', inset: 0, borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgb(135,152,176)' }}>
+                                                    <span style={{ fontSize: 15, letterSpacing: '0.25px', color: 'rgb(255,255,255)', lineHeight: '20px', fontWeight: 600 }}>+{extraCount}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                );
-                            })}
-                            {extraCount > 0 && (
-                                <div className="w-[42px] h-[42px] rounded-full bg-[#e2e8f0] dark:bg-dark-surface border-2 border-white dark:border-dark-bg flex items-center justify-center flex-shrink-0">
-                                    <span className="text-[12px] font-semibold text-[#526580]">+{extraCount}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Pack info row */}
-                        <div className="flex flex-row items-center justify-between px-3 py-2 gap-2">
-                            <div className="flex flex-col min-w-0">
-                                <div className="text-[15px] font-semibold text-black dark:text-white truncate">
-                                    {pack.record?.name || pack.name || 'Starter Pack'}
-                                </div>
-                                <div className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary truncate">
-                                    By @{pack.creator?.handle || 'unknown'}
-                                </div>
+                                )}
                             </div>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`); }}
-                                className="flex-shrink-0 px-4 py-[7px] rounded-full border border-[#dce2ea] dark:border-dark-border text-[13.1px] font-medium text-black dark:text-white hover:bg-[#eff2f6] dark:hover:bg-dark-surface transition-colors"
-                            >
-                                Open pack
-                            </button>
+
+                            {/* Pack info row + Open pack button */}
+                            <div className="w-full flex flex-row items-start gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                                        {pack.record?.name || pack.name || 'Starter Pack'}
+                                    </div>
+                                    <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
+                                        By @{pack.creator?.handle || 'unknown'}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/starter-pack?uri=${encodeURIComponent(pack.uri)}`); }}
+                                    style={{ backgroundColor: 'rgb(239,242,246)', borderRadius: '999px', padding: '8px 14px', zIndex: 50 }}
+                                    className="flex-shrink-0 text-[13.1px] leading-[17px] font-medium text-[#405168] dark:text-dark-text-secondary hover:brightness-95 transition-all"
+                                >
+                                    Open pack
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );

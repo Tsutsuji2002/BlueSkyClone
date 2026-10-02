@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useGetStarterPackQuery, useFollowAllMembersMutation } from '../redux/api/starterPackApi';
 import { useAppDispatch } from '../redux/hooks';
 import { showToast } from '../redux/slices/toastSlice';
-import MainLayout from '../components/layout/MainLayout';
 
 export const StarterPackDetailPage: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -21,30 +20,24 @@ export const StarterPackDetailPage: React.FC = () => {
 
     if (!starterPackUri) {
         return (
-            <MainLayout>
-                <div className="p-8 text-center text-gray-500">No starter pack URI provided.</div>
-            </MainLayout>
+            <div className="p-8 text-center text-gray-500">No starter pack URI provided.</div>
         );
     }
 
     if (isLoading) {
         return (
-            <MainLayout>
-                <div className="p-8 text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-                    <p className="mt-2 text-sm text-gray-500">Loading starter pack...</p>
-                </div>
-            </MainLayout>
+            <div className="p-8 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+                <p className="mt-2 text-sm text-gray-500">Loading starter pack...</p>
+            </div>
         );
     }
 
     if (error || !data?.starterPack) {
         return (
-            <MainLayout>
-                <div className="p-8 text-center text-red-500">
-                    Failed to load starter pack. Please try again.
-                </div>
-            </MainLayout>
+            <div className="p-8 text-center text-red-500">
+                Failed to load starter pack. Please try again.
+            </div>
         );
     }
 
@@ -74,8 +67,7 @@ export const StarterPackDetailPage: React.FC = () => {
     };
 
     return (
-        <MainLayout>
-            <div className="max-w-2xl mx-auto border-x border-gray-200 dark:border-gray-800 min-h-screen pb-12">
+        <div className="max-w-2xl mx-auto border-x border-gray-200 dark:border-gray-800 min-h-screen pb-12">
                 {/* Header */}
                 <div className="sticky top-0 z-20 flex items-center gap-4 p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
                     <button
@@ -254,8 +246,7 @@ export const StarterPackDetailPage: React.FC = () => {
                         );
                     })}
                 </div>
-            </div>
-        </MainLayout>
+        </div>
     );
 };
 
