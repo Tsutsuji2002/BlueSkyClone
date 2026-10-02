@@ -1,8 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useGetStarterPackQuery, useFollowAllMembersMutation } from '../redux/api/starterPackApi';
 import { useAppDispatch } from '../redux/hooks';
 import { showToast } from '../redux/slices/toastSlice';
+
+const COMEDY_MEMBERS_FULL = [
+    { did: 's1', handle: 'sstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Latest novel: THE GREAT AMERICAN BETRAYAL *Best Comedy Books of 2022* -Vulture. English professor, novelist, satirist, editor.' },
+    { did: 's2', handle: 'kashana.bsky.app', displayName: 'Kashana', avatar: 'https://i.pravatar.cc/80?img=47', description: 'TV writer. Author of the novels THE PAYBACK and THE SURVIVALISTS. Deadly with a butter knife.' },
+    { did: 's3', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=33', description: 'gallows humorist & creator of This Modern World.' },
+    { did: 's4', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=53', description: 'Author of Robin and Mad as Hell. Culture reporter and satirist.' },
+    { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'I enjoy pie. Sci-fi novelist, humorist, Hugo award winner.' },
+    { did: 's6', handle: 'theauthor.bsky.social', displayName: 'Christopher Moore', avatar: 'https://i.pravatar.cc/80?img=15', description: 'Author of Lamb, Fool, Sacre Bleu, Noir, Shakespeare for Squirrels.' },
+    { did: 's7', handle: 'thehardtimesnews.bsky.social', displayName: 'The Hard Times', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Punk news coming your way. Read the full articles: www.thehardtimes.net' },
+    { did: 's8', handle: 'clickhole.bsky.social', displayName: 'ClickHole', avatar: 'https://i.pravatar.cc/80?img=60', description: 'Because all content deserves to go viral.' },
+    { subject: { did: 's9', handle: 'thatwriterguy.com', displayName: 'Mike L Tilford', avatar: 'https://i.pravatar.cc/80?img=44', description: 'NYT Worstselling Author SFF, Satire, Comedy, Absurdist Dummest Person in the Room.' } },
+    { subject: { did: 's10', handle: 'pericogey', displayName: 'Butt teeth! Butt teeth! Butt teeth!', avatar: 'https://i.pravatar.cc/80?img=38', description: 'Irl: Edutainment & sketch comedy. Heres Shitposts. 18+ There’s a species of fish that lives in the puttholes of sea cucumbers.' } },
+    { subject: { did: 's11', handle: 'robkutner.bsky.social', displayName: 'Rob Kutner', avatar: 'https://i.pravatar.cc/80?img=25', description: 'Emmy-winning comedy/animation writer (Daily Show, CONAN, Teen Titans Go!), NYT-bestselling author.' } },
+    { subject: { did: 's12', handle: 'rejectedjokes.bsky.social', displayName: 'Ben Schwartz', avatar: 'https://i.pravatar.cc/80?img=28', description: 'RejectedJokes.com' } },
+    { subject: { did: 's13', handle: 'takomatorch.bsky.social', displayName: 'The Takoma Torch 🪵 🔥', avatar: 'https://i.pravatar.cc/80?img=32', description: 'Takoma Park’s ONLY Humor Source. Home of the Nimbee and Takoma Man. www.takomatorch.com' } },
+    { subject: { did: 's14', handle: 'theonion.com', displayName: 'The Onion', avatar: 'https://i.pravatar.cc/80?img=60', description: 'America’s Finest News Source.' } },
+    { subject: { did: 's15', handle: 'reductress.com', displayName: 'Reductress', avatar: 'https://i.pravatar.cc/80?img=45', description: 'The first and only satirical women’s magazine.' } },
+    { subject: { did: 's16', handle: 'mcsweeneys.bsky.social', displayName: 'McSweeney’s Internet Tendency', avatar: 'https://i.pravatar.cc/80?img=52', description: 'Daily humor and satire since 1998.' } },
+    { subject: { did: 's17', handle: 'satiristdaily.bsky.social', displayName: 'The Daily Satirist', avatar: 'https://i.pravatar.cc/80?img=19', description: 'Satire, political comedy, and commentary.' } },
+    { subject: { did: 's18', handle: 'conanobrien.bsky.social', displayName: 'Conan O’Brien', avatar: 'https://i.pravatar.cc/80?img=21', description: 'Team Coco. Host of Conan O’Brien Needs a Friend.' } },
+    { subject: { did: 's19', handle: 'thedailyshow.bsky.social', displayName: 'The Daily Show', avatar: 'https://i.pravatar.cc/80?img=23', description: 'The news, unrefined. Watch weeknights at 11/10c on Comedy Central.' } },
+    { subject: { did: 's20', handle: 'sethmeyers.bsky.social', displayName: 'Late Night with Seth Meyers', avatar: 'https://i.pravatar.cc/80?img=29', description: 'Late Night with Seth Meyers on NBC.' } },
+    { subject: { did: 's21', handle: 'colbert.bsky.social', displayName: 'Stephen Colbert', avatar: 'https://i.pravatar.cc/80?img=31', description: 'Host of The Late Show with Stephen Colbert.' } },
+    { subject: { did: 's22', handle: 'humorwriters.bsky.social', displayName: 'Humor Writers Guild', avatar: 'https://i.pravatar.cc/80?img=34', description: 'Connecting professional comedy & satire writers.' } },
+    { subject: { did: 's23', handle: 'funnyordie.bsky.social', displayName: 'Funny Or Die', avatar: 'https://i.pravatar.cc/80?img=37', description: 'We like to laugh.' } },
+    { subject: { did: 's24', handle: 'satiretoday.bsky.social', displayName: 'Satire Today', avatar: 'https://i.pravatar.cc/80?img=41', description: 'Fresh humor and satire published daily.' } },
+    { subject: { did: 's25', handle: 'comedycentral.bsky.social', displayName: 'Comedy Central', avatar: 'https://i.pravatar.cc/80?img=43', description: 'Everything funny in one place.' } },
+].map(m => m.subject ? m : { subject: m });
 
 const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
     'sstein.bsky.social': {
@@ -16,16 +44,7 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
             displayName: 'Scott Stein',
             avatar: 'https://i.pravatar.cc/80?img=68',
         },
-        listItemsSample: [
-            { subject: { did: 's1', handle: 'sstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Latest novel: THE GREAT AMERICAN BETRAYAL *Best Comedy Books of 2022* -Vulture\nEnglish professor, novelist, satirist, editor, father, husband, dog owner, gardener...' } },
-            { subject: { did: 's2', handle: 'kashana.bsky.app', displayName: 'Kashana', avatar: 'https://i.pravatar.cc/80?img=47', description: 'TV writer. Author of the novels THE PAYBACK and THE SURVIVALISTS. Deadly with a butter knife.' } },
-            { subject: { did: 's3', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=33', description: 'gallows humorist' } },
-            { subject: { did: 's4', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=53', description: 'static.macmillan.com/static/holt/...' } },
-            { subject: { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'I enjoy pie. Social Media FAQ: whatever.scalzi.com/2025/04/16/t...' } },
-            { subject: { did: 's6', handle: 'theauthor.bsky.social', displayName: 'Christopher Moore', avatar: 'https://i.pravatar.cc/80?img=15', description: 'Author of Lamb, Fool, Sacre Bleu, Noir, Shakespeare for Squirrels...' } },
-            { subject: { did: 's7', handle: 'theonion.com', displayName: 'The Onion', avatar: 'https://i.pravatar.cc/80?img=60', description: 'America’s Finest News Source.' } },
-            { subject: { did: 's8', handle: 'clickhole.com', displayName: 'ClickHole', avatar: 'https://i.pravatar.cc/80?img=59', description: 'Because all content deserves to go viral.' } },
-        ],
+        listItemsSample: COMEDY_MEMBERS_FULL,
         feeds: [],
     },
     'x3nu.bsky.social': {
@@ -44,6 +63,10 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
             { subject: { did: 'g2', handle: 'playstation.com', displayName: 'PlayStation', avatar: 'https://i.pravatar.cc/80?img=4', description: 'Official Bluesky account for PlayStation.' } },
             { subject: { did: 'g3', handle: 'nintendo.com', displayName: 'Nintendo of America', avatar: 'https://i.pravatar.cc/80?img=6', description: 'Official news and updates from Nintendo.' } },
             { subject: { did: 'g4', handle: 'giantbomb.com', displayName: 'Giant Bomb', avatar: 'https://i.pravatar.cc/80?img=8', description: 'Video game news, podcasts, videos and reviews.' } },
+            { subject: { did: 'g5', handle: 'annapurnainter.com', displayName: 'Annapurna Interactive', avatar: 'https://i.pravatar.cc/80?img=10', description: 'Publishing personal, unique, and emotional games.' } },
+            { subject: { did: 'g6', handle: 'rockpapershotgun.com', displayName: 'Rock Paper Shotgun', avatar: 'https://i.pravatar.cc/80?img=14', description: 'PC gaming news, previews, and reviews.' } },
+            { subject: { did: 'g7', handle: 'destructoid.com', displayName: 'Destructoid', avatar: 'https://i.pravatar.cc/80?img=16', description: 'Gaming blog and news network.' } },
+            { subject: { did: 'g8', handle: 'kotaku.com', displayName: 'Kotaku', avatar: 'https://i.pravatar.cc/80?img=26', description: 'Gaming reviews, news, tips and more.' } },
         ],
         feeds: [],
     },
@@ -62,6 +85,8 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
             { subject: { did: 'f1', handle: 'empire.com', displayName: 'Empire Magazine', avatar: 'https://i.pravatar.cc/80?img=1', description: 'The world’s biggest movie magazine.' } },
             { subject: { did: 'f2', handle: 'littlewhitelies.com', displayName: 'Little White Lies', avatar: 'https://i.pravatar.cc/80?img=5', description: 'Truth & Movies. The magazine for film lovers.' } },
             { subject: { did: 'f3', handle: 'rottentomatoes.com', displayName: 'Rotten Tomatoes', avatar: 'https://i.pravatar.cc/80?img=9', description: 'Recommendations, reviews, and entertainment news.' } },
+            { subject: { did: 'f4', handle: 'sightandsound.com', displayName: 'Sight & Sound', avatar: 'https://i.pravatar.cc/80?img=7', description: 'The international film magazine published by the BFI.' } },
+            { subject: { did: 'f5', handle: 'fangoria.com', displayName: 'Fangoria', avatar: 'https://i.pravatar.cc/80?img=3', description: 'First in horror since 1979.' } },
         ],
         feeds: [],
     },
@@ -73,19 +98,64 @@ export const StarterPackDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
 
+    // Legacy URL Redirection
+    useEffect(() => {
+        const rawUri = searchParams.get('uri');
+        if (rawUri && !paramHandle) {
+            let handle = 'sstein.bsky.social';
+            let rkey = '3laohb5gt6t2j';
+            if (rawUri.includes('filmcritics')) {
+                handle = 'filmcritics.org.uk';
+                rkey = '1';
+            } else if (rawUri.includes('x3nu')) {
+                handle = 'x3nu.bsky.social';
+                rkey = '1';
+            } else if (rawUri.includes('sstein')) {
+                handle = 'sstein.bsky.social';
+                rkey = '3laohb5gt6t2j';
+            }
+            navigate(`/starter-pack/${handle}/${rkey}`, { replace: true });
+        }
+    }, [searchParams, paramHandle, navigate]);
+
     const starterPackUri = searchParams.get('uri') || (paramHandle && paramRkey ? `at://${paramHandle}/app.bsky.graph.starterpack/${paramRkey}` : '');
+
+    const isMockPack = !paramHandle || ['sstein.bsky.social', 'filmcritics.org.uk', 'x3nu.bsky.social'].includes(paramHandle);
 
     const { data, isLoading } = useGetStarterPackQuery(
         { starterPack: starterPackUri || '' },
-        { skip: !starterPackUri }
+        { skip: !starterPackUri || isMockPack }
     );
 
     const [followAllMembers, { isLoading: isFollowingAll }] = useFollowAllMembersMutation();
     const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
     const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
+    const [visibleCount, setVisibleCount] = useState<number>(7);
+    const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
 
     const fallbackKey = paramHandle || (starterPackUri ? (Object.keys(MOCK_FALLBACK_STARTER_PACKS).find(k => starterPackUri.includes(k)) || 'sstein.bsky.social') : 'sstein.bsky.social');
     const starterPack = data?.starterPack || MOCK_FALLBACK_STARTER_PACKS[fallbackKey] || MOCK_FALLBACK_STARTER_PACKS['sstein.bsky.social'];
+
+    const members: any[] = starterPack?.listItemsSample || [];
+    const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
+
+    // Infinite scroll handler
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+                if (!isFetchingMore && visibleCount < members.length) {
+                    setIsFetchingMore(true);
+                    setTimeout(() => {
+                        setVisibleCount(prev => Math.min(prev + 6, members.length));
+                        setIsFetchingMore(false);
+                    }, 400);
+                }
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [visibleCount, members.length, isFetchingMore]);
 
     if (isLoading) {
         return (
@@ -104,9 +174,7 @@ export const StarterPackDetailPage: React.FC = () => {
         );
     }
 
-    const { record, creator, listItemsSample, feeds } = starterPack;
-    const members: any[] = listItemsSample || [];
-    const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
+    const { record, creator } = starterPack;
 
     const handleFollowAll = async () => {
         if (!targetDids.length) return;
@@ -119,6 +187,8 @@ export const StarterPackDetailPage: React.FC = () => {
             dispatch(showToast({ message: `Followed all members`, type: 'success' }));
         }
     };
+
+    const visibleMembers = members.slice(0, visibleCount);
 
     return (
         <div className="w-full max-w-[602px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen bg-white dark:bg-dark-bg pb-12 text-black dark:text-white">
@@ -198,7 +268,7 @@ export const StarterPackDetailPage: React.FC = () => {
             {/* Member List Tab Content matching Pic 2 */}
             {activeTab === 'people' ? (
                 <div className="divide-y divide-[#eff2f6] dark:divide-dark-border/50">
-                    {members.map((item: any, idx: number) => {
+                    {visibleMembers.map((item: any, idx: number) => {
                         const subject = item.subject || item;
                         const isFollowing = followedDids.has(subject.did) || Boolean(subject.viewer?.following);
 
@@ -257,6 +327,13 @@ export const StarterPackDetailPage: React.FC = () => {
                             </div>
                         );
                     })}
+
+                    {/* Infinite Scroll Loading Indicator */}
+                    {visibleCount < members.length && (
+                        <div className="p-4 text-center">
+                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#0085ff] border-t-transparent"></div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="p-8 text-center text-[#526580]">
