@@ -19,6 +19,10 @@ import { matchesPost } from '../../utils/postUtils';
 import { Link } from 'react-router-dom';
 import ListAvatar from '../common/ListAvatar';
 import { cn } from '../../utils/classNames';
+import { useGetActorStarterPacksQuery } from '../../redux/api/starterPackApi';
+import StarterPackCard from '../starterpack/StarterPackCard';
+import { CreateStarterPackModal } from '../../modals/CreateStarterPackModal';
+import { FiGrid } from 'react-icons/fi';
 
 interface ProfileTabContentProps {
     userId: string;
@@ -44,11 +48,17 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
     const isUserFeedsLoading = useAppSelector((state: RootState) => state.feeds.userFeedsLoading);
     const isListsLoading = useAppSelector((state: RootState) => state.lists.isLoading);
 
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const { data: starterPacksData, isLoading: isStarterPacksLoading, refetch: refetchStarterPacks } = useGetActorStarterPacksQuery(
+        { actor: userId },
+        { skip: type !== 'starterpacks' }
+    );
+
     const fetchBatch = useCallback(async (isInitial = false) => {
         if (!isInitial && (!hasMore || loading)) return;
         
-        // Skip internal fetch if using Redux-managed lists/feeds
-        if (type === 'feeds' || type === 'lists') {
+        // Skip internal fetch if using Redux-managed lists/feeds/starterpacks
+        if (type === 'feeds' || type === 'lists' || type === 'starterpacks') {
             setInitialLoading(false);
             setLoading(false);
             return;
@@ -234,6 +244,51 @@ const ProfileTabContent: React.FC<ProfileTabContentProps> = ({ userId, type, isO
 
     const displayItems = type === 'feeds' ? userFeeds : type === 'lists' ? userLists : items;
     const isDisplayLoading = type === 'feeds' ? isUserFeedsLoading : type === 'lists' ? isListsLoading : initialLoading;
+
+    if (type === 'starterpacks') {
+        const starterPacks = starterPacksData?.starterPacks || [];
+
+        return (
+            <div className="p-4">
+                {isOwnProfile && (
+                    <div className="mb-4 flex justify-end">
+                        <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-full transition-colors shadow-sm"
+                        >
+                            <FiPlus size={16} />
+                            <span>Create Starter Pack</span>
+                        </button>
+                    </div>
+                )}
+
+                {isStarterPacksLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <LoadingIndicator size="md" />
+                    </div>
+                ) : starterPacks.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                        <FiGrid size={80} className="text-gray-300 dark:text-dark-border mb-4" strokeWidth={1.2} />
+                        <h3 className="text-[17px] font-medium text-gray-500 dark:text-dark-text-secondary mt-2">
+                            No starter packs found
+                        </h3>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {starterPacks.map((pack: any, idx: number) => (
+                            <StarterPackCard key={pack.uri || idx} starterPack={pack} />
+                        ))}
+                    </div>
+                )}
+
+                <CreateStarterPackModal
+                    isOpen={isCreateModalOpen}
+                    onClose={() => setIsCreateModalOpen(false)}
+                    onSuccess={() => refetchStarterPacks()}
+                />
+            </div>
+        );
+    }
 
     if ((type === 'lists' || type === 'feeds') && isDisplayLoading && displayItems.length === 0) {
         return (

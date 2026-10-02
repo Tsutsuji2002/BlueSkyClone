@@ -14,6 +14,7 @@ import listsReducer from './slices/listsSlice';
 import supportReducer from './slices/supportSlice';
 import suggestionsReducer from './slices/suggestionsSlice';
 import { apiSlice } from './api/apiSlice';
+import { starterPackApi } from './api/starterPackApi';
 
 const appReducer = combineReducers({
     theme: themeReducer,
@@ -31,6 +32,7 @@ const appReducer = combineReducers({
     support: supportReducer,
     suggestions: suggestionsReducer,
     [apiSlice.reducerPath]: apiSlice.reducer,
+    [starterPackApi.reducerPath]: starterPackApi.reducer,
 });
 
 const rootReducer = (state: ReturnType<typeof appReducer> | undefined, action: AnyAction) => {
@@ -67,7 +69,7 @@ export const store = configureStore({
                 // Ignore these paths in the state
                 ignoredPaths: ['modals.confirmation.onConfirm'],
             },
-        }).concat(apiSlice.middleware),
+        }).concat(apiSlice.middleware, starterPackApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

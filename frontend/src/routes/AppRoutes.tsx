@@ -31,6 +31,7 @@ const ListDetailPage = React.lazy(() => import('../pages/ListDetailPage'));
 const SavedPage = React.lazy(() => import('../pages/SavedPage'));
 const SearchPage = React.lazy(() => import('../pages/SearchPage'));
 const MediaViewerPage = React.lazy(() => import('../pages/MediaViewerPage'));
+const StarterPackDetailPage = React.lazy(() => import('../pages/StarterPackDetailPage'));
 
 // Settings Pages
 const SettingsPage = React.lazy(() => import('../pages/SettingsPage'));
@@ -135,6 +136,7 @@ const AppRoutes: React.FC = () => {
                     } />
                     <Route path="feeds/:feedId" element={<FeedDetailPage />} />
                     <Route path="profile/:handle/feed/:tid" element={<FeedDetailPage />} />
+                    <Route path="starter-pack" element={<StarterPackDetailPage />} />
                     <Route path="lists" element={
                         <ProtectedRoute>
                             <ListsPage />
