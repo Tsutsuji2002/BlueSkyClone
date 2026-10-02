@@ -28,9 +28,9 @@ export const PROFILE_TABS = [
     { id: 'replies', label: 'nav.replies' },
     { id: 'media', label: 'nav.media' },
     { id: 'video', label: 'nav.videos' },
-    { id: 'starterpacks', label: 'nav.starterpacks' },
     { id: 'likes', label: 'nav.likes' },
     { id: 'feeds', label: 'nav.feeds' },
+    { id: 'starterpacks', label: 'nav.starterpacks' },
     { id: 'lists', label: 'nav.lists' },
 ];
 

@@ -100,7 +100,15 @@ namespace BSkyClone.Services
                 var baseUrl = await ResolvePdsEndpointAsync(didOrHandle);
                 if (string.IsNullOrEmpty(baseUrl))
                 {
-                    return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
+                    if (method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+                    {
+                        baseUrl = "https://public.api.bsky.app";
+                        _logger.LogInformation("[XrpcProxy] Defaulting to public AppView PDS endpoint for {Did}", didOrHandle);
+                    }
+                    else
+                    {
+                        return new ProxyResponse { Success = false, StatusCode = 404, Content = "PDS endpoint not found" };
+                    }
                 }
 
                 _logger.LogInformation("[XrpcProxy] Using PDS endpoint: {Endpoint} for {Did}", baseUrl, didOrHandle);
@@ -295,6 +303,18 @@ namespace BSkyClone.Services
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(didOrHandle)) return "https://public.api.bsky.app";
+                if (didOrHandle.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || didOrHandle.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    return didOrHandle;
+                }
+                if (didOrHandle.Equals("public.api.bsky.app", StringComparison.OrdinalIgnoreCase) || 
+                    didOrHandle.Equals("api.bsky.app", StringComparison.OrdinalIgnoreCase) ||
+                    didOrHandle.Equals("bsky.social", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "https://public.api.bsky.app";
+                }
+
                 var cacheKey = $"PdsUrl_{didOrHandle.ToLower()}";
                 
                 if (forceRefresh)
