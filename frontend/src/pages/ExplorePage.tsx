@@ -33,65 +33,67 @@ const uiAvatar = (name: string) => `https://ui-avatars.com/api/?name=${encodeURI
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StarterPacksExploreSection – Bluesky-style starter pack cards with
-// a wide member avatar strip, pack name, creator, and "Open pack" button.
-// ─────────────────────────────────────────────────────────────────────────────
 const FALLBACK_STARTER_PACKS = [
     {
-        uri: 'at://did:plc:lukeknox/app.bsky.graph.starterpack/3laxjbn5cni7u',
-        cleanUrl: '/starter-pack/lukeknox.me/3laxjbn5cni7u',
-        record: { name: 'ESPN people', description: 'List of ESPN folks on Bluesky. Let me know who I\'m missing!' },
-        creator: { handle: 'lukeknox.me', displayName: 'Luke Knox' },
+        uri: 'at://did:plc:wi7bstljuyjgn26su62xdg2j/app.bsky.graph.starterpack/3lg3zaxppsp2a',
+        cleanUrl: '/starter-pack/booksinwales.bsky.social/3lg3zaxppsp2a',
+        record: { name: 'BookSky 💙 📚', description: 'Book lovers, authors, reviewers, librarians, and publishers on Bluesky.' },
+        creator: { handle: 'booksinwales.bsky.social', displayName: 'BookSky' },
         listItemsSample: [
-            { subject: { did: 'espn1', handle: 'lukeknox.me', avatar: 'https://i.pravatar.cc/80?img=60' } },
-            { subject: { did: 'espn2', handle: 'minakimes.bsky.social', avatar: 'https://i.pravatar.cc/80?img=47' } },
-            { subject: { did: 'espn3', handle: 'espnbillc.bsky.social', avatar: 'https://i.pravatar.cc/80?img=53' } },
-            { subject: { did: 'espn4', handle: 'kpelton.bsky.social', avatar: 'https://i.pravatar.cc/80?img=12' } },
-            { subject: { did: 'espn5', handle: 'sheacarlson.bsky.social', avatar: 'https://i.pravatar.cc/80?img=15' } },
-            { subject: { did: 'espn6', handle: 'wyshynski.bsky.social', avatar: 'https://i.pravatar.cc/80?img=33' } },
+            { subject: { did: 'b1', handle: 'booksinwales.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar/plain/did:plc:wi7bstljuyjgn26su62xdg2j/bafkreic7x' } },
+            { subject: { did: 'b2', handle: 'author1.bsky.social', avatar: 'https://i.pravatar.cc/80?img=47' } },
+            { subject: { did: 'b3', handle: 'publisher.bsky.social', avatar: 'https://i.pravatar.cc/80?img=53' } },
+            { subject: { did: 'b4', handle: 'reviewer.bsky.social', avatar: 'https://i.pravatar.cc/80?img=12' } },
+            { subject: { did: 'b5', handle: 'novelist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=15' } },
+            { subject: { did: 'b6', handle: 'reading.bsky.social', avatar: 'https://i.pravatar.cc/80?img=33' } },
+            { subject: { did: 'b7', handle: 'books.bsky.social', avatar: 'https://i.pravatar.cc/80?img=68' } },
+            { subject: { did: 'b8', handle: 'litagent.bsky.social', avatar: 'https://i.pravatar.cc/80?img=60' } },
+            { subject: { did: 'b9', handle: 'library.bsky.social', avatar: 'https://i.pravatar.cc/80?img=59' } },
+            { subject: { did: 'b10', handle: 'poetry.bsky.social', avatar: 'https://i.pravatar.cc/80?img=45' } },
+            { subject: { did: 'b11', handle: 'bookworm.bsky.social', avatar: 'https://i.pravatar.cc/80?img=22' } },
         ],
-        list: { listItemCount: 35 },
+        list: { listItemCount: 149 },
     },
     {
-        uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
-        cleanUrl: '/starter-pack/sstein.bsky.social/3laohb5gt6t2j',
-        record: { name: 'Comedy writers and satirists', description: 'Writers who write comedy and satire or write about comedy. Not necessarily people who are funny on Bluesky, though many are. Mostly these are people who write humor of one kind or another for publication.' },
-        creator: { handle: 'sstein.bsky.social', displayName: 'Scott Stein' },
+        uri: 'at://did:plc:u4gijebxiyipefl252iox443/app.bsky.graph.starterpack/3lb55wilzs72x',
+        cleanUrl: '/starter-pack/ilahey.com/3lb55wilzs72x',
+        record: { name: 'BlueSky Celebrities', description: 'Actors, musicians, TV hosts, and famous personalities on Bluesky.' },
+        creator: { handle: 'ilahey.com', displayName: 'Ian Lahey' },
         listItemsSample: [
-            { subject: { did: 's1', handle: 'theonion.com', avatar: 'https://i.pravatar.cc/80?img=68' } },
-            { subject: { did: 's2', handle: 'clickhole.com', avatar: 'https://i.pravatar.cc/80?img=60' } },
-            { subject: { did: 's3', handle: 'hardtimes.net', avatar: 'https://i.pravatar.cc/80?img=59' } },
-            { subject: { did: 's4', handle: 'kashana.bsky.app', avatar: 'https://i.pravatar.cc/80?img=47' } },
-            { subject: { did: 's5', handle: 'reductress.com', avatar: 'https://i.pravatar.cc/80?img=45' } },
-            { subject: { did: 's6', handle: 'tomtomorrow.bsky.social', avatar: 'https://i.pravatar.cc/80?img=33' } },
-            { subject: { did: 's7', handle: 'ditzkoff.bsky.social', avatar: 'https://i.pravatar.cc/80?img=53' } },
-            { subject: { did: 's8', handle: 'scalzi.com', avatar: 'https://i.pravatar.cc/80?img=12' } },
-            { subject: { did: 's9', handle: 'theauthor.bsky.social', avatar: 'https://i.pravatar.cc/80?img=15' } },
-            { subject: { did: 's10', handle: 'satirist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=22' } },
-            { subject: { did: 's11', handle: 'humorist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=32' } },
+            { subject: { did: 'c1', handle: 'ilahey.com', avatar: 'https://i.pravatar.cc/80?img=32' } },
+            { subject: { did: 'c2', handle: 'celeb2.bsky.social', avatar: 'https://i.pravatar.cc/80?img=44' } },
+            { subject: { did: 'c3', handle: 'celeb3.bsky.social', avatar: 'https://i.pravatar.cc/80?img=51' } },
+            { subject: { did: 'c4', handle: 'celeb4.bsky.social', avatar: 'https://i.pravatar.cc/80?img=65' } },
+            { subject: { did: 'c5', handle: 'celeb5.bsky.social', avatar: 'https://i.pravatar.cc/80?img=18' } },
+            { subject: { did: 'c6', handle: 'celeb6.bsky.social', avatar: 'https://i.pravatar.cc/80?img=29' } },
+            { subject: { did: 'c7', handle: 'celeb7.bsky.social', avatar: 'https://i.pravatar.cc/80?img=36' } },
+            { subject: { did: 'c8', handle: 'celeb8.bsky.social', avatar: 'https://i.pravatar.cc/80?img=41' } },
+            { subject: { did: 'c9', handle: 'celeb9.bsky.social', avatar: 'https://i.pravatar.cc/80?img=58' } },
+            { subject: { did: 'c10', handle: 'celeb10.bsky.social', avatar: 'https://i.pravatar.cc/80?img=62' } },
+            { subject: { did: 'c11', handle: 'celeb11.bsky.social', avatar: 'https://i.pravatar.cc/80?img=70' } },
         ],
-        list: { listItemCount: 80 },
+        list: { listItemCount: 67 },
     },
     {
-        uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
-        cleanUrl: '/starter-pack/sstein.bsky.social/3laohb5gt6t2j',
-        record: { name: 'Comedy writers and satirists', description: 'Writers who write comedy and satire or write about comedy. Not necessarily people who are funny on Bluesky, though many are. Mostly these are people who write humor of one kind or another for publication.' },
-        creator: { handle: 'sstein.bsky.social', displayName: 'Scott Stein' },
+        uri: 'at://did:plc:v7gngzva22rilmcp6fiypowf/app.bsky.graph.starterpack/3lbcrdrart42l',
+        cleanUrl: '/starter-pack/nickchillphoto.com/3lbcrdrart42l',
+        record: { name: 'Top-Notch Nature Photographers 📷 Starter Pack', description: 'Incredible nature, landscape, and wildlife photographers sharing their work on Bluesky.' },
+        creator: { handle: 'nickchillphoto.com', displayName: 'Nick Chill' },
         listItemsSample: [
-            { subject: { did: 's1', handle: 'theonion.com', avatar: 'https://i.pravatar.cc/80?img=68' } },
-            { subject: { did: 's2', handle: 'clickhole.com', avatar: 'https://i.pravatar.cc/80?img=60' } },
-            { subject: { did: 's3', handle: 'hardtimes.net', avatar: 'https://i.pravatar.cc/80?img=59' } },
-            { subject: { did: 's4', handle: 'kashana.bsky.app', avatar: 'https://i.pravatar.cc/80?img=47' } },
-            { subject: { did: 's5', handle: 'reductress.com', avatar: 'https://i.pravatar.cc/80?img=45' } },
-            { subject: { did: 's6', handle: 'tomtomorrow.bsky.social', avatar: 'https://i.pravatar.cc/80?img=33' } },
-            { subject: { did: 's7', handle: 'ditzkoff.bsky.social', avatar: 'https://i.pravatar.cc/80?img=53' } },
-            { subject: { did: 's8', handle: 'scalzi.com', avatar: 'https://i.pravatar.cc/80?img=12' } },
-            { subject: { did: 's9', handle: 'theauthor.bsky.social', avatar: 'https://i.pravatar.cc/80?img=15' } },
-            { subject: { did: 's10', handle: 'satirist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=22' } },
-            { subject: { did: 's11', handle: 'humorist.bsky.social', avatar: 'https://i.pravatar.cc/80?img=32' } },
+            { subject: { did: 'n1', handle: 'nickchillphoto.com', avatar: 'https://i.pravatar.cc/80?img=14' } },
+            { subject: { did: 'n2', handle: 'photo2.bsky.social', avatar: 'https://i.pravatar.cc/80?img=25' } },
+            { subject: { did: 'n3', handle: 'photo3.bsky.social', avatar: 'https://i.pravatar.cc/80?img=37' } },
+            { subject: { did: 'n4', handle: 'photo4.bsky.social', avatar: 'https://i.pravatar.cc/80?img=49' } },
+            { subject: { did: 'n5', handle: 'photo5.bsky.social', avatar: 'https://i.pravatar.cc/80?img=52' } },
+            { subject: { did: 'n6', handle: 'photo6.bsky.social', avatar: 'https://i.pravatar.cc/80?img=61' } },
+            { subject: { did: 'n7', handle: 'photo7.bsky.social', avatar: 'https://i.pravatar.cc/80?img=64' } },
+            { subject: { did: 'n8', handle: 'photo8.bsky.social', avatar: 'https://i.pravatar.cc/80?img=67' } },
+            { subject: { did: 'n9', handle: 'photo9.bsky.social', avatar: 'https://i.pravatar.cc/80?img=69' } },
+            { subject: { did: 'n10', handle: 'photo10.bsky.social', avatar: 'https://i.pravatar.cc/80?img=13' } },
+            { subject: { did: 'n11', handle: 'photo11.bsky.social', avatar: 'https://i.pravatar.cc/80?img=27' } },
         ],
-        list: { listItemCount: 80 },
+        list: { listItemCount: 95 },
     },
-
 ] as any[];
 
 
@@ -102,7 +104,7 @@ const StarterPacksExploreSection: React.FC = () => {
     // Use the same suggested packs API as real bsky.app Explore page
     const { data, isLoading } = useGetSuggestedStarterPacksQuery({ limit: 10 });
 
-    const packs: any[] = (data?.starterPacks?.length ? data.starterPacks : FALLBACK_STARTER_PACKS);
+    const packs: any[] = (data?.starterPacks?.length ? data.starterPacks : FALLBACK_STARTER_PACKS).slice(0, 3);
 
     const getPackDetailUrl = (pack: any) => {
         if (pack.cleanUrl) return pack.cleanUrl;
