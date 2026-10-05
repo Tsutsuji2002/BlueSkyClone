@@ -664,7 +664,7 @@ export const StarterPackDetailPage: React.FC = () => {
     const [hasMoreLivePosts, setHasMoreLivePosts] = useState<boolean>(true);
 
     // Resolve starter pack:
-    // If handle matches a mock entry, strictly validate that rkey matches mock pack's expected rkey!
+    // If handle matches a mock entry, allow resolution if paramRkey matches or is a prefix/variant of expected rkey!
     let starterPack: any = null;
     let fallbackKey = 'lukeknox.me';
 
@@ -672,12 +672,12 @@ export const StarterPackDetailPage: React.FC = () => {
         starterPack = data.starterPack;
     } else if (paramHandle && MOCK_FALLBACK_STARTER_PACKS[paramHandle]) {
         const mockEntry = MOCK_FALLBACK_STARTER_PACKS[paramHandle];
-        // Strictly check if paramRkey matches expected rkey
-        if (!paramRkey || mockEntry.rkey === paramRkey) {
+        if (!paramRkey || mockEntry.rkey === paramRkey || mockEntry.rkey.startsWith(paramRkey) || paramRkey.startsWith(mockEntry.rkey)) {
             starterPack = mockEntry;
             fallbackKey = paramHandle;
         }
     }
+
 
     const members: any[] = starterPack?.listItemsSample || [];
     const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
@@ -1029,7 +1029,7 @@ export const StarterPackDetailPage: React.FC = () => {
                     })}
 
                     {/* Infinite Scroll Loading Indicator for People */}
-                    {((listUri && hasMoreMembers) || (!listUri && visibleCount < members.length) || isLoadingMembers) && (
+                    {isFetchingMore && (
                         <div className="p-4 text-center">
                             <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#006aff] border-t-transparent"></div>
                         </div>
@@ -1053,13 +1053,14 @@ export const StarterPackDetailPage: React.FC = () => {
                     )}
 
                     {/* Posts Infinite Scroll Loading Indicator */}
-                    {((listUri && hasMoreLivePosts) || (!listUri && visiblePostsCount < starterPackPosts.length) || isLoadingLiveFeed) && (
+                    {isFetchingMore && (
                         <div className="p-4 text-center">
                             <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#006aff] border-t-transparent"></div>
                         </div>
                     )}
                 </div>
             )}
+
 
 
         </div>
