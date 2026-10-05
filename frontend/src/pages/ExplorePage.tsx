@@ -37,6 +37,26 @@ const uiAvatar = (name: string) => `https://ui-avatars.com/api/?name=${encodeURI
 // ─────────────────────────────────────────────────────────────────────────────
 const FALLBACK_STARTER_PACKS = [
     {
+        uri: 'at://did:plc:antonpodolsky/app.bsky.graph.starterpack/3k4ignapzy7',
+        cleanUrl: '/starter-pack/antonpodolsky.bsky.social/3k4ignapzy7',
+        record: { name: 'Street Photographers', description: 'Some great accounts to scratch your street photography itch.' },
+        creator: { handle: 'antonpodolsky.bsky.social', displayName: 'Anton Podolsky' },
+        listItemsSample: [
+            { subject: { did: 'sp1', handle: 'antonpodolsky.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:wnt62siviv5qdnhslpz2jjmr/bafkreihe7idtboxjyg64g6rftx5hmlxm2pltcmda24ne2x52jhp6gw4ox4' } },
+            { subject: { did: 'sp2', handle: 'lloydy110.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:fsythvb7bbtehra72norje3c/bafkreihhwfcyocvkpbe7wezctv56rdeiprvkk5bbaxev3g6zeztblcghyi' } },
+            { subject: { did: 'sp3', handle: 'janonfilm.com', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:en44oehweusllxe22ksdfsib/bafkreihcyepydv4j4dli6rhckrpr2cm2ptxffb6wpjkot23cjdliednc5a' } },
+            { subject: { did: 'sp4', handle: 'marksugden.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:krp6v27c4rc7hkdqmu2vaal7/bafkreihxhm6y3ypidismtjggshecfhkl32ljyi26r2zjvfp5en5tatztga' } },
+            { subject: { did: 'sp5', handle: 'danielgynn.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:xleyplbxjdvlku2dyk3kjmg7/bafkreib5sfyurnp3qhnf5clpsoq3lw3sr3excqvuorlwmagehtxvgqdixa' } },
+            { subject: { did: 'sp6', handle: 'shanetaylor.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:5czwv6jsfggxbvciyfemalf5/bafkreif43tsrkncqbkt65z6hwrnhbjx7s2xoxc5gwz4npchlfovwryqkiu' } },
+            { subject: { did: 'sp7', handle: 'leomelo-photos.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:kpoh5zzo6mx7rmbf3nqh63tc/bafkreiacrmq73vk4zoxkx3ax4pcjtz6blm2lel3vwjae7bpifzjcjubhj4' } },
+            { subject: { did: 'sp8', handle: 'niallmcdiarmid.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:6tpn3a2u4crkpldhjayxzjpu/bafkreieeoxbgrof3hss74dfoue7naogixesx3ghuvwooio6xsl3k7cnmuq' } },
+            { subject: { did: 'sp9', handle: 'marklukegrant.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:33dfcienzoegl3nbgbhn2jzs/bafkreibhmiqa77h32r2smt52kopmoaa5m3f5nwqmfzfyycjy72u3vnsng4' } },
+            { subject: { did: 'sp10', handle: 'atikusphoto.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:h3tllqknzlw3vttpugp6vtru/bafkreia52bx6zsxlmlssr555yqbo6hu7no6olzihdk6pkmngnniomaya2e' } },
+            { subject: { did: 'sp11', handle: 'sebhitchcock.bsky.social', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:orzzkznaretkpivuwjtyxs34/bafkreihpk6nrk6rbkck277qoij3etwbzjwp2sx5mxjrkoais37xcubfwmq' } },
+        ],
+        list: { listItemCount: 22 },
+    },
+    {
         uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
         cleanUrl: '/starter-pack/sstein.bsky.social/3laohb5gt6t2j',
         record: { name: 'Comedy writers and satirists', description: 'Writers who write comedy and satire or write about comedy. Not necessarily people who are funny on Bluesky, though many are. Mostly these are people who write humor of one kind or another for publication.' },
@@ -57,8 +77,8 @@ const FALLBACK_STARTER_PACKS = [
         list: { listItemCount: 80 },
     },
     {
-        uri: 'at://did:plc:x3nu/app.bsky.graph.starterpack/1',
-        cleanUrl: '/starter-pack/x3nu.bsky.social/1',
+        uri: 'at://did:plc:x3nu/app.bsky.graph.starterpack/3lagamingrk1',
+        cleanUrl: '/starter-pack/x3nu.bsky.social/3lagamingrk1',
         record: { name: 'Gaming : Studios, Publishers, Media & Leakers', description: 'Comprehensive list of game studios, publishers, gaming news outlets, and industry insiders.' },
         creator: { handle: 'x3nu.bsky.social', displayName: 'x3nu' },
         listItemsSample: [
@@ -75,26 +95,6 @@ const FALLBACK_STARTER_PACKS = [
             { subject: { did: 'g11', handle: 'kotaku.com', avatar: 'https://i.pravatar.cc/80?img=26' } },
         ],
         list: { listItemCount: 72 },
-    },
-    {
-        uri: 'at://did:plc:filmcritics/app.bsky.graph.starterpack/1',
-        cleanUrl: '/starter-pack/filmcritics.org.uk/1',
-        record: { name: 'Film & TV Magazines', description: 'A collection of film critics, cinema writers, and movie magazines on Bluesky.' },
-        creator: { handle: 'filmcritics.org.uk', displayName: 'Film Critics' },
-        listItemsSample: [
-            { subject: { did: 'f1', handle: 'empire.com', avatar: 'https://i.pravatar.cc/80?img=1' } },
-            { subject: { did: 'f2', handle: 'fangoria.com', avatar: 'https://i.pravatar.cc/80?img=3' } },
-            { subject: { did: 'f3', handle: 'littlewhitelies.com', avatar: 'https://i.pravatar.cc/80?img=5' } },
-            { subject: { did: 'f4', handle: 'sightandsound.com', avatar: 'https://i.pravatar.cc/80?img=7' } },
-            { subject: { did: 'f5', handle: 'rottentomatoes.com', avatar: 'https://i.pravatar.cc/80?img=9' } },
-            { subject: { did: 'f6', handle: 'sfx.com', avatar: 'https://i.pravatar.cc/80?img=11' } },
-            { subject: { did: 'f7', handle: 'filmcriticsassoc.com', avatar: 'https://i.pravatar.cc/80?img=13' } },
-            { subject: { did: 'f8', handle: 'lmmounds.com', avatar: 'https://i.pravatar.cc/80?img=17' } },
-            { subject: { did: 'f9', handle: 'latenightpicture.com', avatar: 'https://i.pravatar.cc/80?img=19' } },
-            { subject: { did: 'f10', handle: 'cinema.com', avatar: 'https://i.pravatar.cc/80?img=23' } },
-            { subject: { did: 'f11', handle: 'moviebuff.com', avatar: 'https://i.pravatar.cc/80?img=27' } },
-        ],
-        list: { listItemCount: 143 },
     },
 ] as any[];
 
