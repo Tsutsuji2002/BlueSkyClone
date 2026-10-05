@@ -182,9 +182,43 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                         followUri: fp.followingReference
                     }));
                 }
+            } else {
+                const fp: FullProfile = {
+                    id: user.id,
+                    handle: user.handle || '',
+                    displayName: user.displayName || user.handle || '',
+                    avatar: user.avatar || user.avatarUrl,
+                    avatarUrl: user.avatarUrl || user.avatar,
+                    bio: user.bio,
+                    followersCount: user.followersCount ?? 0,
+                    followingCount: user.followingCount ?? 0,
+                    isFollowing: !!user.isFollowing,
+                    followingReference: user.followingReference,
+                    isVerified: !!user.isVerified,
+                    did: user.did,
+                    isBlocking: !!user.isBlocking,
+                    isBlockedBy: !!user.isBlockedBy,
+                };
+                setProfile(fp);
             }
         } catch (_) {
-            // Silently fail; card will show with limited data
+            const fp: FullProfile = {
+                id: user.id,
+                handle: user.handle || '',
+                displayName: user.displayName || user.handle || '',
+                avatar: user.avatar || user.avatarUrl,
+                avatarUrl: user.avatarUrl || user.avatar,
+                bio: user.bio,
+                followersCount: user.followersCount ?? 0,
+                followingCount: user.followingCount ?? 0,
+                isFollowing: !!user.isFollowing,
+                followingReference: user.followingReference,
+                isVerified: !!user.isVerified,
+                did: user.did,
+                isBlocking: !!user.isBlocking,
+                isBlockedBy: !!user.isBlockedBy,
+            };
+            setProfile(fp);
         } finally {
             setIsLoading(false);
         }

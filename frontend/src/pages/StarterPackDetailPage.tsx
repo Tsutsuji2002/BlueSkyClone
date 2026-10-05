@@ -39,7 +39,7 @@ const STREET_PHOTOGRAPHERS_MEMBERS = [
 
 const COMEDY_MEMBERS_FULL = [
     { did: 's1', handle: 'sstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Latest novel: THE GREAT AMERICAN BETRAYAL *Best Comedy Books of 2022* -Vulture. English professor, novelist, satirist, editor.' },
-    { did: 's2', handle: 'kashana.bsky.app', displayName: 'Kashana', avatar: 'https://i.pravatar.cc/80?img=47', description: 'TV writer. Author of the novels THE PAYBACK and THE SURVIVALISTS. Deadly with a butter knife.' },
+    { did: 's2', handle: 'kashana.blacksky.app', displayName: 'Kashana', avatar: 'https://i.pravatar.cc/80?img=47', description: 'TV writer. Author of the novels THE PAYBACK and THE SURVIVALISTS. Deadly with a butter knife.' },
     { did: 's3', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=33', description: 'gallows humorist & creator of This Modern World.' },
     { did: 's4', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=53', description: 'Author of Robin and Mad as Hell. Culture reporter and satirist.' },
     { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'I enjoy pie. Sci-fi novelist, humorist, Hugo award winner.' },
@@ -345,7 +345,8 @@ const StarterPackMemberRow: React.FC<StarterPackMemberRowProps> = ({
         );
 
     const avatarSrc = liveProfile?.avatar ||
-        (subject.avatar && !subject.avatar.includes('pravatar.cc') ? subject.avatar : null) ||
+        subject.avatar ||
+        subject.avatarUrl ||
         `https://ui-avatars.com/api/?name=${encodeURIComponent(subject.displayName || subject.handle || 'user')}`;
 
     const displayName = liveProfile?.displayName || subject.displayName || subject.handle;
