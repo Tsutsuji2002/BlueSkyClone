@@ -192,9 +192,18 @@ const ProfilePage: React.FC = () => {
             if (tab.id === 'lists') {
                 return isOwnProfile || (userLists && userLists.length > 0);
             }
+            if (tab.id === 'starterpacks') {
+                // Hide the Starter Packs tab on other profiles if they have no starter packs.
+                // ATProto returns associated.starterPacks count in the profile object.
+                if (!isOwnProfile) {
+                    const count = (profileUser as any)?.associated?.starterPacks ?? (profileUser as any)?.starterPacksCount;
+                    return typeof count === 'number' ? count > 0 : true; // default show if unknown
+                }
+            }
             return true;
         });
-    }, [isOwnProfile, userFeeds, userLists]);
+    }, [isOwnProfile, userFeeds, userLists, profileUser]);
+
 
     // CRITICAL FIX: When viewing own profile, ALWAYS prefer currentUser data
     // currentUser comes from auth state which is updated by handshake
