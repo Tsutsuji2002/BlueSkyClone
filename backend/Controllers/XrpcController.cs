@@ -783,74 +783,36 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var cacheKey = $"suggested_explore_v3_{category ?? "all"}_{limit}";
+                var cacheKey = $"suggested_explore_v4_{category ?? "all"}_{limit}";
                 var cached = await _cache.GetStringAsync(cacheKey);
                 if (!string.IsNullOrEmpty(cached))
                 {
                     return Content(cached, "application/json");
                 }
 
-                var queryParams = Request.Query.Where(q => q.Key != "_t").ToDictionary(x => x.Key, x => x.Value.ToString());
-                var cleanQuery = queryParams.Any() ? "?" + string.Join("&", queryParams.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}")) : "";
-                
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                
-                // Attempt 1 Task: proxy to stropharia (preferred)
-                var strophariaTask = Task.Run(async () => {
-                    try {
-                        using var client = _httpClientFactory.CreateClient();
-                        client.Timeout = TimeSpan.FromSeconds(2); 
-                        var url = $"https://stropharia.us-west.host.bsky.network/xrpc/app.bsky.unspecced.getSuggestedUsersForExplore{cleanQuery}";
-                        var resp = await client.GetAsync(url, cts.Token);
-                        if (resp.IsSuccessStatusCode) {
-                            var content = await resp.Content.ReadAsStringAsync();
-                            if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\"")) return content;
-                        }
-                    } catch { }
-                    return null;
-                }, cts.Token);
+                using var client = _httpClientFactory.CreateClient();
+                client.Timeout = TimeSpan.FromSeconds(5);
 
-                // Attempt 2 Task: Fallback to official AppView suggestions or Search
-                var fallbackTask = Task.Run(async () => {
-                    try {
-                        using var client = _httpClientFactory.CreateClient();
-                        client.Timeout = TimeSpan.FromSeconds(3);
-                        string fallbackUrl;
-                        if (string.IsNullOrEmpty(category) || category == "all") {
-                            fallbackUrl = $"https://public.api.bsky.app/xrpc/app.bsky.unspecced.getSuggestedAccounts?limit={limit}";
-                        } else {
-                            fallbackUrl = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(category)}&limit={limit}";
-                        }
-                        
-                        var resp = await client.GetAsync(fallbackUrl, cts.Token);
-                        if (resp.IsSuccessStatusCode) {
-                            var content = await resp.Content.ReadAsStringAsync();
-                            if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\"")) {
-                                // If it's getSuggestedAccounts, normalize to 'actors' property
-                                return content.Replace("\"suggestions\":", "\"actors\":");
-                            }
-                        }
-                    } catch { }
-                    return null;
-                }, cts.Token);
+                var searchQuery = string.IsNullOrEmpty(category) || category == "all" ? "bsky" : category;
+                if (searchQuery == "software-dev") searchQuery = "developer";
 
-                // Wait for stropharia first, but allow fallback if it fails or is slow
-                string? finalContent = await strophariaTask;
-                if (finalContent == null)
+                var url = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(searchQuery)}&limit={limit}";
+                var response = await client.GetAsync(url);
+
+                if (response.IsSuccessStatusCode)
                 {
-                    finalContent = await fallbackTask;
-                }
-
-                if (finalContent != null)
-                {
-                    // Cache for 5 minutes
-                    await _cache.SetStringAsync(cacheKey, finalContent, new DistributedCacheEntryOptions
+                    var content = await response.Content.ReadAsStringAsync();
+                    if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
                     {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(20)
-                    });
-                    return Content(finalContent, "application/json");
+                        // Cache for 10 minutes
+                        await _cache.SetStringAsync(cacheKey, content, new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                        });
+                        return Content(content, "application/json");
+                    }
                 }
-                
+
                 return await GetSuggestions(limit, cursor);
             }
             catch (Exception ex)

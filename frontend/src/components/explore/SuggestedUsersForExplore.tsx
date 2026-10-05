@@ -244,7 +244,7 @@ const SuggestedUsersForExplore: React.FC = () => {
             </div>
 
             {/* Tabs Area */}
-            <div className="relative flex flex-row items-center">
+            <div className="relative flex flex-row items-center pb-3">
                 <div 
                     ref={scrollRef}
                     className="flex flex-row overflow-x-auto no-scrollbar gap-2 px-4 select-none flex-1"
