@@ -79,6 +79,9 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
             displayName: 'Luke Knox',
             avatar: 'https://i.pravatar.cc/80?img=60',
         },
+        list: {
+            uri: 'at://did:plc:lukeknox/app.bsky.graph.list/3laxjbn5cni7u',
+        },
         listItemsSample: [
             { subject: { did: 'e1', handle: 'lukeknox.me', displayName: 'Luke Knox', avatar: 'https://i.pravatar.cc/80?img=60', description: 'Creative Director, ESPN Visual Storytelling' } },
             { subject: { did: 'e2', handle: 'minakimes.bsky.social', displayName: 'Mina Kimes', avatar: 'https://i.pravatar.cc/80?img=47', description: 'NFL analyst at ESPN.', viewer: { verified: true } } },
@@ -101,6 +104,9 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
             displayName: 'Scott Stein',
             avatar: 'https://i.pravatar.cc/80?img=68',
         },
+        list: {
+            uri: 'at://did:plc:rag7p65524h5chavuvujp6zy/app.bsky.graph.list/3laohb4ym5m2j',
+        },
         listItemsSample: COMEDY_MEMBERS_FULL,
         feeds: [],
     },
@@ -116,6 +122,9 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
             displayName: 'x3nu',
             avatar: 'https://i.pravatar.cc/80?img=21',
         },
+        list: {
+            uri: 'at://did:plc:x3nu/app.bsky.graph.list/3lagamingrk1',
+        },
         listItemsSample: [
             { subject: { did: 'g1', handle: 'ign.com', displayName: 'IGN', avatar: 'https://i.pravatar.cc/80?img=2', description: 'Video game and entertainment news, reviews, and previews.' } },
             { subject: { did: 'g2', handle: 'playstation.com', displayName: 'PlayStation', avatar: 'https://i.pravatar.cc/80?img=4', description: 'Official Bluesky account for PlayStation.' } },
@@ -129,6 +138,7 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
         feeds: [],
     },
 };
+
 
 const MOCK_STARTER_PACK_POSTS: Record<string, Post[]> = {
     'sstein.bsky.social': [
@@ -627,7 +637,7 @@ export const StarterPackDetailPage: React.FC = () => {
 
     const { data, isLoading } = useGetStarterPackQuery(
         { starterPack: starterPackUri || '' },
-        { skip: !starterPackUri || isMockPack }
+        { skip: !starterPackUri }
     );
 
     const [triggerGetListFeed, { isLoading: isLoadingLiveFeed }] = useLazyGetListFeedQuery();
@@ -715,9 +725,9 @@ export const StarterPackDetailPage: React.FC = () => {
         };
     };
 
-    // Initial fetch for real ATProto list feed
+    // Initial fetch for real ATProto list feed (fetches eagerly when listUri is resolved)
     useEffect(() => {
-        if (listUri && activeTab === 'posts' && !hasLoadedLiveFeed) {
+        if (listUri && !hasLoadedLiveFeed) {
             triggerGetListFeed({ list: listUri, limit: 30 })
                 .unwrap()
                 .then((res: any) => {
@@ -733,12 +743,12 @@ export const StarterPackDetailPage: React.FC = () => {
                     setHasLoadedLiveFeed(true);
                 });
         }
-    }, [listUri, activeTab, hasLoadedLiveFeed, triggerGetListFeed]);
+    }, [listUri, hasLoadedLiveFeed, triggerGetListFeed]);
 
-    // Infinite scroll handler for People & Posts
+    // Infinite scroll handler for People & Posts (500px threshold for early seamless loading)
     useEffect(() => {
         const handleScroll = () => {
-            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
                 if (isFetchingMore || isLoadingLiveFeed) return;
 
                 if (activeTab === 'people' && visibleCount < members.length) {
@@ -776,6 +786,7 @@ export const StarterPackDetailPage: React.FC = () => {
                 }
             }
         };
+
 
 
         window.addEventListener('scroll', handleScroll, { passive: true });
