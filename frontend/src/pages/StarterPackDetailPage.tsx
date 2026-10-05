@@ -647,6 +647,18 @@ export const StarterPackDetailPage: React.FC = () => {
     const [followAllMembers, { isLoading: isFollowingAll }] = useFollowAllMembersMutation();
     const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
     const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
+    const scrollPositionsRef = React.useRef<{ people: number; posts: number }>({ people: 0, posts: 0 });
+
+    const handleTabChange = (newTab: 'people' | 'posts') => {
+        if (newTab === activeTab) return;
+        scrollPositionsRef.current[activeTab] = window.scrollY;
+        setActiveTab(newTab);
+        const targetScroll = scrollPositionsRef.current[newTab];
+        requestAnimationFrame(() => {
+            window.scrollTo({ top: targetScroll, behavior: 'instant' as any });
+        });
+    };
+
     const [visibleCount, setVisibleCount] = useState<number>(7);
     const [visiblePostsCount, setVisiblePostsCount] = useState<number>(3);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
@@ -985,7 +997,7 @@ export const StarterPackDetailPage: React.FC = () => {
             {/* Tabs Bar: People | Posts matching Bluesky reference (flex-1 equal width) */}
             <div className="sticky top-[52px] z-10 bg-white dark:bg-dark-bg flex flex-row border-b border-[#dce2ea] dark:border-dark-border text-[15px] font-semibold">
                 <button
-                    onClick={() => setActiveTab('people')}
+                    onClick={() => handleTabChange('people')}
                     className={`flex-1 py-3 text-center relative flex items-center justify-center ${
                         activeTab === 'people'
                             ? 'text-black dark:text-white font-semibold'
@@ -998,7 +1010,7 @@ export const StarterPackDetailPage: React.FC = () => {
                     )}
                 </button>
                 <button
-                    onClick={() => setActiveTab('posts')}
+                    onClick={() => handleTabChange('posts')}
                     className={`flex-1 py-3 text-center relative flex items-center justify-center ${
                         activeTab === 'posts'
                             ? 'text-black dark:text-white font-semibold'
@@ -1006,6 +1018,7 @@ export const StarterPackDetailPage: React.FC = () => {
                     }`}
                 >
                     Posts
+
                     {activeTab === 'posts' && (
                         <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#006aff] rounded-t-full" />
                     )}
