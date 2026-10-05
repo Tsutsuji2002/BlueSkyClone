@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useGetStarterPackQuery, useFollowAllMembersMutation } from '../redux/api/starterPackApi';
-import { useAppDispatch } from '../redux/hooks';
+import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { RootState } from '../redux/store';
+import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
+import { updateFollowStatus } from '../redux/slices/suggestionsSlice';
+import { openAuthWall } from '../redux/slices/modalsSlice';
 import { showToast } from '../redux/slices/toastSlice';
+import { API_BASE_URL } from '../constants';
 import UserHoverCard from '../components/common/UserHoverCard';
 import PostCard from '../components/feed/PostCard';
 import { Post } from '../types';
@@ -284,6 +289,178 @@ const MOCK_STARTER_PACK_POSTS: Record<string, Post[]> = {
     ]
 };
 
+interface StarterPackMemberRowProps {
+    subject: any;
+    localFollowedDids: Set<string>;
+    onToggleFollowLocal: (did: string) => void;
+}
+
+const StarterPackMemberRow: React.FC<StarterPackMemberRowProps> = ({
+    subject,
+    localFollowedDids,
+    onToggleFollowLocal,
+}) => {
+    const navigate = useNavigate();
+    const dispatch = useAppDispatch();
+    const currentUser = useAppSelector((state: RootState) => state.auth.user);
+    const suggestionsByCategory = useAppSelector((state: RootState) => state.suggestions.suggestionsByCategory);
+
+    const [liveProfile, setLiveProfile] = useState<any>(null);
+
+    useEffect(() => {
+        const key = subject.handle || subject.did;
+        if (!key) return;
+
+        let isMounted = true;
+        fetch(`${API_BASE_URL}/users/profile/${key}`, { credentials: 'include' })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (isMounted && data?.user) {
+                    setLiveProfile({
+                        displayName: data.user.displayName,
+                        avatar: data.user.avatar || data.user.avatarUrl,
+                        handle: data.user.handle,
+                        description: data.user.bio || data.user.description,
+                        isFollowing: data.isFollowing ?? data.user.isFollowing,
+                        followingReference: data.user.followingReference,
+                        verified: data.user.isVerified || data.isVerified,
+                    });
+                }
+            })
+            .catch(() => {});
+
+        return () => { isMounted = false; };
+    }, [subject.handle, subject.did]);
+
+    const reduxSuggestion = subject.did
+        ? Object.values(suggestionsByCategory).flat().find(u => u.did === subject.did)
+        : null;
+
+    const isFollowing = localFollowedDids.has(subject.did) ||
+        Boolean(
+            liveProfile?.isFollowing ??
+            reduxSuggestion?.viewer?.following ??
+            (typeof subject.viewer?.following === 'string' || Boolean(subject.viewer?.following)) ??
+            false
+        );
+
+    const avatarSrc = liveProfile?.avatar ||
+        (subject.avatar && !subject.avatar.includes('pravatar.cc') ? subject.avatar : null) ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(subject.displayName || subject.handle || 'user')}`;
+
+    const displayName = liveProfile?.displayName || subject.displayName || subject.handle;
+    const description = liveProfile?.description || subject.description;
+    const isVerified = liveProfile?.verified || subject.viewer?.verified || subject.isVerified;
+
+    const hoverUser = {
+        id: subject.did || subject.handle,
+        did: subject.did,
+        handle: liveProfile?.handle || subject.handle,
+        displayName: displayName,
+        avatarUrl: avatarSrc,
+        avatar: avatarSrc,
+        bio: description,
+        isFollowing: isFollowing,
+        followingReference: liveProfile?.followingReference || subject.viewer?.following,
+        isVerified: isVerified,
+    };
+
+    const handleFollowClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+
+        const followActor = subject.did || subject.handle;
+        if (isFollowing) {
+            if (liveProfile?.followingReference || subject.viewer?.following) {
+                dispatch(unfollowUserAsync({
+                    userId: followActor,
+                    followUri: liveProfile?.followingReference || subject.viewer?.following
+                }));
+            }
+            onToggleFollowLocal(subject.did);
+            dispatch(updateFollowStatus({ did: subject.did || '', isFollowing: false }));
+            if (liveProfile) setLiveProfile({ ...liveProfile, isFollowing: false });
+        } else {
+            dispatch(followUserAsync(followActor));
+            onToggleFollowLocal(subject.did);
+            dispatch(updateFollowStatus({ did: subject.did || '', isFollowing: true }));
+            if (liveProfile) setLiveProfile({ ...liveProfile, isFollowing: true });
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-1 p-4 hover:bg-[#f9fafb]/50 dark:hover:bg-dark-surface/30 transition-colors border-t border-[#dce2ea] dark:border-dark-border">
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <UserHoverCard user={hoverUser}>
+                        <img
+                            onClick={() => navigate(`/profile/${hoverUser.handle}`)}
+                            src={avatarSrc}
+                            alt={hoverUser.handle}
+                            className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer"
+                        />
+                    </UserHoverCard>
+                    <div className="min-w-0 flex flex-col">
+                        <UserHoverCard user={hoverUser}>
+                            <div
+                                onClick={() => navigate(`/profile/${hoverUser.handle}`)}
+                                className="cursor-pointer"
+                            >
+                                <div className="flex items-center gap-1">
+                                    <span className="font-semibold text-[15px] text-black dark:text-white truncate hover:underline block leading-[20px]">
+                                        {displayName}
+                                    </span>
+                                    {isVerified && (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#006aff" className="flex-shrink-0 inline-block">
+                                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                        </svg>
+                                    )}
+                                </div>
+                                <span className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary truncate block leading-[17px]">
+                                    @{hoverUser.handle}
+                                </span>
+                            </div>
+                        </UserHoverCard>
+                    </div>
+                </div>
+
+                <button
+                    onClick={handleFollowClick}
+                    className={`px-[14px] py-[8px] rounded-full text-[13.1px] font-medium flex-shrink-0 transition-all flex items-center justify-center gap-[5px] ${
+                        isFollowing
+                            ? 'bg-[#eff2f6] dark:bg-dark-surface text-[#405168] dark:text-dark-text hover:bg-gray-200'
+                            : 'bg-[#006aff] hover:bg-[#005cd6] text-white'
+                    }`}
+                >
+                    <div className="w-[17px] h-[17px] -mx-[2px] flex items-center justify-center relative">
+                        {isFollowing ? (
+                            <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-[#405168] dark:text-dark-text pointer-events-none">
+                                <path fill="#405168" fillRule="evenodd" clipRule="evenodd" d="M21.59 3.193a1 1 0 0 1 .217 1.397l-11.706 16a1 1 0 0 1-1.429.193l-6.294-5a1 1 0 1 1 1.244-1.566l5.48 4.353 11.09-15.16a1 1 0 0 1 1.398-.217Z" />
+                            </svg>
+                        ) : (
+                            <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-white pointer-events-none">
+                                <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z" />
+                            </svg>
+                        )}
+                    </div>
+                    <span>{isFollowing ? 'Following' : 'Follow'}</span>
+                </button>
+            </div>
+
+            {description && (
+                <p className="text-[13.1px] text-black dark:text-dark-text mt-1 leading-[17px] line-clamp-3 font-normal">
+                    {description}
+                </p>
+            )}
+        </div>
+    );
+};
+
 export const StarterPackDetailPage: React.FC = () => {
     const { handle: paramHandle, rkey: paramRkey } = useParams<{ handle?: string; rkey?: string }>();
     const [searchParams] = useSearchParams();
@@ -294,9 +471,12 @@ export const StarterPackDetailPage: React.FC = () => {
     useEffect(() => {
         const rawUri = searchParams.get('uri');
         if (rawUri && !paramHandle) {
-            let handle = 'antonpodolsky.bsky.social';
-            let rkey = '3k4ignapzy7';
-            if (rawUri.includes('antonpodolsky')) {
+            let handle = 'lukeknox.me';
+            let rkey = '3laxjbn5cni7u';
+            if (rawUri.includes('lukeknox')) {
+                handle = 'lukeknox.me';
+                rkey = '3laxjbn5cni7u';
+            } else if (rawUri.includes('antonpodolsky')) {
                 handle = 'antonpodolsky.bsky.social';
                 rkey = '3k4ignapzy7';
             } else if (rawUri.includes('x3nu')) {
@@ -363,28 +543,34 @@ export const StarterPackDetailPage: React.FC = () => {
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [visibleCount, members.length, isFetchingMore]);
+    }, [isFetchingMore, visibleCount, members.length]);
 
     if (isLoading) {
         return (
-            <div className="w-full max-w-[600px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen p-8 text-center bg-white dark:bg-dark-bg">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#006aff] border-t-transparent"></div>
-                <p className="mt-2 text-sm text-gray-500">Loading starter pack...</p>
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#006aff]"></div>
             </div>
         );
     }
 
-    // Official Bluesky 404 Error Screen matching reference screenshot
+    // 404 screen if pack is invalid or paramRkey mismatched
     if (!starterPack) {
         return (
-            <div className="w-full max-w-[600px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen bg-white dark:bg-dark-bg flex flex-col items-center justify-center p-8 text-center">
-                <h2 className="text-[24px] font-bold text-black dark:text-white mb-1 tracking-tight">Oops!</h2>
-                <p className="text-[#526580] dark:text-dark-text-secondary text-[15px] mb-6">
-                    That Starter Pack could not be found.
+            <div className="min-h-screen bg-white dark:bg-dark-bg text-black dark:text-white flex flex-col items-center justify-center p-6">
+                <div className="w-16 h-16 bg-[#f1f5f9] dark:bg-dark-surface rounded-full flex items-center justify-center mb-4">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                </div>
+                <h1 className="text-[22px] font-bold mb-2 text-center">Oops! That Starter Pack could not be found.</h1>
+                <p className="text-[15px] text-[#64748b] dark:text-dark-text-secondary mb-6 text-center max-w-md">
+                    The link you followed may be broken, or the starter pack may have been removed.
                 </p>
                 <button
                     onClick={() => navigate(-1)}
-                    className="px-8 py-2.5 rounded-full font-semibold text-[15px] bg-[#006aff] hover:bg-[#005cd6] text-white transition-all shadow-sm"
+                    className="px-6 py-2.5 bg-[#006aff] hover:bg-[#005cd6] text-white font-semibold text-[15px] rounded-full transition-colors"
                 >
                     Go Back
                 </button>
@@ -392,58 +578,60 @@ export const StarterPackDetailPage: React.FC = () => {
         );
     }
 
-    const { record, creator } = starterPack;
+    const record = starterPack.record;
+    const creator = starterPack.creator;
+    const visibleMembers = members.slice(0, visibleCount);
 
     const creatorUser = {
         id: creator?.did || creator?.handle || 'creator',
         did: creator?.did,
-        handle: creator?.handle || 'unknown',
+        handle: creator?.handle,
         displayName: creator?.displayName || creator?.handle,
-        avatarUrl: creator?.avatar || creator?.avatarUrl,
-        avatar: creator?.avatar || creator?.avatarUrl,
+        avatarUrl: creator?.avatar,
+        avatar: creator?.avatar,
+        bio: creator?.description,
     };
 
     const handleFollowAll = async () => {
-        if (!targetDids.length) return;
         try {
             await followAllMembers({ targetDids }).unwrap();
             setFollowedDids(new Set(targetDids));
-            dispatch(showToast({ message: `Successfully followed members!`, type: 'success' }));
-        } catch {
-            setFollowedDids(new Set(targetDids));
-            dispatch(showToast({ message: `Followed all members`, type: 'success' }));
+            dispatch(showToast({ message: `Followed all members of ${record?.name || 'starter pack'}`, type: 'success' }));
+        } catch (err: any) {
+            dispatch(showToast({ message: err?.data?.message || 'Failed to follow members', type: 'error' }));
         }
     };
 
-    const visibleMembers = members.slice(0, visibleCount);
-
     return (
-        <div className="w-full max-w-[600px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen bg-white dark:bg-dark-bg pb-12 text-black dark:text-white">
-            {/* Top Sticky Header matching Bluesky reference */}
-            <div className="sticky top-0 z-20 flex items-center justify-between px-5 py-1 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-[#dce2ea] dark:border-dark-border min-h-[52px]">
+        <div className="max-w-[600px] w-full mx-auto min-h-screen bg-white dark:bg-dark-bg border-x border-[#dce2ea] dark:border-dark-border">
+            {/* Header with Sticky Back Button & Follow All */}
+            <div className="sticky top-0 z-20 bg-white/90 dark:bg-dark-bg/90 backdrop-blur-md border-b border-[#dce2ea] dark:border-dark-border px-4 py-2.5 flex items-center justify-between">
                 <button
                     onClick={() => navigate(-1)}
-                    className="w-[33px] h-[33px] rounded-full flex items-center justify-center hover:bg-[#eff2f6] dark:hover:bg-dark-surface transition-colors"
-                    aria-label="Go back"
+                    className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                    aria-label="Back"
                 >
-                    <svg className="w-5 h-5 text-black dark:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
                     </svg>
                 </button>
+
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleFollowAll}
                         disabled={isFollowingAll}
-                        className="px-[14px] py-2 rounded-full font-medium text-[13.1px] bg-[#006aff] hover:bg-[#005cd6] text-white transition-all disabled:opacity-50"
+                        className="px-4 py-1.5 bg-[#006aff] hover:bg-[#005cd6] text-white text-[14px] font-semibold rounded-full transition-colors disabled:opacity-50"
                     >
                         {isFollowingAll ? 'Following...' : 'Follow all'}
                     </button>
                     <button
-                        className="w-[33px] h-[33px] rounded-full bg-[#eff2f6] dark:bg-dark-surface flex items-center justify-center text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-dark-surface/80 transition-colors"
+                        className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                         aria-label="More options"
                     >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="5" cy="12" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="19" cy="12" r="2" />
                         </svg>
                     </button>
                 </div>
@@ -525,93 +713,20 @@ export const StarterPackDetailPage: React.FC = () => {
                 <div className="divide-y divide-[#dce2ea] dark:divide-dark-border">
                     {visibleMembers.map((item: any, idx: number) => {
                         const subject = item.subject || item;
-                        const isFollowing = followedDids.has(subject.did) || Boolean(subject.viewer?.following);
-
-                        const hoverUser = {
-                            id: subject.did || subject.handle,
-                            did: subject.did,
-                            handle: subject.handle,
-                            displayName: subject.displayName || subject.handle,
-                            avatarUrl: subject.avatar,
-                            avatar: subject.avatar,
-                            bio: subject.description,
-                        };
-
                         return (
-                            <div
-                                key={subject.did || idx}
-                                className="flex flex-col gap-1 p-4 hover:bg-[#f9fafb]/50 dark:hover:bg-dark-surface/30 transition-colors border-t border-[#dce2ea] dark:border-dark-border"
-                            >
-                                <div className="flex items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                        <UserHoverCard user={hoverUser}>
-                                            <img
-                                                onClick={() => navigate(`/profile/${subject.handle}`)}
-                                                src={subject.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(subject.displayName || subject.handle)}`}
-                                                alt={subject.handle}
-                                                className="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer"
-                                            />
-                                        </UserHoverCard>
-                                        <div className="min-w-0 flex flex-col">
-                                            <UserHoverCard user={hoverUser}>
-                                                <div
-                                                    onClick={() => navigate(`/profile/${subject.handle}`)}
-                                                    className="cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-1">
-                                                        <span className="font-semibold text-[15px] text-black dark:text-white truncate hover:underline block leading-[20px]">
-                                                            {subject.displayName || subject.handle}
-                                                        </span>
-                                                        {subject.viewer?.verified && (
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#006aff" className="flex-shrink-0 inline-block">
-                                                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary truncate block leading-[17px]">
-                                                        @{subject.handle}
-                                                    </span>
-                                                </div>
-                                            </UserHoverCard>
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        onClick={() => {
-                                            setFollowedDids(prev => {
-                                                const next = new Set(prev);
-                                                if (next.has(subject.did)) next.delete(subject.did);
-                                                else next.add(subject.did);
-                                                return next;
-                                            });
-                                        }}
-                                        className={`px-[14px] py-[8px] rounded-full text-[13.1px] font-medium flex-shrink-0 transition-all flex items-center justify-center gap-[5px] ${
-                                            isFollowing
-                                                ? 'bg-[#eff2f6] dark:bg-dark-surface text-[#405168] dark:text-dark-text hover:bg-gray-200'
-                                                : 'bg-[#006aff] hover:bg-[#005cd6] text-white'
-                                        }`}
-                                    >
-                                        <div className="w-[17px] h-[17px] -mx-[2px] flex items-center justify-center relative">
-                                            {isFollowing ? (
-                                                <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-[#405168] dark:text-dark-text pointer-events-none">
-                                                    <path fill="#405168" fillRule="evenodd" clipRule="evenodd" d="M21.59 3.193a1 1 0 0 1 .217 1.397l-11.706 16a1 1 0 0 1-1.429.193l-6.294-5a1 1 0 1 1 1.244-1.566l5.48 4.353 11.09-15.16a1 1 0 0 1 1.398-.217Z" />
-                                                </svg>
-                                            ) : (
-                                                <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-white pointer-events-none">
-                                                    <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span>{isFollowing ? 'Following' : 'Follow'}</span>
-                                    </button>
-                                </div>
-
-                                {subject.description && (
-                                    <p className="text-[13.1px] text-black dark:text-dark-text mt-1 leading-[17px] line-clamp-3 font-normal">
-                                        {subject.description}
-                                    </p>
-                                )}
-                            </div>
+                            <StarterPackMemberRow
+                                key={subject.did || subject.handle || idx}
+                                subject={subject}
+                                localFollowedDids={followedDids}
+                                onToggleFollowLocal={(did) => {
+                                    setFollowedDids(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(did)) next.delete(did);
+                                        else next.add(did);
+                                        return next;
+                                    });
+                                }}
+                            />
                         );
                     })}
 
