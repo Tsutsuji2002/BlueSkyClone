@@ -792,32 +792,38 @@ export const StarterPackDetailPage: React.FC = () => {
                 if (isFetchingMore || isLoadingLiveFeed || isLoadingMembers) return;
 
                 if (activeTab === 'people') {
-                    if (listUri && hasMoreMembers && membersCursor) {
-                        setIsFetchingMore(true);
-                        triggerGetListMembers({ list: listUri, limit: 50, cursor: membersCursor })
-                            .unwrap()
-                            .then((res: any) => {
-                                if (res?.items && Array.isArray(res.items)) {
-                                    setLiveMembers(prev => [...prev, ...res.items]);
-                                    setMembersCursor(res.cursor);
-                                    setHasMoreMembers(!!res.cursor && res.items.length > 0);
-                                } else {
+                    if (liveMembers.length > 0) {
+                        if (listUri && hasMoreMembers && membersCursor) {
+                            setIsFetchingMore(true);
+                            triggerGetListMembers({ list: listUri, limit: 50, cursor: membersCursor })
+                                .unwrap()
+                                .then((res: any) => {
+                                    if (res?.items && Array.isArray(res.items)) {
+                                        setLiveMembers(prev => [...prev, ...res.items]);
+                                        setMembersCursor(res.cursor);
+                                        setHasMoreMembers(!!res.cursor && res.items.length > 0);
+                                    } else {
+                                        setHasMoreMembers(false);
+                                    }
+                                    setIsFetchingMore(false);
+                                })
+                                .catch(() => {
                                     setHasMoreMembers(false);
-                                }
+                                    setIsFetchingMore(false);
+                                });
+                        }
+                    } else {
+                        // Fallback mock members pagination
+                        if (visibleCount < members.length) {
+                            setIsFetchingMore(true);
+                            setTimeout(() => {
+                                setVisibleCount(prev => Math.min(prev + 6, members.length));
                                 setIsFetchingMore(false);
-                            })
-                            .catch(() => {
-                                setHasMoreMembers(false);
-                                setIsFetchingMore(false);
-                            });
-                    } else if (!listUri && visibleCount < members.length) {
-                        setIsFetchingMore(true);
-                        setTimeout(() => {
-                            setVisibleCount(prev => Math.min(prev + 6, members.length));
-                            setIsFetchingMore(false);
-                        }, 400);
+                            }, 300);
+                        }
                     }
-                } else if (activeTab === 'posts') {
+                }
+ else if (activeTab === 'posts') {
                     if (livePosts.length > 0) {
                         if (listUri && hasMoreLivePosts && liveCursor) {
                             setIsFetchingMore(true);
