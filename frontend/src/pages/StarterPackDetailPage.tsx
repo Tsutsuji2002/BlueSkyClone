@@ -61,19 +61,26 @@ const COMEDY_MEMBERS_FULL = [
 ].map(m => m.subject ? m : { subject: m });
 
 const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
-    'antonpodolsky.bsky.social': {
-        rkey: '3k4ignapzy7',
-        uri: 'at://did:plc:antonpodolsky/app.bsky.graph.starterpack/3k4ignapzy7',
+    'lukeknox.me': {
+        rkey: '3laxjbn5cni7u',
+        uri: 'at://did:plc:lukeknox/app.bsky.graph.starterpack/3laxjbn5cni7u',
         record: {
-            name: 'Street Photographers',
-            description: 'Some great accounts to scratch your street photography itch.',
+            name: 'ESPN people',
+            description: 'List of ESPN folks on Bluesky. Let me know who I\'m missing!',
         },
         creator: {
-            handle: 'antonpodolsky.bsky.social',
-            displayName: 'Anton Podolsky',
-            avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:wnt62siviv5qdnhslpz2jjmr/bafkreihe7idtboxjyg64g6rftx5hmlxm2pltcmda24ne2x52jhp6gw4ox4',
+            handle: 'lukeknox.me',
+            displayName: 'Luke Knox',
+            avatar: 'https://i.pravatar.cc/80?img=60',
         },
-        listItemsSample: STREET_PHOTOGRAPHERS_MEMBERS,
+        listItemsSample: [
+            { subject: { did: 'e1', handle: 'lukeknox.me', displayName: 'Luke Knox', avatar: 'https://i.pravatar.cc/80?img=60', description: 'Creative Director, ESPN Visual Storytelling' } },
+            { subject: { did: 'e2', handle: 'minakimes.bsky.social', displayName: 'Mina Kimes', avatar: 'https://i.pravatar.cc/80?img=47', description: 'NFL analyst at ESPN.', viewer: { verified: true } } },
+            { subject: { did: 'e3', handle: 'espnbillc.bsky.social', displayName: 'Bill Connelly', avatar: 'https://i.pravatar.cc/80?img=53', description: 'ESPN writer, professional nerd. SP+. Author of three books (Study Hall, 50 Best* and Forward Progress). College football, soccer, tennis. Puma addiction.' } },
+            { subject: { did: 'e4', handle: 'kpelton.bsky.social', displayName: 'Kevin Pelton', avatar: 'https://i.pravatar.cc/80?img=12', description: 'Assistant GM for Connecticut Sun (future Houston Comets). Using numbers to learn about the game.' } },
+            { subject: { did: 'e5', handle: 'sheacarlson.bsky.social', displayName: 'Shea', avatar: 'https://i.pravatar.cc/80?img=15', description: 'nba editor @ espn. writer. rascal.' } },
+            { subject: { did: 'e6', handle: 'wyshynski.bsky.social', displayName: 'Greg Wyshynski', avatar: 'https://i.pravatar.cc/80?img=33', description: 'Senior NHL Writer at ESPN, ex-Puck Daddy and NJ native. Did I mention I love people? Email: greg.wyshynski@espn.dot.com' } },
+        ],
         feeds: [],
     },
     'sstein.bsky.social': {
@@ -305,7 +312,7 @@ export const StarterPackDetailPage: React.FC = () => {
 
     const starterPackUri = searchParams.get('uri') || (paramHandle && paramRkey ? `at://${paramHandle}/app.bsky.graph.starterpack/${paramRkey}` : '');
 
-    const isMockPack = !paramHandle || ['antonpodolsky.bsky.social', 'sstein.bsky.social', 'filmcritics.org.uk', 'x3nu.bsky.social'].includes(paramHandle);
+    const isMockPack = !paramHandle || Object.keys(MOCK_FALLBACK_STARTER_PACKS).includes(paramHandle);
 
     const { data, isLoading } = useGetStarterPackQuery(
         { starterPack: starterPackUri || '' },
@@ -321,13 +328,13 @@ export const StarterPackDetailPage: React.FC = () => {
     // Resolve starter pack:
     // If handle matches a mock entry, strictly validate that rkey matches mock pack's expected rkey!
     let starterPack: any = null;
-    let fallbackKey = 'antonpodolsky.bsky.social';
+    let fallbackKey = 'lukeknox.me';
 
     if (data?.starterPack) {
         starterPack = data.starterPack;
     } else if (paramHandle && MOCK_FALLBACK_STARTER_PACKS[paramHandle]) {
         const mockEntry = MOCK_FALLBACK_STARTER_PACKS[paramHandle];
-        // Strictly check if paramRkey matches expected rkey (e.g. 3lagamingrk1 for x3nu, 3k4ignapzy7 for antonpodolsky)
+        // Strictly check if paramRkey matches expected rkey
         if (!paramRkey || mockEntry.rkey === paramRkey) {
             starterPack = mockEntry;
             fallbackKey = paramHandle;
@@ -483,14 +490,14 @@ export const StarterPackDetailPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Tabs Bar: People | Posts matching Bluesky reference */}
-            <div className="sticky top-[52px] z-10 bg-white dark:bg-dark-bg flex flex-row border-b border-[#dce2ea] dark:border-dark-border px-4 gap-6 text-[15px] font-semibold">
+            {/* Tabs Bar: People | Posts matching Bluesky reference (flex-1 equal width) */}
+            <div className="sticky top-[52px] z-10 bg-white dark:bg-dark-bg flex flex-row border-b border-[#dce2ea] dark:border-dark-border text-[15px] font-semibold">
                 <button
                     onClick={() => setActiveTab('people')}
-                    className={`py-3 relative ${
+                    className={`flex-1 py-3 text-center relative flex items-center justify-center ${
                         activeTab === 'people'
-                            ? 'text-black dark:text-white'
-                            : 'text-[#405168] dark:text-dark-text-secondary hover:text-black dark:hover:text-white'
+                            ? 'text-black dark:text-white font-semibold'
+                            : 'text-[#405168] dark:text-dark-text-secondary font-medium hover:text-black dark:hover:text-white'
                     }`}
                 >
                     People
@@ -500,10 +507,10 @@ export const StarterPackDetailPage: React.FC = () => {
                 </button>
                 <button
                     onClick={() => setActiveTab('posts')}
-                    className={`py-3 relative ${
+                    className={`flex-1 py-3 text-center relative flex items-center justify-center ${
                         activeTab === 'posts'
-                            ? 'text-black dark:text-white'
-                            : 'text-[#405168] dark:text-dark-text-secondary hover:text-black dark:hover:text-white'
+                            ? 'text-black dark:text-white font-semibold'
+                            : 'text-[#405168] dark:text-dark-text-secondary font-medium hover:text-black dark:hover:text-white'
                     }`}
                 >
                     Posts
@@ -551,9 +558,16 @@ export const StarterPackDetailPage: React.FC = () => {
                                                     onClick={() => navigate(`/profile/${subject.handle}`)}
                                                     className="cursor-pointer"
                                                 >
-                                                    <span className="font-semibold text-[15px] text-black dark:text-white truncate hover:underline block leading-[20px]">
-                                                        {subject.displayName || subject.handle}
-                                                    </span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="font-semibold text-[15px] text-black dark:text-white truncate hover:underline block leading-[20px]">
+                                                            {subject.displayName || subject.handle}
+                                                        </span>
+                                                        {subject.viewer?.verified && (
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#006aff" className="flex-shrink-0 inline-block">
+                                                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
                                                     <span className="text-[13.1px] text-[#405168] dark:text-dark-text-secondary truncate block leading-[17px]">
                                                         @{subject.handle}
                                                     </span>
@@ -571,22 +585,24 @@ export const StarterPackDetailPage: React.FC = () => {
                                                 return next;
                                             });
                                         }}
-                                        className={`px-[14px] py-2 rounded-full text-[13.1px] font-medium flex-shrink-0 transition-all flex items-center gap-1.5 ${
+                                        className={`px-[14px] py-[8px] rounded-full text-[13.1px] font-medium flex-shrink-0 transition-all flex items-center justify-center gap-[5px] ${
                                             isFollowing
                                                 ? 'bg-[#eff2f6] dark:bg-dark-surface text-[#405168] dark:text-dark-text hover:bg-gray-200'
                                                 : 'bg-[#006aff] hover:bg-[#005cd6] text-white'
                                         }`}
                                     >
-                                        {isFollowing ? (
-                                            'Following'
-                                        ) : (
-                                            <>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                                        <div className="w-[17px] h-[17px] -mx-[2px] flex items-center justify-center relative">
+                                            {isFollowing ? (
+                                                <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-[#405168] dark:text-dark-text pointer-events-none">
+                                                    <path fill="#405168" fillRule="evenodd" clipRule="evenodd" d="M21.59 3.193a1 1 0 0 1 .217 1.397l-11.706 16a1 1 0 0 1-1.429.193l-6.294-5a1 1 0 1 1 1.244-1.566l5.48 4.353 11.09-15.16a1 1 0 0 1 1.398-.217Z" />
                                                 </svg>
-                                                <span>Follow</span>
-                                            </>
-                                        )}
+                                            ) : (
+                                                <svg fill="none" width="16" height="16" viewBox="0 0 24 24" className="text-white pointer-events-none">
+                                                    <path fill="#FFFFFF" fillRule="evenodd" clipRule="evenodd" d="M12 3a1 1 0 0 1 1 1v7h7a1 1 0 1 1 0 2h-7v7a1 1 0 1 1-2 0v-7H4a1 1 0 1 1 0-2h7V4a1 1 0 0 1 1-1Z" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <span>{isFollowing ? 'Following' : 'Follow'}</span>
                                     </button>
                                 </div>
 
