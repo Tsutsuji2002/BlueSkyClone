@@ -95,7 +95,8 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
     },
     'sstein.bsky.social': {
         rkey: '3laohb5gt6t2j',
-        uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
+        // Real ATProto starter pack — DID confirmed from app.bsky.graph.getStarterPack response
+        uri: 'at://did:plc:ksdvszu4sbkq4766eum4stu4/app.bsky.graph.starterpack/3laohb5gt6t2j',
         record: {
             name: 'Comedy writers and satirists',
             description: 'Writers who write comedy and satire or write about comedy. Not necessarily people who are funny on Bluesky, though many are. Mostly these are people who write humor of one kind or another for publication.',
@@ -103,10 +104,12 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
         creator: {
             handle: 'sstein.bsky.social',
             displayName: 'Scott Stein',
-            avatar: 'https://i.pravatar.cc/80?img=68',
+            avatar: 'https://cdn.bsky.app/img/avatar/plain/did:plc:ksdvszu4sbkq4766eum4stu4/bafkreiezsmy2kfri7wjb4qpfuxda5z7jzqaslj747asf2s57mybqzft7ou',
         },
         list: {
-            uri: 'at://did:plc:rag7p65524h5chavuvujp6zy/app.bsky.graph.list/3laohb4ym5m2j',
+            // Real list URI confirmed from ATProto app.bsky.graph.getList response
+            uri: 'at://did:plc:ksdvszu4sbkq4766eum4stu4/app.bsky.graph.list/3laohb5ecnj2p',
+            listItemCount: 80,
         },
         listItemsSample: COMEDY_MEMBERS_FULL,
         feeds: [],
@@ -746,9 +749,10 @@ export const StarterPackDetailPage: React.FC = () => {
     };
 
     // Initial fetch for real ATProto list members
+    // Use limit=100 to match real bsky behavior (fetches all or most members on first load)
     useEffect(() => {
         if (listUri && !hasLoadedMembers) {
-            triggerGetListMembers({ list: listUri, limit: 50 })
+            triggerGetListMembers({ list: listUri, limit: 100 })
                 .unwrap()
                 .then((res: any) => {
                     if (res?.items && Array.isArray(res.items)) {
