@@ -104,6 +104,13 @@ export const starterPackApi = createApi({
                 return url;
             },
         }),
+        getListMembers: builder.query<{ list: any; items: any[]; cursor?: string }, { list: string; limit?: number; cursor?: string }>({
+            query: ({ list, limit = 50, cursor }) => {
+                let url = `/list-members?list=${encodeURIComponent(list)}&limit=${limit}`;
+                if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+                return url;
+            },
+        }),
     }),
 });
 
@@ -113,5 +120,8 @@ export const {
     useFollowAllMembersMutation,
     useGetListFeedQuery,
     useLazyGetListFeedQuery,
+    useGetListMembersQuery,
+    useLazyGetListMembersQuery,
 } = starterPackApi;
+
 

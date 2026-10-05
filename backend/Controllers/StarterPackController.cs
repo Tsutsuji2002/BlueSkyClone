@@ -200,7 +200,58 @@ public class StarterPackController : ControllerBase
     }
 
     /// <summary>
-    /// Gets real-time posts from a starter pack's list members using ATProto app.bsky.graph.getListFeed.
+    /// Gets real-time members of a list using ATProto app.bsky.graph.getList.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("list-members")]
+    public async Task<IActionResult> GetListMembers([FromQuery] string list, [FromQuery] int limit = 50, [FromQuery] string? cursor = null)
+    {
+        if (string.IsNullOrWhiteSpace(list))
+        {
+            return BadRequest(new { message = "list parameter is required" });
+        }
+
+        var token = ExtractBearerToken();
+        var queryParams = new List<KeyValuePair<string, string?>>
+        {
+            new KeyValuePair<string, string?>("list", list),
+            new KeyValuePair<string, string?>("limit", limit.ToString())
+        };
+
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            queryParams.Add(new KeyValuePair<string, string?>("cursor", cursor));
+        }
+
+        var response = await _xrpcProxyService.ProxyRequestAsync(
+            did: "public.api.bsky.app",
+            nsid: "app.bsky.graph.getList",
+            queryParams: queryParams,
+            token: token,
+            method: "GET"
+        );
+
+        if (!response.Success && token != null)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: "public.api.bsky.app",
+                nsid: "app.bsky.graph.getList",
+                queryParams: queryParams,
+                token: null,
+                method: "GET"
+            );
+        }
+
+        if (!response.Success)
+        {
+            return StatusCode(response.StatusCode, response.Content);
+        }
+
+        return Content(response.Content, "application/json");
+    }
+
+    /// <summary>
+    /// Gets real-time posts from a starter pack's list members using ATProto app.bsky.feed.getListFeed.
     /// </summary>
     [AllowAnonymous]
     [HttpGet("list-feed")]
@@ -225,7 +276,7 @@ public class StarterPackController : ControllerBase
 
         var response = await _xrpcProxyService.ProxyRequestAsync(
             did: "public.api.bsky.app",
-            nsid: "app.bsky.graph.getListFeed",
+            nsid: "app.bsky.feed.getListFeed",
             queryParams: queryParams,
             token: token,
             method: "GET"
@@ -235,7 +286,7 @@ public class StarterPackController : ControllerBase
         {
             response = await _xrpcProxyService.ProxyRequestAsync(
                 did: "public.api.bsky.app",
-                nsid: "app.bsky.graph.getListFeed",
+                nsid: "app.bsky.feed.getListFeed",
                 queryParams: queryParams,
                 token: null,
                 method: "GET"
@@ -250,4 +301,5 @@ public class StarterPackController : ControllerBase
         return Content(response.Content, "application/json");
     }
 }
+
 

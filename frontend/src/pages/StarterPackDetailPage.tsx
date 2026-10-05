@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { useGetStarterPackQuery, useFollowAllMembersMutation, useLazyGetListFeedQuery } from '../redux/api/starterPackApi';
+import { useGetStarterPackQuery, useFollowAllMembersMutation, useLazyGetListFeedQuery, useLazyGetListMembersQuery } from '../redux/api/starterPackApi';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
+
 
 import { RootState } from '../redux/store';
 import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
@@ -38,17 +39,17 @@ const STREET_PHOTOGRAPHERS_MEMBERS = [
     { subject: { did: 'sp22', handle: 'lucyphoto.bsky.social', displayName: 'Lucy 📷', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:45tpuenyjoho76cktmquilma/bafkreihmna6pafqhboumtaddk4qgrfwt2cxs2amjkytdbvluwbghlc44rq', description: '35mm film photography mostly 🎞️ but also digital. Street photography, landscape. Scottish 🏴 linktr.ee/whaleonland' } },
 ];
 
-const COMEDY_MEMBERS_FULL = [
-    { did: 's1', handle: 'sstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Latest novel: THE GREAT AMERICAN BETRAYAL *Best Comedy Books of 2022* -Vulture. English professor, novelist, satirist, editor.' },
-    { did: 's2', handle: 'kashana.blacksky.app', displayName: 'Kashana', avatar: 'https://i.pravatar.cc/80?img=47', description: 'TV writer. Author of the novels THE PAYBACK and THE SURVIVALISTS. Deadly with a butter knife.' },
-    { did: 's3', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=33', description: 'gallows humorist & creator of This Modern World.' },
-    { did: 's4', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=53', description: 'Author of Robin and Mad as Hell. Culture reporter and satirist.' },
-    { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'I enjoy pie. Sci-fi novelist, humorist, Hugo award winner.' },
-    { did: 's6', handle: 'theauthor.bsky.social', displayName: 'Christopher Moore', avatar: 'https://i.pravatar.cc/80?img=15', description: 'Author of Lamb, Fool, Sacre Bleu, Noir, Shakespeare for Squirrels.' },
-    { did: 's7', handle: 'thehardtimesnews.bsky.social', displayName: 'The Hard Times', avatar: 'https://i.pravatar.cc/80?img=68', description: 'Punk news coming your way. Read the full articles: www.thehardtimes.net' },
-    { did: 's8', handle: 'clickhole.bsky.social', displayName: 'ClickHole', avatar: 'https://i.pravatar.cc/80?img=60', description: 'Because all content deserves to go viral.' },
+const COMEDY_MEMBERS_FULL: any[] = [
+    { subject: { did: 's1', handle: 'scottstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'CNET Editor-at-Large. VR, AR, wearable tech, gaming, comics, sci-fi, comedy.' } },
+    { subject: { did: 's2', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=11', description: 'Creator of the weekly cartoon This Modern World. Two-time Pulitzer finalist.' } },
+    { subject: { did: 's3', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=65', description: 'Culture reporter @ nytimes. Author of Robin, Mad as Hell, etc.' } },
+    { subject: { did: 's4', handle: 'reductress.bsky.social', displayName: 'Reductress', avatar: 'https://i.pravatar.cc/80?img=45', description: 'The first and only satirical women’s magazine.' } },
+    { subject: { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'Writer of books (Old Man’s War, Redshirts, Kaiju Preservation Society, Starter Villain).' } },
+    { subject: { did: 's6', handle: 'clareblackwood.bsky.social', displayName: 'Clare Blackwood', avatar: 'https://i.pravatar.cc/80?img=5', description: 'Writer, actor, comedian, voice person. Toronto. https://www.patreon.com/cw/ClareBlackwoodComedy' } },
+    { subject: { did: 's7', handle: 'thehardtimesnews.bsky.social', displayName: 'The Hard Times', avatar: 'https://i.pravatar.cc/80?img=70', description: 'Punk news coming your way. Go read the full articles: www.thehardtimes.net' } },
+    { subject: { did: 's8', handle: 'clickhole.bsky.social', displayName: 'ClickHole', avatar: 'https://i.pravatar.cc/80?img=61', description: 'Because all content deserves to go viral.' } },
     { subject: { did: 's9', handle: 'thatwriterguy.com', displayName: 'Mike L Tilford', avatar: 'https://i.pravatar.cc/80?img=44', description: 'NYT Worstselling Author SFF, Satire, Comedy, Absurdist Dummest Person in the Room.' } },
-    { subject: { did: 's10', handle: 'pericogey', displayName: 'Butt teeth! Butt teeth! Butt teeth!', avatar: 'https://i.pravatar.cc/80?img=38', description: 'Irl: Edutainment & sketch comedy. Heres Shitposts. 18+ There’s a species of fish that lives in the puttholes of sea cucumbers.' } },
+    { subject: { did: 's10', handle: 'panic.gay', displayName: 'Butt teeth! Butt teeth! Butt teeth!', avatar: 'https://i.pravatar.cc/80?img=38', description: 'Irl: Edutainment & sketch comedy. Heres Shitposts. 18+ There’s a species of fish that lives in the puttholes of sea cucumbers.' } },
     { subject: { did: 's11', handle: 'robkutner.bsky.social', displayName: 'Rob Kutner', avatar: 'https://i.pravatar.cc/80?img=25', description: 'Emmy-winning comedy/animation writer (Daily Show, CONAN, Teen Titans Go!), NYT-bestselling author.' } },
     { subject: { did: 's12', handle: 'rejectedjokes.bsky.social', displayName: 'Ben Schwartz', avatar: 'https://i.pravatar.cc/80?img=28', description: 'RejectedJokes.com' } },
     { subject: { did: 's13', handle: 'takomatorch.bsky.social', displayName: 'The Takoma Torch 🪵 🔥', avatar: 'https://i.pravatar.cc/80?img=32', description: 'Takoma Park’s ONLY Humor Source. Home of the Nimbee and Takoma Man. www.takomatorch.com' } },
@@ -641,6 +642,7 @@ export const StarterPackDetailPage: React.FC = () => {
     );
 
     const [triggerGetListFeed, { isLoading: isLoadingLiveFeed }] = useLazyGetListFeedQuery();
+    const [triggerGetListMembers, { isLoading: isLoadingMembers }] = useLazyGetListMembersQuery();
 
     const [followAllMembers, { isLoading: isFollowingAll }] = useFollowAllMembersMutation();
     const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
@@ -648,6 +650,12 @@ export const StarterPackDetailPage: React.FC = () => {
     const [visibleCount, setVisibleCount] = useState<number>(7);
     const [visiblePostsCount, setVisiblePostsCount] = useState<number>(3);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
+
+    // Live ATProto list members state
+    const [liveMembers, setLiveMembers] = useState<any[]>([]);
+    const [membersCursor, setMembersCursor] = useState<string | undefined>(undefined);
+    const [hasLoadedMembers, setHasLoadedMembers] = useState<boolean>(false);
+    const [hasMoreMembers, setHasMoreMembers] = useState<boolean>(true);
 
     // Live ATProto list posts state
     const [livePosts, setLivePosts] = useState<Post[]>([]);
@@ -674,7 +682,7 @@ export const StarterPackDetailPage: React.FC = () => {
     const members: any[] = starterPack?.listItemsSample || [];
     const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
 
-    // List AT-URI for fetching real ATProto list feed
+    // List AT-URI for fetching real ATProto list feed & members
     const listUri: string = starterPack?.list?.uri || starterPack?.record?.list || '';
 
     // Get fallback mock posts for this pack
@@ -725,6 +733,25 @@ export const StarterPackDetailPage: React.FC = () => {
         };
     };
 
+    // Initial fetch for real ATProto list members
+    useEffect(() => {
+        if (listUri && !hasLoadedMembers) {
+            triggerGetListMembers({ list: listUri, limit: 50 })
+                .unwrap()
+                .then((res: any) => {
+                    if (res?.items && Array.isArray(res.items)) {
+                        setLiveMembers(res.items);
+                        setMembersCursor(res.cursor);
+                        setHasMoreMembers(!!res.cursor && res.items.length > 0);
+                    }
+                    setHasLoadedMembers(true);
+                })
+                .catch(() => {
+                    setHasLoadedMembers(true);
+                });
+        }
+    }, [listUri, hasLoadedMembers, triggerGetListMembers]);
+
     // Initial fetch for real ATProto list feed (fetches eagerly when listUri is resolved)
     useEffect(() => {
         if (listUri && !hasLoadedLiveFeed) {
@@ -740,6 +767,7 @@ export const StarterPackDetailPage: React.FC = () => {
                     setHasLoadedLiveFeed(true);
                 })
                 .catch(() => {
+                    setHasMoreLivePosts(false);
                     setHasLoadedLiveFeed(true);
                 });
         }
@@ -749,14 +777,34 @@ export const StarterPackDetailPage: React.FC = () => {
     useEffect(() => {
         const handleScroll = () => {
             if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
-                if (isFetchingMore || isLoadingLiveFeed) return;
+                if (isFetchingMore || isLoadingLiveFeed || isLoadingMembers) return;
 
-                if (activeTab === 'people' && visibleCount < members.length) {
-                    setIsFetchingMore(true);
-                    setTimeout(() => {
-                        setVisibleCount(prev => Math.min(prev + 6, members.length));
-                        setIsFetchingMore(false);
-                    }, 400);
+                if (activeTab === 'people') {
+                    if (listUri && hasMoreMembers && membersCursor) {
+                        setIsFetchingMore(true);
+                        triggerGetListMembers({ list: listUri, limit: 50, cursor: membersCursor })
+                            .unwrap()
+                            .then((res: any) => {
+                                if (res?.items && Array.isArray(res.items)) {
+                                    setLiveMembers(prev => [...prev, ...res.items]);
+                                    setMembersCursor(res.cursor);
+                                    setHasMoreMembers(!!res.cursor && res.items.length > 0);
+                                } else {
+                                    setHasMoreMembers(false);
+                                }
+                                setIsFetchingMore(false);
+                            })
+                            .catch(() => {
+                                setHasMoreMembers(false);
+                                setIsFetchingMore(false);
+                            });
+                    } else if (!listUri && visibleCount < members.length) {
+                        setIsFetchingMore(true);
+                        setTimeout(() => {
+                            setVisibleCount(prev => Math.min(prev + 6, members.length));
+                            setIsFetchingMore(false);
+                        }, 400);
+                    }
                 } else if (activeTab === 'posts') {
                     if (listUri && hasMoreLivePosts && liveCursor) {
                         setIsFetchingMore(true);
@@ -774,6 +822,7 @@ export const StarterPackDetailPage: React.FC = () => {
                                 setIsFetchingMore(false);
                             })
                             .catch(() => {
+                                setHasMoreLivePosts(false);
                                 setIsFetchingMore(false);
                             });
                     } else if (!listUri && visiblePostsCount < starterPackPosts.length) {
@@ -786,6 +835,7 @@ export const StarterPackDetailPage: React.FC = () => {
                 }
             }
         };
+
 
 
 
@@ -959,7 +1009,7 @@ export const StarterPackDetailPage: React.FC = () => {
             {/* Tab Content */}
             {activeTab === 'people' ? (
                 <div className="divide-y divide-[#dce2ea] dark:divide-dark-border">
-                    {visibleMembers.map((item: any, idx: number) => {
+                    {(liveMembers.length > 0 ? liveMembers : (members.length > 0 ? members : COMEDY_MEMBERS_FULL).slice(0, visibleCount)).map((item: any, idx: number) => {
                         const subject = item.subject || item;
                         return (
                             <StarterPackMemberRow
@@ -978,8 +1028,8 @@ export const StarterPackDetailPage: React.FC = () => {
                         );
                     })}
 
-                    {/* Infinite Scroll Loading Indicator */}
-                    {visibleCount < members.length && (
+                    {/* Infinite Scroll Loading Indicator for People */}
+                    {((listUri && hasMoreMembers) || (!listUri && visibleCount < members.length) || isLoadingMembers) && (
                         <div className="p-4 text-center">
                             <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#006aff] border-t-transparent"></div>
                         </div>
@@ -1003,13 +1053,14 @@ export const StarterPackDetailPage: React.FC = () => {
                     )}
 
                     {/* Posts Infinite Scroll Loading Indicator */}
-                    {((listUri && hasMoreLivePosts) || (!listUri && visiblePostsCount < starterPackPosts.length) || isFetchingMore) && (
+                    {((listUri && hasMoreLivePosts) || (!listUri && visiblePostsCount < starterPackPosts.length) || isLoadingLiveFeed) && (
                         <div className="p-4 text-center">
                             <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#006aff] border-t-transparent"></div>
                         </div>
                     )}
                 </div>
             )}
+
 
         </div>
     );
