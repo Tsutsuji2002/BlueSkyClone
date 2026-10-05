@@ -251,6 +251,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                 >
                     {categories.map((cat) => {
                         const isActive = selectedCategory.id === cat.id;
+                        const labelText = cat.id === 'all' ? t('explore.categories.all', { defaultValue: 'For You' }) : t(cat.nameKey);
                         return (
                             <button
                                 key={cat.id}
@@ -264,7 +265,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                                         : "bg-white dark:bg-dark-bg border-[#dce2ea] dark:border-dark-border text-[#405168] dark:text-dark-text-secondary hover:bg-gray-50"
                                 )}>
                                     <span className="text-[13.1px] tracking-[0.25px] font-medium leading-[17px] whitespace-nowrap">
-                                        {t(cat.nameKey)}
+                                        {labelText}
                                     </span>
                                 </div>
                             </button>
@@ -312,28 +313,32 @@ const SuggestedUsersForExplore: React.FC = () => {
                                 <div className="w-full flex flex-row items-center gap-2">
                                     <UserHoverCard user={user as any}>
                                         <div 
-                                            className="w-10 h-10 shrink-0 relative"
+                                            className="inline-block"
                                             onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user.handle}`); }}
                                         >
-                                            <div className="w-10 h-10 rounded-full overflow-hidden bg-[#f9fafb] dark:bg-dark-surface relative">
-                                                <img 
-                                                    src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.handle)}&background=random`}
-                                                    alt={user.displayName || user.handle}
-                                                    className="w-full h-full object-cover"
-                                                    loading="lazy"
-                                                />
+                                            <div className="w-10 h-10 shrink-0 relative">
+                                                <div className="w-10 h-10 rounded-full overflow-hidden bg-[#f9fafb] dark:bg-dark-surface relative">
+                                                    <img 
+                                                        src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.handle)}&background=random`}
+                                                        alt={user.displayName || user.handle}
+                                                        className="w-full h-full object-cover"
+                                                        loading="lazy"
+                                                    />
+                                                </div>
+                                                <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border rounded-full opacity-60 pointer-events-none" />
                                             </div>
-                                            <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border rounded-full opacity-60 pointer-events-none" />
                                         </div>
                                     </UserHoverCard>
 
                                     <div className="flex-1 min-w-0">
                                         <UserHoverCard user={user as any}>
                                             <div 
-                                                className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate"
+                                                className="inline-block"
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/profile/${user.handle}`); }}
                                             >
-                                                {user.displayName || user.handle}
+                                                <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                                                    {user.displayName || user.handle}
+                                                </div>
                                             </div>
                                         </UserHoverCard>
                                         <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
@@ -355,7 +360,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                                             isUserLoading(user.did) && "opacity-60 cursor-not-allowed"
                                         )}
                                     >
-                                        {getEffectiveFollowStatus(user) ? t('profile.following') : t('profile.follow')}
+                                        {getEffectiveFollowStatus(user) ? t('profile.following', { defaultValue: 'Following' }) : t('profile.follow', { defaultValue: 'Follow' })}
                                     </button>
                                 </div>
 
