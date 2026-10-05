@@ -238,6 +238,135 @@ const MOCK_STARTER_PACK_POSTS: Record<string, Post[]> = {
             bookmarksCount: 9,
             quotesCount: 3,
         },
+        {
+            id: 'sp-post-6',
+            uri: 'at://did:plc:tomtomorrow/app.bsky.feed.post/6',
+            cid: 'cid-6',
+            author: {
+                id: 'tomtomorrow',
+                did: 'did:plc:tomtomorrow',
+                username: 'tomtomorrow.bsky.social',
+                handle: 'tomtomorrow.bsky.social',
+                displayName: 'Your Internet Friend Tom Tomorrow',
+                avatar: 'https://i.pravatar.cc/80?img=33',
+                avatarUrl: 'https://i.pravatar.cc/80?img=33',
+            },
+            content: "Modern politics is just arguing over which dystopian sci-fi trope we should implement next.",
+            createdAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
+            likesCount: 1840,
+            repostsCount: 290,
+            repliesCount: 64,
+            bookmarksCount: 31,
+            quotesCount: 11,
+        },
+        {
+            id: 'sp-post-7',
+            uri: 'at://did:plc:theonion/app.bsky.feed.post/7',
+            cid: 'cid-7',
+            author: {
+                id: 'theonion',
+                did: 'did:plc:theonion',
+                username: 'theonion.com',
+                handle: 'theonion.com',
+                displayName: 'The Onion',
+                avatar: 'https://i.pravatar.cc/80?img=60',
+                avatarUrl: 'https://i.pravatar.cc/80?img=60',
+                isVerified: true,
+            },
+            content: 'Man Who Thought He Was Sarcastic Realizes He Just Has Bad Personality.',
+            createdAt: new Date(Date.now() - 22 * 3600 * 1000).toISOString(),
+            likesCount: 4520,
+            repostsCount: 910,
+            repliesCount: 142,
+            bookmarksCount: 115,
+            quotesCount: 48,
+        },
+        {
+            id: 'sp-post-8',
+            uri: 'at://did:plc:ditzkoff/app.bsky.feed.post/8',
+            cid: 'cid-8',
+            author: {
+                id: 'ditzkoff',
+                did: 'did:plc:ditzkoff',
+                username: 'ditzkoff.bsky.social',
+                handle: 'ditzkoff.bsky.social',
+                displayName: 'Dave Itzkoff',
+                avatar: 'https://i.pravatar.cc/80?img=53',
+                avatarUrl: 'https://i.pravatar.cc/80?img=53',
+            },
+            content: "Reminder that every documentary is actually just a horror film if you watch it carefully enough.",
+            createdAt: new Date(Date.now() - 26 * 3600 * 1000).toISOString(),
+            likesCount: 975,
+            repostsCount: 120,
+            repliesCount: 28,
+            bookmarksCount: 14,
+            quotesCount: 6,
+        },
+        {
+            id: 'sp-post-9',
+            uri: 'at://did:plc:reductress/app.bsky.feed.post/9',
+            cid: 'cid-9',
+            author: {
+                id: 'reductress',
+                did: 'did:plc:reductress',
+                username: 'reductress.com',
+                handle: 'reductress.com',
+                displayName: 'Reductress',
+                avatar: 'https://i.pravatar.cc/80?img=45',
+                avatarUrl: 'https://i.pravatar.cc/80?img=45',
+                isVerified: true,
+            },
+            content: 'How To Politely Tell Someone You Are Only Listening To Them Out Of Courtesy.',
+            createdAt: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
+            likesCount: 3110,
+            repostsCount: 480,
+            repliesCount: 82,
+            bookmarksCount: 67,
+            quotesCount: 23,
+        },
+        {
+            id: 'sp-post-10',
+            uri: 'at://did:plc:scalzi/app.bsky.feed.post/10',
+            cid: 'cid-10',
+            author: {
+                id: 'scalzi',
+                did: 'did:plc:scalzi',
+                username: 'scalzi.com',
+                handle: 'scalzi.com',
+                displayName: 'John Scalzi',
+                avatar: 'https://i.pravatar.cc/80?img=12',
+                avatarUrl: 'https://i.pravatar.cc/80?img=12',
+                isVerified: true,
+            },
+            content: "The cat has decided my keyboard is an ergonomic heat pad. My typing speed is down 95%.",
+            createdAt: new Date(Date.now() - 34 * 3600 * 1000).toISOString(),
+            likesCount: 2840,
+            repostsCount: 230,
+            repliesCount: 75,
+            bookmarksCount: 42,
+            quotesCount: 15,
+        },
+        {
+            id: 'sp-post-11',
+            uri: 'at://did:plc:conan/app.bsky.feed.post/11',
+            cid: 'cid-11',
+            author: {
+                id: 'conan',
+                did: 'did:plc:conan',
+                username: 'conanobrien.bsky.social',
+                handle: 'conanobrien.bsky.social',
+                displayName: "Conan O'Brien",
+                avatar: 'https://i.pravatar.cc/80?img=21',
+                avatarUrl: 'https://i.pravatar.cc/80?img=21',
+            },
+            content: "If anyone needs me, I'll be in my room trying to fold a fitted sheet for the next three days.",
+            createdAt: new Date(Date.now() - 40 * 3600 * 1000).toISOString(),
+            likesCount: 6200,
+            repostsCount: 1100,
+            repliesCount: 340,
+            bookmarksCount: 210,
+            quotesCount: 95,
+        },
     ],
     'x3nu.bsky.social': [
         {
@@ -504,6 +633,7 @@ export const StarterPackDetailPage: React.FC = () => {
     const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
     const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
     const [visibleCount, setVisibleCount] = useState<number>(7);
+    const [visiblePostsCount, setVisiblePostsCount] = useState<number>(3);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
 
     // Resolve starter pack:
@@ -532,10 +662,18 @@ export const StarterPackDetailPage: React.FC = () => {
     useEffect(() => {
         const handleScroll = () => {
             if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
-                if (!isFetchingMore && visibleCount < members.length) {
+                if (isFetchingMore) return;
+
+                if (activeTab === 'people' && visibleCount < members.length) {
                     setIsFetchingMore(true);
                     setTimeout(() => {
                         setVisibleCount(prev => Math.min(prev + 6, members.length));
+                        setIsFetchingMore(false);
+                    }, 400);
+                } else if (activeTab === 'posts' && visiblePostsCount < starterPackPosts.length) {
+                    setIsFetchingMore(true);
+                    setTimeout(() => {
+                        setVisiblePostsCount(prev => Math.min(prev + 3, starterPackPosts.length));
                         setIsFetchingMore(false);
                     }, 400);
                 }
@@ -544,7 +682,7 @@ export const StarterPackDetailPage: React.FC = () => {
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [isFetchingMore, visibleCount, members.length]);
+    }, [isFetchingMore, activeTab, visibleCount, members.length, visiblePostsCount, starterPackPosts.length]);
 
     if (isLoading) {
         return (
@@ -740,9 +878,16 @@ export const StarterPackDetailPage: React.FC = () => {
                 </div>
             ) : (
                 <div>
-                    {starterPackPosts.map((post) => (
+                    {starterPackPosts.slice(0, visiblePostsCount).map((post) => (
                         <PostCard key={post.id} post={post} />
                     ))}
+
+                    {/* Posts Infinite Scroll Loading Indicator */}
+                    {visiblePostsCount < starterPackPosts.length && (
+                        <div className="p-4 text-center">
+                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#006aff] border-t-transparent"></div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
