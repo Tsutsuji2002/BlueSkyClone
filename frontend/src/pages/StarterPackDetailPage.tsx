@@ -806,33 +806,39 @@ export const StarterPackDetailPage: React.FC = () => {
                         }, 400);
                     }
                 } else if (activeTab === 'posts') {
-                    if (listUri && hasMoreLivePosts && liveCursor) {
-                        setIsFetchingMore(true);
-                        triggerGetListFeed({ list: listUri, limit: 20, cursor: liveCursor })
-                            .unwrap()
-                            .then((res: any) => {
-                                if (res?.feed && Array.isArray(res.feed)) {
-                                    const nextMapped = res.feed.map(mapFeedViewPostToPost);
-                                    setLivePosts(prev => [...prev, ...nextMapped]);
-                                    setLiveCursor(res.cursor);
-                                    setHasMoreLivePosts(!!res.cursor && res.feed.length > 0);
-                                } else {
+                    if (livePosts.length > 0) {
+                        if (listUri && hasMoreLivePosts && liveCursor) {
+                            setIsFetchingMore(true);
+                            triggerGetListFeed({ list: listUri, limit: 20, cursor: liveCursor })
+                                .unwrap()
+                                .then((res: any) => {
+                                    if (res?.feed && Array.isArray(res.feed)) {
+                                        const nextMapped = res.feed.map(mapFeedViewPostToPost);
+                                        setLivePosts(prev => [...prev, ...nextMapped]);
+                                        setLiveCursor(res.cursor);
+                                        setHasMoreLivePosts(!!res.cursor && res.feed.length > 0);
+                                    } else {
+                                        setHasMoreLivePosts(false);
+                                    }
+                                    setIsFetchingMore(false);
+                                })
+                                .catch(() => {
                                     setHasMoreLivePosts(false);
-                                }
+                                    setIsFetchingMore(false);
+                                });
+                        }
+                    } else {
+                        // Fallback mock posts pagination
+                        if (visiblePostsCount < starterPackPosts.length) {
+                            setIsFetchingMore(true);
+                            setTimeout(() => {
+                                setVisiblePostsCount(prev => Math.min(prev + 6, starterPackPosts.length));
                                 setIsFetchingMore(false);
-                            })
-                            .catch(() => {
-                                setHasMoreLivePosts(false);
-                                setIsFetchingMore(false);
-                            });
-                    } else if (!listUri && visiblePostsCount < starterPackPosts.length) {
-                        setIsFetchingMore(true);
-                        setTimeout(() => {
-                            setVisiblePostsCount(prev => Math.min(prev + 3, starterPackPosts.length));
-                            setIsFetchingMore(false);
-                        }, 400);
+                            }, 300);
+                        }
                     }
                 }
+
             }
         };
 
