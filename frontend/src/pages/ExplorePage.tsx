@@ -95,7 +95,7 @@ const FALLBACK_STARTER_PACKS = [
 ] as any[];
 
 
-const MAX_VISIBLE_AVATARS = 10;
+const MAX_VISIBLE_AVATARS = 11;
 
 const StarterPacksExploreSection: React.FC = () => {
     const navigate = useNavigate();

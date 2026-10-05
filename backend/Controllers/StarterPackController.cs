@@ -316,7 +316,7 @@ public class StarterPackController : ControllerBase
         };
 
         var response = await _xrpcProxyService.ProxyRequestAsync(
-            did: "public.api.bsky.app",
+            did: "https://api.bsky.app",
             nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
             queryParams: queryParams,
             token: token,
@@ -326,7 +326,7 @@ public class StarterPackController : ControllerBase
         if (!response.Success && token != null)
         {
             response = await _xrpcProxyService.ProxyRequestAsync(
-                did: "public.api.bsky.app",
+                did: "https://api.bsky.app",
                 nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
                 queryParams: queryParams,
                 token: null,
