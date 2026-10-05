@@ -590,40 +590,5 @@ export const StarterPackDetailPage: React.FC = () => {
         </div>
     );
 };
-                                            : 'bg-[#0085ff] hover:bg-[#0070e0] text-white'
-                                    }`}
-                                >
-                                    {isFollowing ? (
-                                        'Following'
-                                    ) : (
-                                        <>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                                            </svg>
-                                            <span>Follow</span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        );
-                    })}
-
-                    {/* Infinite Scroll Loading Indicator */}
-                    {visibleCount < members.length && (
-                        <div className="p-4 text-center">
-                            <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#0085ff] border-t-transparent"></div>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <div>
-                    {starterPackPosts.map((post) => (
-                        <PostCard key={post.id} post={post} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
 
 export default StarterPackDetailPage;
