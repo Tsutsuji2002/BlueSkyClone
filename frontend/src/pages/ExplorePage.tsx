@@ -23,7 +23,7 @@ import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { feedActionKey } from '../utils/feedKeys';
-import { useGetActorStarterPacksQuery } from '../redux/api/starterPackApi';
+import { useGetSuggestedStarterPacksQuery } from '../redux/api/starterPackApi';
 
 // Deterministic avatar colour from handle string
 const AVATAR_COLORS = ['4f46e5','0284c7','059669','d97706','dc2626','7c3aed','0891b2','65a30d'];
@@ -95,15 +95,12 @@ const FALLBACK_STARTER_PACKS = [
 ] as any[];
 
 
-const MAX_VISIBLE_AVATARS = 11;
+const MAX_VISIBLE_AVATARS = 10;
 
 const StarterPacksExploreSection: React.FC = () => {
     const navigate = useNavigate();
-    const currentUser = useAppSelector((state: RootState) => state.auth.user);
-    const { data } = useGetActorStarterPacksQuery(
-        { actor: currentUser?.did || currentUser?.handle || 'bsky.app', limit: 10 },
-        { skip: !currentUser }
-    );
+    // Use the same suggested packs API as real bsky.app Explore page
+    const { data, isLoading } = useGetSuggestedStarterPacksQuery({ limit: 10 });
 
     const packs: any[] = (data?.starterPacks?.length ? data.starterPacks : FALLBACK_STARTER_PACKS);
 

@@ -300,6 +300,47 @@ public class StarterPackController : ControllerBase
 
         return Content(response.Content, "application/json");
     }
+
+    /// <summary>
+    /// Gets suggested starter packs using ATProto app.bsky.unspecced.getSuggestedStarterPacks.
+    /// This is the same data source used by real bsky.app Explore page.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("suggested")]
+    public async Task<IActionResult> GetSuggestedStarterPacks([FromQuery] int limit = 10)
+    {
+        var token = ExtractBearerToken();
+        var queryParams = new List<KeyValuePair<string, string?>>
+        {
+            new KeyValuePair<string, string?>("limit", limit.ToString())
+        };
+
+        var response = await _xrpcProxyService.ProxyRequestAsync(
+            did: "public.api.bsky.app",
+            nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
+            queryParams: queryParams,
+            token: token,
+            method: "GET"
+        );
+
+        if (!response.Success && token != null)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: "public.api.bsky.app",
+                nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
+                queryParams: queryParams,
+                token: null,
+                method: "GET"
+            );
+        }
+
+        if (!response.Success)
+        {
+            return StatusCode(response.StatusCode, response.Content);
+        }
+
+        return Content(response.Content, "application/json");
+    }
 }
 
 

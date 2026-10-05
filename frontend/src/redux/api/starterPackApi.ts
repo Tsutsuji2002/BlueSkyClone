@@ -111,6 +111,9 @@ export const starterPackApi = createApi({
                 return url;
             },
         }),
+        getSuggestedStarterPacks: builder.query<{ starterPacks: StarterPackView[] }, { limit?: number }>({
+            query: ({ limit = 10 }) => `/suggested?limit=${limit}`,
+        }),
     }),
 });
 
@@ -122,6 +125,7 @@ export const {
     useLazyGetListFeedQuery,
     useGetListMembersQuery,
     useLazyGetListMembersQuery,
+    useGetSuggestedStarterPacksQuery,
 } = starterPackApi;
 
 
