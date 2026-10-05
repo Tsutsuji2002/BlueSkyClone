@@ -97,6 +97,13 @@ export const starterPackApi = createApi({
                 body: targetDids,
             }),
         }),
+        getListFeed: builder.query<{ feed: any[]; cursor?: string }, { list: string; limit?: number; cursor?: string }>({
+            query: ({ list, limit = 30, cursor }) => {
+                let url = `/list-feed?list=${encodeURIComponent(list)}&limit=${limit}`;
+                if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+                return url;
+            },
+        }),
     }),
 });
 
@@ -104,4 +111,7 @@ export const {
     useGetStarterPackQuery,
     useGetActorStarterPacksQuery,
     useFollowAllMembersMutation,
+    useGetListFeedQuery,
+    useLazyGetListFeedQuery,
 } = starterPackApi;
+

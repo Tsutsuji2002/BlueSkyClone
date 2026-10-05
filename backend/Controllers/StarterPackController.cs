@@ -198,4 +198,56 @@ public class StarterPackController : ControllerBase
 
         return Ok(new { successCount, total = targetDids.Count });
     }
+
+    /// <summary>
+    /// Gets real-time posts from a starter pack's list members using ATProto app.bsky.graph.getListFeed.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("list-feed")]
+    public async Task<IActionResult> GetListFeed([FromQuery] string list, [FromQuery] int limit = 30, [FromQuery] string? cursor = null)
+    {
+        if (string.IsNullOrWhiteSpace(list))
+        {
+            return BadRequest(new { message = "list parameter is required" });
+        }
+
+        var token = ExtractBearerToken();
+        var queryParams = new List<KeyValuePair<string, string?>>
+        {
+            new KeyValuePair<string, string?>("list", list),
+            new KeyValuePair<string, string?>("limit", limit.ToString())
+        };
+
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            queryParams.Add(new KeyValuePair<string, string?>("cursor", cursor));
+        }
+
+        var response = await _xrpcProxyService.ProxyRequestAsync(
+            did: "public.api.bsky.app",
+            nsid: "app.bsky.graph.getListFeed",
+            queryParams: queryParams,
+            token: token,
+            method: "GET"
+        );
+
+        if (!response.Success && token != null)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: "public.api.bsky.app",
+                nsid: "app.bsky.graph.getListFeed",
+                queryParams: queryParams,
+                token: null,
+                method: "GET"
+            );
+        }
+
+        if (!response.Success)
+        {
+            return StatusCode(response.StatusCode, response.Content);
+        }
+
+        return Content(response.Content, "application/json");
+    }
 }
+

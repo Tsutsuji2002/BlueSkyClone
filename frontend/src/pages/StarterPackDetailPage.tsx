@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { useGetStarterPackQuery, useFollowAllMembersMutation } from '../redux/api/starterPackApi';
+import { useGetStarterPackQuery, useFollowAllMembersMutation, useLazyGetListFeedQuery } from '../redux/api/starterPackApi';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
+
 import { RootState } from '../redux/store';
 import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
 import { updateFollowStatus } from '../redux/slices/suggestionsSlice';
@@ -629,12 +630,20 @@ export const StarterPackDetailPage: React.FC = () => {
         { skip: !starterPackUri || isMockPack }
     );
 
+    const [triggerGetListFeed, { isLoading: isLoadingLiveFeed }] = useLazyGetListFeedQuery();
+
     const [followAllMembers, { isLoading: isFollowingAll }] = useFollowAllMembersMutation();
     const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
     const [activeTab, setActiveTab] = useState<'people' | 'posts'>('people');
     const [visibleCount, setVisibleCount] = useState<number>(7);
     const [visiblePostsCount, setVisiblePostsCount] = useState<number>(3);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
+
+    // Live ATProto list posts state
+    const [livePosts, setLivePosts] = useState<Post[]>([]);
+    const [liveCursor, setLiveCursor] = useState<string | undefined>(undefined);
+    const [hasLoadedLiveFeed, setHasLoadedLiveFeed] = useState<boolean>(false);
+    const [hasMoreLivePosts, setHasMoreLivePosts] = useState<boolean>(true);
 
     // Resolve starter pack:
     // If handle matches a mock entry, strictly validate that rkey matches mock pack's expected rkey!
@@ -655,14 +664,82 @@ export const StarterPackDetailPage: React.FC = () => {
     const members: any[] = starterPack?.listItemsSample || [];
     const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
 
-    // Get posts for this pack
+    // List AT-URI for fetching real ATProto list feed
+    const listUri: string = starterPack?.list?.uri || starterPack?.record?.list || '';
+
+    // Get fallback mock posts for this pack
     const starterPackPosts: Post[] = MOCK_STARTER_PACK_POSTS[fallbackKey] || MOCK_STARTER_PACK_POSTS['sstein.bsky.social'];
 
-    // Infinite scroll handler
+    // Helper to map ATProto FeedViewPost to local Post interface
+    const mapFeedViewPostToPost = (item: any): Post => {
+        const p = item.post || {};
+        const author = p.author || {};
+        const rec = p.record || {};
+        const images: any[] = [];
+
+        if (p.embed?.$type === 'app.bsky.embed.images#view' && Array.isArray(p.embed.images)) {
+            p.embed.images.forEach((img: any) => {
+                images.push({ url: img.fullsize || img.thumb, alt: img.alt || '' });
+            });
+        }
+
+        return {
+            id: p.cid || p.uri || Math.random().toString(),
+            uri: p.uri || '',
+            cid: p.cid || '',
+            author: {
+                id: author.did || author.handle || 'unknown',
+                did: author.did,
+                username: author.handle || 'unknown',
+                handle: author.handle || 'unknown',
+                displayName: author.displayName || author.handle || 'User',
+                avatar: author.avatar,
+                avatarUrl: author.avatar,
+                isVerified: !!author.associated?.labeler,
+            },
+            content: rec.text || '',
+            createdAt: rec.createdAt || p.indexedAt || new Date().toISOString(),
+            likesCount: p.likeCount || 0,
+            repostsCount: p.repostCount || 0,
+            repliesCount: p.replyCount || 0,
+            quotesCount: p.quoteCount || 0,
+            bookmarksCount: 0,
+            images: images.length > 0 ? images : undefined,
+            linkPreview: p.embed?.external ? {
+                url: p.embed.external.uri,
+                title: p.embed.external.title,
+                description: p.embed.external.description,
+                image: p.embed.external.thumb,
+                domain: p.embed.external.uri ? new URL(p.embed.external.uri).hostname.replace('www.', '') : '',
+            } : undefined,
+        };
+    };
+
+    // Initial fetch for real ATProto list feed
+    useEffect(() => {
+        if (listUri && activeTab === 'posts' && !hasLoadedLiveFeed) {
+            triggerGetListFeed({ list: listUri, limit: 30 })
+                .unwrap()
+                .then((res: any) => {
+                    if (res?.feed && Array.isArray(res.feed)) {
+                        const mapped = res.feed.map(mapFeedViewPostToPost);
+                        setLivePosts(mapped);
+                        setLiveCursor(res.cursor);
+                        setHasMoreLivePosts(!!res.cursor && res.feed.length > 0);
+                    }
+                    setHasLoadedLiveFeed(true);
+                })
+                .catch(() => {
+                    setHasLoadedLiveFeed(true);
+                });
+        }
+    }, [listUri, activeTab, hasLoadedLiveFeed, triggerGetListFeed]);
+
+    // Infinite scroll handler for People & Posts
     useEffect(() => {
         const handleScroll = () => {
             if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 300) {
-                if (isFetchingMore) return;
+                if (isFetchingMore || isLoadingLiveFeed) return;
 
                 if (activeTab === 'people' && visibleCount < members.length) {
                     setIsFetchingMore(true);
@@ -670,19 +747,40 @@ export const StarterPackDetailPage: React.FC = () => {
                         setVisibleCount(prev => Math.min(prev + 6, members.length));
                         setIsFetchingMore(false);
                     }, 400);
-                } else if (activeTab === 'posts' && visiblePostsCount < starterPackPosts.length) {
-                    setIsFetchingMore(true);
-                    setTimeout(() => {
-                        setVisiblePostsCount(prev => Math.min(prev + 3, starterPackPosts.length));
-                        setIsFetchingMore(false);
-                    }, 400);
+                } else if (activeTab === 'posts') {
+                    if (listUri && hasMoreLivePosts && liveCursor) {
+                        setIsFetchingMore(true);
+                        triggerGetListFeed({ list: listUri, limit: 20, cursor: liveCursor })
+                            .unwrap()
+                            .then((res: any) => {
+                                if (res?.feed && Array.isArray(res.feed)) {
+                                    const nextMapped = res.feed.map(mapFeedViewPostToPost);
+                                    setLivePosts(prev => [...prev, ...nextMapped]);
+                                    setLiveCursor(res.cursor);
+                                    setHasMoreLivePosts(!!res.cursor && res.feed.length > 0);
+                                } else {
+                                    setHasMoreLivePosts(false);
+                                }
+                                setIsFetchingMore(false);
+                            })
+                            .catch(() => {
+                                setIsFetchingMore(false);
+                            });
+                    } else if (!listUri && visiblePostsCount < starterPackPosts.length) {
+                        setIsFetchingMore(true);
+                        setTimeout(() => {
+                            setVisiblePostsCount(prev => Math.min(prev + 3, starterPackPosts.length));
+                            setIsFetchingMore(false);
+                        }, 400);
+                    }
                 }
             }
         };
 
+
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [isFetchingMore, activeTab, visibleCount, members.length, visiblePostsCount, starterPackPosts.length]);
+    }, [isFetchingMore, isLoadingLiveFeed, activeTab, visibleCount, members.length, listUri, hasMoreLivePosts, liveCursor, visiblePostsCount, starterPackPosts.length, triggerGetListFeed]);
 
     if (isLoading) {
         return (
@@ -878,18 +976,30 @@ export const StarterPackDetailPage: React.FC = () => {
                 </div>
             ) : (
                 <div>
-                    {starterPackPosts.slice(0, visiblePostsCount).map((post) => (
-                        <PostCard key={post.id} post={post} />
-                    ))}
+                    {isLoadingLiveFeed && livePosts.length === 0 ? (
+                        <div className="p-8 text-center flex flex-col items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#006aff] border-t-transparent"></div>
+                            <span className="text-[14px] text-[#64748b] dark:text-dark-text-secondary">Loading latest posts...</span>
+                        </div>
+                    ) : livePosts.length > 0 ? (
+                        livePosts.map((post) => (
+                            <PostCard key={post.id} post={post} />
+                        ))
+                    ) : (
+                        starterPackPosts.slice(0, visiblePostsCount).map((post) => (
+                            <PostCard key={post.id} post={post} />
+                        ))
+                    )}
 
                     {/* Posts Infinite Scroll Loading Indicator */}
-                    {visiblePostsCount < starterPackPosts.length && (
+                    {((listUri && hasMoreLivePosts) || (!listUri && visiblePostsCount < starterPackPosts.length) || isFetchingMore) && (
                         <div className="p-4 text-center">
                             <div className="inline-block animate-spin rounded-full h-6 w-6 border-2 border-[#006aff] border-t-transparent"></div>
                         </div>
                     )}
                 </div>
             )}
+
         </div>
     );
 };
