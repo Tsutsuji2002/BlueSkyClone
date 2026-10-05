@@ -62,6 +62,7 @@ const COMEDY_MEMBERS_FULL = [
 
 const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
     'antonpodolsky.bsky.social': {
+        rkey: '3k4ignapzy7',
         uri: 'at://did:plc:antonpodolsky/app.bsky.graph.starterpack/3k4ignapzy7',
         record: {
             name: 'Street Photographers',
@@ -76,6 +77,7 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
         feeds: [],
     },
     'sstein.bsky.social': {
+        rkey: '3laohb5gt6t2j',
         uri: 'at://did:plc:sstein/app.bsky.graph.starterpack/3laohb5gt6t2j',
         record: {
             name: 'Comedy writers and satirists',
@@ -90,6 +92,7 @@ const MOCK_FALLBACK_STARTER_PACKS: Record<string, any> = {
         feeds: [],
     },
     'x3nu.bsky.social': {
+        rkey: '3lagamingrk1',
         uri: 'at://did:plc:x3nu/app.bsky.graph.starterpack/3lagamingrk1',
         record: {
             name: 'Gaming : Studios, Publishers, Media & Leakers',
@@ -284,14 +287,14 @@ export const StarterPackDetailPage: React.FC = () => {
     useEffect(() => {
         const rawUri = searchParams.get('uri');
         if (rawUri && !paramHandle) {
-            let handle = 'sstein.bsky.social';
-            let rkey = '3laohb5gt6t2j';
-            if (rawUri.includes('filmcritics')) {
-                handle = 'filmcritics.org.uk';
-                rkey = '1';
+            let handle = 'antonpodolsky.bsky.social';
+            let rkey = '3k4ignapzy7';
+            if (rawUri.includes('antonpodolsky')) {
+                handle = 'antonpodolsky.bsky.social';
+                rkey = '3k4ignapzy7';
             } else if (rawUri.includes('x3nu')) {
                 handle = 'x3nu.bsky.social';
-                rkey = '1';
+                rkey = '3lagamingrk1';
             } else if (rawUri.includes('sstein')) {
                 handle = 'sstein.bsky.social';
                 rkey = '3laohb5gt6t2j';
@@ -315,8 +318,21 @@ export const StarterPackDetailPage: React.FC = () => {
     const [visibleCount, setVisibleCount] = useState<number>(7);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
 
-    const fallbackKey = paramHandle || (starterPackUri ? (Object.keys(MOCK_FALLBACK_STARTER_PACKS).find(k => starterPackUri.includes(k)) || 'antonpodolsky.bsky.social') : 'antonpodolsky.bsky.social');
-    const starterPack = data?.starterPack || MOCK_FALLBACK_STARTER_PACKS[fallbackKey] || MOCK_FALLBACK_STARTER_PACKS['antonpodolsky.bsky.social'];
+    // Resolve starter pack:
+    // If handle matches a mock entry, strictly validate that rkey matches mock pack's expected rkey!
+    let starterPack: any = null;
+    let fallbackKey = 'antonpodolsky.bsky.social';
+
+    if (data?.starterPack) {
+        starterPack = data.starterPack;
+    } else if (paramHandle && MOCK_FALLBACK_STARTER_PACKS[paramHandle]) {
+        const mockEntry = MOCK_FALLBACK_STARTER_PACKS[paramHandle];
+        // Strictly check if paramRkey matches expected rkey (e.g. 3lagamingrk1 for x3nu, 3k4ignapzy7 for antonpodolsky)
+        if (!paramRkey || mockEntry.rkey === paramRkey) {
+            starterPack = mockEntry;
+            fallbackKey = paramHandle;
+        }
+    }
 
     const members: any[] = starterPack?.listItemsSample || [];
     const targetDids = members.map((m: any) => m.subject?.did || m.did).filter(Boolean);
@@ -344,17 +360,27 @@ export const StarterPackDetailPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="w-full max-w-[602px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen p-8 text-center bg-white dark:bg-dark-bg">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#0085ff] border-t-transparent"></div>
+            <div className="w-full max-w-[600px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen p-8 text-center bg-white dark:bg-dark-bg">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#006aff] border-t-transparent"></div>
                 <p className="mt-2 text-sm text-gray-500">Loading starter pack...</p>
             </div>
         );
     }
 
+    // Official Bluesky 404 Error Screen matching reference screenshot
     if (!starterPack) {
         return (
-            <div className="w-full max-w-[602px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen p-8 text-center text-red-500 bg-white dark:bg-dark-bg">
-                Failed to load starter pack. Please try again.
+            <div className="w-full max-w-[600px] mx-auto border-x border-[#dce2ea] dark:border-dark-border min-h-screen bg-white dark:bg-dark-bg flex flex-col items-center justify-center p-8 text-center">
+                <h2 className="text-[24px] font-bold text-black dark:text-white mb-1 tracking-tight">Oops!</h2>
+                <p className="text-[#526580] dark:text-dark-text-secondary text-[15px] mb-6">
+                    That Starter Pack could not be found.
+                </p>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="px-8 py-2.5 rounded-full font-semibold text-[15px] bg-[#006aff] hover:bg-[#005cd6] text-white transition-all shadow-sm"
+                >
+                    Go Back
+                </button>
             </div>
         );
     }
