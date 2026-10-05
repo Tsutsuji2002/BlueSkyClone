@@ -24,31 +24,31 @@ interface OptimisticFollowState {
 }
 
 const categories = [
-    { id: 'all', nameKey: 'explore.categories.all' },
-    { id: 'art', nameKey: 'interests_tags.art' },
-    { id: 'comics', nameKey: 'interests_tags.comics' },
-    { id: 'gaming', nameKey: 'interests_tags.gaming' },
-    { id: 'sports', nameKey: 'interests_tags.sports' },
-    { id: 'music', nameKey: 'interests_tags.music' },
-    { id: 'politics', nameKey: 'interests_tags.politics' },
-    { id: 'photography', nameKey: 'interests_tags.photography' },
-    { id: 'science', nameKey: 'interests_tags.science' },
-    { id: 'news', nameKey: 'interests_tags.news' },
-    { id: 'animals', nameKey: 'interests_tags.animals' },
-    { id: 'books', nameKey: 'interests_tags.books' },
-    { id: 'comedy', nameKey: 'interests_tags.comedy' },
-    { id: 'culture', nameKey: 'interests_tags.culture' },
-    { id: 'software-dev', nameKey: 'interests_tags.developers' },
-    { id: 'education', nameKey: 'interests_tags.education' },
-    { id: 'finance', nameKey: 'interests_tags.finance' },
-    { id: 'food', nameKey: 'interests_tags.food' },
-    { id: 'journalism', nameKey: 'interests_tags.journalism' },
-    { id: 'movies', nameKey: 'interests_tags.movies' },
-    { id: 'nature', nameKey: 'interests_tags.nature' },
-    { id: 'pets', nameKey: 'interests_tags.pets' },
-    { id: 'tech', nameKey: 'interests_tags.tech' },
-    { id: 'tv', nameKey: 'interests_tags.tv' },
-    { id: 'writers', nameKey: 'interests_tags.writers' },
+    { id: 'all', label: 'For You' },
+    { id: 'art', label: 'Art' },
+    { id: 'comics', label: 'Comics' },
+    { id: 'books', label: 'Books' },
+    { id: 'culture', label: 'Culture' },
+    { id: 'software-dev', label: 'Software Dev' },
+    { id: 'gaming', label: 'Video Games' },
+    { id: 'journalism', label: 'Journalism' },
+    { id: 'movies', label: 'Movies' },
+    { id: 'music', label: 'Music' },
+    { id: 'news', label: 'News' },
+    { id: 'tech', label: 'Tech' },
+    { id: 'sports', label: 'Sports' },
+    { id: 'science', label: 'Science' },
+    { id: 'writers', label: 'Writers' },
+    { id: 'food', label: 'Food' },
+    { id: 'politics', label: 'Politics' },
+    { id: 'photography', label: 'Photography' },
+    { id: 'animals', label: 'Animals' },
+    { id: 'comedy', label: 'Comedy' },
+    { id: 'education', label: 'Education' },
+    { id: 'finance', label: 'Finance' },
+    { id: 'nature', label: 'Nature' },
+    { id: 'pets', label: 'Pets' },
+    { id: 'tv', label: 'TV' },
 ];
 
 const SuggestedUsersForExplore: React.FC = () => {
@@ -251,7 +251,7 @@ const SuggestedUsersForExplore: React.FC = () => {
                 >
                     {categories.map((cat) => {
                         const isActive = selectedCategory.id === cat.id;
-                        const labelText = cat.id === 'all' ? t('explore.categories.all', { defaultValue: 'For You' }) : t(cat.nameKey);
+                        const labelText = cat.label || cat.id;
                         return (
                             <button
                                 key={cat.id}
@@ -261,10 +261,13 @@ const SuggestedUsersForExplore: React.FC = () => {
                                 <div className={cn(
                                     "rounded-full px-4 py-2 border transition-all",
                                     isActive
-                                        ? "bg-[#f9fafb] dark:bg-dark-surface border-[#c0ca98] dark:border-dark-border text-black dark:text-white"
+                                        ? "bg-gray-50 dark:bg-dark-surface border-gray-300 dark:border-dark-border text-black dark:text-white"
                                         : "bg-white dark:bg-dark-bg border-[#dce2ea] dark:border-dark-border text-[#405168] dark:text-dark-text-secondary hover:bg-gray-50"
                                 )}>
-                                    <span className="text-[13.1px] tracking-[0.25px] font-medium leading-[17px] whitespace-nowrap">
+                                    <span className={cn(
+                                        "text-[13.1px] tracking-[0.25px] leading-[17px] whitespace-nowrap",
+                                        isActive ? "font-semibold" : "font-medium"
+                                    )}>
                                         {labelText}
                                     </span>
                                 </div>
