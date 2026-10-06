@@ -474,8 +474,8 @@ const ExplorePage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-6 p-4">
-                    {isSearchUIActive ? (
+                {isSearchUIActive ? (
+                    <div className="flex flex-col gap-6 p-4">
                         <section className="flex flex-col">
                             {searchQuery.trim() && (
                                 <div className="mb-4">
@@ -574,10 +574,11 @@ const ExplorePage: React.FC = () => {
                                     </div>
                                 )}
                                                      {/* 1. Your interests card */}
-                             </div>
-                         </section>
-                     ) : (
-                         <div className="w-full max-w-[600px] mx-auto pb-[100px] flex flex-col">
+                                </div>
+                            </section>
+                        </div>
+                    ) : (
+                        <div className="w-full max-w-[600px] mx-auto pb-[100px] flex flex-col">
                              {/* 1. Your interests card */}
                              {!hideInterestsCard && (
                                  <div className="p-4 border-b border-[#c0ca98] dark:border-dark-border gap-3 flex flex-col relative bg-white dark:bg-dark-bg">
@@ -832,7 +833,6 @@ const ExplorePage: React.FC = () => {
                             <StarterPacksExploreSection />
                         </div>
                     )}
-                </div>
             </div>
     );
 };
