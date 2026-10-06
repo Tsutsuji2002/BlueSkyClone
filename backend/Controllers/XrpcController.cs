@@ -802,14 +802,26 @@ namespace BSkyClone.Controllers
                     queryParams.Add(new KeyValuePair<string, string?>("category", category));
                 }
 
-                // Try 1: Proxy using IXrpcProxyService to real Bluesky api.bsky.app with token if available
+                // Try 1: Proxy using IXrpcProxyService to entoloma host with token if available
                 var response = await _xrpcProxy.ProxyRequestAsync(
-                    did: "https://api.bsky.app",
+                    did: "https://entoloma.us-west.host.bsky.network",
                     nsid: "app.bsky.unspecced.getSuggestedUsersForExplore",
                     queryParams: queryParams,
                     token: token,
                     method: "GET"
                 );
+
+                if (!response.Success)
+                {
+                    // Fallback to api.bsky.app
+                    response = await _xrpcProxy.ProxyRequestAsync(
+                        did: "https://api.bsky.app",
+                        nsid: "app.bsky.unspecced.getSuggestedUsersForExplore",
+                        queryParams: queryParams,
+                        token: token,
+                        method: "GET"
+                    );
+                }
 
                 if (response.Success && !string.IsNullOrEmpty(response.Content) && (response.Content.Contains("\"actors\":") || response.Content.Contains("\"suggestions\":")))
                 {
@@ -820,11 +832,11 @@ namespace BSkyClone.Controllers
                     return Content(response.Content, "application/json");
                 }
 
-                // Try 2: Unauthenticated proxy fallback to api.bsky.app
+                // Try 2: Unauthenticated proxy fallback to entoloma / api.bsky.app
                 if (token != null)
                 {
                     response = await _xrpcProxy.ProxyRequestAsync(
-                        did: "https://api.bsky.app",
+                        did: "https://entoloma.us-west.host.bsky.network",
                         nsid: "app.bsky.unspecced.getSuggestedUsersForExplore",
                         queryParams: queryParams,
                         token: null,

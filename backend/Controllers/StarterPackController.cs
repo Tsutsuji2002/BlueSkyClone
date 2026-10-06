@@ -316,17 +316,28 @@ public class StarterPackController : ControllerBase
         };
 
         var response = await _xrpcProxyService.ProxyRequestAsync(
-            did: "https://api.bsky.app",
+            did: "https://entoloma.us-west.host.bsky.network",
             nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
             queryParams: queryParams,
             token: token,
             method: "GET"
         );
 
-        if (!response.Success && token != null)
+        if (!response.Success)
         {
             response = await _xrpcProxyService.ProxyRequestAsync(
                 did: "https://api.bsky.app",
+                nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
+                queryParams: queryParams,
+                token: token,
+                method: "GET"
+            );
+        }
+
+        if (!response.Success)
+        {
+            response = await _xrpcProxyService.ProxyRequestAsync(
+                did: "https://entoloma.us-west.host.bsky.network",
                 nsid: "app.bsky.unspecced.getSuggestedStarterPacks",
                 queryParams: queryParams,
                 token: null,
