@@ -74,7 +74,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     </main>
 
                     {/* Right Sidebar - Desktop only */}
-                    {!isMessagesPage && !isExplorePage && (
+                    {!isMessagesPage && (
                         <div className="hidden xl:block w-72 flex-shrink-0">
                             <RightSidebar />
                         </div>

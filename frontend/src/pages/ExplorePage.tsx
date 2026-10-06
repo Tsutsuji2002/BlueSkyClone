@@ -10,12 +10,13 @@ import { useTranslation } from 'react-i18next';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { cn } from '../utils/classNames';
 import { Feed } from '../types';
+import FeedComponent from '../components/feed/Feed';
 import FeedAvatar from '../components/common/FeedAvatar';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
-import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds } from '../redux/slices/feedsSlice';
+import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds, fetchFeedPostsStreaming } from '../redux/slices/feedsSlice';
 import PostCard from '../components/feed/PostCard';
 import PostSkeleton from '../components/feed/PostSkeleton';
 import SuggestedUsersForExplore from '../components/explore/SuggestedUsersForExplore';
@@ -216,7 +217,7 @@ const ExplorePage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { accounts, interests, topics } = useAppSelector((state: RootState) => state.trending);
-    const { feeds, trendingFeeds } = useAppSelector((state: RootState) => state.feeds);
+    const { feeds, trendingFeeds, feedPosts, feedLoading, feedHasMore } = useAppSelector((state: RootState) => state.feeds);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const [searchQuery, setSearchQuery] = useState('');
@@ -234,6 +235,7 @@ const ExplorePage: React.FC = () => {
         dispatch(fetchInterestsList());
         dispatch(fetchTrendingFeeds());
         dispatch(fetchSubscribedFeeds());
+        dispatch(fetchFeedPostsStreaming({ feedId: 'discover', skip: 0, take: 10 }, () => {}, () => {}, () => {}) as any);
     }, [dispatch]);
 
 
@@ -831,6 +833,22 @@ const ExplorePage: React.FC = () => {
 
                             {/* 5. Starter Packs Section */}
                             <StarterPacksExploreSection />
+
+                            {/* 6. Featured Feed / Discover Feed Posts below Starter Packs */}
+                            <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
+                                <FeedComponent
+                                    feedId="discover"
+                                    posts={feedPosts['discover'] || []}
+                                    isLoading={!!feedLoading['discover']}
+                                    hasMore={feedHasMore['discover'] !== false}
+                                    onLoadMore={() => {
+                                        const currentPosts = feedPosts['discover'] || [];
+                                        dispatch(fetchFeedPostsStreaming({ feedId: 'discover', skip: currentPosts.length, take: 10 }, () => {}, () => {}, () => {}) as any);
+                                    }}
+                                    emptyMessage={t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })}
+                                    isActive={true}
+                                />
+                            </div>
                         </div>
                     )}
             </div>
