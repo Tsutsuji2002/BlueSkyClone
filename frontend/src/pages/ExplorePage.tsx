@@ -665,7 +665,17 @@ const ExplorePage: React.FC = () => {
                                 ]).map((item: any, index: number) => {
                                     const hashtagStr = item.hashtag || item.title || item.topic || '';
                                     const descStr = item.description || 'Recent discussions and trending activity on Bluesky.';
-                                    const postsLabel = item.postsCount || `${((index + 1) * 2.4).toFixed(1)}K posts`;
+                                    const formatPostsCountLabel = (val: any): string => {
+                                        if (val === undefined || val === null || val === '') return `${((index + 1) * 2.4).toFixed(1)}K posts`;
+                                        const str = String(val).trim();
+                                        if (str.toLowerCase().includes('post')) return str;
+                                        const num = parseFloat(str.replace(/,/g, ''));
+                                        if (isNaN(num)) return str;
+                                        if (num >= 1000000) return `${(num / 1000000).toFixed(1).replace(/\.0$/, '')}M posts`;
+                                        if (num >= 1000) return `${(num / 1000).toFixed(1).replace(/\.0$/, '')}K posts`;
+                                        return `${num} posts`;
+                                    };
+                                    const postsLabel = formatPostsCountLabel(item.postsCount || item.count);
 
                                     // Use real Account avatars from redux, falling back to deterministic ui-avatars
                                     const avatarSeeds = [hashtagStr, hashtagStr + '1', hashtagStr + '2'];
