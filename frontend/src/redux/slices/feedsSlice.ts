@@ -184,7 +184,7 @@ export const fetchTrendingFeeds = createAsyncThunk<
     async (params, { rejectWithValue }: { rejectWithValue: (value: string) => any }) => {
         try {
             const limit = params && typeof params === 'object' ? params.limit : 10;
-            const response = await fetch(`${API_BASE_URL}/feeds/trending?limit=${limit}`);
+            const response = await fetch(`${API_BASE_URL}/feeds/trending?limit=${limit}`, { credentials: 'include' });
             const data = await response.json().catch(() => ({}));
             console.log('feedsSlice: fetchTrendingFeeds returned:', data);
             if (!response.ok) return rejectWithValue(data.message || `Failed to fetch trending feeds (Status: ${response.status})`);

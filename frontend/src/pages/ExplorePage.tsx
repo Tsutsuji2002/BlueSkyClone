@@ -216,7 +216,7 @@ const ExplorePage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { accounts, interests, topics } = useAppSelector((state: RootState) => state.trending);
-    const { feeds } = useAppSelector((state: RootState) => state.feeds);
+    const { feeds, trendingFeeds } = useAppSelector((state: RootState) => state.feeds);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const [searchQuery, setSearchQuery] = useState('');
@@ -745,7 +745,7 @@ const ExplorePage: React.FC = () => {
                                 </div>
 
                                 {/* Feed Items */}
-                                {(feeds.length > 0 ? feeds : [
+                                {((trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds).length > 0 ? (trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds) : [
                                     { uri: '1', name: 'SciArt 🐡', handle: 'flyingtrilobite.com', description: '🔸The intersection of art + science\n🔸Science communication across visual art disciplines\n🔸Medical illustration, paleoart, fine art, bioart, webcomics +more', followersCount: 5043, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
                                     { uri: '2', name: '#Housing+', handle: 'fema.monster', description: '#Housing+ is a place that includes many aspects of housing--tenant rights, YIMBY, zoning, rent control, gentrification, and the unhoused.', followersCount: 88, avatar: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=80&q=80' },
                                     { uri: '3', name: 'NFL+', handle: 'parkermolloy.com', description: 'Football talk on Bluesky.', followersCount: 7598, avatar: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=80&q=80' },

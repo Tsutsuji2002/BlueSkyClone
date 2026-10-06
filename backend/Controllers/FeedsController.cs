@@ -109,8 +109,7 @@ public class FeedsController : ControllerBase
         try
         {
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-            if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId)) 
-                return Unauthorized(new { message = "Unauthorized" });
+            Guid? userId = Guid.TryParse(userIdStr, out var id) ? id : null;
 
             var paged = await _feedService.GetTrendingFeedsAsync(userId, cursor, limit);
             _logger.LogInformation("[FeedsController] GetTrending returned {Count} feeds. Cursor: {Cursor}", paged.Feeds.Count(), paged.Cursor);
