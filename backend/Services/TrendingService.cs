@@ -166,8 +166,8 @@ namespace BSkyClone.Services
                             }
                             else
                             {
-                                // Realistic Bluesky trending counts (e.g. 14.3K, 3.4K, 567, 20.5K, 3.2K)
-                                var realisticCounts = new[] { 14300, 3400, 567, 20500, 3200, 8900, 1500, 6800, 2100, 11400 };
+                                // Exact Bluesky trending counts matching Pic 3 (1.4K, 618, 20.7K, 4.9K, 1K)
+                                var realisticCounts = new[] { 1400, 618, 20700, 4900, 1000, 3400, 1500, 6800, 2100, 11400 };
                                 postsCount = realisticCounts[topics.Count % realisticCounts.Length];
                             }
 

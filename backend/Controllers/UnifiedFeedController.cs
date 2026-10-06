@@ -107,21 +107,14 @@ public class UnifiedFeedController : ControllerBase
             switch (feedId.ToLower())
             {
                 case "discover":
-                    if (viewerId == null)
                     {
-                        var guestResult = await feedService.GetFeedPostsAsync(Guid.Empty, null, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
-                        posts = guestResult.Posts; outCursor = guestResult.Cursor;
-                    }
-                    else
-                    {
-                        var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
-                        var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
-                        posts = trendingPosts.ToList();
-                        if (!posts.Any() && skip == 0)
+                        var remoteResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
+                        posts = remoteResult.Posts; outCursor = remoteResult.Cursor;
+                        if (!posts.Any() && viewerId != null)
                         {
-                            _logger.LogInformation("[UnifiedFeed] Local trending empty, falling back to What's Hot.");
-                            var remoteResult = await feedService.GetFeedPostsAsync(Guid.Empty, viewerId, skip, take, "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot", cursor, HttpContext.RequestAborted);
-                            posts = remoteResult.Posts; outCursor = remoteResult.Cursor;
+                            var interests = await _userService.GetSelectedInterestsAsync(viewerId.Value);
+                            var trendingPosts = await _postService.GetTrendingPostsAsync(viewerId.Value, skip, take, interests, refresh, skipDeepResolution: true, HttpContext.RequestAborted);
+                            posts = trendingPosts.ToList();
                         }
                     }
                     break;
