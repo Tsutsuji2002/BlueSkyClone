@@ -14,10 +14,12 @@ namespace BSkyClone.Controllers;
 public class StarterPackController : ControllerBase
 {
     private readonly IXrpcProxyService _xrpcProxyService;
+    private readonly IUserService _userService;
 
-    public StarterPackController(IXrpcProxyService xrpcProxyService)
+    public StarterPackController(IXrpcProxyService xrpcProxyService, IUserService userService)
     {
         _xrpcProxyService = xrpcProxyService;
+        _userService = userService;
     }
 
     private string? ExtractBearerToken()
@@ -309,7 +311,18 @@ public class StarterPackController : ControllerBase
     [HttpGet("suggested")]
     public async Task<IActionResult> GetSuggestedStarterPacks([FromQuery] int limit = 10)
     {
-        var token = ExtractBearerToken();
+        var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        string? token = null;
+
+        if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var userId))
+        {
+            token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+        }
+
+        if (string.IsNullOrEmpty(token))
+        {
+            token = ExtractBearerToken();
+        }
         var queryParams = new List<KeyValuePair<string, string?>>
         {
             new KeyValuePair<string, string?>("limit", limit.ToString())

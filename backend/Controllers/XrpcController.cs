@@ -783,9 +783,21 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var authHeader = Request.Headers["Authorization"].ToString();
-                var token = authHeader.StartsWith("Bearer ") ? authHeader.Replace("Bearer ", "") : null;
-                var cacheKey = $"suggested_explore_v5_{token ?? "anon"}_{category ?? "all"}_{limit}";
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                string? token = null;
+
+                if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var userId))
+                {
+                    token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                }
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    var authHeader = Request.Headers["Authorization"].ToString();
+                    token = authHeader.StartsWith("Bearer ") ? authHeader.Replace("Bearer ", "") : null;
+                }
+
+                var cacheKey = $"suggested_explore_v6_{userIdStr ?? (token != null ? "auth" : "anon")}_{category ?? "all"}_{limit}";
 
                 var cached = await _cache.GetStringAsync(cacheKey);
                 if (!string.IsNullOrEmpty(cached))
