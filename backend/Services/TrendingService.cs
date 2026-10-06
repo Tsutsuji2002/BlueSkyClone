@@ -155,6 +155,22 @@ namespace BSkyClone.Services
                             var description = item.TryGetProperty("description", out var descEl) ? (descEl.GetString() ?? "") : "";
                             var link = item.TryGetProperty("link", out var lEl) ? lEl.GetString() : null;
 
+                            int postsCount = 1200;
+                            if (item.TryGetProperty("count", out var cEl) && cEl.ValueKind == JsonValueKind.Number)
+                            {
+                                postsCount = cEl.GetInt32();
+                            }
+                            else if (item.TryGetProperty("postsCount", out var pEl) && pEl.ValueKind == JsonValueKind.Number)
+                            {
+                                postsCount = pEl.GetInt32();
+                            }
+                            else
+                            {
+                                // Realistic Bluesky trending counts (e.g. 14.3K, 3.4K, 567, 20.5K, 3.2K)
+                                var realisticCounts = new[] { 14300, 3400, 567, 20500, 3200, 8900, 1500, 6800, 2100, 11400 };
+                                postsCount = realisticCounts[topics.Count % realisticCounts.Length];
+                            }
+
                             if (!string.IsNullOrEmpty(topicStr) || !string.IsNullOrEmpty(displayName))
                             {
                                 var label = !string.IsNullOrEmpty(displayName) ? displayName : topicStr;
@@ -166,7 +182,7 @@ namespace BSkyClone.Services
                                     Hashtag = hashtag,
                                     DisplayName = label,
                                     Description = description,
-                                    PostsCount = Math.Max(100, 1000 - (topics.Count * 50)),
+                                    PostsCount = postsCount,
                                     Category = "Trending",
                                     Link = link
                                 });

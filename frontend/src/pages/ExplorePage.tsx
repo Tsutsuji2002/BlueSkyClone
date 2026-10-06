@@ -657,10 +657,10 @@ const ExplorePage: React.FC = () => {
 
                                 {/* Trending Topics List */}
                                 {(topics.length > 0 ? topics.slice(0, 5) : [
-                                    { id: '1', hashtag: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '627 posts' },
-                                    { id: '2', hashtag: 'Celebrity Traitors series 2 premieres', description: 'Reality TV fans react to the new season premiere of Celebrity Traitors.', postsCount: '2.1K posts' },
-                                    { id: '3', hashtag: 'Man City financial charges case', description: "Panel decision on City's financial charges; legal costs reportedly at issue.", postsCount: '6.8K posts' },
-                                    { id: '4', hashtag: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '14.3K posts' },
+                                    { id: '1', hashtag: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '14.3K posts' },
+                                    { id: '2', hashtag: 'Paramount-Warner Bros. renamed Skydance', description: 'David Ellison says the merged studio will be called Skydance, with Paramount and Warner Bros. as sub-brands.', postsCount: '3.4K posts' },
+                                    { id: '3', hashtag: 'TV shows that went bad', description: 'Viewers name series like Lost, Shameless and Happy Days whose later seasons ruined earlier ones.', postsCount: '567 posts' },
+                                    { id: '4', hashtag: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '20.5K posts' },
                                     { id: '5', hashtag: 'Big Brother 26 jury prepares finale', description: 'Houseguests prepare for the season finale as the jury deliberates.', postsCount: '3.2K posts' }
                                 ]).map((item: any, index: number) => {
                                     const hashtagStr = item.hashtag || item.title || item.topic || '';
@@ -877,7 +877,7 @@ const ExplorePage: React.FC = () => {
 
                                 <FeedComponent
                                     feedId="discover"
-                                    posts={(feedPosts['discover'] || []).filter((p: any) => p.content !== '[Remote interaction...]')}
+                                    posts={feedPosts['discover'] || []}
                                     isLoading={!!feedLoading['discover']}
                                     hasMore={feedHasMore['discover'] !== false}
                                     onLoadMore={() => {
