@@ -251,7 +251,8 @@ const ExploreFeedBlock: React.FC<{ feed: typeof FEATURED_EXPLORE_FEEDS[0] }> = (
     useEffect(() => {
         let isMounted = true;
         setLoading(true);
-        const endpoint = `/api/unified-feed?feedId=${encodeURIComponent(feed.uri)}&take=8`;
+        const safeFeedId = feed.uri.startsWith('at://') ? 'b64:' + btoa(feed.uri) : feed.uri;
+        const endpoint = `/api/unified-feed?feedId=${encodeURIComponent(safeFeedId)}&take=8`;
         api.get(endpoint)
             .then((res: any) => {
                 if (!isMounted) return;

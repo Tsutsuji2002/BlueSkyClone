@@ -49,6 +49,27 @@ public class UnifiedFeedController : ControllerBase
             var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             Guid? viewerId = Guid.TryParse(userIdStr, out var cid) ? cid : null;
 
+            if (!string.IsNullOrEmpty(feedId))
+            {
+                if (feedId.StartsWith("b64:", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var rawBytes = Convert.FromBase64String(feedId.Substring(4));
+                        feedId = System.Text.Encoding.UTF8.GetString(rawBytes);
+                    }
+                    catch { }
+                }
+                else if (feedId.Contains("%"))
+                {
+                    try
+                    {
+                        feedId = System.Uri.UnescapeDataString(feedId);
+                    }
+                    catch { }
+                }
+            }
+
             _logger.LogInformation("[UnifiedFeed] FeedId: {FeedId}, ViewerId: {ViewerId}, Cursor: {Cursor}, Stream: {Stream}", feedId, viewerId, cursor, stream);
 
             // ── HOME / FOLLOWING ────────────────────────────────────────────────
