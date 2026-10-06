@@ -240,6 +240,48 @@ const FEATURED_EXPLORE_FEEDS = [
         name: 'NFL+',
         handle: 'parkermolloy.com',
         avatar: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'artists-trending',
+        uri: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot',
+        name: 'Artists: Trending',
+        handle: 'art.bsky.social',
+        avatar: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'science-feed',
+        uri: 'at://did:plc:jfhpnnst6flqway4eaeqzj2a/app.bsky.feed.generator/for-science',
+        name: 'Science',
+        handle: 'science.bsky.social',
+        avatar: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'kamuixxxart',
+        uri: 'at://did:plc:y7crv2yh74s7qhmtx3mvbgv5/app.bsky.feed.generator/art-new',
+        name: 'kamuixxxart',
+        handle: 'kamui.bsky.social',
+        avatar: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'news-verified',
+        uri: 'at://did:plc:kkf4naxqmweop7dv4l2iqqf5/app.bsky.feed.generator/verified-news',
+        name: 'News: Verified',
+        handle: 'news.bsky.social',
+        avatar: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'popular-friends',
+        uri: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot',
+        name: 'Popular With Friends',
+        handle: 'friends.bsky.social',
+        avatar: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'booksky',
+        uri: 'at://did:plc:jfhpnnst6flqway4eaeqzj2a/app.bsky.feed.generator/for-science',
+        name: 'BookSky 📚',
+        handle: 'books.bsky.social',
+        avatar: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=80&q=80'
     }
 ];
 
@@ -317,12 +359,56 @@ const ExploreFeedBlock: React.FC<{ feed: typeof FEATURED_EXPLORE_FEEDS[0] }> = (
     );
 };
 
-const ExploreFeedSection: React.FC = () => {
+const ExploreFeedSection: React.FC<{ extraFeeds?: any[] }> = ({ extraFeeds = [] }) => {
+    const [visibleCount, setVisibleCount] = useState(4);
+    const observerTarget = useRef<HTMLDivElement>(null);
+
+    const allFeeds = React.useMemo(() => {
+        const combined = [...FEATURED_EXPLORE_FEEDS];
+        if (extraFeeds && extraFeeds.length > 0) {
+            extraFeeds.forEach((ef) => {
+                const uri = ef.uri || ef.id;
+                if (uri && !combined.some((f) => f.uri === uri || f.id === uri)) {
+                    combined.push({
+                        id: uri,
+                        uri: uri,
+                        name: ef.name || ef.displayName || 'Trending Feed',
+                        handle: ef.handle || ef.creator?.handle || 'bluesky',
+                        avatar: ef.avatarUrl || ef.avatar || uiAvatar(ef.name || 'Feed')
+                    });
+                }
+            });
+        }
+        return combined;
+    }, [extraFeeds]);
+
+    const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
+        const [entry] = entries;
+        if (entry.isIntersecting) {
+            setVisibleCount((prev) => Math.min(prev + 3, allFeeds.length));
+        }
+    }, [allFeeds.length]);
+
+    useEffect(() => {
+        const target = observerTarget.current;
+        if (!target) return;
+        const observer = new IntersectionObserver(handleObserver, { threshold: 0.1, rootMargin: '200px' });
+        observer.observe(target);
+        return () => { observer.unobserve(target); };
+    }, [handleObserver]);
+
+    const visibleFeeds = allFeeds.slice(0, visibleCount);
+
     return (
         <div className="flex flex-col">
-            {FEATURED_EXPLORE_FEEDS.map((feed) => (
-                <ExploreFeedBlock key={feed.id} feed={feed} />
+            {visibleFeeds.map((feed) => (
+                <ExploreFeedBlock key={feed.id || feed.uri} feed={feed} />
             ))}
+            {visibleCount < allFeeds.length && (
+                <div ref={observerTarget} className="py-6 flex justify-center items-center">
+                    <LoadingIndicator size="sm" />
+                </div>
+            )}
         </div>
     );
 };
@@ -959,24 +1045,8 @@ const ExplorePage: React.FC = () => {
                             {/* 5. Starter Packs Section */}
                             <StarterPacksExploreSection />
 
-                            {/* 6. Featured Feeds Section below Starter Packs (Multiple Feeds, max 8 posts per feed) */}
-                            <ExploreFeedSection />
-
-                            {/* 7. Continuous Infinite Scroll Discover Feed at Bottom */}
-                            <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
-                                <FeedComponent
-                                    feedId="discover"
-                                    posts={feedPosts['discover'] || []}
-                                    isLoading={!!feedLoading['discover']}
-                                    hasMore={feedHasMore['discover'] !== false}
-                                    onLoadMore={() => {
-                                        const currentPosts = feedPosts['discover'] || [];
-                                        dispatch(fetchFeedPostsStreaming({ feedId: 'discover', skip: currentPosts.length, take: 10 }, () => {}, () => {}, () => {}) as any);
-                                    }}
-                                    emptyMessage={t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })}
-                                    isActive={true}
-                                />
-                            </div>
+                            {/* 6. Featured Feeds Section below Starter Packs (Loads more FEEDS on scroll, max 8 posts per feed) */}
+                            <ExploreFeedSection extraFeeds={trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds} />
                         </div>
                     )}
             </div>
