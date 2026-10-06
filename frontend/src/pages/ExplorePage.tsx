@@ -212,6 +212,120 @@ const StarterPacksExploreSection: React.FC = () => {
     );
 };
 
+const FEATURED_EXPLORE_FEEDS = [
+    {
+        id: 'fujifilm',
+        uri: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot',
+        name: 'Fujifilm Shooters',
+        handle: 'bluesky.photography',
+        avatar: 'https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreic7x@jpeg'
+    },
+    {
+        id: 'sciart',
+        uri: 'at://did:plc:jfhpnnst6flqway4eaeqzj2a/app.bsky.feed.generator/for-science',
+        name: 'SciArt 🐡',
+        handle: 'flyingtrilobite.com',
+        avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'housing',
+        uri: 'at://did:plc:y7crv2yh74s7qhmtx3mvbgv5/app.bsky.feed.generator/art-new',
+        name: '#Housing+',
+        handle: 'fema.monster',
+        avatar: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=80&q=80'
+    },
+    {
+        id: 'nfl',
+        uri: 'at://did:plc:kkf4naxqmweop7dv4l2iqqf5/app.bsky.feed.generator/verified-news',
+        name: 'NFL+',
+        handle: 'parkermolloy.com',
+        avatar: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=80&q=80'
+    }
+];
+
+const ExploreFeedBlock: React.FC<{ feed: typeof FEATURED_EXPLORE_FEEDS[0] }> = ({ feed }) => {
+    const navigate = useNavigate();
+    const [posts, setPosts] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        let isMounted = true;
+        setLoading(true);
+        const endpoint = `/api/unified-feed?feedId=${encodeURIComponent(feed.uri)}&take=8`;
+        api.get(endpoint)
+            .then((res: any) => {
+                if (!isMounted) return;
+                const fetched = res.data?.posts || res.posts || [];
+                setPosts(fetched.slice(0, 8));
+            })
+            .catch(() => {})
+            .finally(() => {
+                if (isMounted) setLoading(false);
+            });
+        return () => { isMounted = false; };
+    }, [feed.uri]);
+
+    return (
+        <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
+            {/* Header Card */}
+            <div 
+                onClick={() => navigate(`/feeds/${encodeURIComponent(feed.uri)}`)}
+                className="flex flex-row items-center justify-between px-4 py-3 border-b border-[#dce2ea] dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/50 transition-colors"
+            >
+                <div className="flex flex-row items-center gap-3 min-w-0">
+                    <div className="w-[36px] h-[36px] rounded-lg overflow-hidden bg-black flex-shrink-0">
+                        <img src={feed.avatar} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(feed.name); }} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <span className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                            {feed.name}
+                        </span>
+                        <span className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
+                            By @{feed.handle}
+                        </span>
+                    </div>
+                </div>
+                <button 
+                    className="text-[#8798b0] hover:text-black dark:hover:text-white p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
+                    title="Pin feed"
+                >
+                    <svg fill="none" width="18" height="18" viewBox="0 0 24 24" className="text-[#8798b0]">
+                        <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            {/* Post Cards (Up to 8 posts) */}
+            {loading ? (
+                <div className="p-4 flex flex-col gap-4">
+                    <PostSkeleton />
+                    <PostSkeleton />
+                </div>
+            ) : posts.length > 0 ? (
+                <div className="flex flex-col">
+                    {posts.map((post) => (
+                        <PostCard key={post.id || post.uri} post={post} />
+                    ))}
+                </div>
+            ) : (
+                <div className="p-4 text-center text-sm text-gray-500">
+                    No posts available for this feed.
+                </div>
+            )}
+        </div>
+    );
+};
+
+const ExploreFeedSection: React.FC = () => {
+    return (
+        <div className="flex flex-col">
+            {FEATURED_EXPLORE_FEEDS.map((feed) => (
+                <ExploreFeedBlock key={feed.id} feed={feed} />
+            ))}
+        </div>
+    );
+};
+
 const ExplorePage: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -844,50 +958,8 @@ const ExplorePage: React.FC = () => {
                             {/* 5. Starter Packs Section */}
                             <StarterPacksExploreSection />
 
-                            {/* 6. Featured Feed / Discover Feed Posts below Starter Packs */}
-                            <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
-                                {/* Featured Feed Header Card (Fujifilm Shooters / Discover Feed) */}
-                                <div className="flex flex-row items-center justify-between px-4 py-3 border-b border-[#dce2ea] dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/50 transition-colors">
-                                    <div className="flex flex-row items-center gap-3 min-w-0">
-                                        <div className="w-[36px] h-[36px] rounded-lg bg-[#000000] text-white flex items-center justify-center font-bold text-sm flex-shrink-0 overflow-hidden">
-                                            <svg fill="none" width="20" height="20" viewBox="0 0 24 24" className="text-white">
-                                                <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0h12v12H6V6Zm6 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2 4a2 2 0 1 1 4 0 2 2 0 0 1-4 0Z"></path>
-                                            </svg>
-                                        </div>
-                                        <div className="flex flex-col min-w-0">
-                                            <div className="flex flex-row items-center gap-1.5">
-                                                <span className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
-                                                    Fujifilm Shooters
-                                                </span>
-                                            </div>
-                                            <span className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
-                                                By @bluesky.photography
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        className="text-[#8798b0] hover:text-black dark:hover:text-white p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
-                                        title="Pin feed"
-                                    >
-                                        <svg fill="none" width="18" height="18" viewBox="0 0 24 24" className="text-[#8798b0]">
-                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-
-                                <FeedComponent
-                                    feedId="discover"
-                                    posts={feedPosts['discover'] || []}
-                                    isLoading={!!feedLoading['discover']}
-                                    hasMore={feedHasMore['discover'] !== false}
-                                    onLoadMore={() => {
-                                        const currentPosts = feedPosts['discover'] || [];
-                                        dispatch(fetchFeedPostsStreaming({ feedId: 'discover', skip: currentPosts.length, take: 10 }, () => {}, () => {}, () => {}) as any);
-                                    }}
-                                    emptyMessage={t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })}
-                                    isActive={true}
-                                />
-                            </div>
+                            {/* 6. Featured Feeds Section below Starter Packs (Multiple Feeds, max 8 posts per feed) */}
+                            <ExploreFeedSection />
                         </div>
                     )}
             </div>
