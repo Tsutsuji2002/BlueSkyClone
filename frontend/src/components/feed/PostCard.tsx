@@ -616,7 +616,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             return (
                                 <>
                                     <ExpandableRichText
-                                        content={post.content}
+                                        content={post.content === '[Remote interaction...]' ? '' : post.content}
                                         facets={post.facets}
                                         className="text-[15px] text-gray-900 dark:text-white whitespace-pre-wrap break-words leading-[20px] tracking-[0.25px]"
                                         maxLines={6}

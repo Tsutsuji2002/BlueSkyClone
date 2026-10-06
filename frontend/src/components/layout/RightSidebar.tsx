@@ -372,6 +372,8 @@ const RightSidebar: React.FC = () => {
 
             {/* Footer Links */}
             <div className="px-2 mt-auto flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary">
+                <a href="https://bsky.app/feedback" target="_blank" rel="noopener noreferrer" className="text-[13.1px] hover:underline">Feedback</a>
+                <span className="text-[13.1px]">·</span>
                 <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }}>{t('sidebar.privacy')}</a>
                 <span className="text-[13.1px]">·</span>
                 <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }}>{t('sidebar.terms')}</a>

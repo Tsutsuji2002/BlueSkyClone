@@ -846,9 +846,38 @@ const ExplorePage: React.FC = () => {
 
                             {/* 6. Featured Feed / Discover Feed Posts below Starter Packs */}
                             <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
+                                {/* Featured Feed Header Card (Fujifilm Shooters / Discover Feed) */}
+                                <div className="flex flex-row items-center justify-between px-4 py-3 border-b border-[#dce2ea] dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/50 transition-colors">
+                                    <div className="flex flex-row items-center gap-3 min-w-0">
+                                        <div className="w-[36px] h-[36px] rounded-lg bg-[#000000] text-white flex items-center justify-center font-bold text-sm flex-shrink-0 overflow-hidden">
+                                            <svg fill="none" width="20" height="20" viewBox="0 0 24 24" className="text-white">
+                                                <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0h12v12H6V6Zm6 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2 4a2 2 0 1 1 4 0 2 2 0 0 1-4 0Z"></path>
+                                            </svg>
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <div className="flex flex-row items-center gap-1.5">
+                                                <span className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                                                    Fujifilm Shooters
+                                                </span>
+                                            </div>
+                                            <span className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
+                                                By @bluesky.photography
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        className="text-[#8798b0] hover:text-black dark:hover:text-white p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
+                                        title="Pin feed"
+                                    >
+                                        <svg fill="none" width="18" height="18" viewBox="0 0 24 24" className="text-[#8798b0]">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
                                 <FeedComponent
                                     feedId="discover"
-                                    posts={feedPosts['discover'] || []}
+                                    posts={(feedPosts['discover'] || []).filter((p: any) => p.content !== '[Remote interaction...]')}
                                     isLoading={!!feedLoading['discover']}
                                     hasMore={feedHasMore['discover'] !== false}
                                     onLoadMore={() => {
