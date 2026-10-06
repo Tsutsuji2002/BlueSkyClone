@@ -28,6 +28,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
     const dispatch = useAppDispatch();
     const location = useLocation();
     const isMessagesPage = location.pathname.startsWith('/messages');
+    const isExplorePage = location.pathname === '/explore';
     const { isAuthenticated, isLoading } = useAppSelector((state: RootState) => state.auth);
 
     // [OPTIMIZATION] Muted words are now hydrated via Handshake on startup.
@@ -73,7 +74,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     </main>
 
                     {/* Right Sidebar - Desktop only */}
-                    {!isMessagesPage && (
+                    {!isMessagesPage && !isExplorePage && (
                         <div className="hidden xl:block w-72 flex-shrink-0">
                             <RightSidebar />
                         </div>
