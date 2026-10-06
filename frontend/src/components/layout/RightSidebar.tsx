@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FiSearch, FiX, FiPlus } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { RootState } from '../../redux/store';
 import api from '../../utils/api';
@@ -20,6 +20,8 @@ import { fetchSubscribedFeeds } from '../../redux/slices/feedsSlice';
 const RightSidebar: React.FC = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
+    const location = useLocation();
+    const isExplorePage = location.pathname === '/explore' || location.pathname === '/search';
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -365,8 +367,8 @@ const RightSidebar: React.FC = () => {
             {/* Suggested Users / Onboarding - Only for Logged In Users */}
             {isAuthenticated && <OnboardingCard />}
 
-            {/* Trending Topics */}
-            <TrendingSection />
+            {/* Trending Topics - Only show if not on Explore or Search page */}
+            {!isExplorePage && <TrendingSection />}
 
             {/* Footer Links */}
             <div className="px-2 mt-auto flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary">
