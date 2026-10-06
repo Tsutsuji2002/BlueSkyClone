@@ -573,14 +573,15 @@ const ExplorePage: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
-                            </div>
-                        </section>
-                    ) : (
-                        <div className="w-full max-w-[600px] mx-auto pb-[100px] flex flex-col">
-                            {/* 1. Your interests card */}
-                            {!hideInterestsCard && (
-                                <div className="p-4 border-b border-[#c0ca98] dark:border-dark-border gap-3 flex flex-col relative bg-white dark:bg-dark-bg">
-                                    <button
+                                                     {/* 1. Your interests card */}
+                             </div>
+                         </section>
+                     ) : (
+                         <div className="w-full max-w-[600px] mx-auto pb-[100px] flex flex-col">
+                             {/* 1. Your interests card */}
+                             {!hideInterestsCard && (
+                                 <div className="p-4 border-b border-[#c0ca98] dark:border-dark-border gap-3 flex flex-col relative bg-white dark:bg-dark-bg">
+                                     <button
                                         aria-label="Hide this card"
                                         onClick={() => setHideInterestsCard(true)}
                                         className="flex flex-row items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full absolute top-2 right-2 hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors z-20"
@@ -629,11 +630,94 @@ const ExplorePage: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* 1. Suggested Accounts Section */}
-                            <SuggestedUsersForExplore />
+                            {/* 2. Trending Section */}
+                            <div className="flex flex-col pb-3 bg-white dark:bg-dark-bg">
+                                <div className="flex flex-row items-center px-4 pt-6 pb-3 gap-1 bg-white dark:bg-dark-bg border-b border-[#dce2ea] dark:border-dark-border">
+                                    <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
+                                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
+                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z"></path>
+                                        </svg>
+                                    </div>
+                                    <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
+                                        Trending
+                                    </div>
+                                    <button aria-label="Trending options" className="flex items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors">
+                                        <div className="w-[17px] h-[17px] relative">
+                                            <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                                <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-[#526580]">
+                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
 
-                            {/* 2. Starter Packs Section */}
-                            <StarterPacksExploreSection />
+                                {/* Trending Topics List */}
+                                {(topics.length > 0 ? topics.slice(0, 5) : [
+                                    { id: '1', hashtag: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '627 posts' },
+                                    { id: '2', hashtag: 'Celebrity Traitors series 2 premieres', description: 'Reality TV fans react to the new season premiere of Celebrity Traitors.', postsCount: '2.1K posts' },
+                                    { id: '3', hashtag: 'Man City financial charges case', description: "Panel decision on City's financial charges; legal costs reportedly at issue.", postsCount: '6.8K posts' },
+                                    { id: '4', hashtag: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '14.3K posts' },
+                                    { id: '5', hashtag: 'Big Brother 26 jury prepares finale', description: 'Houseguests prepare for the season finale as the jury deliberates.', postsCount: '3.2K posts' }
+                                ]).map((item: any, index: number) => {
+                                    const hashtagStr = item.hashtag || item.title || item.topic || '';
+                                    const descStr = item.description || 'Recent discussions and trending activity on Bluesky.';
+                                    const postsLabel = item.postsCount || `${((index + 1) * 2.4).toFixed(1)}K posts`;
+
+                                    // Use real Account avatars from redux, falling back to deterministic ui-avatars
+                                    const avatarSeeds = [hashtagStr, hashtagStr + '1', hashtagStr + '2'];
+                                    const avatarList = accounts.length >= 3
+                                        ? accounts.slice(index % Math.max(accounts.length - 2, 1), (index % Math.max(accounts.length - 2, 1)) + 3).map((a: any) => (a.avatar && a.avatar.startsWith('http')) ? a.avatar : uiAvatar(a.displayName || a.handle || 'U'))
+                                        : avatarSeeds.map(s => uiAvatar(s.slice(0, 2)));
+
+                                    return (
+                                        <div
+                                            key={item.id || index}
+                                            onClick={() => navigate(`/search?q=${encodeURIComponent(hashtagStr)}`)}
+                                            className="flex flex-row items-center justify-start border-b border-[#dce2ea] dark:border-dark-border cursor-pointer hover:bg-[#eff2f6]/50 dark:hover:bg-dark-surface/50 transition-colors"
+                                        >
+                                            <div className="p-[12px_20px] w-full flex flex-row gap-2">
+                                                <div className="text-[15px] leading-[20px] font-medium text-[#8798b0] tabular-nums">
+                                                    {index + 1}.
+                                                </div>
+
+                                                <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                                                    <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white line-clamp-2">
+                                                        {hashtagStr.replace('#', '')}
+                                                    </div>
+
+                                                    <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary line-clamp-2">
+                                                        {descStr}
+                                                    </div>
+
+                                                    <div className="mt-[4px] flex flex-row gap-2 items-center">
+                                                        <div className="flex flex-row" style={{ width: '56px' }}>
+                                                            {avatarList.map((url, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#e8edf3] flex-shrink-0"
+                                                                    style={{ marginLeft: i === 0 ? 0 : '-8px', zIndex: 3 - i, position: 'relative' }}
+                                                                >
+                                                                    <img
+                                                                        src={url}
+                                                                        alt=""
+                                                                        className="w-full h-full object-cover"
+                                                                        onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(hashtagStr.slice(i, i + 2)); }}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary min-w-0">
+                                                            {postsLabel}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
 
                             {/* 3. Discover feeds Section */}
                             <div className="flex flex-col bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
@@ -741,99 +825,15 @@ const ExplorePage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* 4. Trending Section */}
-                            <div className="flex flex-col pb-3 bg-white dark:bg-dark-bg border-t border-[#dce2ea] dark:border-dark-border">
-                                <div className="flex flex-row items-center px-4 pt-6 pb-3 gap-1 bg-white dark:bg-dark-bg border-b border-[#dce2ea] dark:border-dark-border">
-                                    <div className="z-20 w-5 h-5 -ml-0.5 flex items-center justify-center">
-                                        <svg fill="none" width="20" viewBox="0 0 24 24" height="20" className="text-black dark:text-white">
-                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z"></path>
-                                        </svg>
-                                    </div>
-                                    <div className="text-[16.9px] leading-[22px] font-semibold text-black dark:text-white tracking-[0.25px] flex-1">
-                                        Trending
-                                    </div>
-                                    <button aria-label="Trending options" className="flex items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors">
-                                        <div className="w-[17px] h-[17px] relative">
-                                            <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                                <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-[#526580]">
-                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm16 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm-6-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"></path>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    </button>
-                                </div>
+                            {/* 4. Suggested Accounts Section */}
+                            <SuggestedUsersForExplore />
 
-                                {/* Trending Topics List */}
-                                {(topics.length > 0 ? topics.slice(0, 5) : [
-                                    { id: '1', hashtag: 'Andy Burnham pushes socialist reforms', description: "Critics compare his National Care Service plan to Scotland's existing SNP policy.", postsCount: '627 posts' },
-                                    { id: '2', hashtag: 'Celebrity Traitors series 2 premieres', description: 'Reality TV fans react to the new season premiere of Celebrity Traitors.', postsCount: '2.1K posts' },
-                                    { id: '3', hashtag: 'Man City financial charges case', description: "Panel decision on City's financial charges; legal costs reportedly at issue.", postsCount: '6.8K posts' },
-                                    { id: '4', hashtag: 'Trump weighs diesel export ban', description: 'Trump backs halting US diesel exports as record prices squeeze consumers and businesses.', postsCount: '14.3K posts' },
-                                    { id: '5', hashtag: 'Big Brother 26 jury prepares finale', description: 'Houseguests prepare for the season finale as the jury deliberates.', postsCount: '3.2K posts' }
-                                ]).map((item: any, index: number) => {
-                                    const hashtagStr = item.hashtag || item.title || item.topic || '';
-                                    const descStr = item.description || 'Recent discussions and trending activity on Bluesky.';
-                                    const postsLabel = item.postsCount || `${((index + 1) * 2.4).toFixed(1)}K posts`;
-
-                                    // Use real Account avatars from redux, falling back to deterministic ui-avatars
-                                    const avatarSeeds = [hashtagStr, hashtagStr + '1', hashtagStr + '2'];
-                                    const avatarList = accounts.length >= 3
-                                        ? accounts.slice(index % Math.max(accounts.length - 2, 1), (index % Math.max(accounts.length - 2, 1)) + 3).map((a: any) => (a.avatar && a.avatar.startsWith('http')) ? a.avatar : uiAvatar(a.displayName || a.handle || 'U'))
-                                        : avatarSeeds.map(s => uiAvatar(s.slice(0, 2)));
-
-                                    return (
-                                        <div
-                                            key={item.id || index}
-                                            onClick={() => navigate(`/search?q=${encodeURIComponent(hashtagStr)}`)}
-                                            className="flex flex-row items-center justify-start border-b border-[#dce2ea] dark:border-dark-border cursor-pointer hover:bg-[#eff2f6]/50 dark:hover:bg-dark-surface/50 transition-colors"
-                                        >
-                                            <div className="p-[12px_20px] w-full flex flex-row gap-2">
-                                                <div className="text-[15px] leading-[20px] font-medium text-[#8798b0] tabular-nums">
-                                                    {index + 1}.
-                                                </div>
-
-                                                <div className="flex-1 min-w-0 flex flex-col gap-[2px]">
-                                                    <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white line-clamp-2">
-                                                        {hashtagStr.replace('#', '')}
-                                                    </div>
-
-                                                    <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary line-clamp-2">
-                                                        {descStr}
-                                                    </div>
-
-                                                    <div className="mt-[4px] flex flex-row gap-2 items-center">
-                                                        <div className="flex flex-row" style={{ width: '56px' }}>
-                                                            {avatarList.map((url, i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className="w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-dark-bg bg-[#e8edf3] flex-shrink-0"
-                                                                    style={{ marginLeft: i === 0 ? 0 : '-8px', zIndex: 3 - i, position: 'relative' }}
-                                                                >
-                                                                    <img
-                                                                        src={url}
-                                                                        alt=""
-                                                                        className="w-full h-full object-cover"
-                                                                        onError={(e) => { (e.target as HTMLImageElement).src = uiAvatar(hashtagStr.slice(i, i + 2)); }}
-                                                                    />
-                                                                </div>
-                                                            ))}
-                                                        </div>
-
-                                                        <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary min-w-0">
-                                                            {postsLabel}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                            {/* 5. Starter Packs Section */}
+                            <StarterPacksExploreSection />
                         </div>
                     )}
                 </div>
             </div>
-
     );
 };
 
