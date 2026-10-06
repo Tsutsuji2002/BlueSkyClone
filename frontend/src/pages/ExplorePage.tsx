@@ -308,6 +308,22 @@ const ExploreFeedBlock: React.FC<{ feed: typeof FEATURED_EXPLORE_FEEDS[0] }> = (
         return () => { isMounted = false; };
     }, [feed.uri]);
 
+    // Do not preshow title during loading; show skeleton block
+    if (loading) {
+        return (
+            <div className="p-4 border-t border-[#dce2ea] dark:border-dark-border flex flex-col gap-4">
+                <PostSkeleton />
+                <PostSkeleton />
+            </div>
+        );
+    }
+
+    // Hide feed completely if no posts available
+    if (!posts || posts.length === 0) {
+        return null;
+    }
+
+    // Render feed title card and posts TOGETHER once loaded
     return (
         <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
             {/* Header Card */}
@@ -338,23 +354,12 @@ const ExploreFeedBlock: React.FC<{ feed: typeof FEATURED_EXPLORE_FEEDS[0] }> = (
                 </button>
             </div>
 
-            {/* Post Cards (Up to 8 posts) */}
-            {loading ? (
-                <div className="p-4 flex flex-col gap-4">
-                    <PostSkeleton />
-                    <PostSkeleton />
-                </div>
-            ) : posts.length > 0 ? (
-                <div className="flex flex-col">
-                    {posts.map((post) => (
-                        <PostCard key={post.id || post.uri} post={post} />
-                    ))}
-                </div>
-            ) : (
-                <div className="p-4 text-center text-sm text-gray-500">
-                    No posts available for this feed.
-                </div>
-            )}
+            {/* Post Cards */}
+            <div className="flex flex-col">
+                {posts.map((post) => (
+                    <PostCard key={post.id || post.uri} post={post} />
+                ))}
+            </div>
         </div>
     );
 };
