@@ -783,13 +783,65 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var cacheKey = $"suggested_explore_v4_{category ?? "all"}_{limit}";
+                var authHeader = Request.Headers["Authorization"].ToString();
+                var token = authHeader.StartsWith("Bearer ") ? authHeader.Replace("Bearer ", "") : null;
+                var cacheKey = $"suggested_explore_v5_{token ?? "anon"}_{category ?? "all"}_{limit}";
+
                 var cached = await _cache.GetStringAsync(cacheKey);
                 if (!string.IsNullOrEmpty(cached))
                 {
                     return Content(cached, "application/json");
                 }
 
+                var queryParams = new List<KeyValuePair<string, string?>>
+                {
+                    new KeyValuePair<string, string?>("limit", limit.ToString())
+                };
+                if (!string.IsNullOrEmpty(category) && category != "all")
+                {
+                    queryParams.Add(new KeyValuePair<string, string?>("category", category));
+                }
+
+                // Try 1: Proxy using IXrpcProxyService to real Bluesky api.bsky.app with token if available
+                var response = await _xrpcProxy.ProxyRequestAsync(
+                    did: "https://api.bsky.app",
+                    nsid: "app.bsky.unspecced.getSuggestedUsersForExplore",
+                    queryParams: queryParams,
+                    token: token,
+                    method: "GET"
+                );
+
+                if (response.Success && !string.IsNullOrEmpty(response.Content) && (response.Content.Contains("\"actors\":") || response.Content.Contains("\"suggestions\":")))
+                {
+                    await _cache.SetStringAsync(cacheKey, response.Content, new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                    });
+                    return Content(response.Content, "application/json");
+                }
+
+                // Try 2: Unauthenticated proxy fallback to api.bsky.app
+                if (token != null)
+                {
+                    response = await _xrpcProxy.ProxyRequestAsync(
+                        did: "https://api.bsky.app",
+                        nsid: "app.bsky.unspecced.getSuggestedUsersForExplore",
+                        queryParams: queryParams,
+                        token: null,
+                        method: "GET"
+                    );
+
+                    if (response.Success && !string.IsNullOrEmpty(response.Content) && (response.Content.Contains("\"actors\":") || response.Content.Contains("\"suggestions\":")))
+                    {
+                        await _cache.SetStringAsync(cacheKey, response.Content, new DistributedCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+                        });
+                        return Content(response.Content, "application/json");
+                    }
+                }
+
+                // Try 3: Search fallback
                 using var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(5);
 
@@ -797,14 +849,13 @@ namespace BSkyClone.Controllers
                 if (searchQuery == "software-dev") searchQuery = "developer";
 
                 var url = $"https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors?q={Uri.EscapeDataString(searchQuery)}&limit={limit}";
-                var response = await client.GetAsync(url);
+                var searchResp = await client.GetAsync(url);
 
-                if (response.IsSuccessStatusCode)
+                if (searchResp.IsSuccessStatusCode)
                 {
-                    var content = await response.Content.ReadAsStringAsync();
+                    var content = await searchResp.Content.ReadAsStringAsync();
                     if (content.Contains("\"did\":\"") || content.Contains("\"handle\":\""))
                     {
-                        // Cache for 10 minutes
                         await _cache.SetStringAsync(cacheKey, content, new DistributedCacheEntryOptions
                         {
                             AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
