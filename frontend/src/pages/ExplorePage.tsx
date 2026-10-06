@@ -961,6 +961,22 @@ const ExplorePage: React.FC = () => {
 
                             {/* 6. Featured Feeds Section below Starter Packs (Multiple Feeds, max 8 posts per feed) */}
                             <ExploreFeedSection />
+
+                            {/* 7. Continuous Infinite Scroll Discover Feed at Bottom */}
+                            <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
+                                <FeedComponent
+                                    feedId="discover"
+                                    posts={feedPosts['discover'] || []}
+                                    isLoading={!!feedLoading['discover']}
+                                    hasMore={feedHasMore['discover'] !== false}
+                                    onLoadMore={() => {
+                                        const currentPosts = feedPosts['discover'] || [];
+                                        dispatch(fetchFeedPostsStreaming({ feedId: 'discover', skip: currentPosts.length, take: 10 }, () => {}, () => {}, () => {}) as any);
+                                    }}
+                                    emptyMessage={t('feeds.discover_empty', { defaultValue: 'Nothing new to discover yet.' })}
+                                    isActive={true}
+                                />
+                            </div>
                         </div>
                     )}
             </div>
