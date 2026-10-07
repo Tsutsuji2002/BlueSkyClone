@@ -16,6 +16,7 @@ import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import { openMobileMenu } from '../redux/slices/modalsSlice';
 import { fetchTrending, fetchInterestsList } from '../redux/slices/trendingSlice';
+import { fetchSelectedInterests } from '../redux/slices/userSlice';
 import { fetchTrendingFeeds, pinFeed, unpinFeed, fetchSubscribedFeeds, fetchFeedPostsStreaming } from '../redux/slices/feedsSlice';
 import PostCard from '../components/feed/PostCard';
 import PostSkeleton from '../components/feed/PostSkeleton';
@@ -426,6 +427,7 @@ const ExplorePage: React.FC = () => {
     const { feeds, trendingFeeds, feedPosts, feedLoading, feedHasMore } = useAppSelector((state: RootState) => state.feeds);
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
+    const { selectedInterests } = useAppSelector((state: RootState) => state.user);
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -441,6 +443,7 @@ const ExplorePage: React.FC = () => {
     useEffect(() => {
         dispatch(fetchTrending());
         dispatch(fetchInterestsList());
+        dispatch(fetchSelectedInterests());
         dispatch(fetchTrendingFeeds());
         dispatch(fetchSubscribedFeeds());
         dispatch(fetchFeedPostsStreaming({ feedId: 'discover', skip: 0, take: 10 }, () => {}, () => {}, () => {}) as any);
@@ -816,13 +819,19 @@ const ExplorePage: React.FC = () => {
                                     </div>
 
                                     <div className="flex flex-wrap gap-[6px]">
-                                        {['Art', 'Comics', 'Books', 'Culture', 'Software Dev', 'Video Games', 'Journalism', 'Movies', 'Music', 'News', 'Tech', 'Sports', 'Science', 'Writers', 'Food', 'Politics', 'Photography', 'Animals'].map((tag) => (
-                                            <div key={tag} className="flex justify-center items-center rounded-full bg-[#f9fafb] dark:bg-dark-surface px-4 h-8">
-                                                <span className="text-[13.1px] leading-[17px] tracking-[0.25px] text-[#232e3e] dark:text-dark-text">
-                                                    {tag}
-                                                </span>
+                                        {selectedInterests && selectedInterests.length > 0 ? (
+                                            selectedInterests.map((tag) => (
+                                                <div key={tag} className="flex justify-center items-center rounded-full bg-[#f9fafb] dark:bg-dark-surface px-4 h-8">
+                                                    <span className="text-[13.1px] leading-[17px] tracking-[0.25px] text-[#232e3e] dark:text-dark-text">
+                                                        {tag}
+                                                    </span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-[13.1px] leading-[17px] tracking-[0.25px] text-gray-500 dark:text-dark-text-secondary italic">
+                                                No interests selected yet
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
 
                                     <div className="text-[13.1px] leading-[17px] tracking-[0.25px] text-black dark:text-white">

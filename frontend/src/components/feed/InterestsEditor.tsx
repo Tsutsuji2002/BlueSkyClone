@@ -66,43 +66,56 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
     }
 
     return (
-        <div className={cn("flex flex-wrap", variant === 'full' ? "gap-2.5" : "gap-2")}>
-            {displayInterests.map((interest: string, index: number) => {
-                const isSelected = selectedInterests.some(i => i.toLowerCase() === interest.toLowerCase());
-                const label = t(`interests_tags.${interest.toLowerCase()}`, interest);
+        <div className="flex flex-col gap-4">
+            {selectedInterests.length < 2 && (
+                <div className="p-3 rounded-lg border border-[#006aff] bg-white dark:bg-dark-surface flex flex-row items-center gap-2">
+                    <svg fill="none" viewBox="0 0 24 24" width="20" height="20" className="shrink-0">
+                        <path fill="#006AFF" fillRule="evenodd" clipRule="evenodd" d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12Zm8-1a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-4a1 1 0 0 1-1-1Zm1-3a1 1 0 1 0 2 0 1 1 0 0 0-2 0Z"></path>
+                    </svg>
+                    <div className="flex-1 text-[13.1px] leading-[17px] text-black dark:text-white">
+                        We recommend selecting at least two interests.
+                    </div>
+                </div>
+            )}
 
-                if (variant === 'full') {
+            <div className={cn("flex flex-wrap", variant === 'full' ? "gap-2.5" : "gap-2")}>
+                {displayInterests.map((interest: string, index: number) => {
+                    const isSelected = selectedInterests.some(i => i.toLowerCase() === interest.toLowerCase());
+                    const label = t(`interests_tags.${interest.toLowerCase()}`, interest);
+
+                    if (variant === 'full') {
+                        return (
+                            <button
+                                key={index}
+                                onClick={() => toggleInterest(interest)}
+                                className={cn(
+                                    "px-5 py-3 rounded-full text-[13.1px] font-semibold transition-all",
+                                    isSelected
+                                        ? 'bg-[#232e3e] dark:bg-white text-white dark:text-black shadow-sm'
+                                        : 'bg-[#eff2f6] dark:bg-[#1f2937] text-[#232e3e] dark:text-gray-200 hover:bg-[#e2e8f0] dark:hover:bg-[#374151]'
+                                )}
+                            >
+                                {label}
+                            </button>
+                        );
+                    }
+
                     return (
                         <button
                             key={index}
                             onClick={() => toggleInterest(interest)}
                             className={cn(
-                                "px-4 py-2 rounded-full text-[14px] font-bold transition-all",
+                                "px-3.5 py-2 rounded-full text-[13.1px] font-semibold transition-all",
                                 isSelected
-                                    ? 'bg-primary-500 text-white shadow-md'
-                                    : 'bg-gray-100 dark:bg-[#1f2937] text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-[#374151]'
+                                    ? 'bg-[#232e3e] dark:bg-white text-white dark:text-black'
+                                    : 'bg-[#eff2f6] dark:bg-[#1a2332] text-[#232e3e] dark:text-gray-300 hover:bg-[#e2e8f0] dark:hover:bg-[#2c3b54]'
                             )}
                         >
                             {label}
                         </button>
                     );
-                }
-
-                return (
-                    <button
-                        key={index}
-                        onClick={() => toggleInterest(interest)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-full text-[14px] font-bold transition-all",
-                            isSelected
-                                ? 'bg-primary-500 text-white'
-                                : 'bg-gray-100 dark:bg-[#1a2332] text-gray-800 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2c3b54]'
-                        )}
-                    >
-                        {label}
-                    </button>
-                );
-            })}
+                })}
+            </div>
         </div>
     );
 };

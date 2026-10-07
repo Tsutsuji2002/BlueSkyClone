@@ -520,6 +520,8 @@ export interface UserState {
     isLoading: boolean;
     searchLoading: boolean;
     interestsLoading: boolean;
+    interestsSaving?: boolean;
+    interestsToastTimestamp?: number | null;
     error: string | null;
     actionLoading: Record<string, boolean>;
     cursor: string | null;

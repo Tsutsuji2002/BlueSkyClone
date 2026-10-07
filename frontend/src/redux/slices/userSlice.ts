@@ -1224,14 +1224,18 @@ const userSlice = createSlice({
             // Save Selected Interests
             .addCase(saveSelectedInterests.pending, (state: UserState) => {
                 state.interestsLoading = true;
+                state.interestsSaving = true;
                 state.error = null;
             })
             .addCase(saveSelectedInterests.fulfilled, (state: UserState, action: PayloadAction<string[]>) => {
                 state.interestsLoading = false;
+                state.interestsSaving = false;
                 state.selectedInterests = action.payload;
+                state.interestsToastTimestamp = Date.now();
             })
             .addCase(saveSelectedInterests.rejected, (state: UserState, action) => {
                 state.interestsLoading = false;
+                state.interestsSaving = false;
                 state.error = action.payload as string;
             })
             // Fetch Muted Accounts
