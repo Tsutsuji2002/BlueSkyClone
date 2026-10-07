@@ -431,7 +431,9 @@ const ExplorePage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [showResults, setShowResults] = useState(false);
     const [isSearchUIActive, setIsSearchUIActive] = useState(false);
-    const [hideInterestsCard, setHideInterestsCard] = useState(false);
+    const [hideInterestsCard, setHideInterestsCard] = useState(() => localStorage.getItem('hideInterestsCard') === 'true');
+    const [showDismissInterestsModal, setShowDismissInterestsModal] = useState(false);
+    const [visibleSuggestedFeedsCount, setVisibleSuggestedFeedsCount] = useState(6);
     const searchRef = useRef<HTMLDivElement>(null);
     const observerTarget = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -792,7 +794,7 @@ const ExplorePage: React.FC = () => {
                                  <div className="p-4 border-b border-[#c0ca98] dark:border-dark-border gap-3 flex flex-col relative bg-white dark:bg-dark-bg">
                                      <button
                                         aria-label="Hide this card"
-                                        onClick={() => setHideInterestsCard(true)}
+                                        onClick={() => setShowDismissInterestsModal(true)}
                                         className="flex flex-row items-center justify-center bg-white dark:bg-dark-surface h-[33px] w-[33px] rounded-full absolute top-2 right-2 hover:bg-gray-100 dark:hover:bg-dark-surface/80 transition-colors z-20"
                                     >
                                         <div className="w-[17px] h-[17px] relative">
@@ -989,83 +991,107 @@ const ExplorePage: React.FC = () => {
                                 </div>
 
                                 {/* Feed Items */}
-                                {((trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds).length > 0 ? (trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds) : [
-                                    { uri: '1', name: 'SciArt 🐡', handle: 'flyingtrilobite.com', description: '🔸The intersection of art + science\n🔸Science communication across visual art disciplines\n🔸Medical illustration, paleoart, fine art, bioart, webcomics +more', followersCount: 5043, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
-                                    { uri: '2', name: '#Housing+', handle: 'fema.monster', description: '#Housing+ is a place that includes many aspects of housing--tenant rights, YIMBY, zoning, rent control, gentrification, and the unhoused.', followersCount: 88, avatar: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=80&q=80' },
-                                    { uri: '3', name: 'NFL+', handle: 'parkermolloy.com', description: 'Football talk on Bluesky.', followersCount: 7598, avatar: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=80&q=80' },
-                                    { uri: '4', name: 'MySky', handle: 'mysky.social', description: 'Own your algorithm. A personalized feed with a control panel.', followersCount: 130, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=80&q=80' }
-                                ]).map((feed: any) => (
-                                    <div key={feed.uri || feed.name} className="border-t border-[#dce2ea] dark:border-dark-border p-4">
-                                        <div
-                                            onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
-                                            className="flex flex-col items-center justify-start cursor-pointer group"
-                                        >
-                                            <div className="w-full flex flex-col gap-2">
-                                                <div className="flex flex-row items-center gap-2">
-                                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#f9fafb] dark:bg-dark-surface shrink-0 relative">
-                                                        <img
-                                                            src={feed.avatarUrl || feed.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed.name)}&background=random`}
-                                                            alt=""
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                        <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border rounded-lg opacity-60 pointer-events-none" />
-                                                    </div>
+                                {(() => {
+                                    const allFeedsList = ((trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds).length > 0 ? (trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds) : [
+                                        { uri: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot', name: 'What\'s Hot 🔥', handle: 'bsky.app', description: 'The most popular posts across Bluesky right now.', followersCount: 15200, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '1', name: 'SciArt 🐡', handle: 'flyingtrilobite.com', description: '🔸The intersection of art + science\n🔸Science communication across visual art disciplines\n🔸Medical illustration, paleoart, fine art, bioart, webcomics +more', followersCount: 5043, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '2', name: '#Housing+', handle: 'fema.monster', description: '#Housing+ is a place that includes many aspects of housing--tenant rights, YIMBY, zoning, rent control, gentrification, and the unhoused.', followersCount: 88, avatar: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '3', name: 'NFL+', handle: 'parkermolloy.com', description: 'Football talk on Bluesky.', followersCount: 7598, avatar: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '4', name: 'MySky', handle: 'mysky.social', description: 'Own your algorithm. A personalized feed with a control panel.', followersCount: 130, avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '5', name: 'Science 🔬', handle: 'skyfeed.app', description: 'Latest research, discoveries, papers, and science discussion.', followersCount: 12400, avatar: 'https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '6', name: 'Art & Illustration 🎨', handle: 'artsky.social', description: 'Digital art, traditional illustration, concept design, and creative showcases.', followersCount: 24100, avatar: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '7', name: 'Tech & Code 💻', handle: 'devsky.app', description: 'Software engineering, web development, AI, and open-source projects.', followersCount: 18900, avatar: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '8', name: 'BookSky 📚', handle: 'booksinwales.bsky.social', description: 'Book reviews, literature recommendations, and author discussions.', followersCount: 9300, avatar: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '9', name: 'Gaming 🎮', handle: 'gamesky.social', description: 'Video games, indie dev updates, esport highlights, and gaming culture.', followersCount: 16500, avatar: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '10', name: 'News & Politics 📰', handle: 'verified-news.bsky.social', description: 'Breaking news, investigative journalism, and international headlines.', followersCount: 31200, avatar: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '11', name: 'Photography 📷', handle: 'photosky.social', description: 'Landscape, portrait, street, and nature photography from around the world.', followersCount: 20500, avatar: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '12', name: 'Film & Cinema 🎬', handle: 'moviesky.social', description: 'Movie reviews, film analysis, festival coverage, and cinema chat.', followersCount: 8900, avatar: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '13', name: 'Music & Audio 🎵', handle: 'musicsky.social', description: 'Track releases, concert photos, indie musicians, and playlist sharing.', followersCount: 14200, avatar: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=80&q=80' },
+                                        { uri: '14', name: 'Food & Cooking 🍳', handle: 'foodsky.social', description: 'Recipes, culinary art, restaurant reviews, and home cooking tips.', followersCount: 11800, avatar: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=80&q=80' },
+                                    ]);
+                                    const displayedFeeds = allFeedsList.slice(0, visibleSuggestedFeedsCount);
+                                    const hasMoreFeeds = visibleSuggestedFeedsCount < allFeedsList.length;
 
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
-                                                            {feed.name}
-                                                        </div>
-                                                        <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
-                                                            Feed by @{feed.handle || feed.creator?.handle}
-                                                        </div>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={(e) => handlePinToggle(e, feed)}
-                                                        className={cn(
-                                                            "flex flex-row items-center justify-center rounded-full px-[14px] py-2 gap-[5px] text-[13.1px] font-medium leading-[17px] transition-colors",
-                                                            feed.isPinned
-                                                                ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-[#dce2ea] dark:border-dark-border"
-                                                                : "bg-[#006aff] hover:bg-[#005cd6] text-white"
-                                                        )}
+                                    return (
+                                        <>
+                                            {displayedFeeds.map((feed: any) => (
+                                                <div key={feed.uri || feed.name} className="border-t border-[#dce2ea] dark:border-dark-border p-4">
+                                                    <div
+                                                        onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                                        className="flex flex-col items-center justify-start cursor-pointer group"
                                                     >
-                                                        <div className="z-20 w-[17px] h-[17px] -ml-[2px] -mr-[2px] relative">
-                                                            <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                                                                <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-white pointer-events-none">
-                                                                    <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z"></path>
-                                                                </svg>
+                                                        <div className="w-full flex flex-col gap-2">
+                                                            <div className="flex flex-row items-center gap-2">
+                                                                <div className="w-10 h-10 rounded-lg overflow-hidden bg-[#f9fafb] dark:bg-dark-surface shrink-0 relative">
+                                                                    <img
+                                                                        src={feed.avatarUrl || feed.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(feed.name)}&background=random`}
+                                                                        alt=""
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                    <div className="absolute inset-0 border border-[#dce2ea] dark:border-dark-border rounded-lg opacity-60 pointer-events-none" />
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-[15px] leading-[20px] font-semibold text-black dark:text-white truncate">
+                                                                        {feed.name}
+                                                                    </div>
+                                                                    <div className="text-[13.1px] leading-[17px] text-[#405168] dark:text-dark-text-secondary truncate">
+                                                                        Feed by @{feed.handle || feed.creator?.handle}
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={(e) => handlePinToggle(e, feed)}
+                                                                    className={cn(
+                                                                        "flex flex-row items-center justify-center rounded-full px-[14px] py-2 gap-[5px] text-[13.1px] font-medium leading-[17px] transition-colors",
+                                                                        feed.isPinned
+                                                                            ? "bg-gray-100 dark:bg-dark-surface text-gray-900 dark:text-white border border-[#dce2ea] dark:border-dark-border"
+                                                                            : "bg-[#006aff] hover:bg-[#005cd6] text-white"
+                                                                    )}
+                                                                >
+                                                                    <div className="z-20 w-[17px] h-[17px] -ml-[2px] -mr-[2px] relative">
+                                                                        <div className="absolute w-[18px] h-[18px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                                                                            <svg fill="none" width="18" viewBox="0 0 24 24" height="18" className="text-white pointer-events-none">
+                                                                                <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M6.5 3a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v3.997a6.25 6.25 0 0 0 1.83 4.42l.377.376A1 1 0 0 1 20 12.5V15a1 1 0 0 1-1 1h-6v5a1 1 0 1 1-2 0v-5H5a1 1 0 0 1-1-1v-2.5a1 1 0 0 1 .293-.707l.376-.377A6.25 6.25 0 0 0 6.5 6.996V3.001Zm2 1v2.997a8.25 8.25 0 0 1-2.416 5.834L6 12.914V14h12v-1.086l-.084-.083A8.25 8.25 0 0 1 15.5 6.997V4h-7Z"></path>
+                                                                            </svg>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span>{feed.isPinned ? t('feeds.pinned') : 'Pin feed'}</span>
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="text-[13.1px] leading-[17px] text-black dark:text-white whitespace-pre-line">
+                                                                {feed.description}
+                                                            </div>
+
+                                                            <div className="text-[13.1px] leading-[17px] font-semibold text-[#405168] dark:text-dark-text-secondary">
+                                                                Liked by {(feed.followersCount || feed.likeCount || 5043).toLocaleString()} users
                                                             </div>
                                                         </div>
-                                                        <span>{feed.isPinned ? t('feeds.pinned') : 'Pin feed'}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {hasMoreFeeds && (
+                                                <div className="border-t border-[#dce2ea] dark:border-dark-border">
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Load more"
+                                                        onClick={() => setVisibleSuggestedFeedsCount(prev => prev + 4)}
+                                                        className="w-full flex flex-row items-center justify-center p-[12px_16px] gap-2 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
+                                                    >
+                                                        <span className="text-[13.1px] leading-[17px] text-black dark:text-white font-medium">
+                                                            Load more suggested feeds
+                                                        </span>
+                                                        <svg fill="none" viewBox="0 0 24 24" width="16" height="16" className="text-[#405168]">
+                                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M3.293 8.293a1 1 0 0 1 1.414 0L12 15.586l7.293-7.293a1 1 0 1 1 1.414 1.414l-8 8a1 1 0 0 1-1.414 0l-8-8a1 1 0 0 1 0-1.414Z"></path>
+                                                        </svg>
                                                     </button>
                                                 </div>
-
-                                                <div className="text-[13.1px] leading-[17px] text-black dark:text-white whitespace-pre-line">
-                                                    {feed.description}
-                                                </div>
-
-                                                <div className="text-[13.1px] leading-[17px] font-semibold text-[#405168] dark:text-dark-text-secondary">
-                                                    Liked by {(feed.followersCount || feed.likeCount || 5043).toLocaleString()} users
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                <div className="border-t border-[#dce2ea] dark:border-dark-border">
-                                    <button
-                                        type="button"
-                                        aria-label="Load more"
-                                        className="w-full flex flex-row items-center justify-center p-[12px_16px] gap-2 hover:bg-gray-50 dark:hover:bg-dark-surface/50 transition-colors"
-                                    >
-                                        <span className="text-[13.1px] leading-[17px] text-black dark:text-white font-medium">
-                                            Load more suggested feeds
-                                        </span>
-                                        <svg fill="none" viewBox="0 0 24 24" width="16" height="16" className="text-[#405168]">
-                                            <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M3.293 8.293a1 1 0 0 1 1.414 0L12 15.586l7.293-7.293a1 1 0 1 1 1.414 1.414l-8 8a1 1 0 0 1-1.414 0l-8-8a1 1 0 0 1 0-1.414Z"></path>
-                                        </svg>
-                                    </button>
-                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             {/* 4. Suggested Accounts Section */}
@@ -1078,6 +1104,54 @@ const ExplorePage: React.FC = () => {
                             <ExploreFeedSection extraFeeds={trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds} />
                         </div>
                     )}
+
+                {/* Dismiss Interests Confirmation Modal */}
+                {showDismissInterestsModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
+                        <div
+                            role="dialog"
+                            aria-labelledby="dismiss-interests-title"
+                            aria-describedby="dismiss-interests-desc"
+                            className="w-full max-w-[320px] bg-white dark:bg-dark-bg border border-[#c0cad8] dark:border-dark-border rounded-[36px] p-6 shadow-[0_0_30px_rgba(0,0,0,0.1)] animate-zoomIn flex flex-col"
+                        >
+                            <div className="pb-2">
+                                <h3
+                                    id="dismiss-interests-title"
+                                    className="text-[20.6px] font-semibold text-black dark:text-white leading-[27px] tracking-[0.25px] pb-1"
+                                >
+                                    Dismiss interests
+                                </h3>
+                                <p
+                                    id="dismiss-interests-desc"
+                                    className="text-[15px] text-[#232e3e] dark:text-dark-text-secondary leading-[20px] tracking-[0.25px] pb-4"
+                                >
+                                    You can adjust your interests at any time from "Content and media" settings.
+                                </p>
+                            </div>
+                            <div className="w-full flex flex-col gap-2">
+                                <button
+                                    data-testid="confirmBtn"
+                                    type="button"
+                                    onClick={() => {
+                                        localStorage.setItem('hideInterestsCard', 'true');
+                                        setHideInterestsCard(true);
+                                        setShowDismissInterestsModal(false);
+                                    }}
+                                    className="w-full flex items-center justify-center bg-[#006aff] hover:bg-[#005cd6] text-white rounded-full py-3 px-6 text-[15px] font-medium tracking-[0.25px] transition-colors"
+                                >
+                                    OK
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDismissInterestsModal(false)}
+                                    className="w-full flex items-center justify-center bg-[#eff2f6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-surface/80 text-[#405168] dark:text-dark-text rounded-full py-3 px-6 text-[15px] font-medium tracking-[0.25px] transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
     );
 };

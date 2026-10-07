@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -22,6 +22,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 const ContentSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    const [showInterestsOnExplore, setShowInterestsOnExplore] = useState(() => localStorage.getItem('hideInterestsCard') !== 'true');
 
     const dispatch = useAppDispatch();
     const [updateSettingsMutation] = useUpdateSettingsMutation();
@@ -151,6 +152,15 @@ const ContentSettingsPage: React.FC = () => {
                             label={t('content.enable_video_discover')}
                             value={settings?.enableVideoDiscover ?? true}
                             onChange={(val) => handleToggle('enableVideoDiscover', val)}
+                        />
+                        <ToggleItem
+                            icon={<FiInfo size={20} />}
+                            label="Show interests on Explore"
+                            value={showInterestsOnExplore}
+                            onChange={(val) => {
+                                setShowInterestsOnExplore(val);
+                                localStorage.setItem('hideInterestsCard', val ? 'false' : 'true');
+                            }}
                         />
                     </section>
                 </div>
