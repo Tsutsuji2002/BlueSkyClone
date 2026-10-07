@@ -100,7 +100,7 @@ const QuotedPost: React.FC<QuotedPostProps> = ({ post, isCard = true }) => {
                 )}
 
                 {hasMedia && (
-                    <div className="max-h-[200px] overflow-hidden rounded-lg mt-1 border border-gray-100 dark:border-dark-border">
+                    <div className="rounded-lg mt-1 overflow-hidden border border-gray-100 dark:border-dark-border">
                         <MediaGrid
                             images={post.images}
                             imageUrls={post.imageUrls}

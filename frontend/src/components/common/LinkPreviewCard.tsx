@@ -100,7 +100,7 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
                 "block border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden bg-white dark:bg-dark-bg mt-3 w-full",
                 isSmall && "mt-1"
             )}>
-                <div className={cn("w-full bg-gray-100 dark:bg-dark-surface relative", isSmall ? "aspect-[3/1]" : "aspect-[1.91/1]")}>
+                <div className={cn("w-full bg-gray-100 dark:bg-dark-surface relative", "aspect-[1.91/1]")}>
                     <Skeleton variant="rectangular" width="100%" height="100%" />
                 </div>
                 <div className={isSmall ? "p-2" : "p-3"}>
@@ -202,7 +202,7 @@ const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ preview, isSmall = fa
             {preview.image && !imageError ? (
                 <div className={cn(
                     "w-full overflow-hidden bg-gray-100 dark:bg-dark-surface relative border-b border-gray-100 dark:border-dark-border",
-                    isSmall ? "aspect-[3/1]" : "aspect-[1.91/1]"
+                    "aspect-[1.91/1]"
                 )}>
                     {/* Skeleton always present underneath until image is loaded */}
                     <div className={cn("absolute inset-0 transition-opacity duration-300", isImageLoading ? "opacity-100" : "opacity-0")}>
