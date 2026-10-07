@@ -73,8 +73,30 @@ const TrendingSection: React.FC = () => {
                         <button
                             key={topic.id || topic.hashtag}
                             onClick={() => {
-                                const searchUrl = topic.link || `/search?query=${encodeURIComponent(topic.hashtag)}`;
-                                navigate(searchUrl);
+                                const rawLink = topic.link || topic.uri;
+                                if (rawLink) {
+                                    if (rawLink.startsWith('/')) {
+                                        navigate(rawLink);
+                                        return;
+                                    }
+                                    if (rawLink.startsWith('at://')) {
+                                        navigate(`/feeds/${encodeURIComponent(rawLink)}`);
+                                        return;
+                                    }
+                                    if (rawLink.startsWith('http://') || rawLink.startsWith('https://')) {
+                                        try {
+                                            const url = new URL(rawLink);
+                                            navigate(url.pathname);
+                                            return;
+                                        } catch (e) {}
+                                    }
+                                }
+                                const label = topic.displayName || topic.hashtag || '';
+                                if (label.startsWith('#')) {
+                                    navigate(`/tag/${encodeURIComponent(label.slice(1))}`);
+                                } else {
+                                    navigate(`/search?q=${encodeURIComponent(label)}`);
+                                }
                             }}
                             className="flex flex-row items-center justify-start group cursor-pointer hover:underline decoration-white/20 w-full min-w-0"
                         >

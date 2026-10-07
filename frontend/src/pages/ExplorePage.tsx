@@ -863,11 +863,11 @@ const ExplorePage: React.FC = () => {
 
                                 {/* Trending Topics List */}
                                 {(topics.length > 0 ? topics.slice(0, 5) : [
-                                    { id: '1', hashtag: "Trump's Iran Los Angeles remarks", description: 'At a Nebraska rally, Trump named LA and San Diego; Newsom called it deranged and dangerous.', postsCount: '1.4K posts' },
-                                    { id: '2', hashtag: 'TV shows that went bad', description: 'Viewers name series like Lost, Shameless and Happy Days whose later seasons ruined earlier ones.', postsCount: '618 posts' },
-                                    { id: '3', hashtag: 'Inktober 2026 day 6: ogre', description: 'Artists post ink drawings for the sixth prompt in the monthlong October challenge.', postsCount: '20.7K posts' },
-                                    { id: '4', hashtag: 'Plague death reported in Siberia', description: 'A lab worker in Shelekhov, Irkutsk region, reportedly died; a hospital is quarantined and about 200 are monitored.', postsCount: '4.9K posts' },
-                                    { id: '5', hashtag: 'Banned Books Week', description: 'Readers share favorite challenged titles and push back against censorship.', postsCount: '1K posts' }
+                                    { id: '1', hashtag: "Russia strikes Kyiv's Northern Bridge", link: '/profile/did:plc:qrz3lhbyuxbeilrc5nekdqme/feed/51bb4d1b878e', description: 'Ukraine war latest: Germany supplies Kyiv with interceptors, air defense missiles in $1.5 billion aid package.', postsCount: '1.4K posts' },
+                                    { id: '2', hashtag: 'Green Party Zionism motion vote', link: '/profile/did:plc:jfhpnnst6flqway4eaeqzj2a/feed/for-science', description: 'Party members debate and vote on motion regarding Middle East policy.', postsCount: '618 posts' },
+                                    { id: '3', hashtag: 'Inktober 2026 day 6: ogre', link: '/profile/did:plc:y7crv2yh74s7qhmtx3mvbgv5/feed/art-new', description: 'Artists post ink drawings for the sixth prompt in the monthlong October challenge.', postsCount: '20.7K posts' },
+                                    { id: '4', hashtag: 'Eva Marie Saint dies at 102', link: '/profile/did:plc:kkf4naxqmweop7dv4l2iqqf5/feed/verified-news', description: 'Oscar-winning actress known for On the Waterfront and North by Northwest passes away.', postsCount: '4.9K posts' },
+                                    { id: '5', hashtag: 'Banned Books Week', link: '/profile/did:plc:z72i7hdynmk6r22z27h6tvur/feed/whats-hot', description: 'Readers share favorite challenged titles and push back against censorship.', postsCount: '1K posts' }
                                 ]).map((item: any, index: number) => {
                                     const hashtagStr = item.hashtag || item.title || item.topic || '';
                                     const descStr = item.description || 'Recent discussions and trending activity on Bluesky.';
@@ -892,7 +892,31 @@ const ExplorePage: React.FC = () => {
                                     return (
                                         <div
                                             key={item.id || index}
-                                            onClick={() => navigate(`/search?q=${encodeURIComponent(hashtagStr)}`)}
+                                            onClick={() => {
+                                                const rawLink = item.link || item.uri;
+                                                if (rawLink) {
+                                                    if (rawLink.startsWith('/')) {
+                                                        navigate(rawLink);
+                                                        return;
+                                                    }
+                                                    if (rawLink.startsWith('at://')) {
+                                                        navigate(`/feeds/${encodeURIComponent(rawLink)}`);
+                                                        return;
+                                                    }
+                                                    if (rawLink.startsWith('http://') || rawLink.startsWith('https://')) {
+                                                        try {
+                                                            const url = new URL(rawLink);
+                                                            navigate(url.pathname);
+                                                            return;
+                                                        } catch (e) {}
+                                                    }
+                                                }
+                                                if (hashtagStr.startsWith('#')) {
+                                                    navigate(`/tag/${encodeURIComponent(hashtagStr.slice(1))}`);
+                                                } else {
+                                                    navigate(`/search?q=${encodeURIComponent(hashtagStr)}`);
+                                                }
+                                            }}
                                             className="flex flex-row items-center justify-start border-b border-[#dce2ea] dark:border-dark-border cursor-pointer hover:bg-[#eff2f6]/50 dark:hover:bg-dark-surface/50 transition-colors"
                                         >
                                             <div className="p-[12px_20px] w-full flex flex-row gap-2">

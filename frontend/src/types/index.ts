@@ -301,6 +301,7 @@ export interface TrendingTopic {
     postsCount: number;
     category?: string;
     link?: string;
+    uri?: string;
 }
 
 export interface TrendingAccount {

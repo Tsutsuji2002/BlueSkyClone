@@ -271,6 +271,11 @@ const AppRoutes: React.FC = () => {
                             <ContentSettingsPage />
                         </ProtectedRoute>
                     } />
+                    <Route path="settings/interests" element={
+                        <ProtectedRoute>
+                            <MyInterestsPage />
+                        </ProtectedRoute>
+                    } />
                     <Route path="settings/content/discussion" element={
                         <ProtectedRoute>
                             <DiscussionSettingsPage />
