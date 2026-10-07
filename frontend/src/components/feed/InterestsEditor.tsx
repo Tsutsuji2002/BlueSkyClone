@@ -13,6 +13,13 @@ interface InterestsEditorProps {
     onSelectionChange?: (selected: string[]) => void;
 }
 
+const DEFAULT_INTERESTS = [
+    "Animals", "Art", "Books", "Comedy", "Comics", "Culture",
+    "Software Dev", "Education", "Finance", "Food", "Video Games",
+    "Journalism", "Movies", "Music", "Nature", "News", "Pets",
+    "Photography", "Politics", "Science", "Sports", "Tech", "TV", "Writers"
+];
+
 const InterestsEditor: React.FC<InterestsEditorProps> = ({
     variant = 'condensed',
     limit,
@@ -41,7 +48,12 @@ const InterestsEditor: React.FC<InterestsEditorProps> = ({
         dispatch(saveSelectedInterests(newSelection));
     };
 
-    const displayInterests = limit ? availableInterests.slice(0, limit) : availableInterests;
+    // Combine availableInterests with DEFAULT_INTERESTS while preserving order and removing duplicates
+    const combinedInterests = Array.from(
+        new Set([...(availableInterests && availableInterests.length > 0 ? availableInterests : []), ...DEFAULT_INTERESTS])
+    );
+
+    const displayInterests = limit ? combinedInterests.slice(0, limit) : combinedInterests;
 
     if (interestsLoading && availableInterests.length === 0) {
         return (

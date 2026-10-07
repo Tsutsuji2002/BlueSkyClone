@@ -21,16 +21,46 @@ public class InterestsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var interests = await _context.Interests
-            .Where(i => i.IsDeleted != true)
+        var defaultNames = new[]
+        {
+            "Animals", "Art", "Books", "Comedy", "Comics", "Culture",
+            "Software Dev", "Education", "Finance", "Food", "Video Games",
+            "Journalism", "Movies", "Music", "Nature", "News", "Pets",
+            "Photography", "Politics", "Science", "Sports", "Tech", "TV", "Writers"
+        };
+
+        var existing = await _context.Interests.Where(i => i.IsDeleted != true).ToListAsync();
+        var existingNames = new HashSet<string>(existing.Select(i => i.Name), StringComparer.OrdinalIgnoreCase);
+
+        bool added = false;
+        foreach (var name in defaultNames)
+        {
+            if (!existingNames.Contains(name))
+            {
+                _context.Interests.Add(new Interest
+                {
+                    Name = name,
+                    Slug = name.ToLower().Replace(" ", "-")
+                });
+                added = true;
+            }
+        }
+
+        if (added)
+        {
+            await _context.SaveChangesAsync();
+            existing = await _context.Interests.Where(i => i.IsDeleted != true).ToListAsync();
+        }
+
+        var interests = existing
             .Select(i => new
             {
                 i.Id,
                 i.Name,
                 UsersCount = i.Users.Count
             })
-            .OrderByDescending(i => i.UsersCount)
-            .ToListAsync();
+            .OrderBy(i => i.Name)
+            .ToList();
 
         return Ok(interests);
     }
