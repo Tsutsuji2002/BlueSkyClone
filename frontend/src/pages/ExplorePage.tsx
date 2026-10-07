@@ -992,7 +992,8 @@ const ExplorePage: React.FC = () => {
 
                                 {/* Feed Items */}
                                 {(() => {
-                                    const allFeedsList = ((trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds).length > 0 ? (trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds) : [
+                                    const rawFeeds = (trendingFeeds && trendingFeeds.length > 0 ? trendingFeeds : feeds) || [];
+                                    const fallbackFeeds = [
                                         { uri: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot', name: 'What\'s Hot 🔥', handle: 'bsky.app', description: 'The most popular posts across Bluesky right now.', followersCount: 15200, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
                                         { uri: '1', name: 'SciArt 🐡', handle: 'flyingtrilobite.com', description: '🔸The intersection of art + science\n🔸Science communication across visual art disciplines\n🔸Medical illustration, paleoart, fine art, bioart, webcomics +more', followersCount: 5043, avatar: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=80&q=80' },
                                         { uri: '2', name: '#Housing+', handle: 'fema.monster', description: '#Housing+ is a place that includes many aspects of housing--tenant rights, YIMBY, zoning, rent control, gentrification, and the unhoused.', followersCount: 88, avatar: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=80&q=80' },
@@ -1008,7 +1009,11 @@ const ExplorePage: React.FC = () => {
                                         { uri: '12', name: 'Film & Cinema 🎬', handle: 'moviesky.social', description: 'Movie reviews, film analysis, festival coverage, and cinema chat.', followersCount: 8900, avatar: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=80&q=80' },
                                         { uri: '13', name: 'Music & Audio 🎵', handle: 'musicsky.social', description: 'Track releases, concert photos, indie musicians, and playlist sharing.', followersCount: 14200, avatar: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=80&q=80' },
                                         { uri: '14', name: 'Food & Cooking 🍳', handle: 'foodsky.social', description: 'Recipes, culinary art, restaurant reviews, and home cooking tips.', followersCount: 11800, avatar: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=80&q=80' },
-                                    ]);
+                                    ];
+
+                                    const existingKeys = new Set(rawFeeds.map((f: any) => f.uri || f.name));
+                                    const extraFeeds = fallbackFeeds.filter(f => !existingKeys.has(f.uri) && !existingKeys.has(f.name));
+                                    const allFeedsList = [...rawFeeds, ...extraFeeds];
                                     const displayedFeeds = allFeedsList.slice(0, visibleSuggestedFeedsCount);
                                     const hasMoreFeeds = visibleSuggestedFeedsCount < allFeedsList.length;
 
