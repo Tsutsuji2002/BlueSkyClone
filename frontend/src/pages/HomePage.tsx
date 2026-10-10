@@ -373,7 +373,7 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen">
-                <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
+                <div className="sticky top-0 z-30 bg-white/95 dark:bg-black/95 backdrop-blur-md border-b border-[#DCE2EA] dark:border-[#232E3E] w-full">
                     {isAuthenticated && (
                         <div className="flex items-center justify-between px-4 h-12 w-full">
                             <button
@@ -408,8 +408,11 @@ const HomePage: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
-                        <div className="flex w-full">
+                    <div className={cn(
+                        "flex w-full select-none items-center",
+                        isAuthenticated ? "px-2 overflow-x-auto no-scrollbar" : ""
+                    )}>
+                        <div className="flex w-full" role="tablist">
                             {tabs.map((tab) => {
                                 let targetHref = '/';
                                 if (tab.id.startsWith('list:')) {
@@ -420,6 +423,8 @@ const HomePage: React.FC = () => {
                                     targetHref = `/feeds/${encodeURIComponent(tab.id)}`;
                                 }
 
+                                const isActive = activeTab === tab.id;
+
                                 return (
                                     <a
                                         key={tab.id}
@@ -429,16 +434,27 @@ const HomePage: React.FC = () => {
                                             handleTabChange(tab.id);
                                         }}
                                         className={cn(
-                                            "px-4 py-3 text-[15px] font-bold transition-all relative whitespace-nowrap flex-shrink-0 cursor-pointer",
-                                            activeTab === tab.id
-                                                ? "text-gray-900 dark:text-dark-text"
-                                                : "text-gray-500 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-surface/50"
+                                            "transition-colors relative cursor-pointer flex items-center justify-center text-center",
+                                            !isAuthenticated
+                                                ? "flex-1 py-3.5 hover:bg-gray-50/60 dark:hover:bg-white/5"
+                                                : "px-4 py-3 whitespace-nowrap flex-shrink-0 hover:bg-gray-100 dark:hover:bg-dark-surface/50"
                                         )}
+                                        role="tab"
+                                        aria-selected={isActive}
                                     >
-                                        {tab.label}
-                                        {activeTab === tab.id && (
-                                            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-primary-500 rounded-full mx-3" />
-                                        )}
+                                        <div className="relative flex flex-col items-center justify-center">
+                                            <span className={cn(
+                                                "text-[15px] font-semibold tracking-[0px] leading-5",
+                                                isActive
+                                                    ? "text-black dark:text-white"
+                                                    : "text-[#405168] dark:text-[#8798b0]"
+                                            )}>
+                                                {tab.label}
+                                            </span>
+                                            {isActive && (
+                                                <div className="absolute -bottom-3.5 left-0 right-0 h-[3px] bg-[#006AFF] rounded-full" />
+                                            )}
+                                        </div>
                                     </a>
                                 );
                             })}

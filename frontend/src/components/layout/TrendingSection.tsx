@@ -47,7 +47,7 @@ const TrendingSection: React.FC = () => {
     };
 
     return (
-        <div className="border border-gray-200 dark:border-[#232e3e] rounded-[16px] p-4 bg-white dark:bg-black transition-colors">
+        <div className="border border-[#DCE2EA] dark:border-[#232E3E] rounded-[16px] p-4 bg-white dark:bg-black transition-colors">
             <div className="flex flex-row items-center gap-1.5 pb-3">
                 <svg fill="none" width="16" height="16" viewBox="0 0 24 24">
                     <path fill="currentColor" className="text-gray-900 dark:text-white" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />

@@ -25,43 +25,44 @@ const GuestSidebar: React.FC = () => {
     };
 
     return (
-        <div className="h-screen sticky top-0 flex flex-col items-start px-5 w-full max-w-[245px]">
+        <div className="h-screen sticky top-0 flex flex-col items-start px-4 sm:px-6 w-full max-w-[280px]">
             {/* Logo */}
-            <div className="pt-5 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="pt-6 cursor-pointer" onClick={() => navigate('/')}>
                 <ButterflyLogo className="w-8 h-[28.5px] text-[#006AFF]" />
             </div>
 
             {/* Header */}
-            <div className="pt-4">
-                <h1 className="text-[24px] font-bold leading-tight text-gray-900 dark:text-dark-text">
+            <div className="pt-5 pb-4">
+                <h1 className="text-[26px] font-extrabold leading-[30px] tracking-tight text-black dark:text-white max-w-[170px]">
                     {t('auth.welcome.title', { defaultValue: 'Join the conversation' })}
                 </h1>
             </div>
 
-            {/* Buttons Area */}
-            <div className="pt-3.5 flex flex-wrap gap-2.5 w-full">
+            {/* Buttons Area - Side by Side */}
+            <div className="flex flex-row items-center gap-2 pb-4">
                 <button
                     onClick={() => navigate('/signup')}
-                    className="flex items-center justify-center bg-[#006AFF] hover:bg-blue-600 text-white rounded-full px-4 py-2 transition-colors font-semibold text-[14px]"
+                    className="flex items-center justify-center bg-[#006AFF] hover:bg-[#0058d4] text-white rounded-full px-4 py-2 transition-colors font-bold text-[14px] whitespace-nowrap"
                 >
                     {t('auth.welcome.create_account', { defaultValue: 'Create account' })}
                 </button>
 
                 <button
                     onClick={() => navigate('/login')}
-                    className="flex items-center justify-center bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-[#405168] dark:text-dark-text rounded-full px-4 py-2 transition-colors font-semibold text-[14px]"
+                    className="flex items-center justify-center bg-[#e2e7ee] dark:bg-[#232e3e] hover:bg-[#d6dde6] dark:hover:bg-[#2c3a4e] text-black dark:text-white rounded-full px-4 py-2 transition-colors font-bold text-[14px] whitespace-nowrap"
                 >
                     {t('auth.login.hero_title', { defaultValue: 'Sign in' })}
                 </button>
             </div>
 
             {/* Language Selector */}
-            <div className="mt-4 w-full max-w-max relative group">
-                <div className="flex items-center gap-1.5 bg-white dark:bg-dark-bg border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 py-1.5 px-3 rounded-full cursor-pointer transition-colors">
-                    <FiGlobe size={14} className="text-[#405168] dark:text-dark-text-secondary" />
-                    <span className="text-[13px] font-medium text-gray-800 dark:text-dark-text leading-none">
+            <div className="relative group">
+                <div className="flex items-center gap-2 bg-transparent border border-[#DCE2EA] dark:border-[#232E3E] hover:border-gray-400 dark:hover:border-gray-600 py-1.5 px-3 rounded-full cursor-pointer transition-colors">
+                    <FiGlobe size={14} className="text-[#405168] dark:text-gray-300" />
+                    <span className="text-[13px] font-semibold text-black dark:text-white leading-none">
                         {getDisplayLangName(appLanguage)}
                     </span>
+                    <FiChevronDown size={13} className="text-gray-500 dark:text-gray-400 ml-0.5" />
                 </div>
                 
                 <select

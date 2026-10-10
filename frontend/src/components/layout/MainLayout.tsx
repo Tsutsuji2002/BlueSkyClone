@@ -41,7 +41,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
     }, [isAuthenticated, dispatch, mutedWordsInitialized, handshakeSettled]);
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-dark-bg/50">
+        <div className="min-h-screen bg-white dark:bg-black">
             {/* Mobile Top Bar */}
             {!hideTopBar && <TopBar />}
 
@@ -51,7 +51,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     isMessagesPage ? "max-w-[1120px] lg:gap-x-0" : "max-w-[1260px] lg:gap-x-4"
                 )}>
                     {/* Left Sidebar - Desktop only */}
-                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[240px]"))}>
+                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[260px]"))}>
                         {isAuthenticated ? (
                             <Sidebar />
                         ) : (
@@ -62,8 +62,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
 
                     {/* Main Content */}
                     <main className={cn(
-                        "w-full min-w-0 lg:pb-0 self-start bg-white dark:bg-dark-bg min-h-screen",
-                        !isMessagesPage && "max-w-[600px] border-x border-gray-100 dark:border-dark-border",
+                        "w-full min-w-0 lg:pb-0 self-start bg-white dark:bg-black min-h-screen",
+                        !isMessagesPage && "max-w-[600px] border-x border-[#DCE2EA] dark:border-[#232E3E]",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
                         {children || (

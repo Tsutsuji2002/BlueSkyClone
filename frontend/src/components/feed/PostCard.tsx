@@ -470,7 +470,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             ref={cardRef}
             className={cn(
                 "hover:bg-gray-100/50 dark:hover:bg-dark-surface/50 transition-colors cursor-pointer",
-                hideBorder ? "" : "border-b border-gray-200 dark:border-dark-border"
+                hideBorder ? "" : "border-b border-[#DCE2EA] dark:border-[#232E3E]"
             )}
             onClick={handleCardClick}
         >
