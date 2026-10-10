@@ -51,7 +51,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     isMessagesPage ? "max-w-[1120px] lg:gap-x-0" : "max-w-[1260px] lg:gap-x-4"
                 )}>
                     {/* Left Sidebar - Desktop only */}
-                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[260px]"))}>
+                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[245px]"))}>
                         {isAuthenticated ? (
                             <Sidebar />
                         ) : (
@@ -75,7 +75,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
 
                     {/* Right Sidebar - Desktop only */}
                     {!isMessagesPage && (
-                        <div className="hidden xl:block w-[320px] flex-shrink-0">
+                        <div className="hidden xl:block w-[330px] flex-shrink-0">
                             <RightSidebar />
                         </div>
                     )}

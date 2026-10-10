@@ -252,13 +252,19 @@ const RightSidebar: React.FC = () => {
 
         return null;
     }, [loading, results, searchQuery, handleResultClick, navigate, t]);
-
     return (
-        <div className="flex flex-col gap-4 w-full h-screen sticky top-0 py-5 px-3 overflow-y-auto no-scrollbar">
+        <div className={cn(
+            "flex flex-col gap-[16px] w-full h-screen sticky top-0 overflow-y-auto no-scrollbar",
+            !isAuthenticated ? "pt-[20px] pb-[20px] pl-[28px] pr-[2px]" : "py-5 px-3"
+        )}>
             {/* Search Bar Container */}
             <div className="relative w-full group" ref={searchRef}>
-                <div className="flex items-center gap-2.5 px-3.5 py-2 bg-[#F1F3F5] dark:bg-[#19222e] rounded-full border border-transparent focus-within:border-primary-500 transition-colors">
-                    <FiSearch className="text-gray-400 dark:text-[#667b99] flex-shrink-0" size={17} />
+                <div className="flex flex-row items-center relative w-full px-[12px] z-0">
+                    <div className="z-20 pr-[4px] flex items-center">
+                        <svg fill="none" viewBox="0 0 24 24" width="20" height="20" className="text-[#667B99] pointer-events-none flex-shrink-0">
+                            <path fill="#667B99" fillRule="evenodd" clipRule="evenodd" d="M11 5a6 6 0 1 0 0 12 6 6 0 0 0 0-12Zm-8 6a8 8 0 1 1 14.32 4.906l3.387 3.387a1 1 0 0 1-1.414 1.414l-3.387-3.387A8 8 0 0 1 3 11Z" />
+                        </svg>
+                    </div>
                     <input
                         type="text"
                         placeholder={t('nav.search', { defaultValue: 'Search' })}
@@ -269,13 +275,14 @@ const RightSidebar: React.FC = () => {
                         }}
                         onFocus={() => setShowResults(true)}
                         onKeyDown={handleKeyDown}
-                        className="bg-transparent border-none outline-none text-[15px] text-gray-900 dark:text-white w-full placeholder-gray-400 dark:placeholder-[#667b99] py-0.5"
+                        className="relative z-20 flex-1 text-[15px] tracking-[0px] text-black dark:text-white py-[11px] px-[4px] leading-[18px] min-w-0 my-[2px] bg-transparent border-none outline-none placeholder-[#667B99]"
                     />
                     {searchQuery && (
-                        <button onClick={clearSearch} className="text-gray-500 dark:text-[#667b99] hover:text-gray-700 dark:hover:text-white">
+                        <button onClick={clearSearch} className="z-20 text-gray-500 dark:text-[#667b99] hover:text-gray-700 dark:hover:text-white">
                             <FiX size={16} />
                         </button>
                     )}
+                    <div className="z-10 absolute inset-0 rounded-[10px] bg-[#EFF2F6] dark:bg-[#161e27] border border-transparent"></div>
                 </div>
 
                 {/* Dropdown Results */}
@@ -329,7 +336,7 @@ const RightSidebar: React.FC = () => {
                                         </svg>
                                     ) : isDiscover ? (
                                         <svg fill="none" viewBox="0 0 24 24" width="12" height="12">
-                                            <path fill="#FFFFFF" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
+                                            <path fill="#FFFFFF" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.828 0l-4.244-4.243a8 8 0 1 1 11.314 0zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
                                         </svg>
                                     ) : isBirds ? (
                                         <BsSoundwave className="text-white" size={14} />
@@ -371,21 +378,18 @@ const RightSidebar: React.FC = () => {
             {!isExplorePage && <TrendingSection />}
 
             {/* Footer Links */}
-            <div className={cn(
-                "px-2 flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary text-[13px]",
-                isAuthenticated ? "mt-auto" : "mt-0"
-            )}>
+            <div className="text-[13.1px] tracking-[0px] text-[#8798B0] leading-[17px] select-none">
                 {isAuthenticated && (
                     <>
-                        <a href="https://bsky.app/feedback" target="_blank" rel="noopener noreferrer" className="hover:underline">Feedback</a>
-                        <span>·</span>
+                        <a href="https://bsky.app/feedback" target="_blank" rel="noopener noreferrer" className="text-[#405168] dark:text-[#dce2ea] hover:underline">Feedback</a>
+                        <span className="text-[#8798B0]"> ∙ </span>
                     </>
                 )}
-                <a href="#" className="hover:underline" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }}>{t('sidebar.privacy', { defaultValue: 'Privacy' })}</a>
-                <span>·</span>
-                <a href="#" className="hover:underline" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }}>{t('sidebar.terms', { defaultValue: 'Terms' })}</a>
-                <span>·</span>
-                <a href="#" className="hover:underline" onClick={(e) => { e.preventDefault(); navigate('/support'); }}>{t('sidebar.help', { defaultValue: 'Help' })}</a>
+                <a href="/settings/privacy" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Privacy</a>
+                <span className="text-[#8798B0]"> ∙ </span>
+                <a href="/about?tab=terms" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Terms</a>
+                <span className="text-[#8798B0]"> ∙ </span>
+                <a href="/support" onClick={(e) => { e.preventDefault(); navigate('/support'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Help</a>
             </div>
         </div>
     );
