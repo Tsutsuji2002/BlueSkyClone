@@ -34,7 +34,7 @@ const GuestBottomBanner: React.FC = () => {
                         onClick={() => navigate('/login')}
                         className="bg-transparent hover:bg-gray-100 dark:hover:bg-dark-surface text-[#405168] dark:text-dark-text-secondary rounded-full px-4 py-[6px] text-[14px] font-bold transition-colors"
                     >
-                        {t('auth.welcome.login', { defaultValue: 'Log in' })}
+                        {t('auth.login.hero_title', { defaultValue: 'Sign in' })}
                     </button>
                 </div>
             </div>

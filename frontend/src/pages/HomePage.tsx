@@ -292,7 +292,7 @@ const HomePage: React.FC = () => {
 
     // Display tabs based on current pinned order from Feed settings.
     const tabs = useMemo(() => {
-        if (!isAuthenticated && subscribedFeeds.length === 0 && pinnedLists.length === 0) {
+        if (!isAuthenticated) {
             return [
                 { id: 'discover', label: 'Discover' },
                 { id: 'feeds-discovery', label: 'Feeds ✨' },
@@ -329,7 +329,7 @@ const HomePage: React.FC = () => {
         });
 
         return uniqueTabs;
-    }, [visibleHomeFeeds, pinnedLists, t, isAuthenticated, subscribedFeeds.length]);
+    }, [visibleHomeFeeds, pinnedLists, t, isAuthenticated]);
 
     // Ensure a valid tab is always selected
     useEffect(() => {
@@ -351,11 +351,13 @@ const HomePage: React.FC = () => {
         return (
             <div className="min-h-screen">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
-                    <div className="flex items-center justify-between px-4 h-12 w-full">
-                        <div className="w-10" />
-                        <div className="w-7 h-7 bg-gray-200 dark:bg-dark-surface rounded-full animate-pulse" />
-                        <div className="w-10" />
-                    </div>
+                    {isAuthenticated && (
+                        <div className="flex items-center justify-between px-4 h-12 w-full">
+                            <div className="w-10" />
+                            <div className="w-7 h-7 bg-gray-200 dark:bg-dark-surface rounded-full animate-pulse" />
+                            <div className="w-10" />
+                        </div>
+                    )}
                     <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
                         <div className="flex w-full gap-4 px-2 py-3">
                             <div className="w-20 h-5 bg-gray-200 dark:bg-dark-surface rounded animate-pulse" />
@@ -372,22 +374,22 @@ const HomePage: React.FC = () => {
     return (
         <div className="min-h-screen">
                 <div className="sticky top-0 z-30 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border w-full">
-                    <div className="flex items-center justify-between px-4 h-12 w-full">
-                        <button
-                            onClick={() => dispatch(openMobileMenu())}
-                            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
-                        >
-                            <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
-                        </button>
-                        <div className="hidden lg:block w-10 flex-shrink-0" /> {/* Spacer */}
+                    {isAuthenticated && (
+                        <div className="flex items-center justify-between px-4 h-12 w-full">
+                            <button
+                                onClick={() => dispatch(openMobileMenu())}
+                                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                            >
+                                <FiMenu size={24} className="text-gray-700 dark:text-dark-text" />
+                            </button>
+                            <div className="hidden lg:block w-10 flex-shrink-0" /> {/* Spacer */}
 
-                        <ButterflyLogo
-                            className="w-7 h-7 text-primary-500 cursor-pointer flex-shrink-0"
-                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                        />
+                            <ButterflyLogo
+                                className="w-7 h-7 text-primary-500 cursor-pointer flex-shrink-0"
+                                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                            />
 
-                        <div className="flex items-center gap-0.5 flex-shrink-0">
-                            {isAuthenticated && (
+                            <div className="flex items-center gap-0.5 flex-shrink-0">
                                 <button
                                     onClick={() => navigate('/feeds/settings')}
                                     className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
@@ -395,16 +397,16 @@ const HomePage: React.FC = () => {
                                 >
                                     <FiSettings size={22} />
                                 </button>
-                            )}
-                            <button
-                                onClick={() => navigate('/feeds')}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
-                                title={t('feeds.title')}
-                            >
-                                <FiHash size={24} />
-                            </button>
+                                <button
+                                    onClick={() => navigate('/feeds')}
+                                    className="p-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full text-gray-700 dark:text-dark-text"
+                                    title={t('feeds.title')}
+                                >
+                                    <FiHash size={24} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="flex w-full px-2 overflow-x-auto no-scrollbar items-center">
                         <div className="flex w-full">
@@ -412,7 +414,9 @@ const HomePage: React.FC = () => {
                                 let targetHref = '/';
                                 if (tab.id.startsWith('list:')) {
                                     targetHref = `/lists/${tab.id.replace('list:', '')}`;
-                                } else if (tab.id !== 'discover' && tab.id !== 'following' && tab.id !== 'feeds-discovery') {
+                                } else if (tab.id === 'feeds-discovery') {
+                                    targetHref = '/feeds';
+                                } else if (tab.id !== 'discover' && tab.id !== 'following') {
                                     targetHref = `/feeds/${encodeURIComponent(tab.id)}`;
                                 }
 

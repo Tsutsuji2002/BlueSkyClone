@@ -47,23 +47,23 @@ const TrendingSection: React.FC = () => {
     };
 
     return (
-        <div className="border border-gray-200 dark:border-[#232e3e] rounded-[12px] p-[16px] mb-4 bg-white dark:bg-black transition-colors">
-            <div className="flex flex-row items-center gap-1 pb-[12px]">
+        <div className="border border-gray-200 dark:border-[#232e3e] rounded-[16px] p-4 bg-white dark:bg-black transition-colors">
+            <div className="flex flex-row items-center gap-1.5 pb-3">
                 <svg fill="none" width="16" height="16" viewBox="0 0 24 24">
                     <path fill="currentColor" className="text-gray-900 dark:text-white" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
                 </svg>
-                <h2 className="text-[15px] font-bold text-gray-900 dark:text-white flex-1 leading-[15px]">
+                <h2 className="text-[15px] font-bold text-gray-900 dark:text-white flex-1 leading-tight">
                     Trending
                 </h2>
                 <button 
                     onClick={() => setIsConfirmModalOpen(true)}
-                    className="p-1 hover:bg-white/10 rounded-full text-[#8798b0] transition-colors -mr-1.5 -mt-1.5"
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full text-[#8798b0] transition-colors -mr-1"
                 >
                     <FiMoreHorizontal size={15} />
                 </button>
             </div>
 
-            <div className="flex flex-col gap-[4px]">
+            <div className="flex flex-col gap-1">
                 {isLoading ? (
                     <div className="py-2 flex justify-center">
                         <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -98,13 +98,13 @@ const TrendingSection: React.FC = () => {
                                     navigate(`/search?q=${encodeURIComponent(label)}`);
                                 }
                             }}
-                            className="flex flex-row items-center justify-start group cursor-pointer hover:underline decoration-white/20 w-full min-w-0"
+                            className="flex flex-row items-center justify-start group cursor-pointer w-full min-w-0 py-1"
                         >
-                            <div className="flex flex-row items-center gap-1 min-w-0 w-full">
-                                <span className="text-[13.1px] text-[#526580] dark:text-[#8798b0] min-w-[16px] leading-[17px] shrink-0">
+                            <div className="flex flex-row items-baseline gap-1.5 min-w-0 w-full text-left">
+                                <span className="text-[13.5px] font-medium text-[#526580] dark:text-[#8798b0] min-w-[16px] shrink-0">
                                     {index + 1}.
                                 </span>
-                                <span className="text-[13.1px] text-[#1D2B3D] dark:text-[#a5b2c5] group-hover:text-[#006AFF] dark:group-hover:text-white transition-colors truncate leading-[17px]">
+                                <span className="text-[13.5px] font-semibold text-gray-900 dark:text-[#e1e7ef] group-hover:text-primary-500 dark:group-hover:text-white group-hover:underline transition-colors truncate">
                                     {topic.displayName || topic.hashtag.replace('#', '')}
                                 </span>
                             </div>

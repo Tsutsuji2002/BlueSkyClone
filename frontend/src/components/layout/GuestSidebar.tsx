@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { setAppLanguage } from '../../redux/slices/languageSlice';
-import { FiChevronDown } from 'react-icons/fi';
+import { FiChevronDown, FiGlobe } from 'react-icons/fi';
 import ButterflyLogo from '../common/ButterflyLogo';
 
 const GuestSidebar: React.FC = () => {
@@ -18,6 +18,12 @@ const GuestSidebar: React.FC = () => {
         dispatch(setAppLanguage(lang));
     };
 
+    const getDisplayLangName = (lang: string) => {
+        const raw = t(`language.${lang}`);
+        if (!raw || raw.startsWith('language.')) return lang;
+        return raw.split('–')[0].trim();
+    };
+
     return (
         <div className="h-screen sticky top-0 flex flex-col items-start px-5 w-full max-w-[245px]">
             {/* Logo */}
@@ -27,39 +33,35 @@ const GuestSidebar: React.FC = () => {
 
             {/* Header */}
             <div className="pt-4">
-                <h1 className="text-[24.3px] font-bold leading-[24.3px] text-black dark:text-dark-text">
-                    {t('auth.welcome.title', { defaultValue: 'Tham gia trò chuyện' })}
+                <h1 className="text-[24px] font-bold leading-tight text-gray-900 dark:text-dark-text">
+                    {t('auth.welcome.title', { defaultValue: 'Join the conversation' })}
                 </h1>
             </div>
 
             {/* Buttons Area */}
-            <div className="pt-3 flex flex-wrap gap-2 w-full">
+            <div className="pt-3.5 flex flex-wrap gap-2.5 w-full">
                 <button
                     onClick={() => navigate('/signup')}
-                    className="flex flex-row items-center justify-center bg-[#006AFF] hover:bg-blue-600 text-white rounded-full px-[14px] py-2 gap-1.25 transition-colors"
+                    className="flex items-center justify-center bg-[#006AFF] hover:bg-blue-600 text-white rounded-full px-4 py-2 transition-colors font-semibold text-[14px]"
                 >
-                    <span className="text-[13.1px] font-medium leading-[17px] text-center">
-                        {t('auth.welcome.create_account', { defaultValue: 'Tạo tài khoản' })}
-                    </span>
+                    {t('auth.welcome.create_account', { defaultValue: 'Create account' })}
                 </button>
 
                 <button
                     onClick={() => navigate('/login')}
-                    className="flex flex-row items-center justify-center bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-[#405168] dark:text-dark-text rounded-full px-[14px] py-2 gap-1.25 transition-colors"
+                    className="flex items-center justify-center bg-[#EFF2F6] dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border text-[#405168] dark:text-dark-text rounded-full px-4 py-2 transition-colors font-semibold text-[14px]"
                 >
-                    <span className="text-[13.1px] font-medium leading-[17px] text-center">
-                        {t('auth.welcome.login', { defaultValue: 'Đăng nhập' })}
-                    </span>
+                    {t('auth.login.hero_title', { defaultValue: 'Sign in' })}
                 </button>
             </div>
 
             {/* Language Selector */}
-            <div className="mt-3 w-full max-w-max relative group">
-                <div className="flex items-center gap-2 bg-white dark:bg-dark-bg border border-transparent hover:border-gray-200 dark:hover:border-dark-border py-[5px] pl-2 pr-1 rounded-md cursor-pointer transition-all">
-                    <span className="text-[13.1px] text-black dark:text-dark-text leading-[13.1px]">
-                        {t(`language.${appLanguage}`)}
+            <div className="mt-4 w-full max-w-max relative group">
+                <div className="flex items-center gap-1.5 bg-white dark:bg-dark-bg border border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 py-1.5 px-3 rounded-full cursor-pointer transition-colors">
+                    <FiGlobe size={14} className="text-[#405168] dark:text-dark-text-secondary" />
+                    <span className="text-[13px] font-medium text-gray-800 dark:text-dark-text leading-none">
+                        {getDisplayLangName(appLanguage)}
                     </span>
-                    <FiChevronDown size={12} className="text-[#405168] dark:text-dark-text-secondary" />
                 </div>
                 
                 <select

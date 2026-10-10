@@ -254,14 +254,14 @@ const RightSidebar: React.FC = () => {
     }, [loading, results, searchQuery, handleResultClick, navigate, t]);
 
     return (
-        <div className="flex flex-col gap-4 w-[330px] h-screen sticky top-0 py-[20px] pr-[2px] pb-[20px] pl-[28px] overflow-y-auto no-scrollbar">
+        <div className="flex flex-col gap-4 w-full h-screen sticky top-0 py-5 px-3 overflow-y-auto no-scrollbar">
             {/* Search Bar Container */}
             <div className="relative w-full group" ref={searchRef}>
-                <div className="flex items-center gap-3 px-3 py-2 bg-[#F1F3F5] dark:bg-[#19222e] rounded-full border border-transparent focus-within:border-primary-500 transition-colors">
-                    <FiSearch className="text-gray-400 dark:text-[#667b99] flex-shrink-0" size={18} />
+                <div className="flex items-center gap-2.5 px-3.5 py-2 bg-[#F1F3F5] dark:bg-[#19222e] rounded-full border border-transparent focus-within:border-primary-500 transition-colors">
+                    <FiSearch className="text-gray-400 dark:text-[#667b99] flex-shrink-0" size={17} />
                     <input
                         type="text"
-                        placeholder={t('sidebar.search_placeholder')}
+                        placeholder={t('nav.search', { defaultValue: 'Search' })}
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -269,7 +269,7 @@ const RightSidebar: React.FC = () => {
                         }}
                         onFocus={() => setShowResults(true)}
                         onKeyDown={handleKeyDown}
-                        className="bg-transparent border-none outline-none text-[15px] text-gray-900 dark:text-white w-full placeholder-gray-400 dark:placeholder-[#667b99] py-1"
+                        className="bg-transparent border-none outline-none text-[15px] text-gray-900 dark:text-white w-full placeholder-gray-400 dark:placeholder-[#667b99] py-0.5"
                     />
                     {searchQuery && (
                         <button onClick={clearSearch} className="text-gray-500 dark:text-[#667b99] hover:text-gray-700 dark:hover:text-white">
@@ -371,14 +371,21 @@ const RightSidebar: React.FC = () => {
             {!isExplorePage && <TrendingSection />}
 
             {/* Footer Links */}
-            <div className="px-2 mt-auto flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary">
-                <a href="https://bsky.app/feedback" target="_blank" rel="noopener noreferrer" className="text-[13.1px] hover:underline">Feedback</a>
-                <span className="text-[13.1px]">·</span>
-                <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }}>{t('sidebar.privacy')}</a>
-                <span className="text-[13.1px]">·</span>
-                <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }}>{t('sidebar.terms')}</a>
-                <span className="text-[13.1px]">·</span>
-                <a href="#" className="text-[13.1px] hover:underline" onClick={(e) => { e.preventDefault(); navigate('/support'); }}>{t('sidebar.help')}</a>
+            <div className={cn(
+                "px-2 flex flex-wrap gap-x-2 gap-y-1 text-gray-500 dark:text-dark-text-secondary text-[13px]",
+                isAuthenticated ? "mt-auto" : "mt-0"
+            )}>
+                {isAuthenticated && (
+                    <>
+                        <a href="https://bsky.app/feedback" target="_blank" rel="noopener noreferrer" className="hover:underline">Feedback</a>
+                        <span>·</span>
+                    </>
+                )}
+                <a href="#" className="hover:underline" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }}>{t('sidebar.privacy', { defaultValue: 'Privacy' })}</a>
+                <span>·</span>
+                <a href="#" className="hover:underline" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }}>{t('sidebar.terms', { defaultValue: 'Terms' })}</a>
+                <span>·</span>
+                <a href="#" className="hover:underline" onClick={(e) => { e.preventDefault(); navigate('/support'); }}>{t('sidebar.help', { defaultValue: 'Help' })}</a>
             </div>
         </div>
     );

@@ -618,7 +618,7 @@
     },
     "auth": {
         "welcome": {
-            "title": "See what's happening",
+            "title": "Join the conversation",
             "description": "Join Bluesky today",
             "create_account": "Create account",
             "login": "Log in",
