@@ -75,22 +75,16 @@ const trendingSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload;
             })
-            // Reset state on auth changes to prevent stale data between accounts
+            // Reset user-specific state on auth changes without clearing public trending topics/accounts
             .addCase('auth/setAuth', (state) => {
-                state.topics = [];
-                state.accounts = [];
                 state.interests = [];
             })
             .addCase('auth/logout', (state) => {
-                state.topics = [];
-                state.accounts = [];
                 state.interests = [];
             })
             .addMatcher(
                 (action) => action.type === 'auth/switchAccount/fulfilled',
                 (state) => {
-                    state.topics = [];
-                    state.accounts = [];
                     state.interests = [];
                 }
             );

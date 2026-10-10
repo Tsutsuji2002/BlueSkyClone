@@ -229,11 +229,18 @@ export const setupFetchInterceptor = () => {
             await new Promise(resolve => setTimeout(resolve, floodgateStagger));
         }
 
+        const isPublicEndpoint = 
+            url.includes('/unified-feed') || 
+            url.includes('/trending') || 
+            url.includes('/users/profile/') || 
+            (url.includes('/posts/') && !url.includes('/timeline') && !url.includes('/bookmarks')) ||
+            url.includes('/followers') ||
+            url.includes('/following');
+
         // RE-VERIFICATION & CONCURRENT REFRESH STAGGERING:
         // Only queue requests when a real token refresh is in progress (not just a background re-sync check).
-        // Previously, we would skip non-essential requests during re-verification (returning 409), which caused
-        // feed pages to show "No posts yet" when navigating back. Now all requests proceed normally.
-        if (isRefreshing && refreshPromise && !isRefreshRequest && !authState.isReverifying) {
+        // Public endpoints must NEVER be queued or rejected by token refresh failures!
+        if (isRefreshing && refreshPromise && !isRefreshRequest && !authState.isReverifying && !isPublicEndpoint) {
             console.log(`[FetchInterceptor] Queuing request until refresh completes: ${url}`);
             try {
                 // Increased wait timeout to 40s to ensure we don't cancel before the refresh itself finishes
@@ -292,11 +299,22 @@ export const setupFetchInterceptor = () => {
         const isSwitchRequest = url.includes('/auth/switch');
         const isWithinSafetyWindow = (Date.now() - lastSwitchFailureTime) < SWITCH_FAILURE_SAFETY_MS;
 
-        if (response.status === 401 && !isLogoutRequest && !isRefreshRequest && !isExternalRequest && !isLoginRequest && !isRetry && !isSwitchRequest) {
+        if (
+            response.status === 401 && 
+            !isLogoutRequest && 
+            !isRefreshRequest && 
+            !isExternalRequest && 
+            !isLoginRequest && 
+            !isRetry && 
+            !isSwitchRequest &&
+            !isHandshakeRequest &&
+            !isPublicEndpoint
+        ) {
             const isAuthPage = window.location.pathname === '/welcome' || window.location.pathname === '/login';
+            const isUserLoggedIn = store.getState().auth.isAuthenticated;
             
-            if (!isAuthPage) {
-                // ALWAYS attempt refresh on 401 same-origin if not on auth pages.
+            if (!isAuthPage && isUserLoggedIn) {
+                // ALWAYS attempt refresh on 401 same-origin if logged in and not on auth pages.
                 const refreshed = await tryRefreshToken();
 
                 if (refreshed) {
