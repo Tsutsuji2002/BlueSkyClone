@@ -169,7 +169,11 @@ const FeedsPage: React.FC = () => {
                                 {t('nav.feeds')}
                             </h1>
                         </div>
-                        <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface-secondary text-gray-600 dark:text-dark-text transition-colors">
+                        <button 
+                            onClick={() => dispatch(openAuthWall())}
+                            aria-label={t('settings.title', { defaultValue: 'Settings' })}
+                            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface-secondary text-gray-600 dark:text-dark-text transition-colors"
+                        >
                             <FiSettings size={22} />
                         </button>
                     </div>
