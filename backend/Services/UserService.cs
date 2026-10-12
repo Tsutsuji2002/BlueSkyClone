@@ -779,6 +779,9 @@ public class UserService : IUserService
         if (Guid.TryParse(actor, out var targetUserId))
             user = await GetUserByIdAsync(targetUserId);
 
+        if (user == null && actor.StartsWith("did:"))
+            user = await GetUserByDidAsync(actor);
+
         if (user == null)
             user = await GetUserByHandleAsync(actor);
 
@@ -810,6 +813,9 @@ public class UserService : IUserService
         User? user = null;
         if (Guid.TryParse(actor, out var targetUserId))
             user = await GetUserByIdAsync(targetUserId);
+
+        if (user == null && actor.StartsWith("did:"))
+            user = await GetUserByDidAsync(actor);
 
         if (user == null)
             user = await GetUserByHandleAsync(actor);
@@ -1320,7 +1326,7 @@ public class UserService : IUserService
                 {
                     try
                     {
-                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, complete: false, viewerId: viewerId, mergeDuplicates: false);
                         if (u != null) users.Add(u);
                     }
                     catch (Exception ex)
@@ -1330,7 +1336,10 @@ public class UserService : IUserService
                     }
                 }
 
-                // REMOVED: await _unitOfWork.CompleteAsync(); - This is a read operation, don't save changes
+                if (users.Count > 0)
+                {
+                    await _unitOfWork.CompleteAsync();
+                }
                 
                 cached = new RemoteFollowsResult
                 {
@@ -1425,7 +1434,7 @@ public class UserService : IUserService
                 {
                     try
                     {
-                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, viewerId: viewerId, mergeDuplicates: false);
+                        var u = await ResolveStubRemoteProfileAsync(actor, stubCache, complete: false, viewerId: viewerId, mergeDuplicates: false);
                         if (u != null) users.Add(u);
                     }
                     catch (Exception ex)
@@ -1435,7 +1444,10 @@ public class UserService : IUserService
                     }
                 }
 
-                await _unitOfWork.CompleteAsync();
+                if (users.Count > 0)
+                {
+                    await _unitOfWork.CompleteAsync();
+                }
 
                 cached = new RemoteFollowsResult
                 {

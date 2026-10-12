@@ -1771,7 +1771,17 @@ namespace BSkyClone.Controllers
         {
             try
             {
-                var (users, nextCursor) = await _userService.GetFollowersAsync(actor, limit, cursor);
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
+
+                var cacheKey = $"xrpc_getfollowers_{actor}_{limit}_{cursor ?? "root"}_{viewerId?.ToString() ?? "anon"}";
+                var cachedJson = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedJson))
+                {
+                    return Content(cachedJson, "application/json");
+                }
+
+                var (users, nextCursor) = await _userService.GetFollowersAsync(actor, limit, cursor, viewerId);
                 
                 // Fetch the subject profile
                 User? subjectUser = null;
@@ -1779,20 +1789,36 @@ namespace BSkyClone.Controllers
                 else if (actor.StartsWith("did:")) subjectUser = await _userService.GetUserByDidAsync(actor);
                 else subjectUser = await _userService.GetUserByHandleAsync(actor);
 
-                if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor);
+                if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor, viewerId: viewerId);
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
-                
-                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
+
+                var mappedFollowers = (await Task.WhenAll(users.Select(async u =>
+                {
+                    try
+                    {
+                        return await MapUserToProfileView(u, viewerId);
+                    }
+                    catch (Exception mapEx)
+                    {
+                        _logger.LogError(mapEx, "Error mapping follower user {UserId} to ProfileView", u.Id);
+                        return null;
+                    }
+                }))).Where(p => p != null).Cast<ProfileView>().ToList();
 
                 var response = new GetFollowersResponse
                 {
-                    Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId),
-                    Followers = (await Task.WhenAll(users.Select(u => MapUserToProfileView(u, viewerId)))).ToList(),
+                    Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId, resolveRemotePinnedPost: false),
+                    Followers = mappedFollowers,
                     Cursor = nextCursor
                 };
 
-                return Ok(response);
+                var json = JsonSerializer.Serialize(response);
+                await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                });
+
+                return Content(json, "application/json");
             }
             catch (Exception ex)
             {
@@ -1807,9 +1833,19 @@ namespace BSkyClone.Controllers
         {
             try
             {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
+
+                var cacheKey = $"xrpc_getfollows_{actor}_{limit}_{cursor ?? "root"}_{viewerId?.ToString() ?? "anon"}";
+                var cachedJson = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedJson))
+                {
+                    return Content(cachedJson, "application/json");
+                }
+
                 _logger.LogInformation("GetFollows XRPC called for actor: {Actor}, limit: {Limit}, cursor: {Cursor}", actor, limit, cursor);
                 
-                var (users, nextCursor) = await _userService.GetFollowingAsync(actor, limit, cursor);
+                var (users, nextCursor) = await _userService.GetFollowingAsync(actor, limit, cursor, viewerId);
                 
                 _logger.LogInformation("GetFollowingAsync returned {Count} users", users.Count);
                 
@@ -1819,38 +1855,40 @@ namespace BSkyClone.Controllers
                 else if (actor.StartsWith("did:")) subjectUser = await _userService.GetUserByDidAsync(actor);
                 else subjectUser = await _userService.GetUserByHandleAsync(actor);
 
-                if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor);
+                if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor, viewerId: viewerId);
                 if (subjectUser == null)
                 {
                     _logger.LogWarning("Subject user not found for actor: {Actor}", actor);
                     return NotFound(new { error = "AccountNotFound" });
                 }
 
-                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
-                Guid? viewerId = Guid.TryParse(userIdStr, out var vId) ? vId : null;
-
-                var mappedFollows = new List<ProfileView>();
-                foreach (var u in users)
+                var mappedFollows = (await Task.WhenAll(users.Select(async u =>
                 {
                     try
                     {
-                        mappedFollows.Add(await MapUserToProfileView(u, viewerId));
+                        return await MapUserToProfileView(u, viewerId);
                     }
                     catch (Exception mapEx)
                     {
                         _logger.LogError(mapEx, "Error mapping user {UserId} to ProfileView", u.Id);
-                        throw;
+                        return null;
                     }
-                }
+                }))).Where(p => p != null).Cast<ProfileView>().ToList();
 
                 var response = new GetFollowsResponse
                 {
-                    Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId),
+                    Subject = await MapUserToProfileViewDetailed(subjectUser, viewerId, resolveRemotePinnedPost: false),
                     Follows = mappedFollows,
                     Cursor = nextCursor
                 };
 
-                return Ok(response);
+                var json = JsonSerializer.Serialize(response);
+                await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                });
+
+                return Content(json, "application/json");
             }
             catch (Exception ex)
             {
@@ -1925,7 +1963,7 @@ namespace BSkyClone.Controllers
             }
         }
 
-        private async Task<ProfileViewDetailed> MapUserToProfileViewDetailed(User user, Guid? viewerId = null)
+        private async Task<ProfileViewDetailed> MapUserToProfileViewDetailed(User user, Guid? viewerId = null, bool resolveRemotePinnedPost = true)
         {
             var profile = new ProfileViewDetailed
             {
@@ -1958,7 +1996,7 @@ namespace BSkyClone.Controllers
                 profile.Viewer.Blocking = block?.Uri;
             }
 
-            if (!string.IsNullOrEmpty(user.PinnedPostUri))
+            if (!string.IsNullOrEmpty(user.PinnedPostUri) && resolveRemotePinnedPost)
             {
                 try
                 {
