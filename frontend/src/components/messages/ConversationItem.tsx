@@ -103,10 +103,10 @@ const ConversationItem: React.FC<ConversationItemProps> = ({
             <div className="flex flex-row items-center gap-3 px-3 py-3">
                 {/* Avatar */}
                 <div className="flex-shrink-0 relative">
-                    {isGroup && otherParticipants.length >= 2 ? (
+                    {isGroup ? (
                         <GroupAvatar
-                            users={otherParticipants}
-                            size="sm"
+                            users={conversation.participants}
+                            size="md"
                         />
                     ) : (
                         <UserHoverCard user={otherParticipant}>

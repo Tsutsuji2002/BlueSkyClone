@@ -40,15 +40,12 @@ const InvitePreviewCard: React.FC<InvitePreviewCardProps> = ({
     return (
         <div className="w-full bg-white dark:bg-dark-surface border border-[#A5B2C7] rounded-[16px] overflow-hidden p-4 flex flex-col gap-[16px] shadow-sm relative">
             <div className="flex flex-row gap-[12px] items-center">
-                {/* Group Avatar with 3 visible in preview as per sample */}
-                <div className="flex-shrink-0 p-[2px] w-[56px] h-[56px]">
-                    <div className="transform scale-[0.466667] origin-top-left -mt-[2px] -ml-[2px]">
-                        <GroupAvatar 
-                            users={participants} 
-                            size="md" 
-                            maxVisible={3}
-                        />
-                    </div>
+                {/* Group Avatar */}
+                <div className="flex-shrink-0 w-[52px] h-[52px] flex items-center justify-center">
+                    <GroupAvatar 
+                        users={participants} 
+                        size={52} 
+                    />
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col gap-[2px]">

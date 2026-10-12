@@ -258,9 +258,8 @@ const GroupChatSettingsPanel: React.FC<GroupChatSettingsPanelProps> = ({
                         {/* Group Avatar */}
                         <div className="mb-4">
                             <GroupAvatar 
-                                users={otherParticipants}
+                                users={conversation.participants}
                                 size="xl"
-                                maxVisible={2}
                             />
                         </div>
 

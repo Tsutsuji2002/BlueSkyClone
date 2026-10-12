@@ -667,9 +667,9 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                         <button onClick={() => navigate('/messages')} className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full transition-colors">
                             <FiArrowLeft size={20} className="text-gray-600 dark:text-dark-text" />
                         </button>
-                        {isGroup && otherParticipants.length >= 2 ? (
+                        {isGroup ? (
                             <GroupAvatar 
-                                users={otherParticipants}
+                                users={conversation?.participants || otherParticipants}
                                 size="md"
                             />
                         ) : (
@@ -767,7 +767,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
                                 <>
                                     <div className="mb-6">
                                         <GroupAvatar 
-                                            users={otherParticipants}
+                                            users={conversation?.participants || otherParticipants}
                                             size="xl"
                                         />
                                     </div>
