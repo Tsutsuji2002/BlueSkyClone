@@ -29,7 +29,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
     const location = useLocation();
     const isMessagesPage = location.pathname.startsWith('/messages');
     const isExplorePage = location.pathname === '/explore';
+    const isStarterPackPage = location.pathname.startsWith('/starter-pack') && !location.pathname.startsWith('/starter-pack/create');
     const { isAuthenticated, isLoading } = useAppSelector((state: RootState) => state.auth);
+    const isGuestStarterPack = !isAuthenticated && isStarterPackPage;
 
     // [OPTIMIZATION] Muted words are now hydrated via Handshake on startup.
     // We only fetch here as a fallback if the list hasn't been initialized yet.
@@ -43,27 +45,30 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
     return (
         <div className="min-h-screen bg-white dark:bg-black">
             {/* Mobile Top Bar */}
-            {!hideTopBar && <TopBar />}
+            {!hideTopBar && !isGuestStarterPack && <TopBar />}
 
             <div className="flex justify-center min-h-screen">
                 <div className={cn(
                     "flex w-full justify-center px-2 sm:px-4 transition-all duration-300",
-                    isMessagesPage ? "max-w-[1120px] lg:gap-x-0" : "max-w-[1260px] lg:gap-x-4"
+                    isGuestStarterPack ? "max-w-[600px]" : (isMessagesPage ? "max-w-[1120px] lg:gap-x-0" : "max-w-[1260px] lg:gap-x-4")
                 )}>
                     {/* Left Sidebar - Desktop only */}
-                    <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[245px]"))}>
-                        {isAuthenticated ? (
-                            <Sidebar />
-                        ) : (
-                            // Only show guest sidebar if NOT loading
-                            !isLoading && <GuestSidebar />
-                        )}
-                    </div>
+                    {!isGuestStarterPack && (
+                        <div className={cn("hidden lg:block flex-shrink-0 transition-all duration-300", (isAuthenticated && isMessagesPage) ? "w-[72px]" : (isAuthenticated ? "w-[240px]" : "w-[245px]"))}>
+                            {isAuthenticated ? (
+                                <Sidebar />
+                            ) : (
+                                // Only show guest sidebar if NOT loading
+                                !isLoading && <GuestSidebar />
+                            )}
+                        </div>
+                    )}
 
                     {/* Main Content */}
                     <main className={cn(
                         "w-full min-w-0 lg:pb-0 self-start bg-white dark:bg-black min-h-screen",
-                        !isMessagesPage && "max-w-[600px] border-x border-[#DCE2EA] dark:border-[#232E3E]",
+                        !isMessagesPage && !isGuestStarterPack && "max-w-[600px] border-x border-[#DCE2EA] dark:border-[#232E3E]",
+                        isGuestStarterPack && "max-w-[600px] mx-auto border-x-0",
                         hideBottomNav ? "pb-0" : "pb-16"
                     )}>
                         {children || (
@@ -74,7 +79,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     </main>
 
                     {/* Right Sidebar - Desktop only */}
-                    {!isMessagesPage && (
+                    {!isMessagesPage && !isGuestStarterPack && (
                         <div className="hidden xl:block w-[330px] flex-shrink-0">
                             <RightSidebar />
                         </div>
@@ -91,7 +96,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children, hideTopBar = false, h
                     <MobileCreateButton />
                 </>
             ) : (
-                !isLoading && <GuestBottomBanner />
+                !isGuestStarterPack && !isLoading && <GuestBottomBanner />
             )}
 
             {/* Mobile Navigation Sidebar */}

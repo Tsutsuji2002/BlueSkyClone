@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams, Link } from 'react-router-dom';
 import { useGetStarterPackQuery, useFollowAllMembersMutation, useLazyGetListFeedQuery, useLazyGetListMembersQuery } from '../redux/api/starterPackApi';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
 
@@ -40,21 +40,22 @@ const STREET_PHOTOGRAPHERS_MEMBERS = [
 ];
 
 const COMEDY_MEMBERS_FULL: any[] = [
+    { subject: { did: 'did:plc:a4pqq234yw7fqbddawjo7y35', handle: 'theonion.com', displayName: 'The Onion', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:a4pqq234yw7fqbddawjo7y35/bafkreiajdz4ktkjv5jrnye7sotgz6g5xarts6yu6ypbhninxqnvwoiwsfi', isVerified: true, description: 'America’s Finest News Source. A @globaltetrahedron.bsky.social subsidiary. \n\nGet the paper delivered to your door: membership.theonion.com\n\nJoin The Onion Newsletter: theonion.com/newsletters/' } },
+    { subject: { did: 'did:plc:4z7le4gy5xiioq2l7ptdhps7', handle: 'thebeaverton.com', displayName: 'The Beaverton', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:4z7le4gy5xiioq2l7ptdhps7/bafkreig3k7dbw55ug6xz2i6i4byilqw6dxvucckdypkce4fdnau45ooosa', isVerified: true, description: 'North America’s Trusted Source Of News\nPatreon: www.patreon.com/thebeaverton\nMerch: the-beaverton.myshopify.com' } },
+    { subject: { did: 'did:plc:wf24ok2liiyzb633fe34dsel', handle: 'mcsweeneys.net', displayName: "McSweeney's", avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:wf24ok2liiyzb633fe34dsel/bafkreifaey7j5ot7iiy5ot4zewynavbmzg3bepe5dyofvpcvnlbie462lm', isVerified: true, description: "The official Bluesky feed of McSweeney's Quarterly Concern, McSweeney's Internet Tendency, & McSweeney's Books.\n." } },
+    { subject: { did: 'did:plc:o2hhvhvc5pamaamb3hogte7j', handle: 'reductress.bsky.social', displayName: 'Reductress', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:o2hhvhvc5pamaamb3hogte7j/bafkreiawkk55kdyo34gcnztwz2zi63wx6icma2ykw4unwrcwpevwhzpuf4', description: "The first and only satirical women's magazine. Constantly moving to a new social platform." } },
+    { subject: { did: 'did:plc:l35pvajgwmf764yoqqwrjrqc', handle: 'clareblackwood.bsky.social', displayName: 'Clare Blackwood', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:l35pvajgwmf764yoqqwrjrqc/bafkreictxtlkycy3cdx2oukujqdlquhbak6qnlunzbeu3coakofnhfgeje', isVerified: true, description: "Actor/comedian/writer in Toronto. Words in The Beaverton, CBC Comedy, The Toronto Star, McSweeney’s, etc. Pierre Poilievre's personal assistant Mandy. she/her clareblackwood@gmail.com www.patreon.com/cw/ClareBlac..." } },
+    { subject: { did: 'did:plc:ets5seu5tttgxxjogbanljnw', handle: 'thehardtimesnews.bsky.social', displayName: 'The Hard Times', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:ets5seu5tttgxxjogbanljnw/bafkreiechta5cdkkieq44iyafthn32wsqbd342tjsznckf3k3xzlrsb7ee', description: 'Punk news coming your way \n\nGo read the full articles: www.thehardtimes.net' } },
+    { subject: { did: 'did:plc:hwyixwmflqnsia2tuzb3chis', handle: 'clickhole.bsky.social', displayName: 'ClickHole', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:hwyixwmflqnsia2tuzb3chis/bafkreibuv3z3ii4jfdhq4clflaqduvmk7xep3kexr2qyjsw5hf7qmpxgoa', description: 'Because all content deserves to go viral.' } },
+    { subject: { did: 'did:plc:mn2gv6fibkftdpqzav2kc6lc', handle: 'thatwriterguy.com', displayName: 'Mike L Tilford 📚 😺', avatar: 'https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:mn2gv6fibkftdpqzav2kc6lc/bafkreihgmgzkyo3az2ol76hs2rtyo7w2ucpvywershou7ulry4kye64ez4', description: 'NYT Worstselling Author\nSFF📚, Satire, Comedy, Absurdist\nDummest Person in the Room\nwww.thatwriterguy.com\nwww.amazon.com/author/m.l.t...' } },
     { subject: { did: 's1', handle: 'scottstein.bsky.social', displayName: 'Scott Stein', avatar: 'https://i.pravatar.cc/80?img=68', description: 'CNET Editor-at-Large. VR, AR, wearable tech, gaming, comics, sci-fi, comedy.' } },
     { subject: { did: 's2', handle: 'tomtomorrow.bsky.social', displayName: 'Your Internet Friend Tom Tomorrow', avatar: 'https://i.pravatar.cc/80?img=11', description: 'Creator of the weekly cartoon This Modern World. Two-time Pulitzer finalist.' } },
     { subject: { did: 's3', handle: 'ditzkoff.bsky.social', displayName: 'Dave Itzkoff', avatar: 'https://i.pravatar.cc/80?img=65', description: 'Culture reporter @ nytimes. Author of Robin, Mad as Hell, etc.' } },
-    { subject: { did: 's4', handle: 'reductress.bsky.social', displayName: 'Reductress', avatar: 'https://i.pravatar.cc/80?img=45', description: 'The first and only satirical women’s magazine.' } },
     { subject: { did: 's5', handle: 'scalzi.com', displayName: 'John Scalzi', avatar: 'https://i.pravatar.cc/80?img=12', description: 'Writer of books (Old Man’s War, Redshirts, Kaiju Preservation Society, Starter Villain).' } },
-    { subject: { did: 's6', handle: 'clareblackwood.bsky.social', displayName: 'Clare Blackwood', avatar: 'https://i.pravatar.cc/80?img=5', description: 'Writer, actor, comedian, voice person. Toronto. https://www.patreon.com/cw/ClareBlackwoodComedy' } },
-    { subject: { did: 's7', handle: 'thehardtimesnews.bsky.social', displayName: 'The Hard Times', avatar: 'https://i.pravatar.cc/80?img=70', description: 'Punk news coming your way. Go read the full articles: www.thehardtimes.net' } },
-    { subject: { did: 's8', handle: 'clickhole.bsky.social', displayName: 'ClickHole', avatar: 'https://i.pravatar.cc/80?img=61', description: 'Because all content deserves to go viral.' } },
-    { subject: { did: 's9', handle: 'thatwriterguy.com', displayName: 'Mike L Tilford', avatar: 'https://i.pravatar.cc/80?img=44', description: 'NYT Worstselling Author SFF, Satire, Comedy, Absurdist Dummest Person in the Room.' } },
     { subject: { did: 's10', handle: 'panic.gay', displayName: 'Butt teeth! Butt teeth! Butt teeth!', avatar: 'https://i.pravatar.cc/80?img=38', description: 'Irl: Edutainment & sketch comedy. Heres Shitposts. 18+ There’s a species of fish that lives in the puttholes of sea cucumbers.' } },
     { subject: { did: 's11', handle: 'robkutner.bsky.social', displayName: 'Rob Kutner', avatar: 'https://i.pravatar.cc/80?img=25', description: 'Emmy-winning comedy/animation writer (Daily Show, CONAN, Teen Titans Go!), NYT-bestselling author.' } },
     { subject: { did: 's12', handle: 'rejectedjokes.bsky.social', displayName: 'Ben Schwartz', avatar: 'https://i.pravatar.cc/80?img=28', description: 'RejectedJokes.com' } },
     { subject: { did: 's13', handle: 'takomatorch.bsky.social', displayName: 'The Takoma Torch 🪵 🔥', avatar: 'https://i.pravatar.cc/80?img=32', description: 'Takoma Park’s ONLY Humor Source. Home of the Nimbee and Takoma Man. www.takomatorch.com' } },
-    { subject: { did: 's14', handle: 'theonion.com', displayName: 'The Onion', avatar: 'https://i.pravatar.cc/80?img=60', description: 'America’s Finest News Source.' } },
-    { subject: { did: 's15', handle: 'reductress.com', displayName: 'Reductress', avatar: 'https://i.pravatar.cc/80?img=45', description: 'The first and only satirical women’s magazine.' } },
     { subject: { did: 's16', handle: 'mcsweeneys.bsky.social', displayName: 'McSweeney’s Internet Tendency', avatar: 'https://i.pravatar.cc/80?img=52', description: 'Daily humor and satire since 1998.' } },
     { subject: { did: 's17', handle: 'satiristdaily.bsky.social', displayName: 'The Daily Satirist', avatar: 'https://i.pravatar.cc/80?img=19', description: 'Satire, political comedy, and commentary.' } },
     { subject: { did: 's18', handle: 'conanobrien.bsky.social', displayName: 'Conan O’Brien', avatar: 'https://i.pravatar.cc/80?img=21', description: 'Team Coco. Host of Conan O’Brien Needs a Friend.' } },
@@ -611,6 +612,7 @@ export const StarterPackDetailPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
+    const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
 
     // Legacy URL Redirection
     useEffect(() => {
@@ -927,6 +929,145 @@ export const StarterPackDetailPage: React.FC = () => {
             dispatch(showToast({ message: err?.data?.message || 'Failed to follow members', type: 'error' }));
         }
     };
+
+    if (!isAuthenticated) {
+        const previewList = (liveMembers.length > 0 ? liveMembers : (members.length > 0 ? members : COMEDY_MEMBERS_FULL)).slice(0, 8);
+        const totalCount = starterPack?.list?.listItemCount || (liveMembers.length > 0 ? liveMembers.length : (members.length > 0 ? members.length : COMEDY_MEMBERS_FULL.length)) || 80;
+        const remainingCount = Math.max(0, totalCount - previewList.length);
+
+        return (
+            <div className="w-full max-w-[600px] mx-auto min-h-screen bg-white dark:bg-black pb-16">
+                {/* Blue Gradient Banner Card matching Pic 2 & Bluesky reference */}
+                <div className="w-full flex flex-col items-center gap-2 p-[24px_16px] mt-6 rounded-[12px] bg-gradient-to-b from-[#0A7AFF] to-[#59B9FF] text-white select-none">
+                    <div className="flex flex-row gap-3 pb-2">
+                        <svg fill="none" viewBox="0 0 64 57" width="76" style={{ width: '76px', height: '67.6875px' }}>
+                            <path fill="white" d="M13.873 3.805C21.21 9.332 29.103 20.537 32 26.55v15.882c0-.338-.13.044-.41.867-1.512 4.456-7.418 21.847-20.923 7.944-7.111-7.32-3.819-14.64 9.125-16.85-7.405 1.264-15.73-.825-18.014-9.015C1.12 23.022 0 8.51 0 6.55 0-3.268 8.579-.182 13.873 3.805ZM50.127 3.805C42.79 9.332 34.897 20.537 32 26.55v15.882c0-.338.13.044.41.867 1.512 4.456 7.418 21.847 20.923 7.944 7.111-7.32 3.819-14.64-9.125-16.85 7.405 1.264 15.73-.825 18.014-9.015C62.88 23.022 64 8.51 64 6.55c0-9.818-8.578-6.732-13.873-2.745Z" />
+                        </svg>
+                    </div>
+                    <div className="text-[30px] leading-[35px] font-semibold text-center text-white">
+                        {record?.name || 'Starter Pack'}
+                    </div>
+                    <div className="text-[15px] leading-[20px] font-semibold text-center text-white">
+                        Starter Pack by @{creator?.handle || 'unknown'}
+                    </div>
+                </div>
+
+                {/* Content Container */}
+                <div className="flex flex-col gap-6 my-6 mx-4">
+                    {/* Description */}
+                    {record?.description && (
+                        <div className="text-[15px] leading-[20px] text-black dark:text-white font-normal whitespace-pre-line">
+                            {record.description}
+                        </div>
+                    )}
+
+                    {/* Join CTA Button & Joined This Week Stats */}
+                    <div className="flex flex-col gap-2">
+                        <button
+                            onClick={() => navigate('/signup')}
+                            aria-label="Join Bluesky"
+                            type="button"
+                            className="w-full flex flex-row items-center justify-center bg-[#006AFF] hover:bg-[#005cd6] active:bg-[#004bb3] transition-colors rounded-full py-[12px] px-[24px]"
+                        >
+                            <span className="text-[16.9px] leading-[22px] text-white font-medium text-center">
+                                Join Bluesky
+                            </span>
+                        </button>
+
+                        <div className="flex flex-row items-center gap-1">
+                            <svg fill="none" width="16" viewBox="0 0 24 24" height="16" className="text-[#405168] dark:text-[#8798B0]">
+                                <path fill="#405168" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M15 7a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V9.414L14.414 15a2 2 0 0 1-2.828 0L9 12.414l-5.293 5.293a1 1 0 0 1-1.414-1.414L7.586 11a2 2 0 0 1 2.828 0L13 13.586 18.586 8H16a1 1 0 0 1-1-1Z" />
+                            </svg>
+                            <span className="text-[13.1px] leading-[17px] font-semibold text-[#405168] dark:text-[#8798B0]">
+                                560K joined this week
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* People List Section */}
+                    <div className="flex flex-col gap-7">
+                        <div className="flex flex-col gap-3">
+                            <div className="text-[16.9px] leading-[22px] font-bold text-black dark:text-white">
+                                {remainingCount > 0
+                                    ? `You'll follow these people and ${remainingCount} others`
+                                    : "You'll follow these people"}
+                            </div>
+
+                            <div className="border border-[#DCE2EA] dark:border-[#232E3E] rounded-[12px] overflow-hidden">
+                                {previewList.map((item: any, idx: number) => {
+                                    const subject = item.subject || item;
+                                    const avatarSrc = subject.avatar || subject.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(subject.displayName || subject.handle || 'user')}`;
+                                    const isVerified = subject.isVerified || subject.viewer?.verified || subject.associated?.labeler;
+
+                                    return (
+                                        <div
+                                            key={subject.did || subject.handle || idx}
+                                            className={`p-[16px_12px] flex flex-col gap-1 ${
+                                                idx > 0 ? 'border-t border-[#DCE2EA] dark:border-[#232E3E]' : ''
+                                            }`}
+                                        >
+                                            <div
+                                                onClick={() => navigate(`/profile/${subject.handle || subject.did}`)}
+                                                className="cursor-pointer group flex flex-col w-full gap-1"
+                                            >
+                                                <div className="flex flex-row items-center gap-2">
+                                                    <div className="w-10 h-10 relative flex-shrink-0">
+                                                        <img
+                                                            src={avatarSrc}
+                                                            alt={subject.displayName || subject.handle}
+                                                            className="w-10 h-10 rounded-[20px] object-cover bg-gray-100"
+                                                        />
+                                                        <div className="absolute inset-0 rounded-[20px] border border-[#DCE2EA] dark:border-[#232E3E] pointer-events-none opacity-60" />
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0 flex flex-col">
+                                                        <div className="flex flex-row items-center gap-1 max-w-full">
+                                                            <span className="text-[15px] font-semibold leading-[20px] text-black dark:text-white truncate group-hover:underline">
+                                                                {subject.displayName || subject.handle}
+                                                            </span>
+                                                            {isVerified && (
+                                                                <svg fill="none" width="14" viewBox="0 0 24 24" height="14" className="flex-shrink-0">
+                                                                    <circle cx="12" cy="12" r="11.5" fill="#006AFF" />
+                                                                    <path fill="#fff" fillRule="evenodd" clipRule="evenodd" d="M17.659 8.175a1.361 1.361 0 0 1 0 1.925l-6.224 6.223a1.361 1.361 0 0 1-1.925 0L6.4 13.212a1.361 1.361 0 0 1 1.925-1.925l2.149 2.148 5.26-5.26a1.361 1.361 0 0 1 1.925 0Z" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[13.1px] leading-[17px] text-[#405168] dark:text-[#8798B0] truncate">
+                                                            @{subject.handle}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {subject.description && (
+                                                    <div className="pt-1">
+                                                        <p className="text-[13.1px] leading-[17px] text-black dark:text-white line-clamp-3 font-normal whitespace-pre-line">
+                                                            {subject.description}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Secondary CTA Button */}
+                        <button
+                            onClick={() => navigate('/signup')}
+                            aria-label="Create an account without using this Starter Pack"
+                            type="button"
+                            className="w-full flex flex-row items-center justify-center bg-[#EFF2F6] dark:bg-[#1E293B] hover:bg-[#E2E8F0] dark:hover:bg-[#283548] active:bg-[#DCE2EA] transition-colors rounded-full p-[16px_24px]"
+                        >
+                            <span className="text-[15px] leading-[20px] text-[#405168] dark:text-[#DCE2EA] font-medium text-center">
+                                Create an account without using this Starter Pack
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-[600px] w-full mx-auto min-h-screen bg-white dark:bg-dark-bg border-x border-[#dce2ea] dark:border-dark-border">
