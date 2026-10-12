@@ -16,7 +16,7 @@ import { openMobileMenu } from '../redux/slices/modalsSlice';
 import Button from '../components/common/Button';
 import ButterflyLogo from '../components/common/ButterflyLogo';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { feedActionKey } from '../utils/feedKeys';
+import { feedActionKey, getFeedRoute } from '../utils/feedKeys';
 import { getDynamicBatchSize } from '../utils/pagination';
 import { useScrollRestoration } from '../hooks/useScrollRestoration';
 
@@ -420,7 +420,7 @@ const HomePage: React.FC = () => {
                                 } else if (tab.id === 'feeds-discovery') {
                                     targetHref = '/feeds';
                                 } else if (tab.id !== 'discover' && tab.id !== 'following') {
-                                    targetHref = `/feeds/${encodeURIComponent(tab.id)}`;
+                                    targetHref = getFeedRoute(tab.id);
                                 }
 
                                 const isActive = activeTab === tab.id;

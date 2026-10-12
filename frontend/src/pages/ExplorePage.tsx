@@ -24,7 +24,7 @@ import SuggestedUsersForExplore from '../components/explore/SuggestedUsersForExp
 import api from '../utils/api';
 import InterestsEditor from '../components/feed/InterestsEditor';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { feedActionKey } from '../utils/feedKeys';
+import { feedActionKey, getFeedRoute } from '../utils/feedKeys';
 import { useGetSuggestedStarterPacksQuery } from '../redux/api/starterPackApi';
 
 // Deterministic avatar colour from handle string
@@ -329,7 +329,7 @@ const ExploreFeedBlock: React.FC<{ feed: typeof FEATURED_EXPLORE_FEEDS[0] }> = (
         <div className="flex flex-col border-t border-[#dce2ea] dark:border-dark-border mt-2">
             {/* Header Card */}
             <div 
-                onClick={() => navigate(`/feeds/${encodeURIComponent(feed.uri)}`)}
+                onClick={() => navigate(getFeedRoute(feed.uri))}
                 className="flex flex-row items-center justify-between px-4 py-3 border-b border-[#dce2ea] dark:border-dark-border bg-white dark:bg-dark-bg cursor-pointer hover:bg-gray-50/50 dark:hover:bg-dark-surface/50 transition-colors"
             >
                 <div className="flex flex-row items-center gap-3 min-w-0">
@@ -513,8 +513,7 @@ const ExplorePage: React.FC = () => {
 
     const handleResultClick = (result: any) => {
         if (result._type === 'feed') {
-            const fk = feedActionKey(result as Feed);
-            navigate(`/feeds/${encodeURIComponent(fk)}`);
+            navigate(getFeedRoute(result));
         } else {
             navigate(`/profile/${result.handle}`);
         }
@@ -911,7 +910,7 @@ const ExplorePage: React.FC = () => {
                                                         return;
                                                     }
                                                     if (rawLink.startsWith('at://')) {
-                                                        navigate(`/feeds/${encodeURIComponent(rawLink)}`);
+                                                        navigate(getFeedRoute(rawLink));
                                                         return;
                                                     }
                                                     if (rawLink.startsWith('http://') || rawLink.startsWith('https://')) {
@@ -1031,7 +1030,7 @@ const ExplorePage: React.FC = () => {
                                             {displayedFeeds.map((feed: any) => (
                                                 <div key={feed.uri || feed.name} className="border-t border-[#dce2ea] dark:border-dark-border p-4">
                                                     <div
-                                                        onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                                        onClick={() => navigate(getFeedRoute(feed))}
                                                         className="flex flex-col items-center justify-start cursor-pointer group"
                                                     >
                                                         <div className="w-full flex flex-col gap-2">

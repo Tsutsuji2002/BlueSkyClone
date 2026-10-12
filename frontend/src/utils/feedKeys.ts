@@ -57,3 +57,54 @@ export function feedsMatchRouteKey(feed: FeedKeyInput, routeKey: string): boolea
     return (feed.id || '').toLowerCase() === normalizedRoute || (!!feed.uri && feed.uri.toLowerCase() === normalizedRoute);
 }
 
+/**
+ * Converts a feed URI or feed object to Bluesky's standard canonical web URL path:
+ * - at://did:plc:xxx/app.bsky.feed.generator/yyy -> /profile/did:plc:xxx/feed/yyy
+ * - For local DB feeds / special feeds: /feeds/<id>
+ */
+export function getFeedRoute(feedOrUri: FeedKeyInput | string): string {
+    const rawUri = typeof feedOrUri === 'string' ? feedOrUri : (feedOrUri.uri || feedOrUri.id || '');
+    if (!rawUri) return '/feeds';
+
+    let trimmed = rawUri.trim();
+    if (trimmed.startsWith('b64:')) {
+        try {
+            trimmed = atob(trimmed.slice(4));
+        } catch {
+            // ignore
+        }
+    }
+    if (trimmed.includes('%')) {
+        try {
+            trimmed = decodeURIComponent(trimmed);
+        } catch {
+            // ignore
+        }
+    }
+
+    const lower = trimmed.toLowerCase();
+    if (lower === 'following' || lower === 'discover') {
+        return `/feeds/${lower}`;
+    }
+
+    if (trimmed.startsWith('at://')) {
+        const parts = trimmed.split('/');
+        // parts: ['at:', '', 'did:plc:...', 'app.bsky.feed.generator', 'aaajezldzb7nw']
+        if (parts.length >= 5 && parts[3] === 'app.bsky.feed.generator') {
+            const creator = parts[2];
+            const rkey = parts[4];
+            return `/profile/${creator}/feed/${rkey}`;
+        }
+    }
+
+    const actionKey = typeof feedOrUri === 'object' ? feedActionKey(feedOrUri) : trimmed;
+    if (actionKey.startsWith('at://')) {
+        const parts = actionKey.split('/');
+        if (parts.length >= 5 && parts[3] === 'app.bsky.feed.generator') {
+            return `/profile/${parts[2]}/feed/${parts[4]}`;
+        }
+    }
+
+    return `/feeds/${encodeURIComponent(actionKey)}`;
+}
+

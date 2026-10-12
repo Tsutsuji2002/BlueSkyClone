@@ -24,7 +24,7 @@ import {
 } from '../redux/slices/feedsSlice';
 import { RootState } from '../redux/store';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { feedActionKey } from '../utils/feedKeys';
+import { feedActionKey, getFeedRoute } from '../utils/feedKeys';
 
 const FeedsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -276,7 +276,7 @@ const FeedsPage: React.FC = () => {
                                         return (
                                             <div
                                                 key={fk}
-                                                onClick={() => !isSpecial && navigate(`/feeds/${encodeURIComponent(fk)}`)}
+                                                onClick={() => !isSpecial && navigate(getFeedRoute(feed))}
                                                 className={cn(
                                                     "flex items-center justify-between px-6 py-2.5 hover:bg-gray-50 dark:hover:bg-dark-surface transition-all cursor-pointer group",
                                                     isSpecial ? "cursor-default" : "cursor-pointer"
@@ -370,7 +370,7 @@ const FeedsPage: React.FC = () => {
                                 {searchResults.map((feed: Feed) => (
                                     <div
                                         key={feedActionKey(feed)}
-                                        onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                        onClick={() => navigate(getFeedRoute(feed))}
                                         className="p-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer group"
                                     >
                                         <div className="flex items-center justify-between gap-3 mb-2">
@@ -467,7 +467,7 @@ const FeedsPage: React.FC = () => {
                         {recommendedFeeds.map((feed: Feed) => (
                             <div
                                 key={feedActionKey(feed)}
-                                onClick={() => navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`)}
+                                onClick={() => navigate(getFeedRoute(feed))}
                                 className="px-4 py-4 border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-surface/30 transition-colors cursor-pointer"
                             >
                                 <div className="flex items-start gap-3">

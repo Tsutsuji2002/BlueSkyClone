@@ -13,7 +13,7 @@ import { fetchFeedPosts, fetchSubscribedFeeds, fetchFeedInfo, saveFeed, unsaveFe
 import { openAuthWall } from '../redux/slices/modalsSlice';
 import { RootState } from '../redux/store';
 import { Feed as FeedType } from '../types';
-import { feedsMatchRouteKey, feedActionKey } from '../utils/feedKeys';
+import { feedsMatchRouteKey, feedActionKey, getFeedRoute } from '../utils/feedKeys';
 
 const FeedDetailPage: React.FC = () => {
     const { feedId, handle, tid } = useParams<{ feedId?: string; handle?: string; tid?: string }>();
@@ -26,6 +26,16 @@ const FeedDetailPage: React.FC = () => {
     const { subscribedFeeds, feedPosts, isLoading, feedLoading, feedHasMore, feedCursors, recommendedFeeds, searchResults, feeds, actionLoading: feeds_actionLoading, infoLoading, infoError } = useAppSelector((state: RootState) => state.feeds);
 
     const take = 20;
+
+    // Canonical URL redirection: if visited via legacy /feeds/at%3A..., rewrite address bar to /profile/.../feed/...
+    useEffect(() => {
+        if (feedId) {
+            const canonicalRoute = getFeedRoute(feedId);
+            if (canonicalRoute && canonicalRoute.startsWith('/profile/')) {
+                navigate(canonicalRoute, { replace: true });
+            }
+        }
+    }, [feedId, navigate]);
 
     const routeKey = id || '';
     const feed = subscribedFeeds.find((f: FeedType) => feedsMatchRouteKey(f, routeKey)) ||

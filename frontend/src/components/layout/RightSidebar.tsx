@@ -12,7 +12,7 @@ import { BsPatchCheckFill, BsSoundwave } from 'react-icons/bs';
 
 import TrendingSection from './TrendingSection';
 import OnboardingCard from './OnboardingCard';
-import { feedActionKey } from '../../utils/feedKeys';
+import { feedActionKey, getFeedRoute } from '../../utils/feedKeys';
 import { cn } from '../../utils/classNames';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { fetchSubscribedFeeds } from '../../redux/slices/feedsSlice';
@@ -103,7 +103,7 @@ const RightSidebar: React.FC = () => {
     // Memoized result click handler
     const handleResultClick = useCallback((result: any) => {
         if (result._type === 'feed') {
-            navigate(`/feeds/${result.id}`);
+            navigate(getFeedRoute(result));
         } else {
             navigate(`/profile/${result.handle}`);
         }
@@ -166,7 +166,7 @@ const RightSidebar: React.FC = () => {
         if (feedActionKey(feed) === 'following') {
             navigate('/');
         } else {
-            navigate(`/feeds/${encodeURIComponent(feedActionKey(feed))}`);
+            navigate(getFeedRoute(feed));
         }
     }, [navigate]);
 

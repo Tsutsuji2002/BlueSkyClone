@@ -97,12 +97,12 @@ export const formatPostDate = (date: string | Date, lang: string = 'en'): string
         if (diffInDays < 30) {
             return `${diffInWeeks}w`;
         }
-        const diffInMonths = Math.floor(diffInDays / 30.4375);
-        if (diffInMonths < 12) {
+        if (diffInDays < 365) {
+            const diffInMonths = Math.max(1, Math.floor(diffInDays / 30.4375));
             return `${diffInMonths}mo`;
         }
-        const diffInYears = Math.floor(diffInDays / 365.25);
-        return `${Math.max(1, diffInYears)}y`;
+        const diffInYears = Math.max(1, Math.floor(diffInDays / 365.25));
+        return `${diffInYears}y`;
     } catch (error) {
         return '';
     }

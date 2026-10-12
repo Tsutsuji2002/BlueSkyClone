@@ -9,6 +9,7 @@ import { fetchTrending } from '../../redux/slices/trendingSlice';
 import { useUpdateSettingsMutation } from '../../redux/api/authApi';
 import ConfirmModal from '../common/ConfirmModal';
 import { formatCount } from '../../utils/formatNumber';
+import { getFeedRoute } from '../../utils/feedKeys';
 
 import { TrendingTopic } from '../../types';
 
@@ -94,7 +95,7 @@ const TrendingSection: React.FC = () => {
                                         return;
                                     }
                                     if (rawLink.startsWith('at://')) {
-                                        navigate(`/feeds/${encodeURIComponent(rawLink)}`);
+                                        navigate(getFeedRoute(rawLink));
                                         return;
                                     }
                                     if (rawLink.startsWith('http://') || rawLink.startsWith('https://')) {
