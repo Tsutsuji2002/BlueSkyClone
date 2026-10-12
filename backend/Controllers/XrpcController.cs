@@ -1792,18 +1792,18 @@ namespace BSkyClone.Controllers
                 if (subjectUser == null) (subjectUser, _) = await _userService.ResolveRemoteProfileAsync(actor, viewerId: viewerId);
                 if (subjectUser == null) return NotFound(new { error = "AccountNotFound" });
 
-                var mappedFollowers = (await Task.WhenAll(users.Select(async u =>
+                var mappedFollowers = new List<ProfileView>();
+                foreach (var u in users)
                 {
                     try
                     {
-                        return await MapUserToProfileView(u, viewerId);
+                        mappedFollowers.Add(await MapUserToProfileView(u, viewerId));
                     }
                     catch (Exception mapEx)
                     {
                         _logger.LogError(mapEx, "Error mapping follower user {UserId} to ProfileView", u.Id);
-                        return null;
                     }
-                }))).Where(p => p != null).Cast<ProfileView>().ToList();
+                }
 
                 var response = new GetFollowersResponse
                 {
@@ -1862,18 +1862,18 @@ namespace BSkyClone.Controllers
                     return NotFound(new { error = "AccountNotFound" });
                 }
 
-                var mappedFollows = (await Task.WhenAll(users.Select(async u =>
+                var mappedFollows = new List<ProfileView>();
+                foreach (var u in users)
                 {
                     try
                     {
-                        return await MapUserToProfileView(u, viewerId);
+                        mappedFollows.Add(await MapUserToProfileView(u, viewerId));
                     }
                     catch (Exception mapEx)
                     {
                         _logger.LogError(mapEx, "Error mapping user {UserId} to ProfileView", u.Id);
-                        return null;
                     }
-                }))).Where(p => p != null).Cast<ProfileView>().ToList();
+                }
 
                 var response = new GetFollowsResponse
                 {

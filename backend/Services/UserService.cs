@@ -1375,9 +1375,13 @@ public class UserService : IUserService
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
                     .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
+                var cachedMap = cached.Users
+                    .Where(u => !string.IsNullOrEmpty(u.Did))
+                    .GroupBy(u => u.Did.ToLowerInvariant())
+                    .ToDictionary(g => g.Key, g => g.First());
                 var orderedUsers = cachedDids
                     .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
+                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()) ?? cachedMap.GetValueOrDefault(d.ToLowerInvariant()))
                     .Where(u => u != null)
                     .Cast<User>()
                     .ToList();
@@ -1483,9 +1487,13 @@ public class UserService : IUserService
                     .Where(u => !string.IsNullOrEmpty(u.Did))
                     .GroupBy(u => u.Did.ToLowerInvariant())
                     .ToDictionary(g => g.Key, g => g.OrderBy(u => u.CreatedAt).First());
+                var cachedMap = cached.Users
+                    .Where(u => !string.IsNullOrEmpty(u.Did))
+                    .GroupBy(u => u.Did.ToLowerInvariant())
+                    .ToDictionary(g => g.Key, g => g.First());
                 var orderedUsers = cachedDids
                     .Where(d => !string.IsNullOrEmpty(d))
-                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()))
+                    .Select(d => refreshedMap.GetValueOrDefault(d.ToLowerInvariant()) ?? cachedMap.GetValueOrDefault(d.ToLowerInvariant()))
                     .Where(u => u != null)
                     .Cast<User>()
                     .ToList();
