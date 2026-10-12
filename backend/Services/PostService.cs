@@ -7307,31 +7307,36 @@ public class PostService : IPostService
 
         var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
 
-        var rawLikes = await _unitOfWork.Likes.Query()
+        // Optimized SQL queries: target only relevant post IDs, TIDs, or URIs directly in the database
+        var likes = await _unitOfWork.Likes.Query()
             .AsNoTracking()
-            .Where(l => l.UserId == userId)
+            .Where(l => l.UserId == userId && (
+                (matchedIds.Count > 0 && matchedIds.Contains(l.PostId)) ||
+                (l.Tid != null && rkeys.Contains(l.Tid)) ||
+                (l.Post != null && l.Post.Uri != null && loweredUris.Contains(l.Post.Uri))
+            ))
             .Select(l => new { l.PostId, Uri = l.Post != null ? l.Post.Uri : null, Tid = l.Tid, LikeUri = l.Uri })
             .ToListAsync();
 
-        var rawReposts = await _unitOfWork.Reposts.Query()
+        var reposts = await _unitOfWork.Reposts.Query()
             .AsNoTracking()
-            .Where(r => r.UserId == userId)
+            .Where(r => r.UserId == userId && (
+                (matchedIds.Count > 0 && matchedIds.Contains(r.PostId)) ||
+                (r.Tid != null && rkeys.Contains(r.Tid)) ||
+                (r.Post != null && r.Post.Uri != null && loweredUris.Contains(r.Post.Uri))
+            ))
             .Select(r => new { r.PostId, Uri = r.Post != null ? r.Post.Uri : null, Tid = r.Tid, RepostUri = r.Uri })
             .ToListAsync();
 
-        var rawBookmarks = await _unitOfWork.Bookmarks.Query()
+        var bookmarks = await _unitOfWork.Bookmarks.Query()
             .AsNoTracking()
-            .Where(b => b.UserId == userId)
+            .Where(b => b.UserId == userId && (
+                (matchedIds.Count > 0 && matchedIds.Contains(b.PostId)) ||
+                (b.Tid != null && rkeys.Contains(b.Tid)) ||
+                (b.Post != null && b.Post.Uri != null && loweredUris.Contains(b.Post.Uri))
+            ))
             .Select(b => new { b.PostId, Uri = b.Post != null ? b.Post.Uri : null, Tid = b.Tid })
             .ToListAsync();
-
-        var loweredUrisSet = loweredUris.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var rkeysSet = rkeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var matchedIdsSet = matchedIds.ToHashSet();
-
-        var likes = rawLikes.Where(l => matchedIdsSet.Contains(l.PostId) || (l.Uri != null && loweredUrisSet.Contains(l.Uri.ToLowerInvariant())) || (l.Tid != null && rkeysSet.Contains(l.Tid.ToLowerInvariant()))).ToList();
-        var reposts = rawReposts.Where(r => matchedIdsSet.Contains(r.PostId) || (r.Uri != null && loweredUrisSet.Contains(r.Uri.ToLowerInvariant())) || (r.Tid != null && rkeysSet.Contains(r.Tid.ToLowerInvariant()))).ToList();
-        var bookmarks = rawBookmarks.Where(b => matchedIdsSet.Contains(b.PostId) || (b.Uri != null && loweredUrisSet.Contains(b.Uri.ToLowerInvariant())) || (b.Tid != null && rkeysSet.Contains(b.Tid.ToLowerInvariant()))).ToList();
 
         var likeByUri = likes
             .Where(x => !string.IsNullOrWhiteSpace(x.Uri))

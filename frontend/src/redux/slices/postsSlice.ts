@@ -3,7 +3,7 @@ import { PostsState, Post } from '../../types';
 import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
-import { fetchInteractionStatuses } from '../../utils/postHydrator';
+import { fetchInteractionStatuses, updateCachedInteractionStatus } from '../../utils/postHydrator';
 import { showToast } from './toastSlice';
 
 const initialState: PostsState = {
@@ -611,6 +611,7 @@ export const toggleLike = createAsyncThunk(
                 return rejectWithValue(`Failed to toggle like: ${errorData || response.statusText}`);
             }
             const data = await response.json();
+            updateCachedInteractionStatus(uri, { isLiked: data.isLiked, likeUri: data.likeUri });
             return { uri, isLiked: data.isLiked, likeUri: data.likeUri };
         } catch (error: any) {
             (dispatch as any)(showToast({ message: 'Failed to like post', type: 'error' }));
@@ -638,6 +639,7 @@ export const repostPost = createAsyncThunk(
                 return rejectWithValue('Failed to toggle repost');
             }
             const data = await response.json();
+            updateCachedInteractionStatus(uri, { isReposted: data.isReposted, repostUri: data.repostUri });
             return { uri, isReposted: data.isReposted, repostUri: data.repostUri };
         } catch (error: any) {
             (dispatch as any)(showToast({ message: 'Failed to repost', type: 'error' }));

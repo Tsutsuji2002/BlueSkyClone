@@ -52,13 +52,8 @@ const FeedDetailPage: React.FC = () => {
 
     useEffect(() => {
         if (routeKey) {
-            // fetchFeedPosts thunk condition handles the 60s TTL internally
-            dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take }) as any)
-                .then((result: any) => {
-                    if (result?.payload?.posts?.length) {
-                        dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
-                    }
-                });
+            // fetchFeedPosts thunk handles background interaction hydration internally
+            dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take }) as any);
         }
     }, [dispatch, routeKey, navType]);
 
@@ -68,12 +63,7 @@ const FeedDetailPage: React.FC = () => {
         if (!routeKey || isFeedLoading) return;
 
         const cursor = feedCursors[routeKey];
-        dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }) as any)
-            .then((result: any) => {
-                if (result?.payload?.posts?.length) {
-                    dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
-                }
-            });
+        dispatch(fetchFeedPosts({ feedId: routeKey, skip: posts.length, take, cursor }) as any);
     };
 
 
@@ -119,12 +109,7 @@ const FeedDetailPage: React.FC = () => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && routeKey) {
                 // fetchFeedPosts handles the TTL check internally
-                dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take, refresh: false }) as any)
-                    .then((result: any) => {
-                        if (result?.payload?.posts?.length) {
-                            dispatch(hydrateInteractionStatusForFeed({ feedId: result.payload.feedId, posts: result.payload.posts }) as any);
-                        }
-                    });
+                dispatch(fetchFeedPosts({ feedId: routeKey, skip: 0, take, refresh: false }) as any);
             }
         };
 
