@@ -29,6 +29,7 @@ const PostQuotesPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     const observerTarget = useRef<HTMLDivElement>(null);
+    const postUri = post?.uri;
     const rawHandle = post?.author?.handle || handle;
     const pageTitle = rawHandle ? `${t('post.post_by', 'Post by')} @${rawHandle.replace(/^@/, '')}` : t('post.title');
     useDocumentTitle(pageTitle);
