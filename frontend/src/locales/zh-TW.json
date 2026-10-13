@@ -23,7 +23,8 @@
         "admin": "管理員",
         "search": "搜尋",
         "go_profile": "查看個人資料",
-        "videos": "Videos"
+        "videos": "Videos",
+        "starterpacks": "新手礼包"
     },
     "accessibility": {
         "title": "Accessibility",
@@ -209,7 +210,12 @@
         "remove_account": "Remove account",
         "account_removed": "Account removed",
         "switched_to": "Switched to @{{handle}}",
-        "switch_failed": "Failed to switch account"
+        "switch_failed": "Failed to switch account",
+        "token_required": "需要验证令牌",
+        "enter_email_token": "输入发送到您当前邮箱的令牌",
+        "verification_token": "验证令牌",
+        "confirm_update": "确认更新",
+        "content_filters": "内容设置"
     },
     "moderation": {
         "title": "Moderation",
@@ -314,7 +320,14 @@
         "muted_word": "Muted Word",
         "bsky_moderation_service": "Bluesky Moderation Service",
         "bsky_moderation_service_desc": "Official Bluesky moderation service.",
-        "interaction_settings": "Interaction settings"
+        "interaction_settings": "Interaction settings",
+        "auth_required": "需要登录",
+        "auth_required_desc": "Hidden by author. Learn more.",
+        "verification_success": "用户名验证成功",
+        "block_title": "Block User",
+        "sync_with_bluesky": "与 Bluesky 同步",
+        "explicit_content": "露骨色情内容",
+        "sensitive_media": "敏感媒体"
     },
     "privacy": {
         "title": "Privacy and Security",
@@ -344,7 +357,10 @@
         "logout_visibility_desc": "Bluesky will not show your profile and posts to logged-out users. Other apps may not honor this request. This does not make your account private.",
         "logout_visibility_note": "Note: Bluesky is an open and public network. This setting only limits the visibility of your content on the Bluesky app and website, and other apps may not respect this setting. Your content may still be shown to logged-out users by other apps and websites.",
         "learn_more": "Learn more about what is public on Bluesky.",
-        "learn_more_public": "Learn more about what is public on Bluesky."
+        "learn_more_public": "Learn more about what is public on Bluesky.",
+        "hide_from_discover": "退出探索信息流",
+        "hide_from_discover_label": "请求应用从算法推荐中隐藏我的帖子",
+        "hide_from_discover_desc": "Bluesky 将在探索信息流中向非关注者排除您的帖子。其他应用可能不会遵循此请求。"
     },
     "notifications": {
         "title": "Notifications",
@@ -396,7 +412,8 @@
         "in_app_desc": "Show inside the app",
         "push_desc": "Get push notifications on your device",
         "mobile_only": "Mobile only",
-        "settings_saved_locally": "Settings saved successfully"
+        "settings_saved_locally": "Settings saved successfully",
+        "settings": "通知渠道"
     },
     "appearance": {
         "title": "Appearance",
@@ -472,7 +489,21 @@
         "follows_you": "已關注你",
         "unfollow": "取消關注",
         "missing_follow_ref": "缺少關注引用",
-        "failed_follow_update": "更新關注狀態失敗"
+        "failed_follow_update": "更新關注狀態失敗",
+        "no_followers_title": "暂无关注者",
+        "no_followers_desc": "当有人关注该用户时，他们会显示在这里。",
+        "no_following_title": "尚未关注任何人",
+        "no_following_desc": "当他们关注其他人时，帖子将显示在这里。",
+        "show_reposts_success": "转帖现在将出现在您的信息流中",
+        "hide_reposts_success": "已从您的信息流中隐藏转帖",
+        "show_reposts": "开启转帖",
+        "hide_reposts": "关闭转帖",
+        "private_account": "此账户为私密账户",
+        "private_account_desc": "登录以查看此个人资料。",
+        "content_hidden": "内容已隐藏",
+        "content_hidden_desc": "根据您的内容审核设置，此个人资料已被隐藏。",
+        "content_warning": "内容警告",
+        "content_warning_desc": "此个人资料已被标记为包含敏感内容。"
     },
     "home": {
         "title": "Home",
@@ -544,7 +575,9 @@
             "tech": "Tech",
             "gaming": "Gaming"
         },
-        "no_suggested_accounts": "No suggested accounts found for this category."
+        "no_suggested_accounts": "No suggested accounts found for this category.",
+        "search_placeholder_long": "搜索帖子、用户或信息流",
+        "guest_hero_text": "在 Bluesky 上搜索帖子、用户和信息流"
     },
     "lists": {
         "title": "名單",
@@ -606,7 +639,11 @@
         "feed_empty": "此名單尚無貼文。",
         "start_adding_people_button": "Start adding people",
         "no_members_yet": "No members yet",
-        "added": "Added"
+        "added": "Added",
+        "invited_to_join": "邀请您加入列表",
+        "deleted_successfully": "列表已成功删除",
+        "delete_failed": "删除列表失败",
+        "no_description": "暂无描述"
     },
     "saved": {
         "title": "Saved",
@@ -651,7 +688,8 @@
             "enter_details": "Enter your details",
             "forgot_password_short": "Forgot?",
             "hero_title": "Sign in",
-            "hero_subtitle": "Select from an existing account"
+            "hero_subtitle": "Select from an existing account",
+            "success": "登录成功"
         },
         "signup": {
             "title": "Create an account",
@@ -685,7 +723,16 @@
         },
         "logout_confirm_title": "Sign out?",
         "logout_confirm_message": "You will be signed out of all your accounts.",
-        "logout_confirm_btn": "Sign out"
+        "logout_confirm_btn": "Sign out",
+        "wall": {
+            "title": "登录或创建账户以参与对话！"
+        },
+        "required": {
+            "title": "需要登录",
+            "description": "登录以使用此功能并参与对话。"
+        },
+        "sign_in_to_reply": "登录以回复",
+        "sign_in": "登录"
     },
     "messages": {
         "title": "Messages",
@@ -698,7 +745,15 @@
         "say_hello_desc": "Send a message to start the conversation",
         "type_message": "Type a message...",
         "new_message": "New message",
-        "settings": "Message settings",
+        "settings": {
+            "allow_dm": "允许私信来源",
+            "allow_dm_desc": "无论您选择哪种设置，都可以继续进行中的对话。",
+            "everyone": "任何人",
+            "following": "我关注的人",
+            "none": "没有人",
+            "allow_group": "允许群聊邀请来源",
+            "export": "导出我的聊天数据"
+        },
         "go_to_profile": "Go to profile",
         "mute_conversation": "Mute conversation",
         "block_account": "Block account",
@@ -753,7 +808,71 @@
         "message_request_delete_desc": "The conversation will be deleted. They won't be notified.",
         "link_preview": "Link Preview",
         "you_replied_to": "You replied to {{name}}",
-        "replied_to": "{{name}} replied to {{other}}"
+        "replied_to": "{{name}} replied to {{other}}",
+        "group_chat_unmuted": "Group chat unmuted",
+        "group_chat_muted": "Group chat muted",
+        "failed_to_toggle_mute": "Failed to update mute status",
+        "group_settings": "Group chat settings",
+        "created_date": "Created {{date}}",
+        "unmute": "取消静音",
+        "mute": "Mute",
+        "edit_name": "Edit name",
+        "invite_link": "Invite link",
+        "unlock": "Unlock this group chat",
+        "lock": "Lock",
+        "locked": "Locked",
+        "report": "Report",
+        "leave": "Leave",
+        "members": "Members",
+        "add_members": "Add members",
+        "added_by": "Added by {{name}}",
+        "admin": "Admin",
+        "lock_group_chat": "Lock group chat?",
+        "lock_group_chat_message": "Members can still read chat history but can",
+        "leave_group": "Are you sure you want to leave {{name}}?",
+        "leave_group_message": "Leaving this chat will lock it permanently and you won",
+        "leave_group_chat": "Leave group chat",
+        "group_chat": "Group Chat",
+        "open_chat": "Open chat",
+        "start_new_chat": "New chat",
+        "suggested": "Suggested",
+        "group_name_required": "Group name is required",
+        "group_name_updated": "Group name updated",
+        "group_name_update_failed": "Failed to update group name",
+        "edit_group_name": "Edit group name",
+        "group_name": "Group name",
+        "no_recent_chats": "No recent conversations found",
+        "updates": {
+            "invite_link_created": "Invite link created",
+            "invite_link_edited": "Invite link edited",
+            "invite_link_disabled": "Invite link disabled",
+            "conversation_updated": "Conversation updated",
+            "left_conversation": "Member left",
+            "unknown": "Chat update",
+            "count": "{{count}} chat updates"
+        },
+        "report_submitted": "Report submitted successfully",
+        "copied_to_clipboard": "已复制到剪贴板",
+        "connecting": "Connecting...",
+        "reconnecting": "Reconnecting...",
+        "disconnected": "Disconnected. Check connection/IP.",
+        "group_request_info": "Accept the request to see messages and interact with this group",
+        "request_info": "Accept the request to see messages",
+        "group_welcome_desc": "New chat with {{names}}",
+        "add_people": "Add people",
+        "original_message_unavailable": "Original message unavailable",
+        "sent_at": "Sent at",
+        "this_chat_is_locked": "This chat is locked",
+        "no_one_can_send_messages": "No one can send messages",
+        "chat_unlocked": "Group chat unlocked",
+        "failed_to_unlock": "Failed to unlock conversation",
+        "unlock_chat": "Unlock chat",
+        "editing": "正在编辑消息",
+        "decline": "拒绝",
+        "inbox_zero": "收件箱已清空！",
+        "inbox_zero_desc": "您没有新的聊天请求。",
+        "say_hi": "打个招呼",
+        "chat_settings": "聊天設定"
     },
     "chat_settings": {
         "title": "聊天設定",
@@ -777,7 +896,23 @@
         "start_desc": "Find posts and people on Bluesky.",
         "searching_for": "Search for \"{{query}}\"",
         "no_results": "No results found",
-        "goto_search": "Search all for \"{{query}}\""
+        "goto_search": "Search all for \"{{query}}\"",
+        "filters_title": "Filters",
+        "all_of_these_words": "All of these words",
+        "none_of_these_words": "None of these words",
+        "this_exact_phrase": "This exact phrase",
+        "since_date": "Since",
+        "until_date": "Until",
+        "language": "Language",
+        "media": "Media",
+        "post_type": "Post type",
+        "author": "Author",
+        "add_filter": "Add filter",
+        "top": "热门",
+        "latest": "最新",
+        "people": "用户",
+        "search_for": "搜索",
+        "clear_filters": "清除筛选并重试"
     },
     "common": {
         "app_name": "Bluesky",
@@ -824,7 +959,40 @@
         "refresh": "Refresh",
         "start_typing": "Search for posts, users, or feeds",
         "loading": "Loading...",
-        "done": "Done"
+        "done": "Done",
+        "follow": "Follow",
+        "go_to_profile": "Go to profile",
+        "message": "Message",
+        "unblock": "Unblock",
+        "block": "Block",
+        "remove_from_chat": "Remove from chat",
+        "failed_to_load": "Failed to load GIFs",
+        "network": {
+            "offline": "You are offline. Some features may be unavailable.",
+            "back_online": "Back online.",
+            "slow": "Slow connection detected."
+        },
+        "image_not_found": "Image error",
+        "media_missing": "Media missing",
+        "menu": "Menu",
+        "create": "Create",
+        "accept": "Accept",
+        "reject": "Reject",
+        "drafts": "Drafts",
+        "posting": "Posting…",
+        "clear_all": "Clear all",
+        "viewed": "Viewed content",
+        "image_saved": "Image saved",
+        "add": "Add",
+        "no_description": "暂无描述",
+        "search_emojis": "搜索表情符号...",
+        "add_emoji": "添加表情符号",
+        "new": "新建",
+        "save_success": "保存成功",
+        "retry": "重试",
+        "loading_replies": "正在加载回复...",
+        "show_anyway": "仍然显示",
+        "error_occurred": "发生错误"
     },
     "post": {
         "title": "Post",
@@ -909,7 +1077,37 @@
         "reply_followers": "Your followers",
         "reply_following": "People you follow",
         "reply_mentioned": "People you mention",
-        "allow_quotes": "Allow quote posts"
+        "allow_quotes": "Allow quote posts",
+        "processing_image": "正在处理图片，请稍候...",
+        "unpin_from_profile": "Unpin from profile",
+        "pin_to_profile": "Pin to profile",
+        "unpinned_success": "Post unpinned from profile",
+        "pinned_success": "Post pinned to profile",
+        "reposted": "Reposted",
+        "pinned": "Pinned",
+        "unable_to_load_content": "Content unavailable",
+        "replies": "回复",
+        "alt_text_required": "所有图片都必须提供替代文本",
+        "video_too_large": "Video too large (Max 300MB)",
+        "video_too_long": "Video exceeds 10 minutes maximum duration",
+        "anyone_can_interact": "Anyone can interact",
+        "interaction_limited": "Interaction limited",
+        "content_warning": "Content Warning",
+        "cw_description": "Add a warning label to your post.",
+        "alt_text": "替代文本 (ALT)",
+        "interaction_settings_updated": "Settings updated",
+        "failed_to_update_interaction": "Failed to update settings",
+        "interaction_settings": "Post interaction settings",
+        "who_can_reply": "Who can reply",
+        "select_from_lists": "Select from your lists",
+        "no_lists": "You haven",
+        "save_defaults": "Save these options for next time",
+        "auth_required_full": "此作者选择仅向登录用户展示其帖子。",
+        "deleting": "正在删除帖子...",
+        "anyone_can_reply": "所有人均可回复",
+        "no_likes": "暂无点赞",
+        "no_quotes": "暂无引用",
+        "no_reposts": "暂无转帖"
     },
     "sidebar": {
         "trending": "Trending Topics",
@@ -927,7 +1125,11 @@
         "help": "Help",
         "trending_header": "Trending",
         "more_feeds": "更多動態",
-        "search_placeholder": "搜尋"
+        "search_placeholder": "搜尋",
+        "discover_people": "发现值得关注的人",
+        "hide_trending_title": "隐藏趋势？",
+        "hide_trending_message": "您可以随时在设置中重新开启。",
+        "hide": "隐藏"
     },
     "about": {
         "title": "About",
@@ -1038,7 +1240,13 @@
             "status_community": "Community",
             "no_feeds": "No feeds found",
             "showing_info": "Showing {{count}} of {{total}} feeds",
-            "filtered_info": " (filtered from {{total}})"
+            "filtered_info": " (filtered from {{total}})",
+            "view_subscribers": "View Subscribers",
+            "edit_btn": "Edit",
+            "delete_btn": "Delete",
+            "subscribers_title": "Feed Subscribers",
+            "delete_confirm_title": "Delete Feed",
+            "delete_confirm_message": "Are you sure you want to delete this feed? This action cannot be undone."
         },
         "users": {
             "title": "User Management",
@@ -1059,7 +1267,29 @@
             "verify_title": "Verify User",
             "unverify_title": "Remove Verification",
             "no_users": "No users found",
-            "showing_range": "Showing {{start}} to {{end}} of {{total}} users"
+            "showing_range": "Showing {{start}} to {{end}} of {{total}} users",
+            "role_change_failed": "Failed to change user role",
+            "view_details": "View Details",
+            "user_details": "User Details",
+            "view_profile": "View Profile",
+            "joined_at": "Joined at",
+            "id": "User ID",
+            "posts": "Posts",
+            "followers": "Followers",
+            "role_management": "Role Management",
+            "role_user": "Standard User",
+            "role_admin": "Administrator",
+            "danger_zone": "Danger Zone",
+            "unban_user": "Unban User",
+            "ban_user": "Ban User",
+            "unverify_user": "Unverify User",
+            "verify_user": "Verify User",
+            "role_confirm_title": "Change User Role",
+            "ban_confirm_title": "Ban User",
+            "unban_confirm_title": "Unban User",
+            "role_confirm_message": "Are you sure you want to change this user\\",
+            "ban_confirm_message": "Are you sure you want to ban this user? They will no longer be able to log in or access the platform.",
+            "unban_confirm_message": "Are you sure you want to unban this user?"
         },
         "posts": {
             "title": "Post Management",
@@ -1070,7 +1300,21 @@
             "view_post": "View Post",
             "delete_post": "Delete Post",
             "loading": "Loading posts...",
-            "load_more": "Load more posts"
+            "load_more": "Load more posts",
+            "table_created": "Created At",
+            "hide_failed": "Failed to hide post",
+            "delete_failed": "Failed to delete post",
+            "status_deleted": "Deleted",
+            "hide_post": "Hide Post",
+            "permanent_delete": "Delete Permanently",
+            "media": "Media",
+            "likes": "Likes",
+            "reposts": "Reposts",
+            "replies": "Replies",
+            "hide_confirm_title": "Hide Post",
+            "delete_permanent_title": "Permanently Delete Post",
+            "hide_confirm": "Are you sure you want to hide this post?",
+            "delete_permanent_confirm": "Are you sure you want to PERMANENTLY delete this post? This cannot be undone."
         },
         "interests": {
             "title": "Interest Management",
@@ -1086,7 +1330,13 @@
             "no_interests": "No interests available",
             "no_results": "No interests found matching your search",
             "total_interests": "Total Interests",
-            "filtered_results": "Filtered Results"
+            "filtered_results": "Filtered Results",
+            "name_label": "Interest Name",
+            "view_users": "View Users",
+            "users_title": "Interest Users",
+            "bulk_delete_title": "Bulk Delete Interests",
+            "delete_title": "Delete Interest",
+            "bulk_delete_confirm": "Are you sure you want to delete ${selectedInterests.size} interests?"
         },
         "lists": {
             "title": "List Management",
@@ -1098,7 +1348,12 @@
             "members_header": "Members",
             "created_at_header": "Created At",
             "actions_header": "Actions",
-            "delete_confirm": "Are you sure you want to delete this list?"
+            "delete_confirm": "Are you sure you want to delete this list?",
+            "no_results": "No lists found",
+            "view_members": "View Members",
+            "members_title": "List Members",
+            "delete_confirm_title": "Delete List",
+            "delete_confirm_message": "Are you sure you want to delete this list? This action cannot be undone."
         },
         "conversations": {
             "title": "Conversation Management",
@@ -1109,7 +1364,11 @@
             "updated_at_header": "Updated At",
             "actions_header": "Actions",
             "delete_confirm": "Are you sure you want to delete this conversation?",
-            "showing_range": "Showing {{start}} to {{end}} of {{total}} conversations"
+            "showing_range": "Showing {{start}} to {{end}} of {{total}} conversations",
+            "no_results": "No conversations found",
+            "no_participants": "No participants",
+            "delete_confirm_title": "Delete conversation?",
+            "delete_confirm_message": "Are you sure you want to delete this conversation? This action cannot be undone."
         },
         "moderation": {
             "title": "Content Moderation",
@@ -1143,7 +1402,11 @@
                 "Use titles that grab attention but aren't clickbait.",
                 "Target specific roles when the message isn't relevant to everyone.",
                 "Avoid sending too many broadcasts to prevent user fatigue."
-            ]
+            ],
+            "type_label": "Title",
+            "message_label": "Message Content",
+            "target_audience_label": "Target Audience",
+            "send_btn": "Send Broadcast"
         },
         "admin_support": {
             "title": "Support Management",
@@ -1202,7 +1465,42 @@
             "submitting": "Submitting...",
             "submit_success": "Your request has been submitted successfully.",
             "fill_required": "Please fill in all required fields.",
-            "powered_by": "Powered by"
+            "powered_by": "Powered by",
+            "title": "Support Requests",
+            "desc": "Review and manage user support inquiries and bug reports.",
+            "search_placeholder": "Search support requests...",
+            "table_user": "User",
+            "table_category": "Category",
+            "table_device": "Device",
+            "table_status": "Status",
+            "table_created": "Created At",
+            "table_actions": "Actions",
+            "no_requests": "No support requests found",
+            "view_details": "View Details",
+            "request_details": "Request Details",
+            "contact_email": "Contact Email",
+            "date": "Date",
+            "category": "Category",
+            "device": "Device",
+            "description": "Description",
+            "update_status": "Update Status"
+        },
+        "hashtags": {
+            "title": "Hashtags",
+            "desc": "View and manage user-generated hashtags.",
+            "search_placeholder": "Search hashtags...",
+            "no_results": "No hashtags found.",
+            "no_hashtags": "No hashtags in the system yet.",
+            "posts_count": "Posts count",
+            "bulk_delete_title": "Bulk Delete Hashtags",
+            "delete_title": "Delete Hashtag",
+            "bulk_delete_confirm": "Are you sure you want to delete ${selectedHashtags.size} hashtags?",
+            "delete_confirm": "Are you sure you want to delete this hashtag?"
+        },
+        "panel": "Admin Panel",
+        "back_to_app": "Back to App",
+        "common": {
+            "no_results": "No results found"
         }
     },
     "tag": {
@@ -1218,5 +1516,46 @@
         "load_failed": "Failed to load content",
         "network_error": "Network error. Please try again.",
         "unknown_error": "Something went wrong"
+    },
+    "signup": {
+        "terms_link": "服务条款",
+        "privacy_link": "隐私政策"
+    },
+    "onboarding": {
+        "find_people": "寻找值得关注的人"
+    },
+    "support": {
+        "submit_success": "您的请求已成功提交。",
+        "files_skipped_size": "Some files exceeded the maximum allowed size and were skipped.",
+        "fill_required": "请填写所有必填字段。",
+        "submit_request": "提交请求",
+        "sign_in": "登录",
+        "required_fields": "请填写此表格以提交您的请求。必填字段标有星号 (*)。",
+        "email_label": "您的电子邮件地址",
+        "description_label": "描述",
+        "description_info": "请输入您请求的详细信息。支持团队将尽快回复。",
+        "username_label": "您的 Bluesky 用户名",
+        "category_label": "分类",
+        "category_options": {
+            "account": "账户访问与登录",
+            "bug": "报告问题",
+            "domain": "自定义域名",
+            "feedback": "反馈与功能请求",
+            "moderation": "举报内容或用户",
+            "other": "其他"
+        },
+        "device_label": "设备与操作系统",
+        "device_info": "请说明您使用的平台或设备。",
+        "device_options": {
+            "android": "Android",
+            "ios": "iOS",
+            "web": "网页端"
+        },
+        "attachments": "附件",
+        "choose_file": "选择文件",
+        "drag_drop": "或将文件拖放到此处",
+        "submitting": "正在提交...",
+        "submit": "提交",
+        "powered_by": "由 Bluesky Support 提供支持"
     }
 }

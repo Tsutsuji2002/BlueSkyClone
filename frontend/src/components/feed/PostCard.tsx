@@ -181,20 +181,20 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
 
                 if (['porn', 'sexual-explicit', 'sexual'].includes(label)) {
                     filter = sexuallyExplicitFilter ?? (enableAdultContent ? 'warn' : 'hide');
-                    reason = 'moderation.sexually_explicit';
+                    reason = 'sexually_explicit';
                 } else if (['nsfw', 'adult', 'sexual-suggestive'].includes(label)) {
                     filter = adultContentFilter ?? (enableAdultContent ? 'warn' : 'hide');
-                    reason = 'moderation.adult_content';
+                    reason = 'adult_content';
                 } else if (['graphic-media', 'gore', 'violence'].includes(label)) {
                     filter = graphicMediaFilter ?? (enableAdultContent ? 'warn' : 'hide');
-                    reason = 'moderation.graphic_media';
+                    reason = 'graphic_media';
                 } else if (label === 'nudity') {
                     filter = nonSexualNudityFilter ?? (enableAdultContent ? 'show' : 'hide');
-                    reason = 'moderation.non_sexual_nudity';
+                    reason = 'non_sexual_nudity';
                 } else if (label === '!hide') {
-                    filter = 'hide'; reason = 'moderation.sensitive_content';
+                    filter = 'hide'; reason = 'sensitive_content';
                 } else if (label === '!warn') {
-                    filter = 'warn'; reason = 'moderation.sensitive_content';
+                    filter = 'warn'; reason = 'sensitive_content';
                 }
 
                 // Global adult content disable overrides individual settings

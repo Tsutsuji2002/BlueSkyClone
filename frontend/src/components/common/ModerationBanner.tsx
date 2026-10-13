@@ -14,6 +14,30 @@ interface ModerationBannerProps {
 const ModerationBanner: React.FC<ModerationBannerProps> = ({ reason, behavior, onShow, className, isDetailView }) => {
     const { t } = useTranslation();
 
+    const getReasonLabel = () => {
+        if (!reason) return t('moderation.sensitive_content', 'Sensitive Content');
+        const cleanKey = reason.replace(/^moderation\./, '');
+        if (cleanKey === 'Authentication Required') {
+            return t('moderation.auth_required', 'Authentication Required');
+        }
+        if (cleanKey === 'explicit_content') {
+            return t('moderation.sexually_explicit', 'Sexually Explicit');
+        }
+        if (cleanKey === 'sensitive_media') {
+            return t('moderation.sensitive_content', 'Sensitive Content');
+        }
+        const fullKey = `moderation.${cleanKey}`;
+        const translated = t(fullKey);
+        if (translated && translated !== fullKey) {
+            return translated;
+        }
+        const raw = t(reason);
+        if (raw && raw !== reason) {
+            return raw;
+        }
+        return cleanKey.replace(/_/g, ' ');
+    };
+
     return (
         <div className={cn(
             "flex items-center justify-between p-3.5 rounded-xl bg-gray-50/80 dark:bg-dark-surface/40 border border-gray-100 dark:border-dark-border/50 backdrop-blur-sm transition-all",
@@ -26,7 +50,7 @@ const ModerationBanner: React.FC<ModerationBannerProps> = ({ reason, behavior, o
                 </div>
                 <div className="flex flex-col">
                     <span className="text-[14px] font-bold text-gray-900 dark:text-dark-text leading-tight">
-                        {t(`moderation.${reason}`, reason)}
+                        {getReasonLabel()}
                     </span>
                     <span className="text-[12px] text-gray-500 dark:text-dark-text-secondary">
                         {reason === 'Authentication Required'

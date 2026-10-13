@@ -132,7 +132,7 @@ const MessagesPage: React.FC = () => {
         );
     });
 
-    useDocumentTitle(isInboxView ? t('messages.requests', 'Chat requests') : (isSettingsView ? t('messages.settings', 'Chat settings') : t('messages.title', 'Chats')));
+    useDocumentTitle(isInboxView ? t('messages.requests', 'Chat requests') : (isSettingsView ? t('messages.chat_settings', 'Chat settings') : t('messages.title', 'Chats')));
 
     const renderChatSettings = () => (
         <div className="flex flex-col h-full bg-white dark:bg-black">
@@ -144,7 +144,7 @@ const MessagesPage: React.FC = () => {
                     <FiArrowLeft size={22} className="text-[#526580] dark:text-dark-text-secondary" />
                 </button>
                 <h1 className="text-[18.8px] font-semibold tracking-[0.25px] text-gray-900 dark:text-white leading-[22px]">
-                    {t('messages.settings', 'Chat Settings')}
+                    {t('messages.chat_settings', 'Chat Settings')}
                 </h1>
             </div>
             
