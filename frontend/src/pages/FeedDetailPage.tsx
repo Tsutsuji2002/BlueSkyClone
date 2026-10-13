@@ -46,8 +46,12 @@ const FeedDetailPage: React.FC = () => {
     // followersCount maps to AT Proto likeCount; subscribersCount is the local subscriber count (separate metric)
     const count = feed ? (feed.followersCount || feed.subscribersCount || feed.likeCount || 0) : 0;
     const posts = routeKey ? feedPosts[routeKey] || [] : [];
-    // Use per-feed loading for pagination (avoids re-mounting the Virtuoso list)
-    const isFeedLoading = routeKey ? (feedLoading[routeKey] ?? isLoading) : isLoading;
+    // Use per-feed loading for pagination (avoids re-mounting the Virtuoso list).
+    // If feedLoading[routeKey] is undefined it means the fetch hasn't started yet —
+    // treat that as loading=true so we never flash "No posts yet" before the first fetch.
+    const isFeedLoading = routeKey
+        ? (feedLoading[routeKey] !== undefined ? feedLoading[routeKey] : true)
+        : isLoading;
 
     useDocumentTitle(feed?.name || t('feeds.title'));
 
@@ -345,7 +349,7 @@ const FeedDetailPage: React.FC = () => {
                                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border font-semibold text-[14.5px] transition-all border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-bg"
                                 >
                                     {feed.isLiked ? <BsHeartFill size={16} className="text-red-500" /> : <BsHeart size={16} />}
-                                    {feed.isLiked ? 'Liked' : 'Like'}
+                                    {feed.isLiked ? 'Unlike' : 'Like'}
                                 </button>
 
                                 {/* Pin / Unpin */}
@@ -388,7 +392,7 @@ const FeedDetailPage: React.FC = () => {
 
             {/* Feed Posts */}
             <div className="pb-20">
-                {!isLoading && posts.length === 0 ? (
+                {!isFeedLoading && posts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                         <div className="w-20 h-20 bg-gray-50 dark:bg-dark-surface rounded-full flex items-center justify-center mb-6">
                             <FiRss className="text-gray-300" size={40} />
