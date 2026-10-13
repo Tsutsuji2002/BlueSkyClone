@@ -26,6 +26,7 @@ import PostInteractionSettingsModal from './PostInteractionSettingsModal';
 import LanguagePickerModal from '../components/modals/LanguagePickerModal';
 import GifPicker from '../components/common/GifPicker';
 import InvitePreviewCard from '../components/messages/InvitePreviewCard';
+import { consumePendingComposerFiles } from '../utils/composerMedia';
 
 const CreatePostModal: React.FC = () => {
     const dispatch = useAppDispatch();
@@ -316,6 +317,7 @@ const CreatePostModal: React.FC = () => {
         setIsLanguageManual(false);
         setLabels([]);
         setIsLabelDropdownOpen(false);
+        consumePendingComposerFiles();
     };
 
     const settings = useAppSelector((state) => state.auth.settings);
@@ -386,46 +388,82 @@ const CreatePostModal: React.FC = () => {
         fileInputRef.current?.click();
     };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (files) {
-            Array.from(files).forEach((file) => {
-                if (file.type.startsWith('video/')) {
-                    if (images.length > 0 || video) return; // Only one video or images
+    const processSelectedFiles = (fileList: File[]) => {
+        const imageFilesToProcess: File[] = [];
+        fileList.forEach((file) => {
+            if (file.type.startsWith('video/')) {
+                if (images.length > 0 || video) return; // Only one video or images
 
-                    // Check file size (300MB Limit)
-                    const MAX_SIZE = 300 * 1024 * 1024; // 300MB
-                    if (file.size > MAX_SIZE) {
-                        dispatch(showToast({ message: t('post.video_too_large', 'Video too large (Max 300MB)'), type: 'error' }));
-                        return;
-                    }
-
-                    // Check video duration (10 Minutes / 600s Max)
-                    const MAX_DURATION = 600; // 10 minutes in seconds
-                    const tempVideo = document.createElement('video');
-                    tempVideo.preload = 'metadata';
-                    const objectUrl = URL.createObjectURL(file);
-                    tempVideo.src = objectUrl;
-                    tempVideo.onloadedmetadata = () => {
-                        if (tempVideo.duration > MAX_DURATION) {
-                            URL.revokeObjectURL(objectUrl);
-                            dispatch(showToast({ message: t('post.video_too_long', 'Video exceeds 10 minutes maximum duration'), type: 'error' }));
-                            return;
-                        }
-                        setVideoFile(file);
-                        setVideo({ url: objectUrl });
-                    };
+                // Check file size (300MB Limit)
+                const MAX_SIZE = 300 * 1024 * 1024; // 300MB
+                if (file.size > MAX_SIZE) {
+                    dispatch(showToast({ message: t('post.video_too_large', 'Video too large (Max 300MB)'), type: 'error' }));
                     return;
                 }
 
-                if (images.length >= 4) return; // Limit to 4 images
+                // Check video duration (10 Minutes / 600s Max)
+                const MAX_DURATION = 600; // 10 minutes in seconds
+                const tempVideo = document.createElement('video');
+                tempVideo.preload = 'metadata';
+                const objectUrl = URL.createObjectURL(file);
+                tempVideo.src = objectUrl;
+                tempVideo.onloadedmetadata = () => {
+                    if (tempVideo.duration > MAX_DURATION) {
+                        URL.revokeObjectURL(objectUrl);
+                        dispatch(showToast({ message: t('post.video_too_long', 'Video exceeds 10 minutes maximum duration'), type: 'error' }));
+                        return;
+                    }
+                    setVideoFile(file);
+                    setVideo({ url: objectUrl });
+                };
+                return;
+            }
 
+            if (file.type.startsWith('image/')) {
+                imageFilesToProcess.push(file);
+            }
+        });
+
+        if (imageFilesToProcess.length > 0) {
+            imageFilesToProcess.forEach((file) => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
-                    setImages((prev) => [...prev, { url: reader.result as string, file, alt: '' }].slice(0, 4));
+                    setImages((prev) => {
+                        if (prev.length >= 4) return prev;
+                        return [...prev, { url: reader.result as string, file, alt: '' }].slice(0, 4);
+                    });
                 };
                 reader.readAsDataURL(file);
             });
+        }
+    };
+
+    // Handle media sent from prompt bar or quick picker
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const pending = consumePendingComposerFiles();
+        if (pending.length > 0) {
+            processSelectedFiles(pending);
+        }
+
+        const handleMediaEvent = (e: Event) => {
+            const customEvent = e as CustomEvent<{ files: File[] }>;
+            if (customEvent.detail?.files && customEvent.detail.files.length > 0) {
+                processSelectedFiles(customEvent.detail.files);
+            }
+        };
+
+        window.addEventListener('bsky:add-composer-media', handleMediaEvent);
+        return () => {
+            window.removeEventListener('bsky:add-composer-media', handleMediaEvent);
+        };
+    }, [isOpen]);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (files && files.length > 0) {
+            processSelectedFiles(Array.from(files));
             event.target.value = '';
         }
     };

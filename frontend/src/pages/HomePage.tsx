@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import Feed from '../components/feed/Feed';
+import ComposePromptBar from '../components/feed/ComposePromptBar';
 import { PostFeedSkeleton } from '../components/feed/PostSkeleton';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
@@ -461,6 +462,8 @@ const HomePage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                <ComposePromptBar />
 
                 {visibleHomeFeeds.map((feed: any) => {
                     const tabId = feedActionKey(feed) || feed.id;
