@@ -219,21 +219,26 @@ public class FeedService : IFeedService
                     {
                         resultList.Add(MapGeneratorViewToDto(gen, savedUris, pinnedUris));
                     }
+                    if (userId.HasValue)
+                    {
+                        var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
+                        ApplyFeedLikeOverrides(resultList, overrides);
+                    }
                     return resultList;
                 }
             }
 
             // Fallback to direct resolution if proxy fails
-            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris);
+            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris, userId, ct);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[FeedService] Error resolving feeds metadata via proxy, falling back to direct.");
-            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris);
+            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris, userId, ct);
         }
     }
 
-    private async Task<List<FeedDto>> ResolveMetadataDirectAsync(List<string> uris, HashSet<string> saved, HashSet<string> pinned)
+    private async Task<List<FeedDto>> ResolveMetadataDirectAsync(List<string> uris, HashSet<string> saved, HashSet<string> pinned, Guid? userId = null, CancellationToken ct = default)
     {
         var result = new List<FeedDto>();
         try {
@@ -253,6 +258,11 @@ public class FeedService : IFeedService
                 {
                     foreach (var gen in feedsArray.EnumerateArray())
                         result.Add(MapGeneratorViewToDto(gen, saved, pinned));
+                    if (userId.HasValue)
+                    {
+                        var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
+                        ApplyFeedLikeOverrides(result, overrides);
+                    }
                 }
             }
         } catch (Exception ex) {
@@ -280,6 +290,8 @@ public class FeedService : IFeedService
             IsSubscribed = saved.Contains(uri) || (isDiscover && saved.Contains(DiscoverFeedKey)),
             IsPinned = pinned.Contains(uri) || (isDiscover && pinned.Contains(DiscoverFeedKey)),
             SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+            FollowersCount = gen.TryGetProperty("likeCount", out var lcf) ? lcf.GetInt32() : 0,
+            LikeCount = gen.TryGetProperty("likeCount", out var lcl) ? lcl.GetInt32() : 0,
             Handle = isDiscover ? DiscoverFeedKey : creatorHandle,
             Cid = gen.TryGetProperty("cid", out var cidProp) ? cidProp.GetString() : null,
             IsLiked = gen.TryGetProperty("viewer", out var viewer) && viewer.TryGetProperty("like", out var vl) && vl.ValueKind != JsonValueKind.Null,
@@ -368,7 +380,13 @@ public class FeedService : IFeedService
                 var cached = await _cache.GetStringAsync(cacheKey, ct);
                 if (!string.IsNullOrEmpty(cached))
                 {
-                    return JsonSerializer.Deserialize<List<FeedDto>>(cached) ?? new List<FeedDto>();
+                    var cachedList = JsonSerializer.Deserialize<List<FeedDto>>(cached) ?? new List<FeedDto>();
+                    var overrides = await GetUserFeedLikeOverridesAsync(userId, ct);
+                    if (overrides.Any())
+                    {
+                        ApplyFeedLikeOverrides(cachedList, overrides);
+                    }
+                    return cachedList;
                 }
             }
 
@@ -377,6 +395,12 @@ public class FeedService : IFeedService
             {
                 _logger.LogInformation("[FeedService] GetUserFeedsAsync for User {UserId}: Found {Count} remote feeds.", userId, remoteFeeds.Count);
                 
+                var overrides = await GetUserFeedLikeOverridesAsync(userId, ct);
+                if (overrides.Any())
+                {
+                    ApplyFeedLikeOverrides(remoteFeeds, overrides);
+                }
+
                 var json = JsonSerializer.Serialize(remoteFeeds);
                 // Cache the fresh result for 2 minutes
                 await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
@@ -397,7 +421,13 @@ public class FeedService : IFeedService
             if (!string.IsNullOrEmpty(stale))
             {
                 _logger.LogWarning("[FeedService] Remote fetch returned empty for {UserId}, returning STALE feeds from cache.", userId);
-                return JsonSerializer.Deserialize<List<FeedDto>>(stale) ?? new List<FeedDto>();
+                var staleList = JsonSerializer.Deserialize<List<FeedDto>>(stale) ?? new List<FeedDto>();
+                var overrides = await GetUserFeedLikeOverridesAsync(userId, ct);
+                if (overrides.Any())
+                {
+                    ApplyFeedLikeOverrides(staleList, overrides);
+                }
+                return staleList;
             }
         }
         catch (Exception ex)
@@ -406,7 +436,16 @@ public class FeedService : IFeedService
             
             // Disaster recovery fallback to stale cache
             var stale = await _cache.GetStringAsync($"{cacheKey}:stale", ct);
-            if (!string.IsNullOrEmpty(stale)) return JsonSerializer.Deserialize<List<FeedDto>>(stale) ?? new List<FeedDto>();
+            if (!string.IsNullOrEmpty(stale))
+            {
+                var staleList = JsonSerializer.Deserialize<List<FeedDto>>(stale) ?? new List<FeedDto>();
+                var overrides = await GetUserFeedLikeOverridesAsync(userId, ct);
+                if (overrides.Any())
+                {
+                    ApplyFeedLikeOverrides(staleList, overrides);
+                }
+                return staleList;
+            }
         }
 
         // Fallback to local subscriptions if remote fails or returns none
@@ -1050,6 +1089,7 @@ public class FeedService : IFeedService
 
     private FeedDto MapToDto(Feed feed, bool isPinned = false, int pinnedOrder = 0, bool isSubscribed = true)
     {
+        var sc = feed.SubscribersCount ?? 0;
         return new FeedDto
         {
             Id = feed.Id,
@@ -1061,7 +1101,9 @@ public class FeedService : IFeedService
             IsPinned = isPinned,
             PinnedOrder = pinnedOrder,
             IsSubscribed = isSubscribed,
-            SubscribersCount = feed.SubscribersCount ?? 0,
+            SubscribersCount = sc,
+            FollowersCount = sc,
+            LikeCount = sc,
             Creator = feed.Creator != null ? new AuthorDto
             {
                 Id = feed.Creator.Id,
@@ -1073,6 +1115,168 @@ public class FeedService : IFeedService
         };
     }
 
+    private async Task<Dictionary<string, FeedLikeOverrideDto>> GetUserFeedLikeOverridesAsync(Guid userId, CancellationToken ct = default)
+    {
+        try
+        {
+            var cacheKey = $"feed_likes_override:{userId}";
+            var json = await _cache.GetStringAsync(cacheKey, ct);
+            if (string.IsNullOrEmpty(json)) return new Dictionary<string, FeedLikeOverrideDto>(StringComparer.OrdinalIgnoreCase);
+
+            var dict = JsonSerializer.Deserialize<Dictionary<string, FeedLikeOverrideDto>>(json);
+            if (dict == null) return new Dictionary<string, FeedLikeOverrideDto>(StringComparer.OrdinalIgnoreCase);
+
+            var now = DateTime.UtcNow;
+            var fresh = dict.Where(kvp => (now - kvp.Value.Timestamp).TotalMinutes < 30)
+                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+            return fresh;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[GetUserFeedLikeOverridesAsync] Error reading overrides for {UserId}", userId);
+            return new Dictionary<string, FeedLikeOverrideDto>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task SetUserFeedLikeOverrideAsync(Guid userId, string uri, string? canonicalUri, bool isLiked, string? likeUri, CancellationToken ct = default)
+    {
+        try
+        {
+            var cacheKey = $"feed_likes_override:{userId}";
+            var dict = await GetUserFeedLikeOverridesAsync(userId, ct);
+
+            var overrideEntry = new FeedLikeOverrideDto
+            {
+                IsLiked = isLiked,
+                LikeUri = likeUri,
+                Timestamp = DateTime.UtcNow
+            };
+
+            dict[uri] = overrideEntry;
+            if (!string.IsNullOrEmpty(canonicalUri) && !string.Equals(canonicalUri, uri, StringComparison.OrdinalIgnoreCase))
+            {
+                dict[canonicalUri] = overrideEntry;
+            }
+
+            var tid = uri.Split('/').LastOrDefault();
+            if (!string.IsNullOrEmpty(tid))
+            {
+                dict[tid] = overrideEntry;
+            }
+
+            var json = JsonSerializer.Serialize(dict);
+            await _cache.SetStringAsync(cacheKey, json, new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
+            }, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[SetUserFeedLikeOverrideAsync] Error setting override for {UserId}, {Uri}", userId, uri);
+        }
+    }
+
+    private void ApplyFeedLikeOverrides(IEnumerable<FeedDto> feeds, Dictionary<string, FeedLikeOverrideDto> overrides)
+    {
+        if (overrides == null || !overrides.Any() || feeds == null) return;
+
+        foreach (var feed in feeds)
+        {
+            FeedLikeOverrideDto? ov = null;
+            if (feed.Uri != null && overrides.TryGetValue(feed.Uri, out var byUri))
+            {
+                ov = byUri;
+            }
+            else if (feed.Tid != null && overrides.TryGetValue(feed.Tid, out var byTid))
+            {
+                ov = byTid;
+            }
+            else if (overrides.TryGetValue(feed.Id.ToString(), out var byId))
+            {
+                ov = byId;
+            }
+
+            if (ov == null) continue;
+
+            if (ov.IsLiked)
+            {
+                if (!feed.IsLiked)
+                {
+                    feed.IsLiked = true;
+                    feed.LikeUri = ov.LikeUri ?? feed.LikeUri;
+                    feed.SubscribersCount += 1;
+                    feed.FollowersCount = feed.SubscribersCount;
+                    feed.LikeCount = feed.SubscribersCount;
+                }
+                else if (!string.IsNullOrEmpty(ov.LikeUri))
+                {
+                    feed.LikeUri = ov.LikeUri;
+                }
+            }
+            else
+            {
+                if (feed.IsLiked)
+                {
+                    feed.IsLiked = false;
+                    feed.LikeUri = null;
+                    feed.SubscribersCount = Math.Max(0, feed.SubscribersCount - 1);
+                    feed.FollowersCount = feed.SubscribersCount;
+                    feed.LikeCount = feed.SubscribersCount;
+                }
+            }
+        }
+    }
+
+    private async Task UpdateSubscribedFeedsCacheLikeStateAsync(Guid userId, string uri, string? canonicalUri, bool isLiked, string? likeUri, CancellationToken ct = default)
+    {
+        try
+        {
+            var cacheKey = $"subscribed_feeds_v1:{userId}";
+            var cached = await _cache.GetStringAsync(cacheKey, ct);
+            if (string.IsNullOrEmpty(cached)) return;
+
+            var list = JsonSerializer.Deserialize<List<FeedDto>>(cached);
+            if (list == null || !list.Any()) return;
+
+            var target = list.FirstOrDefault(f =>
+                string.Equals(f.Uri, uri, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(canonicalUri) && string.Equals(f.Uri, canonicalUri, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(f.Tid) && (uri.EndsWith("/" + f.Tid, StringComparison.OrdinalIgnoreCase) || (canonicalUri != null && canonicalUri.EndsWith("/" + f.Tid, StringComparison.OrdinalIgnoreCase)))));
+
+            if (target != null)
+            {
+                target.IsLiked = isLiked;
+                target.LikeUri = isLiked ? likeUri : null;
+                if (isLiked)
+                {
+                    target.SubscribersCount += 1;
+                    target.FollowersCount = target.SubscribersCount;
+                    target.LikeCount = target.SubscribersCount;
+                }
+                else
+                {
+                    target.SubscribersCount = Math.Max(0, target.SubscribersCount - 1);
+                    target.FollowersCount = target.SubscribersCount;
+                    target.LikeCount = target.SubscribersCount;
+                }
+
+                var updatedJson = JsonSerializer.Serialize(list);
+                await _cache.SetStringAsync(cacheKey, updatedJson, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2)
+                }, ct);
+                await _cache.SetStringAsync($"{cacheKey}:stale", updatedJson, new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
+                }, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[UpdateSubscribedFeedsCacheLikeStateAsync] Failed for user {UserId}", userId);
+        }
+    }
+
     public async Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null, CancellationToken ct = default)
     {
         try
@@ -1082,12 +1286,26 @@ public class FeedService : IFeedService
             if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
                 return new { error = "Not authenticated" };
 
-            // 1. Get current state to ensure we have CID
-            var feedMetadata = await GetFeedMetadataByUriAsync(feedUri, ct);
+            // 1. Get current state to ensure we have CID and canonical URI
+            var feedMetadata = await GetFeedMetadataByUriAsync(feedUri, userId, ct);
             if (feedMetadata == null) return new { error = "Feed not found" };
 
             bool isLiking = clientIsLiked ?? !feedMetadata.IsLiked;
             string? currentLikeUri = clientLikeUri ?? feedMetadata.LikeUri;
+            if (string.IsNullOrEmpty(currentLikeUri))
+            {
+                var existingOverrides = await GetUserFeedLikeOverridesAsync(userId, ct);
+                if (existingOverrides.TryGetValue(feedUri, out var ov) && !string.IsNullOrEmpty(ov.LikeUri))
+                {
+                    currentLikeUri = ov.LikeUri;
+                }
+                else if (feedMetadata.Uri != null && existingOverrides.TryGetValue(feedMetadata.Uri, out var ov2) && !string.IsNullOrEmpty(ov2.LikeUri))
+                {
+                    currentLikeUri = ov2.LikeUri;
+                }
+            }
+
+            var targetSubjectUri = feedMetadata.Uri ?? feedUri;
 
             if (isLiking)
             {
@@ -1096,7 +1314,7 @@ public class FeedService : IFeedService
                     { "$type", "app.bsky.feed.like" },
                     { "subject", new Dictionary<string, object>
                         {
-                            { "uri", feedUri },
+                            { "uri", targetSubjectUri },
                             { "cid", feedMetadata.Cid ?? "" }
                         }
                     },
@@ -1117,6 +1335,10 @@ public class FeedService : IFeedService
                 {
                     var responseBody = JsonSerializer.Deserialize<JsonElement>(result.Content);
                     var newLikeUri = responseBody.GetProperty("uri").GetString();
+
+                    await SetUserFeedLikeOverrideAsync(userId, feedUri, feedMetadata.Uri, true, newLikeUri, ct);
+                    await UpdateSubscribedFeedsCacheLikeStateAsync(userId, feedUri, feedMetadata.Uri, true, newLikeUri, ct);
+
                     return new { isLiked = true, likeUri = newLikeUri };
                 }
                 else
@@ -1140,6 +1362,9 @@ public class FeedService : IFeedService
 
                 if (result.Success)
                 {
+                    await SetUserFeedLikeOverrideAsync(userId, feedUri, feedMetadata.Uri, false, null, ct);
+                    await UpdateSubscribedFeedsCacheLikeStateAsync(userId, feedUri, feedMetadata.Uri, false, null, ct);
+
                     return new { isLiked = false, likeUri = (string?)null };
                 }
                 else
@@ -1148,8 +1373,12 @@ public class FeedService : IFeedService
                     return new { error = "Unlike failed", detail = result.Content };
                 }
             }
-
-            return new { isLiked = false };
+            else
+            {
+                await SetUserFeedLikeOverrideAsync(userId, feedUri, feedMetadata.Uri, false, null, ct);
+                await UpdateSubscribedFeedsCacheLikeStateAsync(userId, feedUri, feedMetadata.Uri, false, null, ct);
+                return new { isLiked = false };
+            }
         }
         catch (Exception ex)
         {
@@ -1250,7 +1479,9 @@ public class FeedService : IFeedService
             AvatarUrl = avatarUrl,
             IsPinned = isPinned,
             IsSubscribed = isSubscribed,
-            SubscribersCount = subscribersCount
+            SubscribersCount = subscribersCount,
+            FollowersCount = subscribersCount,
+            LikeCount = subscribersCount
         };
     }
 
@@ -1284,7 +1515,9 @@ public class FeedService : IFeedService
             Handle = handlePart,
             IsSubscribed = true,
             IsPinned = false,
-            SubscribersCount = 0
+            SubscribersCount = 0,
+            FollowersCount = 0,
+            LikeCount = 0
         };
     }
 
@@ -1318,7 +1551,7 @@ public class FeedService : IFeedService
             .ToList();
     }
 
-    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri, CancellationToken ct = default)
+    public async Task<FeedDto?> GetFeedMetadataByUriAsync(string uri, Guid? userId = null, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(uri)) return null;
 
@@ -1331,6 +1564,23 @@ public class FeedService : IFeedService
 
         // Resolve handles in ATURI to DIDs if possible (e.g. at://trending.bsky.app -> at://did:plc:...)
         var resolvedUri = await ResolveAtUriAsync(uri, ct);
+
+        // 1. If user is authenticated, resolve via proxy with viewer state & overrides
+        if (userId.HasValue)
+        {
+            try
+            {
+                var userFeeds = await ResolveFeedsMetadataAsync(new List<string> { resolvedUri }, userId.Value, ct);
+                if (userFeeds.Any())
+                {
+                    return userFeeds[0];
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FeedService] Authenticated resolution failed for {Uri}, falling back to public", resolvedUri);
+            }
+        }
 
         var noPrefs = new HashSet<string>();
         try
@@ -1349,7 +1599,15 @@ public class FeedService : IFeedService
                     {
                         using var genDoc = JsonDocument.Parse(await batch.Content.ReadAsStringAsync(cts.Token));
                         if (genDoc.RootElement.TryGetProperty("feeds", out var feedsArr) && feedsArr.GetArrayLength() > 0)
-                            return MapFeedGeneratorRowToDto(feedsArr[0]);
+                        {
+                            var dto = MapFeedGeneratorRowToDto(feedsArr[0]);
+                            if (userId.HasValue)
+                            {
+                                var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
+                                ApplyFeedLikeOverrides(new[] { dto }, overrides);
+                            }
+                            return dto;
+                        }
                     }
 
                     using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -1359,7 +1617,15 @@ public class FeedService : IFeedService
                     {
                         using var doc = JsonDocument.Parse(await one.Content.ReadAsStringAsync(cts2.Token));
                         if (doc.RootElement.TryGetProperty("view", out var view))
-                            return MapGeneratorViewToDto(view, noPrefs, noPrefs);
+                        {
+                            var dto = MapGeneratorViewToDto(view, noPrefs, noPrefs);
+                            if (userId.HasValue)
+                            {
+                                var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
+                                ApplyFeedLikeOverrides(new[] { dto }, overrides);
+                            }
+                            return dto;
+                        }
                     }
                 }
                 catch (Exception inner)
@@ -1381,6 +1647,10 @@ public class FeedService : IFeedService
         var outUri = gen.GetProperty("uri").GetString()!;
         var creatorDid = gen.GetProperty("did").GetString()!;
         var name = gen.GetProperty("displayName").GetString()!;
+        var lc = gen.TryGetProperty("likeCount", out var lcVal) ? lcVal.GetInt32() : 0;
+        var isLiked = gen.TryGetProperty("viewer", out var v) && v.TryGetProperty("like", out var vl) && vl.ValueKind != JsonValueKind.Null;
+        var likeUri = gen.TryGetProperty("viewer", out var v2) && v2.TryGetProperty("like", out var vl2) ? vl2.GetString() : null;
+
         if (!gen.TryGetProperty("creator", out var creator))
         {
             var dtoWithoutCreator = new FeedDto
@@ -1392,7 +1662,11 @@ public class FeedService : IFeedService
                 Description = gen.TryGetProperty("description", out var d0) ? d0.GetString() : null,
                 AvatarUrl = gen.TryGetProperty("avatar", out var a0) ? a0.GetString() : null,
                 Handle = creatorDid,
-                SubscribersCount = gen.TryGetProperty("likeCount", out var lc0) ? lc0.GetInt32() : 0,
+                SubscribersCount = lc,
+                FollowersCount = lc,
+                LikeCount = lc,
+                IsLiked = isLiked,
+                LikeUri = likeUri,
                 Creator = new AuthorDto { Did = creatorDid, Handle = creatorDid }
             };
 
@@ -1409,7 +1683,11 @@ public class FeedService : IFeedService
             Description = gen.TryGetProperty("description", out var desc) ? desc.GetString() : null,
             AvatarUrl = gen.TryGetProperty("avatar", out var av) ? av.GetString() : null,
             Handle = creatorHandle,
-            SubscribersCount = gen.TryGetProperty("likeCount", out var lc) ? lc.GetInt32() : 0,
+            SubscribersCount = lc,
+            FollowersCount = lc,
+            LikeCount = lc,
+            IsLiked = isLiked,
+            LikeUri = likeUri,
             Creator = new AuthorDto
             {
                 Did = creator.GetProperty("did").GetString()!,

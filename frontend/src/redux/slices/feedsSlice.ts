@@ -3,7 +3,7 @@ import { Feed, Post, TrendingTopic } from '../../types';
 import { RootState } from '../store';
 import { matchesPost } from '../../utils/postUtils';
 import { API_BASE_URL } from '../../constants';
-import { feedActionKey } from '../../utils/feedKeys';
+import { feedActionKey, feedsMatchRouteKey } from '../../utils/feedKeys';
 import { mapAtProtoPostToPost } from '../../utils/postMapper';
 import { seedInteractionTruth, hydrateInteractionsAsync, deletePost } from './postsSlice';
 
@@ -171,6 +171,14 @@ const getHydratedState = (initial: FeedsState): FeedsState => {
         };
     } catch (e) {
         return initial;
+    }
+};
+
+const persistSubscribedFeeds = (state: FeedsState) => {
+    const currentDid = state.lastFetchDid || localStorage.getItem('feeds_last_did');
+    if (currentDid) {
+        localStorage.setItem(getAccountKey('feeds_subscribed', currentDid), JSON.stringify(state.subscribedFeeds));
+        localStorage.setItem(getAccountKey('feeds_pinned_ids', currentDid), JSON.stringify(state.pinnedFeedIds));
     }
 };
 
@@ -463,7 +471,7 @@ export const fetchFeedInfo = createAsyncThunk<
             const url = isRemoteKey
                 ? `${API_BASE_URL}/feeds/resolve?uri=${encodeURIComponent(feedId)}`
                 : `${API_BASE_URL}/feeds/info/${feedId}`;
-            const response = await fetch(url);
+            const response = await fetch(url, { credentials: 'include' });
             const data = await response.json().catch(() => ({}));
             console.log('feedsSlice: fetchFeedInfo returned for ID', feedId, ':', data);
             if (!response.ok) return rejectWithValue(data.message || `Failed to fetch feed info (Status: ${response.status})`);
@@ -790,6 +798,10 @@ const feedsSlice = createSlice({
  
                 state.subscribedFeeds = action.payload.map((incoming) => {
                     const key = feedActionKey(incoming);
+                    const incomingCount = incoming.followersCount ?? incoming.subscribersCount ?? incoming.likeCount ?? 0;
+                    incoming.followersCount = incomingCount;
+                    incoming.subscribersCount = incomingCount;
+                    incoming.likeCount = incomingCount;
                     const cached = cacheByKey.get(key);
                     if (!cached) return incoming;
                     if (!isRemoteMetadataFallback(incoming) && incoming.name?.trim()) return incoming;
@@ -818,18 +830,44 @@ const feedsSlice = createSlice({
             })
             .addCase(fetchFeedInfo.fulfilled, (state: FeedsState, action: any) => {
                 state.infoLoading[action.meta.arg] = false;
-                // Add to searchResults or another cache if not already present
-                const resolvedKey = feedActionKey(action.payload);
-                if (!state.subscribedFeeds.find(f => feedActionKey(f) === resolvedKey)) {
-                    // We don't want to duplicate, just make it available for Detail page
-                    // Maybe put it in feeds array which we use as a general cache
-                    const index = state.feeds.findIndex(f => feedActionKey(f) === resolvedKey);
-                    if (index >= 0) {
-                        state.feeds[index] = action.payload;
-                    } else {
-                        state.feeds.push(action.payload);
-                    }
+                const incoming = action.payload;
+                if (!incoming) return;
+
+                const incomingFollowers = incoming.followersCount ?? incoming.subscribersCount ?? incoming.likeCount ?? 0;
+                incoming.followersCount = incomingFollowers;
+                incoming.subscribersCount = incomingFollowers;
+                incoming.likeCount = incomingFollowers;
+
+                const resolvedKey = feedActionKey(incoming);
+                const matches = (f: Feed) => feedsMatchRouteKey(f, action.meta.arg) || feedsMatchRouteKey(f, resolvedKey);
+
+                // Update in subscribedFeeds if present
+                const subIndex = state.subscribedFeeds.findIndex(matches);
+                if (subIndex >= 0) {
+                    state.subscribedFeeds[subIndex] = {
+                        ...state.subscribedFeeds[subIndex],
+                        ...incoming,
+                        isPinned: state.subscribedFeeds[subIndex].isPinned ?? incoming.isPinned,
+                        isSubscribed: state.subscribedFeeds[subIndex].isSubscribed ?? incoming.isSubscribed,
+                    };
                 }
+
+                // Update in feeds general cache
+                const index = state.feeds.findIndex(matches);
+                if (index >= 0) {
+                    state.feeds[index] = incoming;
+                } else {
+                    state.feeds.push(incoming);
+                }
+
+                if (state.searchResults) {
+                    const searchIdx = state.searchResults.findIndex(matches);
+                    if (searchIdx >= 0) state.searchResults[searchIdx] = { ...state.searchResults[searchIdx], ...incoming };
+                }
+                const recIdx = state.recommendedFeeds.findIndex(matches);
+                if (recIdx >= 0) state.recommendedFeeds[recIdx] = { ...state.recommendedFeeds[recIdx], ...incoming };
+
+                persistSubscribedFeeds(state);
             })
             .addCase(fetchFeedInfo.rejected, (state: FeedsState, action: any) => {
                 state.infoLoading[action.meta.arg] = false;
@@ -843,7 +881,7 @@ const feedsSlice = createSlice({
                 state.actionLoading[feedId] = false;
                 const { isLiked, likeUri } = action.payload;
 
-                const matches = (f: Feed) => feedActionKey(f) === feedId || f.id === feedId;
+                const matches = (f: Feed) => feedsMatchRouteKey(f, feedId) || feedActionKey(f) === feedId || f.id === feedId;
                 const updateInList = (list: Feed[]) => {
                     const f = list.find(matches);
                     if (f) {
@@ -852,9 +890,15 @@ const feedsSlice = createSlice({
                         f.likeUri = likeUri;
                         // Optimistically update the like count (followersCount == likeCount from AT Proto)
                         if (isLiked && !wasLiked) {
-                            f.followersCount = (f.followersCount || 0) + 1;
+                            const newCount = (f.followersCount || f.subscribersCount || f.likeCount || 0) + 1;
+                            f.followersCount = newCount;
+                            f.subscribersCount = newCount;
+                            f.likeCount = newCount;
                         } else if (!isLiked && wasLiked) {
-                            f.followersCount = Math.max(0, (f.followersCount || 1) - 1);
+                            const newCount = Math.max(0, (f.followersCount || f.subscribersCount || f.likeCount || 1) - 1);
+                            f.followersCount = newCount;
+                            f.subscribersCount = newCount;
+                            f.likeCount = newCount;
                         }
                     }
                 };
@@ -864,6 +908,8 @@ const feedsSlice = createSlice({
                 if (state.searchResults) updateInList(state.searchResults);
                 updateInList(state.recommendedFeeds);
                 updateInList(state.userFeeds);
+
+                persistSubscribedFeeds(state);
             })
             .addCase(likeFeed.rejected, (state: FeedsState, action: any) => {
                 state.actionLoading[action.meta.arg.feedId] = false;
@@ -916,6 +962,7 @@ const feedsSlice = createSlice({
                 if (!state.pinnedFeedIds.includes(pinIdToStore)) {
                     state.pinnedFeedIds.push(pinIdToStore);
                 }
+                persistSubscribedFeeds(state);
             })
             .addCase(pinFeed.fulfilled, (state: FeedsState, action: any) => {
                 const feedId = action.meta.arg;
@@ -960,6 +1007,7 @@ const feedsSlice = createSlice({
                 const canonical = state.subscribedFeeds.find(matches);
                 const pinKey = canonical ? feedActionKey(canonical) : feedId;
                 state.pinnedFeedIds = state.pinnedFeedIds.filter(id => id !== feedId && id !== pinKey);
+                persistSubscribedFeeds(state);
             })
             .addCase(unpinFeed.fulfilled, (state: FeedsState, action: any) => {
                 const feedId = action.meta.arg;
@@ -992,6 +1040,7 @@ const feedsSlice = createSlice({
                     if (!state.subscribedFeeds.find(matches)) {
                         state.subscribedFeeds.push({ ...sourceFeed, isSubscribed: true });
                     }
+                    persistSubscribedFeeds(state);
                 }
             })
             .addCase(saveFeed.fulfilled, (state: FeedsState, action: any) => {
@@ -1023,6 +1072,7 @@ const feedsSlice = createSlice({
                 const pinKey = canonical ? feedActionKey(canonical) : feedId;
                 state.subscribedFeeds = state.subscribedFeeds.filter(f => !matches(f));
                 state.pinnedFeedIds = state.pinnedFeedIds.filter(id => id !== feedId && id !== pinKey);
+                persistSubscribedFeeds(state);
             })
             .addCase(unsaveFeed.fulfilled, (state: FeedsState, action: any) => {
                 const feedId = action.meta.arg;

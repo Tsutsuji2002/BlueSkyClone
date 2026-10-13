@@ -44,7 +44,7 @@ const FeedDetailPage: React.FC = () => {
         feeds.find((f: FeedType) => feedsMatchRouteKey(f, routeKey));
 
     // followersCount maps to AT Proto likeCount; subscribersCount is the local subscriber count (separate metric)
-    const count = feed ? (feed.followersCount || 0) : 0;
+    const count = feed ? (feed.followersCount || feed.subscribersCount || feed.likeCount || 0) : 0;
     const posts = routeKey ? feedPosts[routeKey] || [] : [];
     // Use per-feed loading for pagination (avoids re-mounting the Virtuoso list)
     const isFeedLoading = routeKey ? (feedLoading[routeKey] ?? isLoading) : isLoading;
@@ -56,10 +56,10 @@ const FeedDetailPage: React.FC = () => {
             dispatch(fetchSubscribedFeeds());
         }
 
-        if (routeKey && !feed && infoLoading[routeKey] === undefined) {
+        if (routeKey && infoLoading[routeKey] === undefined) {
             dispatch(fetchFeedInfo(routeKey));
         }
-    }, [dispatch, subscribedFeeds.length, routeKey, feed, infoLoading]);
+    }, [dispatch, isAuthenticated, subscribedFeeds.length, routeKey, infoLoading]);
 
     useEffect(() => {
         if (routeKey) {
@@ -333,14 +333,15 @@ const FeedDetailPage: React.FC = () => {
                                 <button
                                     onClick={async () => {
                                         if (routeKey && feed) {
+                                            const actionKey = feedActionKey(feed) || routeKey;
                                             await dispatch(likeFeed({ 
-                                                feedId: routeKey, 
+                                                feedId: actionKey, 
                                                 isLiked: !feed.isLiked, 
                                                 likeUri: feed.likeUri 
                                             }));
                                         }
                                     }}
-                                    disabled={feeds_actionLoading[routeKey]}
+                                    disabled={feeds_actionLoading[routeKey] || feeds_actionLoading[feedActionKey(feed)]}
                                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border font-semibold text-[14.5px] transition-all border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text hover:bg-gray-50 dark:hover:bg-dark-bg"
                                 >
                                     {feed.isLiked ? <BsHeartFill size={16} className="text-red-500" /> : <BsHeart size={16} />}

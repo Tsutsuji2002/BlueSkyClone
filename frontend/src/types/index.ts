@@ -331,6 +331,7 @@ export interface Feed {
     avatarUrl?: string;
     followersCount: number;
     subscribersCount?: number;
+    likeCount?: number;
     isSubscribed?: boolean;
     isPinned?: boolean; // For UI state in FeedsPage/ProfilePage
     isLiked?: boolean; // Whether the current user has liked this feed generator

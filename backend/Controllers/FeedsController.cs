@@ -213,7 +213,13 @@ public class FeedsController : ControllerBase
         try
         {
             if (string.IsNullOrWhiteSpace(uri)) return BadRequest(new { message = "uri is required" });
-            var dto = await _feedService.GetFeedMetadataByUriAsync(uri.Trim());
+            Guid? userId = null;
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var parsedId))
+            {
+                userId = parsedId;
+            }
+            var dto = await _feedService.GetFeedMetadataByUriAsync(uri.Trim(), userId);
             if (dto == null) return NotFound(new { message = "Feed not found" });
             return Ok(dto);
         }

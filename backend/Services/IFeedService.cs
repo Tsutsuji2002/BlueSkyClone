@@ -17,7 +17,7 @@ public interface IFeedService
     Task<bool> ReorderRemotePinnedFeedsAsync(Guid userId, List<string> orderedPinnedKeys, System.Threading.CancellationToken ct = default);
     Task<IEnumerable<FeedDto>> SearchFeedsAsync(Guid? userId, string query, int skip, int take, System.Threading.CancellationToken ct = default);
     Task<FeedDto?> GetFeedByIdAsync(Guid feedId, Guid userId, System.Threading.CancellationToken ct = default);
-    Task<FeedDto?> GetFeedMetadataByUriAsync(string uri, System.Threading.CancellationToken ct = default);
+    Task<FeedDto?> GetFeedMetadataByUriAsync(string uri, Guid? userId = null, System.Threading.CancellationToken ct = default);
     Task<PagedPostDto> GetFeedPostsAsync(Guid feedId, Guid? userId, int skip, int take, string? uri = null, string? cursor = null, System.Threading.CancellationToken ct = default);
     Task<object> ToggleLikeFeedAsync(Guid userId, string feedUri, bool? clientIsLiked = null, string? clientLikeUri = null, System.Threading.CancellationToken ct = default);
     Task PreSeedFeedsAsync(System.Threading.CancellationToken ct = default);
