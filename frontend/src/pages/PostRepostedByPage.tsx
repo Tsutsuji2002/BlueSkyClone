@@ -37,9 +37,9 @@ const PostRepostedByPage: React.FC = () => {
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const postUri = post?.uri;
-
-    useDocumentTitle(post ? `${t('post.reposted_by_title', 'Reposted By')} · ${post.repostsCount} ${t('post.reposts', 'Reposts')}` : t('post.reposted_by_title', 'Reposted By'));
+    const rawHandle = post?.author?.handle || handle;
+    const pageTitle = rawHandle ? `${t('post.post_by', 'Post by')} @${rawHandle.replace(/^@/, '')}` : t('post.title');
+    useDocumentTitle(pageTitle);
 
     // Load the post if we don't have it
     useEffect(() => {

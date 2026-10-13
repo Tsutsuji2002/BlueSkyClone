@@ -104,6 +104,7 @@ const ChatActivityGroup = ({ events, t, i18n }: { events: Message[], t: any, i18
 
 const ChatPage: React.FC<ChatPageProps> = ({ isInSidebar = false }) => {
     const { t, i18n } = useTranslation();
+    useDocumentTitle(isInSidebar ? undefined : t('messages.chat', 'Chat'));
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { conversationId } = useParams<{ conversationId: string }>();

@@ -42,7 +42,8 @@ const FollowingPage: React.FC = () => {
     const resolvedListActor = profile?.did || profile?.handle || profile?.id || effectiveId || '';
     const activeOwnerKey = normalizeIdentifier(resolvedListActor);
     const hasInitializedCurrentList = !!activeOwnerKey && followingInitializedOwnerId === activeOwnerKey;
-    useDocumentTitle(profile ? `${profile.displayName} (@${profile.handle})` : t('profile.following'));
+    const rawHandle = profile?.handle || handle || (effectiveId && !effectiveId.startsWith('did:') ? effectiveId : '');
+    useDocumentTitle(rawHandle ? `${t('profile.people_followed_by', 'People followed by')} @${rawHandle.replace(/^@/, '')}` : t('profile.following'));
 
     useEffect(() => {
         // Only clear if switching to a DIFFERENT profile

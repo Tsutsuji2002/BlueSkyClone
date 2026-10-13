@@ -7,6 +7,7 @@ import { FiArrowLeft, FiHeart, FiUserPlus, FiMessageSquare, FiAtSign, FiRepeat, 
 import { RiDoubleQuotesL } from 'react-icons/ri';
 import { BsArrowRepeat } from 'react-icons/bs';
 import { UserSettings } from '../types';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const NotificationTypeSettingsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -64,6 +65,7 @@ const NotificationTypeSettingsPage: React.FC = () => {
     };
 
     const currentType = type && typeConfig[type] ? typeConfig[type] : typeConfig['likes'];
+    useDocumentTitle(currentType?.label || t('settings.notifications'));
 
     const Toggle = ({ enabled, onToggle, label, sublabel }: { enabled: boolean; onToggle: () => void; label: string; sublabel?: string }) => (
         <label className="flex items-center gap-3 cursor-pointer group">

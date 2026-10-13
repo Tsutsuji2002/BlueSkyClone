@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiChevronRight, FiHeart, FiUserPlus, FiMessageSquare, FiAtSign, FiRepeat, FiBell, FiCpu } from 'react-icons/fi';
 import { RiDoubleQuotesL } from 'react-icons/ri';
 import { BsArrowRepeat } from 'react-icons/bs';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const NotificationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    useDocumentTitle(t('settings.notifications'));
 
     const notificationTypes = [
         { id: 'likes', icon: <FiHeart size={20} />, label: t('notifications.likes'), desc: t('notifications.setting_summary') },

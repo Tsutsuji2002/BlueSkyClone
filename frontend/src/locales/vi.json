@@ -503,7 +503,9 @@
         "content_hidden": "Nội dung bị ẩn",
         "content_hidden_desc": "Hồ sơ này bị ẩn dựa trên cài đặt kiểm duyệt nội dung của bạn.",
         "content_warning": "Cảnh báo nội dung",
-        "content_warning_desc": "Hồ sơ này đã được gắn cờ là chứa nội dung nhạy cảm."
+        "content_warning_desc": "Hồ sơ này đã được gắn cờ là chứa nội dung nhạy cảm.",
+        "people_following": "Những người đang theo dõi",
+        "people_followed_by": "Những người được theo dõi bởi"
     },
     "home": {
         "title": "Trang chủ",
@@ -577,7 +579,8 @@
         "no_more_posts": "Hiện không còn bài nào để khám phá.",
         "trending_topics": "Trending Topics",
         "search_placeholder_long": "Tìm kiếm bài viết, người dùng hoặc nguồn cấp dữ liệu",
-        "guest_hero_text": "Tìm kiếm bài viết, người dùng và nguồn cấp dữ liệu trên Bluesky"
+        "guest_hero_text": "Tìm kiếm bài viết, người dùng và nguồn cấp dữ liệu trên Bluesky",
+        "hashtag": "Hashtag"
     },
     "lists": {
         "title": "Danh sách",
@@ -872,7 +875,8 @@
         "inbox_zero": "Hộp thư trống!",
         "inbox_zero_desc": "Bạn không có yêu cầu trò chuyện mới nào.",
         "say_hi": "Gửi lời chào",
-        "chat_settings": "Cài đặt trò chuyện"
+        "chat_settings": "Cài đặt trò chuyện",
+        "chat": "Trò chuyện"
     },
     "chat_settings": {
         "title": "Cài đặt chat",
@@ -1107,7 +1111,8 @@
         "anyone_can_reply": "Mọi người đều có thể trả lời",
         "no_likes": "Chưa có lượt thích nào",
         "no_quotes": "Chưa có trích dẫn nào",
-        "no_reposts": "Chưa có lượt đăng lại nào"
+        "no_reposts": "Chưa có lượt đăng lại nào",
+        "post_by": "Bài đăng của"
     },
     "sidebar": {
         "trending": "Chủ đề xu hướng",

@@ -503,7 +503,9 @@
         "content_hidden": "Content Hidden",
         "content_hidden_desc": "This profile is hidden based on your content moderation settings.",
         "content_warning": "Content Warning",
-        "content_warning_desc": "This profile has been flagged as containing sensitive content."
+        "content_warning_desc": "This profile has been flagged as containing sensitive content.",
+        "people_following": "People following",
+        "people_followed_by": "People followed by"
     },
     "home": {
         "title": "Home",
@@ -577,7 +579,8 @@
         },
         "no_suggested_accounts": "No suggested accounts found for this category.",
         "search_placeholder_long": "Search posts, users, or feeds",
-        "guest_hero_text": "Search posts, users, and feeds on Bluesky"
+        "guest_hero_text": "Search posts, users, and feeds on Bluesky",
+        "hashtag": "Hashtag"
     },
     "lists": {
         "title": "Lists",
@@ -872,7 +875,8 @@
         "inbox_zero": "Inbox zero!",
         "inbox_zero_desc": "You have no new chat requests.",
         "say_hi": "Say hi to someone",
-        "chat_settings": "Chat settings"
+        "chat_settings": "Chat settings",
+        "chat": "Chat"
     },
     "chat_settings": {
         "title": "Chatindstillinger",
@@ -1107,7 +1111,8 @@
         "anyone_can_reply": "Everybody can reply",
         "no_likes": "No likes yet",
         "no_quotes": "No quotes yet",
-        "no_reposts": "No reposts yet"
+        "no_reposts": "No reposts yet",
+        "post_by": "Post by"
     },
     "sidebar": {
         "trending": "Trending Topics",

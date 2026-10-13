@@ -9,10 +9,12 @@ import LoadingIndicator from '../components/common/LoadingIndicator';
 import Avatar from '../components/common/Avatar';
 import ConfirmModal from '../components/common/ConfirmModal';
 import { User } from '../types';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const MutedAccountsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    useDocumentTitle(t('moderation.muted_accounts_title'));
     const dispatch = useAppDispatch();
     const { mutedUsers: users, isLoading } = useAppSelector(state => state.user);
 

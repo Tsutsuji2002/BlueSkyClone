@@ -503,7 +503,9 @@
         "content_hidden": "Content Hidden",
         "content_hidden_desc": "This profile is hidden based on your content moderation settings.",
         "content_warning": "Content Warning",
-        "content_warning_desc": "This profile has been flagged as containing sensitive content."
+        "content_warning_desc": "This profile has been flagged as containing sensitive content.",
+        "people_following": "팔로워",
+        "people_followed_by": "팔로잉"
     },
     "home": {
         "title": "홈",
@@ -575,7 +577,8 @@
         "no_suggested_accounts": "이 카테고리의 추천 계정이 없습니다.",
         "no_more_posts": "현재 더 이상 탐색할 게시물이 없습니다.",
         "search_placeholder_long": "Search posts, users, or feeds",
-        "guest_hero_text": "Search posts, users, and feeds on Bluesky"
+        "guest_hero_text": "Search posts, users, and feeds on Bluesky",
+        "hashtag": "해시태그"
     },
     "lists": {
         "title": "리스트",
@@ -903,7 +906,8 @@
         "inbox_zero": "Inbox zero!",
         "inbox_zero_desc": "You have no new chat requests.",
         "say_hi": "Say hi to someone",
-        "chat_settings": "채팅 설정"
+        "chat_settings": "채팅 설정",
+        "chat": "채팅"
     },
     "chat_settings": {
         "title": "채팅 설정",
@@ -1138,7 +1142,8 @@
         "anyone_can_reply": "Everybody can reply",
         "no_likes": "No likes yet",
         "no_quotes": "No quotes yet",
-        "no_reposts": "No reposts yet"
+        "no_reposts": "No reposts yet",
+        "post_by": "게시자:"
     },
     "sidebar": {
         "trending": "트렌드 주제",

@@ -9,11 +9,13 @@ import { fetchMutedWords, deleteMutedWordAsync, syncMutedWords } from '../redux/
 import { openMutedWords } from '../redux/slices/modalsSlice';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { MutedWord } from '../types';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const MutedWordsPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const { t } = useTranslation();
+    useDocumentTitle(t('moderation.muted_words_tags', 'Muted words & tags'));
     const { mutedWords, isLoading } = useAppSelector(state => state.user);
 
     useEffect(() => {

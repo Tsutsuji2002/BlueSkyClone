@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiBell } from 'react-icons/fi';
 import { useAppSelector } from '../hooks/useAppSelector';
 import { useUpdateSettingsMutation } from '../redux/api/authApi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const PostNotificationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    useDocumentTitle(t('privacy.notify_posts', 'Allow others to be notified of your posts'));
     const [updateSettings] = useUpdateSettingsMutation();
     
     // Map the post notification UI to defaultReplyRestriction as it has the same 3-states and was synced to PDS

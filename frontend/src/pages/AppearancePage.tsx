@@ -18,6 +18,8 @@ const AppearancePage: React.FC = () => {
     const { t } = useTranslation();
     const { colorMode, darkVariant, fontFamily, fontSize } = useAppSelector((state) => state.theme);
 
+    useDocumentTitle(t('appearance.title'));
+
     const handleColorModeChange = (val: string) => {
         dispatch(setColorMode(val as any));
         updateSettings({ themeMode: val as any });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useParams, Link } from 'react-router-dom';
 import { useGetStarterPackQuery, useFollowAllMembersMutation, useLazyGetListFeedQuery, useLazyGetListMembersQuery } from '../redux/api/starterPackApi';
 import { useAppDispatch, useAppSelector } from '../redux/hooks';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 
 import { RootState } from '../redux/store';
@@ -613,6 +614,8 @@ export const StarterPackDetailPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const isAuthenticated = useAppSelector((state: RootState) => state.auth.isAuthenticated);
+
+    useDocumentTitle('Starter Pack');
 
     // Legacy URL Redirection
     useEffect(() => {

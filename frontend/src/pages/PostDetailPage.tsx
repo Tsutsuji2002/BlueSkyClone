@@ -172,9 +172,7 @@ const PostDetailPage: React.FC = () => {
         };
     }, [postData, interactionTruth]) as Post;
 
-    const pageTitle = post?.content
-        ? (post.content.length > 50 ? post.content.slice(0, 50) + '...' : post.content)
-        : t('post.title');
+    const pageTitle = handle ? `${t('post.post_by', 'Post by')} @${handle}` : t('post.title');
 
     useDocumentTitle(pageTitle);
 

@@ -29,9 +29,9 @@ const PostQuotesPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
 
     const observerTarget = useRef<HTMLDivElement>(null);
-    const postUri = post?.uri;
-
-    useDocumentTitle(post ? `${t('post.quotes', 'Quotes')} · ${post.quotesCount} ${t('post.quotes', 'Quotes')}` : t('post.quotes', 'Quotes'));
+    const rawHandle = post?.author?.handle || handle;
+    const pageTitle = rawHandle ? `${t('post.post_by', 'Post by')} @${rawHandle.replace(/^@/, '')}` : t('post.title');
+    useDocumentTitle(pageTitle);
 
     // Load the post if we don't have it
     useEffect(() => {

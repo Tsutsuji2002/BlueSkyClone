@@ -413,7 +413,7 @@ const ProfilePage: React.FC = () => {
         ] : [])
     ];
 
-    useDocumentTitle(profileUser?.displayName || profileUser?.handle || '');
+    useDocumentTitle(profileUser ? `${profileUser.displayName || profileUser.handle} (@${profileUser.handle})` : '');
 
     const isStale = profileUser && handle && !profileMatchesIdentifier(profileUser, handle);
 

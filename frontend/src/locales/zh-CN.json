@@ -503,7 +503,9 @@
         "content_hidden": "内容已隐藏",
         "content_hidden_desc": "根据您的内容审核设置，此个人资料已被隐藏。",
         "content_warning": "内容警告",
-        "content_warning_desc": "此个人资料已被标记为包含敏感内容。"
+        "content_warning_desc": "此个人资料已被标记为包含敏感内容。",
+        "people_following": "关注者",
+        "people_followed_by": "关注的人"
     },
     "home": {
         "title": "主页",
@@ -575,7 +577,8 @@
         "no_suggested_accounts": "此分类没有推荐账户。",
         "no_more_posts": "目前没有更多帖子可供发现。",
         "search_placeholder_long": "搜索帖子、用户或信息流",
-        "guest_hero_text": "在 Bluesky 上搜索帖子、用户和信息流"
+        "guest_hero_text": "在 Bluesky 上搜索帖子、用户和信息流",
+        "hashtag": "话题标签"
     },
     "lists": {
         "title": "名单",
@@ -870,7 +873,8 @@
         "inbox_zero": "收件箱已清空！",
         "inbox_zero_desc": "您没有新的聊天请求。",
         "say_hi": "打个招呼",
-        "chat_settings": "聊天设置"
+        "chat_settings": "聊天设置",
+        "chat": "聊天"
     },
     "chat_settings": {
         "title": "聊天设置",
@@ -1105,7 +1109,8 @@
         "anyone_can_reply": "所有人均可回复",
         "no_likes": "暂无点赞",
         "no_quotes": "暂无引用",
-        "no_reposts": "暂无转帖"
+        "no_reposts": "暂无转帖",
+        "post_by": "发布者"
     },
     "sidebar": {
         "trending": "趋势话题",

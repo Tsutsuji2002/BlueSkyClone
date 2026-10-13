@@ -5,10 +5,12 @@ import { FiGithub } from 'react-icons/fi';
 import api from '../../utils/api';
 import LoadingIndicator from '../../components/common/LoadingIndicator';
 import ButterflyLogo from '../../components/common/ButterflyLogo';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 
 const PrivacyPolicyPage: React.FC = () => {
     const { t } = useTranslation();
     const [pageData, setPageData] = useState<{ title: string; content: string } | null>(null);
+    useDocumentTitle(pageData?.title || t('about.privacy', 'Privacy Policy'));
     const [loading, setLoading] = useState(true);
     const slug = 'privacy-policy';
 

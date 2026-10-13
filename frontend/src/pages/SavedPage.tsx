@@ -31,7 +31,7 @@ const SavedPage: React.FC = () => {
         dispatch(fetchBookmarkedPosts({ skip: bookmarkedPosts.length, take: dynamicTake }));
     };
 
-    useDocumentTitle(t('saved.title'));
+    useDocumentTitle(t('saved.posts_title', 'Saved Posts'));
 
     return (
         <div className="min-h-screen border-r border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg">

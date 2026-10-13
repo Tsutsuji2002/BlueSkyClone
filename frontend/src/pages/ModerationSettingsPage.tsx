@@ -17,12 +17,14 @@ import {
     FiInfo,
     FiLock
 } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import api from '../utils/api';
 import { cn } from '../utils/classNames';
 
 const ModerationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    useDocumentTitle(t('moderation.title'));
 
     const [updateSettings] = useUpdateSettingsMutation();
     const settings = useSelector((state: RootState) => state.auth.settings);

@@ -9,9 +9,11 @@ import { RootState } from '../redux/store';
 import { useTranslation } from 'react-i18next';
 import { submitSupportRequest, resetSupportStatus } from '../redux/slices/supportSlice';
 import { showToast } from '../redux/slices/toastSlice';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const SubmitRequestPage: React.FC = () => {
     const { t } = useTranslation();
+    useDocumentTitle(t('support.submit_request'));
     const dispatch = useAppDispatch();
     const { user } = useAppSelector((state: RootState) => state.auth);
     const { loading, success, error } = useAppSelector((state: RootState) => state.support);

@@ -203,7 +203,7 @@ const SearchPage: React.FC = () => {
         }
     };
 
-    useDocumentTitle(`${query ? query + ' - ' : ''}${t('nav.search', { defaultValue: 'Search' })}`);
+    useDocumentTitle(t('nav.explore', 'Explore'));
 
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
     const [isFocused, setIsFocused] = useState(false);

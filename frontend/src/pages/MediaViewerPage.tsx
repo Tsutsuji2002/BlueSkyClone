@@ -18,6 +18,7 @@ import { cn } from '../utils/classNames';
 import { RootState } from '../redux/store';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { usePostActions } from '../hooks/usePostActions';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 /**
  * MediaViewerPage - Standalone immersive page for viewing post media.
@@ -28,6 +29,8 @@ const MediaViewerPage: React.FC = () => {
     const dispatch = useAppDispatch();
     const { t, i18n } = useTranslation();
     const { handleCopyLink, handleEmbedPost, openShareModal } = usePostActions();
+
+    useDocumentTitle('');
 
     const [currentIndex, setCurrentIndex] = useState(parseInt(indexParam || '0', 10));
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);

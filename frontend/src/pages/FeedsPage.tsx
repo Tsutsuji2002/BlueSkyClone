@@ -53,6 +53,8 @@ const FeedsPage: React.FC = () => {
     
     const { isAuthenticated } = useAppSelector((state: RootState) => state.auth);
 
+    useDocumentTitle(t('feeds.title', 'Feeds'));
+
     const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
         if (isLoading || isFetchingMore) return;
         if (observer.current) observer.current.disconnect();

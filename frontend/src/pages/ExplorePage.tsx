@@ -440,6 +440,8 @@ const ExplorePage: React.FC = () => {
     const observerTarget = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
+    useDocumentTitle(t('nav.explore', 'Explore'));
+
     useEffect(() => {
         dispatch(fetchTrending());
         dispatch(fetchInterestsList());

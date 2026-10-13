@@ -346,7 +346,12 @@ const HomePage: React.FC = () => {
         }
     }, [tabs, activeTab, dispatch]);
 
-    useDocumentTitle(t('nav.home'));
+    const activeTabLabel = useMemo(() => {
+        const found = tabs.find(tab => tab.id === activeTab);
+        return found?.label || t('nav.home');
+    }, [tabs, activeTab, t]);
+
+    useDocumentTitle(activeTabLabel);
 
     if (isInitialLoading) {
         return (

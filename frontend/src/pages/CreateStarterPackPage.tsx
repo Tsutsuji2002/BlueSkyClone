@@ -7,6 +7,7 @@ import { showToast } from '../redux/slices/toastSlice';
 import { agent } from '../services/atpAgent';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import { FiCheck, FiRss } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 interface ActorItem {
     did: string;
@@ -82,6 +83,8 @@ const CreateStarterPackPage: React.FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
     const currentUser = useAppSelector((state: RootState) => state.auth.user);
+
+    useDocumentTitle('Create a Starter Pack');
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [name, setName] = useState('');

@@ -35,7 +35,7 @@ const TagPage: React.FC = () => {
         }
     };
 
-    useDocumentTitle(tag ? `#${tag}` : t('explore.trending_posts'));
+    useDocumentTitle(t('explore.hashtag', 'Hashtag'));
 
     return (
         <div className="min-h-screen bg-white dark:bg-dark-bg">

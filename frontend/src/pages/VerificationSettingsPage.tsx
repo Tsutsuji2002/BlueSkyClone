@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FiArrowLeft, FiInfo, FiCheckCircle } from 'react-icons/fi';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 const VerificationSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { t } = useTranslation();
+    useDocumentTitle(t('moderation.verification_title'));
     const [hideBadges, setHideBadges] = useState(false);
 
     return (

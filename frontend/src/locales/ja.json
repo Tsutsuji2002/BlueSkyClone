@@ -503,7 +503,9 @@
         "content_hidden": "非表示のコンテンツ",
         "content_hidden_desc": "このプロフィールはモデレーション設定に基づき非表示になっています。",
         "content_warning": "コンテンツ警告",
-        "content_warning_desc": "このプロフィールにはセンシティブなコンテンツが含まれている可能性があります。"
+        "content_warning_desc": "このプロフィールにはセンシティブなコンテンツが含まれている可能性があります。",
+        "people_following": "フォローしているユーザー",
+        "people_followed_by": "がフォローしているユーザー"
     },
     "home": {
         "title": "ホーム",
@@ -575,7 +577,8 @@
         "no_suggested_accounts": "このカテゴリーに推奨されるアカウントは見つかりませんでした。",
         "no_more_posts": "現在、これ以上発見できる投稿はありません。",
         "search_placeholder_long": "投稿、ユーザー、フィードを検索",
-        "guest_hero_text": "Blueskyで投稿、ユーザー、フィードを検索"
+        "guest_hero_text": "Blueskyで投稿、ユーザー、フィードを検索",
+        "hashtag": "ハッシュタグ"
     },
     "lists": {
         "title": "リスト",
@@ -870,7 +873,8 @@
         "inbox_zero": "受信トレイは空です！",
         "inbox_zero_desc": "新しいチャットリクエストはありません。",
         "say_hi": "挨拶してみましょう",
-        "chat_settings": "チャット設定"
+        "chat_settings": "チャット設定",
+        "chat": "チャット"
     },
     "chat_settings": {
         "title": "チャット設定",
@@ -1105,7 +1109,8 @@
         "anyone_can_reply": "誰でも返信できます",
         "no_likes": "いいねはまだありません",
         "no_quotes": "引用はまだありません",
-        "no_reposts": "リポストはまだありません"
+        "no_reposts": "リポストはまだありません",
+        "post_by": "による投稿"
     },
     "sidebar": {
         "trending": "トレンドトピック",
