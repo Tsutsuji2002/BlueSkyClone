@@ -847,8 +847,15 @@ const feedsSlice = createSlice({
                 const updateInList = (list: Feed[]) => {
                     const f = list.find(matches);
                     if (f) {
+                        const wasLiked = !!f.isLiked;
                         f.isLiked = isLiked;
                         f.likeUri = likeUri;
+                        // Optimistically update the like count (followersCount == likeCount from AT Proto)
+                        if (isLiked && !wasLiked) {
+                            f.followersCount = (f.followersCount || 0) + 1;
+                        } else if (!isLiked && wasLiked) {
+                            f.followersCount = Math.max(0, (f.followersCount || 1) - 1);
+                        }
                     }
                 };
 

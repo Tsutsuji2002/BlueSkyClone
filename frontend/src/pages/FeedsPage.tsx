@@ -442,7 +442,7 @@ const FeedsPage: React.FC = () => {
                                             </p>
                                         )}
                                         <p className="text-[12.5px] text-gray-400 dark:text-dark-text-secondary mt-1.5">
-                                            Liked by {(feed.subscribersCount || feed.followersCount || 0).toLocaleString()} users
+                                            Liked by {(feed.followersCount || 0).toLocaleString()} users
                                         </p>
                                     </div>
                                 ))}
@@ -539,7 +539,7 @@ const FeedsPage: React.FC = () => {
                                             </p>
                                         )}
                                         <p className="text-[12.5px] text-gray-400 dark:text-dark-text-secondary mt-1.5">
-                                            Liked by {(feed.subscribersCount || feed.followersCount || 0).toLocaleString()} users
+                                            Liked by {(feed.followersCount || 0).toLocaleString()} users
                                         </p>
                                     </div>
                                 </div>

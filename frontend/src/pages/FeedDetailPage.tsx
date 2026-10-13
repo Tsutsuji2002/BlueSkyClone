@@ -43,7 +43,8 @@ const FeedDetailPage: React.FC = () => {
         searchResults.find((f: FeedType) => feedsMatchRouteKey(f, routeKey)) ||
         feeds.find((f: FeedType) => feedsMatchRouteKey(f, routeKey));
 
-    const count = feed ? (feed.subscribersCount || feed.followersCount || 0) : 0;
+    // followersCount maps to AT Proto likeCount; subscribersCount is the local subscriber count (separate metric)
+    const count = feed ? (feed.followersCount || 0) : 0;
     const posts = routeKey ? feedPosts[routeKey] || [] : [];
     // Use per-feed loading for pagination (avoids re-mounting the Virtuoso list)
     const isFeedLoading = routeKey ? (feedLoading[routeKey] ?? isLoading) : isLoading;
