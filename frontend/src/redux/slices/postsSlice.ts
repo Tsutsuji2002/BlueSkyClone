@@ -193,6 +193,7 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
             quotesCount: post.quotesCount,
             replyRestriction: post.replyRestriction,
             allowQuotes: post.allowQuotes,
+            isPinned: post.isPinned,
             viewer: post.viewer,
         };
     } else {
@@ -210,6 +211,7 @@ const updateInteractionTruth = (state: PostsState, post: Post) => {
         // Update interaction settings
         if (post.replyRestriction !== undefined) existing.replyRestriction = post.replyRestriction;
         if (post.allowQuotes !== undefined) existing.allowQuotes = post.allowQuotes;
+        if (post.isPinned !== undefined) existing.isPinned = post.isPinned;
 
         if (post.viewer) {
             existing.viewer = {
@@ -2087,11 +2089,14 @@ const postsSlice = createSlice({
             // Pin Post
             .addCase(pinPost.fulfilled, (state, action) => {
                 const pinnedUri = action.payload;
+                Object.values(state.interactionTruth).forEach(t => {
+                    t.isPinned = false;
+                });
                 const updatePinned = (arr: Post[]) => {
                     arr.forEach(p => {
                         // For pinning, we clear pinned status for ALL posts first, then set it for the one.
                         p.isPinned = (p.uri === pinnedUri || p.id === pinnedUri || p.tid === pinnedUri);
-                        if (p.uri === pinnedUri) updateInteractionTruth(state, p);
+                        if (p.isPinned) updateInteractionTruth(state, p);
                         if (p.parentPost) recursivelyUpdatePost(p.parentPost, pinnedUri, (post) => { post.isPinned = true; }, state);
                         if (p.quotePost) recursivelyUpdatePost(p.quotePost, pinnedUri, (post) => { post.isPinned = true; }, state);
                     });
@@ -2099,9 +2104,17 @@ const postsSlice = createSlice({
                 updatePinned(state.posts);
                 updatePinned(state.discoverPosts);
                 updatePinned(state.trendingPosts);
+                updatePinned(state.threadPosts);
+                const normKey = pinnedUri?.toLowerCase();
+                if (normKey && state.interactionTruth[normKey]) {
+                    state.interactionTruth[normKey].isPinned = true;
+                }
             })
             // Unpin Post
             .addCase(unpinPost.fulfilled, (state) => {
+                Object.values(state.interactionTruth).forEach(t => {
+                    t.isPinned = false;
+                });
                 const clearPinned = (arr: Post[]) => {
                     arr.forEach(p => {
                         p.isPinned = false;
@@ -2110,6 +2123,7 @@ const postsSlice = createSlice({
                 clearPinned(state.posts);
                 clearPinned(state.discoverPosts);
                 clearPinned(state.trendingPosts);
+                clearPinned(state.threadPosts);
             })
             // Synchronize Profile Updates
             .addMatcher(

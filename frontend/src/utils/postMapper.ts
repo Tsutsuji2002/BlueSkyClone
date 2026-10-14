@@ -52,6 +52,7 @@ export const mapAtProtoPostToPost = (atPost: any, seen: Set<string> = new Set())
             imageUrls: atPost.imageUrls || images.map((img: any) => img.url),
             video: video,
             videoUrl: videoUrl,
+            isPinned: atPost.isPinned ?? (atPost.reason?.$type === 'app.bsky.feed.defs#reasonPin' ? true : undefined),
         } as Post;
     }
 
@@ -255,6 +256,7 @@ export const mapAtProtoPostToPost = (atPost: any, seen: Set<string> = new Set())
         labels,
         replyRestriction,
         allowQuotes,
+        isPinned: atPost.isPinned ?? (repostReason?.$type === 'app.bsky.feed.defs#reasonPin' ? true : undefined),
     };
 
     return post;

@@ -75,6 +75,7 @@ import {
     PostBlockAccountIcon,
     PostReportIcon,
     PostPinIcon,
+    PostEditInteractionsIcon,
     PostDeleteIcon,
     ThreadOptionsIcon,
     PostBackIcon
@@ -401,9 +402,19 @@ const PostDetailPage: React.FC = () => {
         }
     };
 
+    const isPostPinned = Boolean(
+        post?.isPinned ||
+        (currentUser?.pinnedPost && post && (
+            currentUser.pinnedPost.uri === post.uri ||
+            currentUser.pinnedPost.id === post.id ||
+            (post.tid && currentUser.pinnedPost.tid === post.tid) ||
+            (post.uri && currentUser.pinnedPost.uri && post.uri.endsWith('/' + currentUser.pinnedPost.uri.split('/').pop()))
+        ))
+    );
+
     const handleTogglePin = () => {
         if (!post) return;
-        if (post.isPinned) {
+        if (isPostPinned) {
             dispatch(unpinPost());
             dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
         } else {
@@ -666,7 +677,15 @@ const PostDetailPage: React.FC = () => {
         }
     ];
 
-    const moreDropdownItems: DropdownItem[] = [
+    const moreDropdownItems: DropdownItem[] = isOwnPost ? [
+        {
+            id: 'pin',
+            testId: 'pinPostBtn',
+            label: isPostPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to your profile'),
+            icon: <PostPinIcon />,
+            hasDivider: true,
+            onClick: handleTogglePin,
+        },
         {
             id: 'translate',
             testId: 'postDropdownTranslateBtn',
@@ -682,75 +701,102 @@ const PostDetailPage: React.FC = () => {
             hasDivider: true,
             onClick: () => handleCopyText(post.content),
         },
-        ...(currentUser ? (
-            isOwnPost ? [
-                {
-                    id: 'pin',
-                    testId: 'postDropdownPinBtn',
-                    label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to your profile'),
-                    icon: <PostPinIcon />,
-                    hasDivider: true,
-                    onClick: handleTogglePin,
+        {
+            id: 'mute-thread',
+            testId: 'postDropdownMuteThreadBtn',
+            label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
+            icon: <PostMuteThreadIcon />,
+            onClick: handleToggleMuteThread,
+        },
+        {
+            id: 'mute-words-tags',
+            testId: 'postDropdownMuteWordsBtn',
+            label: t('post.mute_words', 'Mute words & tags'),
+            icon: <PostMuteWordsIcon />,
+            hasDivider: true,
+            onClick: () => dispatch(openMutedWords()),
+        },
+        {
+            id: 'edit-interactions',
+            testId: 'postDropdownEditPostInteractions',
+            label: t('post.edit_interaction_settings', 'Edit interaction settings'),
+            icon: <PostEditInteractionsIcon />,
+            onClick: () => setIsInteractionModalOpen(true),
+        },
+        {
+            id: 'delete',
+            testId: 'postDropdownDeleteBtn',
+            label: t('common.delete_post', 'Delete post'),
+            icon: <PostDeleteIcon />,
+            danger: true,
+            onClick: () => setShowDeleteConfirm(true),
+        }
+    ] : [
+        {
+            id: 'translate',
+            testId: 'postDropdownTranslateBtn',
+            label: t('post.translate', 'Translate'),
+            icon: <PostTranslateIcon />,
+            onClick: () => handleTranslate(post.content),
+        },
+        {
+            id: 'copy-text',
+            testId: 'postDropdownCopyTextBtn',
+            label: t('post.copy_text', 'Copy post text'),
+            icon: <PostCopyTextIcon />,
+            hasDivider: true,
+            onClick: () => handleCopyText(post.content),
+        },
+        ...(currentUser ? [
+            {
+                id: 'mute-thread',
+                testId: 'postDropdownMuteThreadBtn',
+                label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
+                icon: <PostMuteThreadIcon />,
+                onClick: handleToggleMuteThread,
+            },
+            {
+                id: 'mute-words-tags',
+                testId: 'postDropdownMuteWordsBtn',
+                label: t('post.mute_words', 'Mute words & tags'),
+                icon: <PostMuteWordsIcon />,
+                hasDivider: true,
+                onClick: () => dispatch(openMutedWords()),
+            },
+            {
+                id: 'hide-post',
+                testId: 'postDropdownHideBtn',
+                label: t('post.hide_post', 'Hide post for me'),
+                icon: <PostHideIcon />,
+                hasDivider: true,
+                onClick: handleHidePost,
+            },
+            {
+                id: 'mute-account',
+                testId: 'postDropdownMuteBtn',
+                label: isAuthorMuted ? t('post.unmute_account', 'Unmute account') : t('post.mute_account', 'Mute account'),
+                icon: <PostMuteAccountIcon />,
+                onClick: handleToggleMuteAuthor,
+            },
+            {
+                id: 'block-account',
+                testId: 'postDropdownBlockBtn',
+                label: isAuthorBlocked ? t('post.unblock_account', 'Unblock account') : t('post.block_account', 'Block account'),
+                icon: <PostBlockAccountIcon />,
+                onClick: handleToggleBlockAuthor,
+            },
+            {
+                id: 'report-post',
+                testId: 'postDropdownReportBtn',
+                label: t('post.report_post', 'Report post'),
+                icon: <PostReportIcon />,
+                onClick: () => {
+                    if (post.uri && post.cid) {
+                        dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
+                    }
                 },
-                {
-                    id: 'delete',
-                    testId: 'postDropdownDeleteBtn',
-                    label: t('common.delete_post', 'Delete post'),
-                    icon: <PostDeleteIcon />,
-                    danger: true,
-                    onClick: () => setShowDeleteConfirm(true),
-                }
-            ] : [
-                {
-                    id: 'mute-thread',
-                    testId: 'postDropdownMuteThreadBtn',
-                    label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
-                    icon: <PostMuteThreadIcon />,
-                    onClick: handleToggleMuteThread,
-                },
-                {
-                    id: 'mute-words-tags',
-                    testId: 'postDropdownMuteWordsBtn',
-                    label: t('post.mute_words', 'Mute words & tags'),
-                    icon: <PostMuteWordsIcon />,
-                    hasDivider: true,
-                    onClick: () => dispatch(openMutedWords()),
-                },
-                {
-                    id: 'hide-post',
-                    testId: 'postDropdownHideBtn',
-                    label: t('post.hide_post', 'Hide post for me'),
-                    icon: <PostHideIcon />,
-                    hasDivider: true,
-                    onClick: handleHidePost,
-                },
-                {
-                    id: 'mute-account',
-                    testId: 'postDropdownMuteBtn',
-                    label: isAuthorMuted ? t('post.unmute_account', 'Unmute account') : t('post.mute_account', 'Mute account'),
-                    icon: <PostMuteAccountIcon />,
-                    onClick: handleToggleMuteAuthor,
-                },
-                {
-                    id: 'block-account',
-                    testId: 'postDropdownBlockBtn',
-                    label: isAuthorBlocked ? t('post.unblock_account', 'Unblock account') : t('post.block_account', 'Block account'),
-                    icon: <PostBlockAccountIcon />,
-                    onClick: handleToggleBlockAuthor,
-                },
-                {
-                    id: 'report-post',
-                    testId: 'postDropdownReportBtn',
-                    label: t('post.report_post', 'Report post'),
-                    icon: <PostReportIcon />,
-                    onClick: () => {
-                        if (post.uri && post.cid) {
-                            dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
-                        }
-                    },
-                }
-            ]
-        ) : []),
+            }
+        ] : []),
     ];
 
 

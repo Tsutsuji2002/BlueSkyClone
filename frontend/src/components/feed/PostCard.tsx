@@ -16,8 +16,10 @@ import {
     PostBlockAccountIcon,
     PostReportIcon,
     PostPinIcon,
+    PostEditInteractionsIcon,
     PostDeleteIcon
 } from '../common/PostDropdownIcons';
+import PostInteractionSettingsModal from '../../modals/PostInteractionSettingsModal';
 import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
@@ -134,6 +136,17 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
     const [unmuteThreadMutation] = useUnmuteThreadMutation();
     const [isThreadMuted, setIsThreadMuted] = React.useState<boolean>(!!post?.viewer?.threadMuted);
     const [isPostHidden, setIsPostHidden] = React.useState<boolean>(false);
+    const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState<boolean>(false);
+
+    const isPostPinned = Boolean(
+        post?.isPinned ||
+        (currentUser?.pinnedPost && post && (
+            currentUser.pinnedPost.uri === post.uri ||
+            currentUser.pinnedPost.id === post.id ||
+            (post.tid && currentUser.pinnedPost.tid === post.tid) ||
+            (post.uri && currentUser.pinnedPost.uri && post.uri.endsWith('/' + currentUser.pinnedPost.uri.split('/').pop()))
+        ))
+    );
 
     React.useEffect(() => {
         if (post?.viewer?.threadMuted !== undefined) {
@@ -382,8 +395,70 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                 danger: true,
             }
         ] : []),
+    ] : (isOwnPost ? [
+        {
+            id: 'pin',
+            testId: 'pinPostBtn',
+            label: isPostPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to your profile'),
+            icon: <PostPinIcon />,
+            hasDivider: true,
+            onClick: () => {
+                if (isPostPinned) {
+                    dispatch(unpinPost());
+                    dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
+                } else {
+                    dispatch(pinPost(post.uri!));
+                    dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
+                }
+            }
+        },
+        {
+            id: 'translate',
+            testId: 'postDropdownTranslateBtn',
+            label: t('post.translate', 'Translate'),
+            icon: <PostTranslateIcon />,
+            onClick: () => handleTranslate(post.content),
+        },
+        {
+            id: 'copy-text',
+            testId: 'postDropdownCopyTextBtn',
+            label: t('post.copy_text', 'Copy post text'),
+            icon: <PostCopyTextIcon />,
+            hasDivider: true,
+            onClick: () => handleCopyText(post.content)
+        },
+        {
+            id: 'mute-thread',
+            testId: 'postDropdownMuteThreadBtn',
+            label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
+            icon: <PostMuteThreadIcon />,
+            onClick: handleToggleMuteThread,
+        },
+        {
+            id: 'muted-words-tags',
+            testId: 'postDropdownMuteWordsBtn',
+            label: t('post.mute_words', 'Mute words & tags'),
+            icon: <PostMuteWordsIcon />,
+            hasDivider: true,
+            onClick: () => dispatch(openMutedWords()),
+        },
+        {
+            id: 'edit-interactions',
+            testId: 'postDropdownEditPostInteractions',
+            label: t('post.edit_interaction_settings', 'Edit interaction settings'),
+            icon: <PostEditInteractionsIcon />,
+            onClick: () => setIsInteractionModalOpen(true),
+        },
+        {
+            id: 'delete',
+            testId: 'postDropdownDeleteBtn',
+            label: t('common.delete_post', 'Delete post'),
+            icon: <PostDeleteIcon />,
+            onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
+            danger: true,
+        },
     ] : [
-        // Full options for normal context
+        // Full options for normal context when not own post
         {
             id: 'translate',
             testId: 'postDropdownTranslateBtn',
@@ -400,68 +475,66 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             onClick: () => handleCopyText(post.content)
         },
         ...(currentUser ? [
-            ...(!isOwnPost ? [
-                {
-                    id: 'mute-thread',
-                    testId: 'postDropdownMuteThreadBtn',
-                    label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
-                    icon: <PostMuteThreadIcon />,
-                    onClick: handleToggleMuteThread,
+            {
+                id: 'mute-thread',
+                testId: 'postDropdownMuteThreadBtn',
+                label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
+                icon: <PostMuteThreadIcon />,
+                onClick: handleToggleMuteThread,
+            },
+            {
+                id: 'muted-words-tags',
+                testId: 'postDropdownMuteWordsBtn',
+                label: t('post.mute_words', 'Mute words & tags'),
+                icon: <PostMuteWordsIcon />,
+                hasDivider: true,
+                onClick: () => dispatch(openMutedWords()),
+            },
+            {
+                id: isComment ? 'hide-reply' : 'hide-post',
+                testId: 'postDropdownHideBtn',
+                label: isComment ? t('post.hide_reply', 'Hide reply for me') : t('post.hide_post', 'Hide post for me'),
+                icon: <PostHideIcon />,
+                hasDivider: true,
+                onClick: handleHidePost,
+            },
+            {
+                id: 'mute-account',
+                testId: 'postDropdownMuteBtn',
+                label: t('post.mute_account', 'Mute account'),
+                icon: <PostMuteAccountIcon />,
+                onClick: () => {
+                    const authorActor = post.author?.did || post.author?.handle || post.author?.id;
+                    if (authorActor) {
+                        dispatch(muteUserAsync(authorActor));
+                        dispatch(showToast({ message: t('profile.muted_success', 'Account muted'), type: 'success' }));
+                    }
                 },
-                {
-                    id: 'muted-words-tags',
-                    testId: 'postDropdownMuteWordsBtn',
-                    label: t('post.mute_words', 'Mute words & tags'),
-                    icon: <PostMuteWordsIcon />,
-                    hasDivider: true,
-                    onClick: () => dispatch(openMutedWords()),
+            },
+            {
+                id: 'block-account',
+                testId: 'postDropdownBlockBtn',
+                label: t('post.block_account', 'Block account'),
+                icon: <PostBlockAccountIcon />,
+                onClick: () => {
+                    const authorActor = post.author?.did || post.author?.handle || post.author?.id;
+                    if (authorActor) {
+                        dispatch(blockUserAsync(authorActor));
+                        dispatch(showToast({ message: t('profile.blocked_success', 'Account blocked'), type: 'success' }));
+                    }
                 },
-                {
-                    id: isComment ? 'hide-reply' : 'hide-post',
-                    testId: 'postDropdownHideBtn',
-                    label: isComment ? t('post.hide_reply', 'Hide reply for me') : t('post.hide_post', 'Hide post for me'),
-                    icon: <PostHideIcon />,
-                    hasDivider: true,
-                    onClick: handleHidePost,
-                },
-                {
-                    id: 'mute-account',
-                    testId: 'postDropdownMuteBtn',
-                    label: t('post.mute_account', 'Mute account'),
-                    icon: <PostMuteAccountIcon />,
-                    onClick: () => {
-                        const authorActor = post.author?.did || post.author?.handle || post.author?.id;
-                        if (authorActor) {
-                            dispatch(muteUserAsync(authorActor));
-                            dispatch(showToast({ message: t('profile.muted_success', 'Account muted'), type: 'success' }));
-                        }
-                    },
-                },
-                {
-                    id: 'block-account',
-                    testId: 'postDropdownBlockBtn',
-                    label: t('post.block_account', 'Block account'),
-                    icon: <PostBlockAccountIcon />,
-                    onClick: () => {
-                        const authorActor = post.author?.did || post.author?.handle || post.author?.id;
-                        if (authorActor) {
-                            dispatch(blockUserAsync(authorActor));
-                            dispatch(showToast({ message: t('profile.blocked_success', 'Account blocked'), type: 'success' }));
-                        }
-                    },
-                },
-                {
-                    id: 'report-post',
-                    testId: 'postDropdownReportBtn',
-                    label: t('post.report_post', 'Report post'),
-                    icon: <PostReportIcon />,
-                    onClick: () => dispatch(openReport({
-                        uri: post.uri,
-                        cid: post.cid,
-                        type: isComment ? 'comment' : 'post'
-                    })),
-                },
-            ] : []),
+            },
+            {
+                id: 'report-post',
+                testId: 'postDropdownReportBtn',
+                label: t('post.report_post', 'Report post'),
+                icon: <PostReportIcon />,
+                onClick: () => dispatch(openReport({
+                    uri: post.uri,
+                    cid: post.cid,
+                    type: isComment ? 'comment' : 'post'
+                })),
+            },
             ...(onRemoveFromList ? [
                 { id: 'divider-remove-list', label: '', icon: null, onClick: () => { }, hasDivider: true },
                 {
@@ -472,35 +545,8 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                     danger: true,
                 }
             ] : []),
-            ...(isOwnPost ? [
-                { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
-                {
-                    id: 'pin',
-                    testId: 'postDropdownPinBtn',
-                    label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to profile'),
-                    icon: <PostPinIcon />,
-                    hasDivider: true,
-                    onClick: () => {
-                        if (post.isPinned) {
-                            dispatch(unpinPost());
-                            dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
-                        } else {
-                            dispatch(pinPost(post.uri!));
-                            dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
-                        }
-                    }
-                },
-                {
-                    id: 'delete',
-                    testId: 'postDropdownDeleteBtn',
-                    label: t('common.delete_post', 'Delete post'),
-                    icon: <PostDeleteIcon />,
-                    onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
-                    danger: true,
-                },
-            ] : []),
         ] : []),
-    ]);
+    ]));
 
     if (isPostHidden) {
         return (
@@ -583,7 +629,7 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
             )}
 
             {/* Pinned Banner */}
-            {post.isPinned && (
+            {(post.isPinned || isPostPinned) && (
                 <div className="flex flex-row gap-[10px] px-3 pt-2 pb-0">
                     <div className="w-[42px] shrink-0" />
                     <div className="flex items-center gap-1.5 text-[13.1px] font-medium text-[#405168] dark:text-dark-text-secondary transition-colors leading-[17px]">
@@ -862,6 +908,19 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                 </div>
 
             </div>
+
+            {isOwnPost && currentUser && (
+                <PostInteractionSettingsModal
+                    isOpen={isInteractionModalOpen}
+                    onClose={() => setIsInteractionModalOpen(false)}
+                    replyRestriction={post.replyRestriction || 'anyone'}
+                    setReplyRestriction={() => { }}
+                    allowQuotes={post.allowQuotes !== false}
+                    setAllowQuotes={() => { }}
+                    postUri={post.uri!}
+                    loading={false}
+                />
+            )}
         </div>
     );
 });
