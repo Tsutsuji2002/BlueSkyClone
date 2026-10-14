@@ -11,7 +11,7 @@ export interface DropdownItem {
     onClick?: () => void;
     danger?: boolean;
     hasDivider?: boolean;
-    type?: 'default' | 'radio';
+    type?: 'default' | 'radio' | 'header';
     selected?: boolean;
     h?: boolean; // divider shorthand
     disabled?: boolean;
@@ -153,58 +153,63 @@ const Dropdown: React.FC<DropdownProps> = ({
                     >
                         {items.map((item, idx) => (
                             <React.Fragment key={item.id || `divider-${idx}`}>
-                                {/* Only render button if item has a label or content */}
-                                {(item.label || item.content) && (
-                                    <button
-                                        type="button"
-                                        role="menuitem"
-                                        tabIndex={-1}
-                                        aria-label={item.label}
-                                        data-testid={item.testId}
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            item.onClick?.();
-                                            // Delay closing to ensure the action (like file picker) is triggered
-                                            if (!item.content || item.onClick) {
-                                                setTimeout(() => setIsOpen(false), 10);
-                                            }
-                                        }}
-                                        className={cn(
-                                            'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px] min-h-[32px] outline-none',
-                                            'hover:bg-gray-100 dark:hover:bg-dark-hover',
-                                            item.danger
-                                                ? 'text-red-500'
-                                                : 'text-[#232E3E] dark:text-dark-text',
-                                            item.content ? 'p-0 h-auto' : ''
-                                        )}
+                                {item.type === 'header' ? (
+                                    <div
+                                        dir="auto"
+                                        className="text-[13.1px] tracking-[0.25px] text-[#8798B0] dark:text-[#8798B0] leading-[17px] font-semibold px-[10px] py-2 select-none text-left"
                                     >
-                                        {item.content ? (
-                                            item.content
-                                        ) : (
-                                            <>
-                                                <div dir="auto" className="text-[13.1px] tracking-[0.25px] leading-[17px] flex-1 font-semibold truncate text-left">
-                                                    {item.label}
-                                                </div>
-                                                {item.type === 'radio' ? (
-                                                    <div className={cn(
-                                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ml-3",
-                                                        item.selected 
-                                                            ? "border-primary-500 bg-primary-500" 
-                                                            : "border-gray-300 dark:border-dark-border"
-                                                    )}>
-                                                        {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                                        {item.label}
+                                    </div>
+                                ) : (
+                                    (item.label || item.content) && (
+                                        <button
+                                            type="button"
+                                            role="menuitem"
+                                            tabIndex={-1}
+                                            aria-label={item.label}
+                                            data-testid={item.testId}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                item.onClick?.();
+                                                // Delay closing to ensure the action (like file picker) is triggered
+                                                if (!item.content || item.onClick) {
+                                                    setTimeout(() => setIsOpen(false), 10);
+                                                }
+                                            }}
+                                            className={cn(
+                                                'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px] min-h-[32px] outline-none',
+                                                'hover:bg-gray-100 dark:hover:bg-dark-hover',
+                                                item.danger
+                                                    ? 'text-red-500'
+                                                    : 'text-[#232E3E] dark:text-dark-text',
+                                                item.content ? 'p-0 h-auto' : ''
+                                            )}
+                                        >
+                                            {item.content ? (
+                                                item.content
+                                            ) : (
+                                                <>
+                                                    <div dir="auto" className="text-[13.1px] tracking-[0.25px] leading-[17px] flex-1 font-semibold truncate text-left">
+                                                        {item.label}
                                                     </div>
-                                                ) : (
-                                                    item.icon && (
-                                                        <div className={cn("mr-[-2px] ml-3 flex-shrink-0", item.danger ? "text-red-500" : "text-[#405168] dark:text-[#8798B0]")}>
-                                                            {item.icon}
+                                                    {item.type === 'radio' ? (
+                                                        <div className="w-5 h-5 rounded-full border border-[#A5B2C5] dark:border-dark-border flex items-center justify-center flex-shrink-0 ml-3 relative">
+                                                            {item.selected && (
+                                                                <div className="w-[14px] h-[14px] rounded-full bg-[#006AFF]" />
+                                                            )}
                                                         </div>
-                                                    )
-                                                )}
-                                            </>
-                                        )}
-                                    </button>
+                                                    ) : (
+                                                        item.icon && (
+                                                            <div className={cn("mr-[-2px] ml-3 flex-shrink-0", item.danger ? "text-red-500" : "text-[#405168] dark:text-[#8798B0]")}>
+                                                                {item.icon}
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </>
+                                            )}
+                                        </button>
+                                    )
                                 )}
                                 {(item.hasDivider || item.h) && (
                                     <div role="separator" aria-orientation="horizontal" className="my-1 bg-[#DCE2EA] dark:bg-dark-border h-[1px] flex-shrink-0" />

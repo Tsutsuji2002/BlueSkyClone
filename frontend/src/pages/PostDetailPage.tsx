@@ -75,7 +75,9 @@ import {
     PostBlockAccountIcon,
     PostReportIcon,
     PostPinIcon,
-    PostDeleteIcon
+    PostDeleteIcon,
+    ThreadOptionsIcon,
+    PostBackIcon
 } from '../components/common/PostDropdownIcons';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal';
@@ -482,9 +484,16 @@ const PostDetailPage: React.FC = () => {
     if (!post && !isThreadLoading && !isInitializing) {
         return (
             <div className="min-h-screen flex flex-col bg-white dark:bg-dark-bg">
-                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-4 h-[53px] flex items-center">
-                    <IconButton icon={<FiArrowLeft size={20} />} onClick={() => navigate(-1)} />
-                    <h1 className="ml-4 font-bold text-gray-900 dark:text-dark-text">{t('post.not_found', 'Post not found')}</h1>
+                <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-5 min-h-[52px] flex items-center gap-2">
+                    <button
+                        type="button"
+                        aria-label={t('common.go_back', 'Go back')}
+                        onClick={() => navigate(-1)}
+                        className="w-[33px] h-[33px] rounded-full -ml-[3px] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors cursor-pointer text-[#526580] dark:text-[#8798B0]"
+                    >
+                        <PostBackIcon />
+                    </button>
+                    <h1 className="text-[18.8px] leading-[22px] font-semibold text-gray-900 dark:text-dark-text tracking-[0.25px]">{t('post.not_found', 'Post not found')}</h1>
                 </div>
                 <div className="flex flex-col items-center justify-center min-h-[600px] p-8 text-center">
                     <h2 className="text-2xl font-bold mb-2">{t('post.not_found', 'Post not found')}</h2>
@@ -592,76 +601,68 @@ const PostDetailPage: React.FC = () => {
         {
             id: 'section-view',
             label: t('post.show_replies_as', 'Show replies as'),
-            onClick: () => { },
-            type: 'default',
+            type: 'header',
         },
         {
             id: 'linear',
             label: t('post.linear', 'Linear'),
+            type: 'radio',
+            selected: !treeViewEnabled,
             onClick: () => {
                 const newSettings = { treeView: false };
                 dispatch(updateSettings(newSettings));
                 if (currentUser) updateSettingsMutation(newSettings);
             },
-            type: 'radio',
-            selected: !treeViewEnabled,
         },
         {
             id: 'threaded',
             label: t('post.threaded', 'Threaded'),
+            type: 'radio',
+            selected: treeViewEnabled,
+            hasDivider: true,
             onClick: () => {
                 const newSettings = { treeView: true };
                 dispatch(updateSettings(newSettings));
                 if (currentUser) updateSettingsMutation(newSettings);
             },
-            type: 'radio',
-            selected: treeViewEnabled,
-            hasDivider: true,
-        },
-        {
-            id: 'loading',
-            label: t('post.loading', 'Loading post...'),
-            onClick: () => { },
-            type: 'default',
         },
         {
             id: 'section-sorting',
             label: t('post.reply_sorting', 'Reply sorting'),
-            onClick: () => { },
-            type: 'default',
+            type: 'header',
         },
         {
             id: 'top',
             label: t('post.top_replies_first', 'Top replies first'),
+            type: 'radio',
+            selected: sortOrder === 'top',
             onClick: () => {
                 const newSettings = { sortReplies: 'top' as const };
                 dispatch(updateSettings(newSettings));
                 if (currentUser) updateSettingsMutation(newSettings);
             },
-            type: 'radio',
-            selected: sortOrder === 'top',
         },
         {
             id: 'oldest',
             label: t('post.oldest_replies_first', 'Oldest replies first'),
+            type: 'radio',
+            selected: sortOrder === 'oldest',
             onClick: () => {
                 const newSettings = { sortReplies: 'oldest' as const };
                 dispatch(updateSettings(newSettings));
                 if (currentUser) updateSettingsMutation(newSettings);
             },
-            type: 'radio',
-            selected: sortOrder === 'oldest',
         },
         {
             id: 'newest',
             label: t('post.newest_replies_first', 'Newest replies first'),
+            type: 'radio',
+            selected: sortOrder === 'newest',
             onClick: () => {
                 const newSettings = { sortReplies: 'newest' as const };
                 dispatch(updateSettings(newSettings));
                 if (currentUser) updateSettingsMutation(newSettings);
             },
-            type: 'radio',
-            selected: sortOrder === 'newest',
         }
     ];
 
@@ -779,39 +780,45 @@ const PostDetailPage: React.FC = () => {
     return (
         <div className="min-h-screen">
             {/* Header */}
-            <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border">
-                <div className="flex items-center justify-between px-4 h-[53px]">
-                    <div className="flex items-center gap-2">
-                        <IconButton
-                            icon={<FiArrowLeft size={20} />}
-                            onClick={handleBack}
-                            variant="default"
-                            className="mr-2"
-                        />
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-dark-text truncate max-w-[200px] sm:max-w-xs">
-                            {t('post.title')}
-                        </h1>
-                    </div>
-                    <div className="flex items-center gap-2">
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-dark-bg/95 backdrop-blur-md border-b border-gray-200 dark:border-dark-border px-5 min-h-[52px] flex items-center gap-2">
+                <div className="z-50 w-[33px]">
+                    <button
+                        type="button"
+                        aria-label={t('common.go_back', 'Go back')}
+                        onClick={handleBack}
+                        className="w-[33px] h-[33px] rounded-full -ml-[3px] flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors cursor-pointer text-[#526580] dark:text-[#8798B0]"
+                    >
+                        <PostBackIcon />
+                    </button>
+                </div>
+                <div className="flex-1 min-h-[33px] flex items-center">
+                    <h1 className="text-[18.8px] leading-[22px] font-semibold text-gray-900 dark:text-dark-text tracking-[0.25px] truncate">
+                        {t('post.title', 'Post')}
+                    </h1>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="z-50 w-[33px]">
                         <Dropdown
                             trigger={
-                                <IconButton
-                                    icon={<FiSliders size={20} />}
-                                    variant="default"
-                                    onClick={() => { }} // Explicitly interactive
-                                />
+                                <button
+                                    type="button"
+                                    aria-label="Thread options"
+                                    className="w-[33px] h-[33px] rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors cursor-pointer text-[#526580] dark:text-[#8798B0]"
+                                >
+                                    <ThreadOptionsIcon />
+                                </button>
                             }
                             items={settingsDropdownItems}
+                            align="right"
                         />
-                        <div className="lg:hidden ml-2">
-                            <button
-                                onClick={() => dispatch(openMobileMenu())}
-                                className="p-1 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
-                            >
-                                <Avatar src={currentUser?.avatar} alt={currentUser?.displayName || 'User'} size="sm" />
-                            </button>
-                        </div>
-
+                    </div>
+                    <div className="lg:hidden ml-1">
+                        <button
+                            onClick={() => dispatch(openMobileMenu())}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-dark-surface rounded-full flex-shrink-0"
+                        >
+                            <Avatar src={currentUser?.avatar} alt={currentUser?.displayName || 'User'} size="sm" />
+                        </button>
                     </div>
                 </div>
             </div>

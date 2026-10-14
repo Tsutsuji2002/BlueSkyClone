@@ -55,3 +55,16 @@ export const PostDeleteIcon = ({ className = "w-5 h-5" }: { className?: string }
         <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M9 3a1 1 0 0 0-1 1v1H4a1 1 0 0 0 0 2h1v12a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V7h1a1 1 0 1 0 0-2h-4V4a1 1 0 0 0-1-1H9Zm6 2V5H9v0h6ZM7 7h10v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7Zm3 3a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0v-6a1 1 0 0 1 1-1Zm4 0a1 1 0 0 1 1 1v6a1 1 0 1 1-2 0v-6a1 1 0 0 1 1-1Z" />
     </svg>
 );
+
+export const ThreadOptionsIcon = ({ className = "w-[18px] h-[18px]" }: { className?: string }) => (
+    <svg fill="none" viewBox="0 0 24 24" width="18" height="18" className={className}>
+        <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M7 3a1 1 0 0 1 1 1v1.126a4 4 0 0 1 0 7.748V20a1 1 0 1 1-2 0v-7.126a4 4 0 0 1 0-7.748V4a1 1 0 0 1 1-1Zm10 0a1 1 0 0 1 1 1v9.126a4 4 0 1 1-2 0V4a1 1 0 0 1 1-1ZM7 7a2 2 0 1 0 0 4 2 2 0 1 0 0-4Zm10 8a2 2 0 1 0 0 4 2 2 0 1 0 0-4Z" />
+    </svg>
+);
+
+export const PostBackIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg fill="none" viewBox="0 0 24 24" width="24" height="24" className={className}>
+        <path fill="currentColor" stroke="none" strokeWidth="0" strokeLinecap="butt" strokeLinejoin="miter" fillRule="evenodd" clipRule="evenodd" d="M3 12a1 1 0 0 1 .293-.707l6-6a1 1 0 0 1 1.414 1.414L6.414 11H20a1 1 0 1 1 0 2H6.414l4.293 4.293a1 1 0 0 1-1.414 1.414l-6-6A1 1 0 0 1 3 12Z" />
+    </svg>
+);
+
