@@ -98,6 +98,9 @@ const PostInteractionSettingsModal: React.FC<PostInteractionSettingsModalProps> 
                     allowQuotes: localQuotes
                 })).unwrap();
 
+                setReplyRestriction(finalRestriction);
+                setAllowQuotes(localQuotes);
+
                 dispatch(showToast({ message: t('post.interaction_settings_updated', 'Settings updated'), type: 'success' }));
             } else {
                 // For new posts (no postUri): settings are applied to composer state
