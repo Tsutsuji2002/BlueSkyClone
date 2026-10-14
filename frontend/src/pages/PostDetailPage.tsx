@@ -901,34 +901,40 @@ const PostDetailPage: React.FC = () => {
                 </div>
 
                 {/* Stats Row */}
-                {(post.likesCount > 0 || post.repostsCount > 0 || (post.quotesCount && post.quotesCount > 0)) && (
+                {(((post.repostsCount || 0) > 0) || ((post.quotesCount || 0) > 0) || ((post.likesCount || 0) > 0) || ((post.bookmarksCount || 0) > 0)) && (
                     <div className="flex items-center gap-4 border-t border-gray-200 dark:border-dark-border mt-3 py-2 text-[15px] leading-[20px] text-[#405168] dark:text-[#8798B0]">
-                        {post.repostsCount > 0 && (
+                        {(post.repostsCount || 0) > 0 && (
                             <button 
                                 className="flex items-center gap-1 hover:underline group cursor-pointer"
                                 onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/reposted-by`)}
                             >
                                 <span className="font-semibold text-gray-900 dark:text-white">{post.repostsCount}</span>
-                                <span>{t('post.reposts')}</span>
+                                <span className="lowercase">{t('post.reposts')}</span>
                             </button>
                         )}
-                        {post.quotesCount && post.quotesCount > 0 && (
+                        {(post.quotesCount || 0) > 0 && (
                             <button 
                                 className="flex items-center gap-1 hover:underline group cursor-pointer"
                                 onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/quotes`)}
                             >
                                 <span className="font-semibold text-gray-900 dark:text-white">{post.quotesCount}</span>
-                                <span>{t('post.quotes')}</span>
+                                <span className="lowercase">{t('post.quotes')}</span>
                             </button>
                         )}
-                        {post.likesCount > 0 && (
+                        {(post.likesCount || 0) > 0 && (
                             <button 
                                 className="flex items-center gap-1 hover:underline group cursor-pointer"
                                 onClick={() => navigate(`/profile/${post.author.handle}/post/${post.tid || post.id}/liked-by`)}
                             >
                                 <span className="font-semibold text-gray-900 dark:text-white">{post.likesCount}</span>
-                                <span>{t('post.likes')}</span>
+                                <span className="lowercase">{t('post.likes')}</span>
                             </button>
+                        )}
+                        {(post.bookmarksCount || 0) > 0 && (
+                            <div className="flex items-center gap-1">
+                                <span className="font-semibold text-gray-900 dark:text-white">{post.bookmarksCount}</span>
+                                <span className="lowercase">{(post.bookmarksCount === 1 && (i18n.language === 'en' || i18n.language?.startsWith('en-'))) ? 'save' : t('post.saves')}</span>
+                            </div>
                         )}
                     </div>
                 )}

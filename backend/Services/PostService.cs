@@ -7302,7 +7302,7 @@ public class PostService : IPostService
             .Where(p =>
                 (p.Uri != null && loweredUris.Contains(p.Uri)) ||
                 (p.Tid != null && rkeys.Contains(p.Tid)))
-            .Select(p => new { p.Id, p.Uri, p.Tid, p.AuthorId })
+            .Select(p => new { p.Id, p.Uri, p.Tid, p.AuthorId, p.BookmarksCount })
             .ToListAsync();
 
         var matchedIds = matchedPosts.Select(p => p.Id).Distinct().ToList();
@@ -7417,6 +7417,7 @@ public class PostService : IPostService
                 IsLiked = !string.IsNullOrWhiteSpace(likeUri),
                 IsReposted = !string.IsNullOrWhiteSpace(repostUri),
                 IsBookmarked = isBookmarked,
+                BookmarksCount = matchedPost?.BookmarksCount ?? 0,
                 LikeUri = likeUri,
                 RepostUri = repostUri
             });

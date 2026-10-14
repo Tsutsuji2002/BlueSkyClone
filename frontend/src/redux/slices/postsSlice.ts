@@ -1215,6 +1215,7 @@ const postsSlice = createSlice({
                         isLiked: status.isLiked,
                         isReposted: status.isReposted,
                         isBookmarked: status.isBookmarked,
+                        bookmarksCount: status.bookmarksCount,
                         viewer: {
                             like: status.likeUri ?? undefined,
                             repost: status.repostUri ?? undefined
@@ -2231,6 +2232,7 @@ const postsSlice = createSlice({
                         isReposted: payload.isReposted ?? existing.isReposted,
                         repostsCount: payload.repostsCount ?? existing.repostsCount,
                         isBookmarked: payload.isBookmarked ?? existing.isBookmarked,
+                        bookmarksCount: payload.bookmarksCount ?? existing.bookmarksCount,
                     };
 
                     // Deep update all posts — only update defined fields from payload
@@ -2241,6 +2243,7 @@ const postsSlice = createSlice({
                             if (payload.isReposted !== undefined) p.isReposted = payload.isReposted;
                             if (payload.repostsCount !== undefined) p.repostsCount = payload.repostsCount;
                             if (payload.isBookmarked !== undefined) p.isBookmarked = payload.isBookmarked;
+                            if (payload.bookmarksCount !== undefined) p.bookmarksCount = payload.bookmarksCount;
                         }
                         if (p.quotePost) updateRecursive(p.quotePost);
                         if (p.parentPost) updateRecursive(p.parentPost);

@@ -7,6 +7,7 @@ export type InteractionStatus = {
     isLiked: boolean;
     isReposted: boolean;
     isBookmarked: boolean;
+    bookmarksCount?: number;
     likeUri?: string | null;
     repostUri?: string | null;
 };
@@ -59,6 +60,7 @@ export const applyInteractionStatuses = (posts: Post[], statuses: InteractionSta
             isLiked: status ? (status.isLiked || post.isLiked) : post.isLiked,
             isReposted: status ? (status.isReposted || post.isReposted) : post.isReposted,
             isBookmarked: status ? (status.isBookmarked || post.isBookmarked) : post.isBookmarked,
+            bookmarksCount: (status && status.bookmarksCount !== undefined) ? Math.max(post.bookmarksCount || 0, status.bookmarksCount) : post.bookmarksCount,
             viewer: status ? {
                 ...(post.viewer || {}),
                 like: status.likeUri ?? post.viewer?.like,
@@ -216,6 +218,7 @@ export const fetchInteractionStatuses = async (uris: string[]): Promise<Interact
                 if (s.isLiked) existing.isLiked = true;
                 if (s.isReposted) existing.isReposted = true;
                 if (s.isBookmarked) existing.isBookmarked = true;
+                if (s.bookmarksCount !== undefined) existing.bookmarksCount = Math.max(existing.bookmarksCount || 0, s.bookmarksCount);
                 if (s.likeUri) existing.likeUri = s.likeUri;
                 if (s.repostUri) existing.repostUri = s.repostUri;
             }

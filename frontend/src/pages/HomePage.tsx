@@ -468,7 +468,9 @@ const HomePage: React.FC = () => {
                     </div>
                 </div>
 
-                <ComposePromptBar />
+                {(activeTab === 'discover' || activeTab === 'following') && (
+                    <ComposePromptBar />
+                )}
 
                 {visibleHomeFeeds.map((feed: any) => {
                     const tabId = feedActionKey(feed) || feed.id;
