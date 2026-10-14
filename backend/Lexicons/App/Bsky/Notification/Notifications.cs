@@ -61,6 +61,14 @@ namespace BSkyClone.Lexicons.App.Bsky.Notification
         [JsonPropertyName("content")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Content { get; set; }
+
+        [JsonPropertyName("postText")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? PostText { get; set; }
+
+        [JsonPropertyName("postImage")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? PostImage { get; set; }
     }
 
     public class GetUnreadCountResponse

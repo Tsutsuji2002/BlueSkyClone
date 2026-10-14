@@ -413,7 +413,8 @@
         "push_desc": "Получать пуш-уведомления на устройстве",
         "mobile_only": "Только мобильные",
         "settings_saved_locally": "Настройки сохранены локально",
-        "settings": "Notification channels"
+        "settings": "Notification channels",
+        "followed_you_back": "подписался на вас в ответ"
     },
     "appearance": {
         "title": "Внешний вид",

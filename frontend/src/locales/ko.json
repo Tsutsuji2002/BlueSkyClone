@@ -413,7 +413,8 @@
         "push_desc": "기기에서 푸시 알림 받기",
         "mobile_only": "모바일 전용",
         "settings_saved_locally": "설정이 성공적으로 저장되었습니다",
-        "settings": "Notification channels"
+        "settings": "Notification channels",
+        "followed_you_back": "님이 맞팔로우했습니다"
     },
     "appearance": {
         "title": "모양",

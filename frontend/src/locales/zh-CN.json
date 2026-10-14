@@ -413,7 +413,8 @@
         "push_desc": "在您的设备上获取推送通知",
         "mobile_only": "仅限移动端",
         "settings_saved_locally": "设置已成功保存",
-        "settings": "通知渠道"
+        "settings": "通知渠道",
+        "followed_you_back": "回关了你"
     },
     "appearance": {
         "title": "外观",

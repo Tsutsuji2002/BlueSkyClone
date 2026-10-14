@@ -413,7 +413,8 @@
         "push_desc": "Push-Benachrichtigungen auf Ihrem Gerät erhalten",
         "mobile_only": "Nur mobil",
         "settings_saved_locally": "Einstellungen erfolgreich gespeichert",
-        "settings": "Notification channels"
+        "settings": "Notification channels",
+        "followed_you_back": "folgt Ihnen zurück"
     },
     "appearance": {
         "title": "Erscheinungsbild",

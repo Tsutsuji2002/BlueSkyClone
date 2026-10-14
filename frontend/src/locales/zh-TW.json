@@ -413,7 +413,8 @@
         "push_desc": "Get push notifications on your device",
         "mobile_only": "Mobile only",
         "settings_saved_locally": "Settings saved successfully",
-        "settings": "通知渠道"
+        "settings": "通知渠道",
+        "followed_you_back": "回追蹤了你"
     },
     "appearance": {
         "title": "Appearance",

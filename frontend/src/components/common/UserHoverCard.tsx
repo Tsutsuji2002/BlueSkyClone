@@ -382,7 +382,7 @@ const UserHoverCard: React.FC<UserHoverCardProps> = ({ user, children, disabled 
                                     'disabled:opacity-60 disabled:cursor-not-allowed',
                                     isFollowing
                                         ? 'bg-transparent border border-gray-300 dark:border-dark-border text-gray-800 dark:text-dark-text hover:border-red-400 hover:text-red-500 group'
-                                        : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-100'
+                                        : 'bg-[#006AFF] hover:bg-[#005AD4] text-white'
                                 )}
                             >
                                 {isFollowing ? (

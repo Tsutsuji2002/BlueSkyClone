@@ -413,7 +413,8 @@
         "push_desc": "デバイスでプッシュ通知を受け取る",
         "mobile_only": "モバイルのみ",
         "settings_saved_locally": "設定を保存しました",
-        "settings": "通知チャンネル"
+        "settings": "通知チャンネル",
+        "followed_you_back": "さんにフォローバックされました"
     },
     "appearance": {
         "title": "外観",

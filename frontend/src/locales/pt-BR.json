@@ -413,7 +413,8 @@
         "push_desc": "Receber notificações push no seu dispositivo",
         "mobile_only": "Apenas mobile",
         "settings_saved_locally": "Configurações salvas com sucesso",
-        "settings": "Notification channels"
+        "settings": "Notification channels",
+        "followed_you_back": "seguiu você de volta"
     },
     "appearance": {
         "title": "Aparência",

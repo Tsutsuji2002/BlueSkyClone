@@ -413,7 +413,8 @@
         "push_desc": "Get push notifications on your device",
         "mobile_only": "Mobile only",
         "settings_saved_locally": "Settings saved successfully",
-        "settings": "Notification channels"
+        "settings": "Notification channels",
+        "followed_you_back": "followed you back"
     },
     "appearance": {
         "title": "Appearance",

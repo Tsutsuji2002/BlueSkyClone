@@ -18,7 +18,9 @@ public record NotificationDto(
     [property: JsonPropertyName("content")] string? Content,
     [property: JsonPropertyName("isRead")] bool IsRead,
     [property: JsonPropertyName("createdAt")] DateTime CreatedAt,
-    [property: JsonPropertyName("invitationStatus")] int? InvitationStatus = null
+    [property: JsonPropertyName("invitationStatus")] int? InvitationStatus = null,
+    [property: JsonPropertyName("postText")] string? PostText = null,
+    [property: JsonPropertyName("postImage")] string? PostImage = null
 );
 
 public record MarkNotificationAsReadRequest(

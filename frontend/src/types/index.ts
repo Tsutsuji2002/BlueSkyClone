@@ -280,6 +280,8 @@ export interface Notification {
     isRead: boolean;
     createdAt: string;
     record?: any;
+    postText?: string;
+    postImage?: string;
 }
 
 export interface MutedWord {

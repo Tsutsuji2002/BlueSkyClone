@@ -413,7 +413,8 @@
         "push_desc": "Nhận thông báo đẩy trên thiết bị",
         "mobile_only": "Chỉ di động",
         "settings_saved_locally": "Đã lưu cài đặt thành công",
-        "settings": "Kênh thông báo"
+        "settings": "Kênh thông báo",
+        "followed_you_back": "đã theo dõi lại bạn"
     },
     "appearance": {
         "title": "Giao diện",

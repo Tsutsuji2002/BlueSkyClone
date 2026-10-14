@@ -19,6 +19,8 @@ public class NotificationRepository : Repository<Notification>, INotificationRep
             .Include(n => n.Sender)
             .Include(n => n.Post)
                 .ThenInclude(p => p!.Author)
+            .Include(n => n.Post)
+                .ThenInclude(p => p!.PostMedia)
             .Where(n => n.RecipientId == userId 
                 && n.Type != "message"
                 && (n.IsDeleted == false || n.IsDeleted == null));

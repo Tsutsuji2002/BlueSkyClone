@@ -125,6 +125,22 @@ public class NotificationService : INotificationService
                 .ToDictionaryAsync(lm => lm.ListId, lm => lm.Status);
         }
 
+        var senderIds = localNotifications.Where(n => n.SenderId != Guid.Empty).Select(n => n.SenderId).Distinct().ToList();
+        var followMap = new Dictionary<Guid, string>();
+        var followedBySet = new HashSet<Guid>();
+        if (senderIds.Any())
+        {
+            followMap = await _unitOfWork.Follows.Query()
+                .Where(f => f.FollowerId == userId && senderIds.Contains(f.FollowingId))
+                .ToDictionaryAsync(f => f.FollowingId, f => f.Uri ?? $"at://local/app.bsky.graph.follow/{f.Tid}");
+
+            var followedByList = await _unitOfWork.Follows.Query()
+                .Where(f => f.FollowingId == userId && senderIds.Contains(f.FollowerId))
+                .Select(f => f.FollowerId)
+                .ToListAsync();
+            followedBySet = new HashSet<Guid>(followedByList);
+        }
+
         foreach (var n in localNotifications)
         {
             int? status = null;
@@ -132,7 +148,9 @@ public class NotificationService : INotificationService
             {
                 status = s;
             }
-            resultList.Add(MapToDto(n, status));
+            var isFollowing = followMap.TryGetValue(n.SenderId, out var fUri);
+            var isFollowedBy = followedBySet.Contains(n.SenderId);
+            resultList.Add(MapToDto(n, status, fUri, isFollowing, isFollowedBy));
         }
 
         // 3. Return merged, sorted by date (newest first)
@@ -250,9 +268,9 @@ public class NotificationService : INotificationService
         _logger.LogInformation("Real-time notification broadcasted to user {UserId} for type {Type}", notification.RecipientId, notification.Type);
     }
 
-    private NotificationDto MapToDto(Notification n) => MapToDto(n, null);
+    private NotificationDto MapToDto(Notification n) => MapToDto(n, null, null, false, false);
 
-    private NotificationDto MapToDto(Notification n, int? invitationStatus)
+    private NotificationDto MapToDto(Notification n, int? invitationStatus, string? followUri = null, bool isFollowing = false, bool isFollowedBy = false)
     {
         string uri = "";
         string cid = "pseudo-cid-" + n.Id;
@@ -277,6 +295,9 @@ public class NotificationService : INotificationService
             uri = $"at://local/app.bsky.notification.event/{n.Tid}";
         }
 
+        var postText = n.Post?.Content;
+        var postImage = n.Post?.PostMedia?.FirstOrDefault()?.ThumbnailUrl ?? n.Post?.PostMedia?.FirstOrDefault()?.Url;
+
         return new NotificationDto(
             n.Id,
             uri,
@@ -284,7 +305,7 @@ public class NotificationService : INotificationService
             n.Type ?? "unknown",
             reason,
             reasonSubject,
-            MapToUserDto(n.Sender ?? new User { Id = n.SenderId, Username = "unknown", Handle = "unknown" }),
+            MapToUserDto(n.Sender ?? new User { Id = n.SenderId, Username = "unknown", Handle = "unknown" }, followUri, isFollowing, isFollowedBy),
             n.Post?.Tid ?? (n.PostId?.ToString()),
             n.Post?.Author?.Handle,
             n.ListId,
@@ -292,7 +313,9 @@ public class NotificationService : INotificationService
             n.Content,
             n.IsRead ?? false,
             DateTime.SpecifyKind(n.CreatedAt ?? DateTime.UtcNow, DateTimeKind.Utc),
-            invitationStatus
+            invitationStatus,
+            postText,
+            postImage
         );
     }
 
@@ -324,7 +347,9 @@ public class NotificationService : INotificationService
             remote.Content,
             remote.IsRead,
             DateTime.TryParse(remote.IndexedAt, out var dt) ? dt.ToUniversalTime() : DateTime.UtcNow,
-            remote.InvitationStatus
+            remote.InvitationStatus,
+            remote.PostText,
+            remote.PostImage
         );
     }
 
@@ -348,11 +373,15 @@ public class NotificationService : INotificationService
             "user",
             null,
             false,
-            profile.Did
-        );
+            profile.Did,
+            profile.Viewer?.Following
+        ) {
+            IsFollowing = !string.IsNullOrEmpty(profile.Viewer?.Following),
+            IsFollowedBy = !string.IsNullOrEmpty(profile.Viewer?.FollowedBy)
+        };
     }
 
-    private UserDto MapToUserDto(User u)
+    private UserDto MapToUserDto(User u, string? followUri = null, bool isFollowing = false, bool isFollowedBy = false)
     {
         if (u == null) return new UserDto(Guid.Empty, "unknown", "unknown", "unknown@local", "Unknown", null, null, null, null, null, null, 0, 0, 0, "user", null, false, null);
 
@@ -374,7 +403,11 @@ public class NotificationService : INotificationService
             u.Role,
             null, // ListMembershipStatus
             u.IsVerified,
-            u.Did
-        );
+            u.Did,
+            followUri
+        ) {
+            IsFollowing = isFollowing,
+            IsFollowedBy = isFollowedBy
+        };
     }
 }

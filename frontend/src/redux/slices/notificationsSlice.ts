@@ -27,6 +27,9 @@ export const fetchNotifications = createAsyncThunk<Notification[], { limit?: num
             const mapped: Notification[] = notifications.map(n => {
                 const author = n.author || {};
                 const reason = (n.reason || 'unknown').toLowerCase();
+                const isFollowing = !!(author.viewer?.following || author.isFollowing);
+                const followingReference = author.viewer?.following || author.followingReference;
+                const isFollowedBy = !!(author.viewer?.followedBy || author.isFollowedBy || reason === 'follow');
                 return {
                     id: n.cid || n.uri || Math.random().toString(36).substring(7),
                     uri: n.uri || '',
@@ -41,6 +44,14 @@ export const fetchNotifications = createAsyncThunk<Notification[], { limit?: num
                         username: author.handle || 'unknown',
                         displayName: author.displayName || author.handle || 'Unknown',
                         avatarUrl: author.avatar,
+                        avatar: author.avatar,
+                        isFollowing,
+                        followingReference,
+                        isFollowedBy,
+                        viewer: {
+                            following: followingReference,
+                            followedBy: isFollowedBy ? 'followed' : undefined,
+                        }
                     } as any,
                     isRead: !!n.isRead,
                     createdAt: n.indexedAt || new Date().toISOString(),
@@ -51,7 +62,9 @@ export const fetchNotifications = createAsyncThunk<Notification[], { limit?: num
                     invitationStatus: n.invitationStatus,
                     subjectUri: n.reasonSubject,
                     postAuthorHandle: n.postAuthorHandle,
-                    postId: n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined
+                    postId: n.postId || (n.reasonSubject ? n.reasonSubject.split('/').pop() : undefined),
+                    postText: n.postText,
+                    postImage: n.postImage,
                 };
             });
             console.log('DEBUG: Mapped notifications:', mapped);

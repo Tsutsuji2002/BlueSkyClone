@@ -1060,7 +1060,12 @@ namespace BSkyClone.Controllers
                             Did = n.Sender?.Did ?? "",
                             Handle = n.Sender?.Handle ?? "unknown",
                             DisplayName = n.Sender?.DisplayName,
-                            Avatar = n.Sender?.AvatarUrl
+                            Avatar = n.Sender?.AvatarUrl,
+                            Viewer = new BSkyClone.Lexicons.App.Bsky.Actor.Defs.ViewerState
+                            {
+                                Following = n.Sender?.FollowingReference,
+                                FollowedBy = (n.Reason?.ToLowerInvariant() == "follow" || n.Sender?.IsFollowedBy == true) ? "followed" : null
+                            }
                         },
                         Reason = n.Reason?.ToLowerInvariant() ?? "unknown",
                         ReasonSubject = n.ReasonSubject,
@@ -1073,6 +1078,8 @@ namespace BSkyClone.Controllers
                         InvitationStatus = n.InvitationStatus,
                         Title = n.Title,
                         Content = n.Content,
+                        PostText = n.PostText,
+                        PostImage = n.PostImage,
                         Record = new Dictionary<string, object>
                         {
                             { "$type", n.Reason?.ToLowerInvariant() == "follow" ? "app.bsky.graph.follow" : "app.bsky.notification.event" },
