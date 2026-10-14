@@ -5,15 +5,17 @@ import { useAppDispatch } from '../hooks/useAppDispatch';
 import { useStore } from 'react-redux';
 import { RootState } from '../redux/store';
 import { Post, User } from '../types';
-import { clearThreadPosts, toggleBookmark, toggleLike, repostPost } from '../redux/slices/postsSlice';
+import { clearThreadPosts, toggleBookmark, toggleLike, repostPost, pinPost, unpinPost } from '../redux/slices/postsSlice';
 import { 
     useGetPostDetailsQuery,  
     useToggleLikeMutation, 
     useRepostMutation, 
-    useDeletePostMutation 
+    useDeletePostMutation,
+    useMuteThreadMutation,
+    useUnmuteThreadMutation
 } from '../redux/api/postApi';
 import { useUpdateSettingsMutation } from '../redux/api/authApi';
-import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall } from '../redux/slices/modalsSlice';
+import { openReply, openMobileMenu, openEditPost, openReport, openQuote, openAuthWall, openMutedWords } from '../redux/slices/modalsSlice';
 import Avatar from '../components/common/Avatar';
 import UserHoverCard from '../components/common/UserHoverCard';
 import IconButton from '../components/common/IconButton';
@@ -62,7 +64,19 @@ import {
 import { BsPatchCheckFill } from 'react-icons/bs';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../utils/classNames';
-import { followUserAsync, unfollowUserAsync } from '../redux/slices/userSlice';
+import { followUserAsync, unfollowUserAsync, muteUserAsync, unmuteUserAsync, blockUserAsync, unblockUserAsync } from '../redux/slices/userSlice';
+import {
+    PostTranslateIcon,
+    PostCopyTextIcon,
+    PostMuteThreadIcon,
+    PostMuteWordsIcon,
+    PostHideIcon,
+    PostMuteAccountIcon,
+    PostBlockAccountIcon,
+    PostReportIcon,
+    PostPinIcon,
+    PostDeleteIcon
+} from '../components/common/PostDropdownIcons';
 import LoadingIndicator from '../components/common/LoadingIndicator';
 import PostInteractionSettingsModal from '../modals/PostInteractionSettingsModal';
 import ConfirmModal from '../components/common/ConfirmModal';
@@ -100,6 +114,30 @@ const ThreadMoreReplies = ({ count, onClick, t, variant = 'default' }: { count: 
         </span>
     </div>
 );
+
+const HIDDEN_POSTS_STORAGE_KEY = 'bluesky_hidden_posts';
+const getHiddenPosts = (): string[] => {
+    try {
+        return JSON.parse(localStorage.getItem(HIDDEN_POSTS_STORAGE_KEY) || '[]');
+    } catch {
+        return [];
+    }
+};
+const addHiddenPost = (uri: string) => {
+    try {
+        const list = getHiddenPosts();
+        if (!list.includes(uri)) {
+            list.push(uri);
+            localStorage.setItem(HIDDEN_POSTS_STORAGE_KEY, JSON.stringify(list));
+        }
+    } catch {}
+};
+const removeHiddenPost = (uri: string) => {
+    try {
+        const list = getHiddenPosts().filter(id => id !== uri);
+        localStorage.setItem(HIDDEN_POSTS_STORAGE_KEY, JSON.stringify(list));
+    } catch {}
+};
 
 const PostDetailPage: React.FC = () => {
     const { handle, postId } = useParams<{ handle: string; postId: string }>();
@@ -149,6 +187,8 @@ const PostDetailPage: React.FC = () => {
     const [toggleLikeMutation] = useToggleLikeMutation();
     const [repostMutation] = useRepostMutation();
     const [deletePostMutation, { isLoading: isDeleting }] = useDeletePostMutation();
+    const [muteThreadMutation] = useMuteThreadMutation();
+    const [unmuteThreadMutation] = useUnmuteThreadMutation();
     const [updateSettingsMutation] = useUpdateSettingsMutation();
 
     const interactionTruth = useAppSelector((state: RootState) => {
@@ -254,11 +294,121 @@ const PostDetailPage: React.FC = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
     const [isInteractionModalOpen, setIsInteractionModalOpen] = React.useState(false);
     const [isUnmuted, setIsUnmuted] = React.useState(false);
+    const [isThreadMuted, setIsThreadMuted] = React.useState<boolean>(false);
+    const [isPostHidden, setIsPostHidden] = React.useState<boolean>(false);
+
+    React.useEffect(() => {
+        if (post?.viewer?.threadMuted !== undefined) {
+            setIsThreadMuted(!!post.viewer.threadMuted);
+        }
+    }, [post?.viewer?.threadMuted]);
+
+    React.useEffect(() => {
+        if (!post) return;
+        const hidden = getHiddenPosts();
+        const isHidden = (post.uri && hidden.includes(post.uri)) || (post.id && hidden.includes(post.id)) || (postId && hidden.includes(postId));
+        setIsPostHidden(!!isHidden);
+    }, [post, postId]);
+
     const isOwnPost = post && currentUser && (
         currentUser.id === post.author.id ||
         (currentUser.did && post.author.did && currentUser.did === post.author.did) ||
         (currentUser.handle && post.author.handle && currentUser.handle === post.author.handle)
     );
+
+    const handleToggleMuteThread = async () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        const rootUri = post?.uri;
+        if (!rootUri) return;
+        try {
+            if (isThreadMuted) {
+                await unmuteThreadMutation({ root: rootUri }).unwrap();
+                setIsThreadMuted(false);
+                dispatch(showToast({ message: t('post.thread_unmuted', 'Thread unmuted'), type: 'success' }));
+            } else {
+                await muteThreadMutation({ root: rootUri }).unwrap();
+                setIsThreadMuted(true);
+                dispatch(showToast({ message: t('post.thread_muted', 'Thread muted'), type: 'success' }));
+            }
+        } catch (err: any) {
+            dispatch(showToast({ message: err?.data?.message || err?.message || 'Failed to update thread mute', type: 'error' }));
+        }
+    };
+
+    const handleHidePost = () => {
+        const targetUri = post?.uri || post?.id || postId;
+        if (targetUri) {
+            addHiddenPost(targetUri);
+            setIsPostHidden(true);
+            dispatch(showToast({ message: t('post.post_hidden', 'Post hidden for me'), type: 'info' }));
+        }
+    };
+
+    const handleUnhidePost = () => {
+        const targetUri = post?.uri || post?.id || postId;
+        if (targetUri) {
+            removeHiddenPost(targetUri);
+            setIsPostHidden(false);
+            dispatch(showToast({ message: t('post.post_unhidden', 'Post restored'), type: 'success' }));
+        }
+    };
+
+    const authorUser = post?.author as User;
+    const authorActor = authorUser?.did || authorUser?.handle || authorUser?.id;
+    const isAuthorMuted = authorUser?.viewer?.muted ?? authorUser?.isMuted;
+    const isAuthorBlocked = authorUser?.viewer?.blocking ?? authorUser?.isBlocking;
+
+    const handleToggleMuteAuthor = async () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        if (!authorActor) return;
+        try {
+            if (isAuthorMuted) {
+                await dispatch(unmuteUserAsync(authorActor)).unwrap();
+                dispatch(showToast({ message: t('profile.unmuted_success', 'Account unmuted'), type: 'success' }));
+            } else {
+                await dispatch(muteUserAsync(authorActor)).unwrap();
+                dispatch(showToast({ message: t('profile.muted_success', 'Account muted'), type: 'success' }));
+            }
+        } catch (err: any) {
+            dispatch(showToast({ message: err?.message || 'Failed to update mute state', type: 'error' }));
+        }
+    };
+
+    const handleToggleBlockAuthor = async () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        if (!authorActor) return;
+        try {
+            if (isAuthorBlocked) {
+                await dispatch(unblockUserAsync({ userId: authorActor, blockUri: '' })).unwrap();
+                dispatch(showToast({ message: t('profile.unblocked_success', 'Account unblocked'), type: 'success' }));
+            } else {
+                await dispatch(blockUserAsync(authorActor)).unwrap();
+                dispatch(showToast({ message: t('profile.blocked_success', 'Account blocked'), type: 'success' }));
+            }
+        } catch (err: any) {
+            dispatch(showToast({ message: err?.message || 'Failed to update block state', type: 'error' }));
+        }
+    };
+
+    const handleTogglePin = () => {
+        if (!post) return;
+        if (post.isPinned) {
+            dispatch(unpinPost());
+            dispatch(showToast({ message: t('post.unpinned_success', 'Post unpinned from profile'), type: 'success' }));
+        } else {
+            dispatch(pinPost(post.uri!));
+            dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
+        }
+    };
     const hasMoreReplies = isRepliesLoading;
     // Track which post IDs we've already fetched replies for to avoid re-fetching
     const fetchedRepliesRef = React.useRef<Set<string>>(new Set());
@@ -518,65 +668,88 @@ const PostDetailPage: React.FC = () => {
     const moreDropdownItems: DropdownItem[] = [
         {
             id: 'translate',
+            testId: 'postDropdownTranslateBtn',
             label: t('post.translate', 'Translate'),
-            icon: <FiType />,
+            icon: <PostTranslateIcon />,
             onClick: () => handleTranslate(post.content),
         },
         {
             id: 'copy-text',
+            testId: 'postDropdownCopyTextBtn',
             label: t('post.copy_text', 'Copy post text'),
-            icon: <FiClipboard />,
+            icon: <PostCopyTextIcon />,
+            hasDivider: true,
             onClick: () => handleCopyText(post.content),
         },
-        ...(currentUser ? [
-            {
-                id: 'toggle-view-shortcut',
-                label: treeViewEnabled ? t('post.view_as_linear') : t('post.view_as_threaded'),
-                icon: <FiList />,
-                onClick: () => {
-                    dispatch(updateSettings({ treeView: !treeViewEnabled }));
+        ...(currentUser ? (
+            isOwnPost ? [
+                {
+                    id: 'pin',
+                    testId: 'postDropdownPinBtn',
+                    label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to your profile'),
+                    icon: <PostPinIcon />,
+                    hasDivider: true,
+                    onClick: handleTogglePin,
                 },
-            },
-            {
-                id: 'sort-replies-shortcut',
-                label: t('post.sort_replies', 'Sort replies'),
-                icon: <FiSliders />,
-                onClick: () => {
-                    const orders: ('top' | 'newest' | 'oldest')[] = ['top', 'newest', 'oldest'];
-                    const currentIndex = orders.indexOf(sortOrder as any);
-                    const nextIndex = (currentIndex + 1) % orders.length;
-                    dispatch(updateSettings({ sortReplies: orders[nextIndex] }));
-                    dispatch(showToast({ message: t('post.sorted_by', { order: orders[nextIndex] }), type: 'success' }));
-                },
-            },
-            {
-                id: 'mute-thread',
-                label: t('post.mute_thread', 'Mute thread'),
-                icon: <FiVolumeX />,
-                onClick: () => { },
-            },
-            {
-                id: 'report-post',
-                label: t('post.report_post', 'Report post'),
-                icon: <FiFlag />,
-                danger: true,
-                onClick: () => {
-                    if (post.uri && post.cid) {
-                        dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
-                    }
-                },
-            },
-            ...(isOwnPost ? [
-                { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
                 {
                     id: 'delete',
-                    label: t('common.delete_post', 'Delete Post'),
-                    icon: <FiTrash2 />,
-                    onClick: () => setShowDeleteConfirm(true),
+                    testId: 'postDropdownDeleteBtn',
+                    label: t('common.delete_post', 'Delete post'),
+                    icon: <PostDeleteIcon />,
                     danger: true,
+                    onClick: () => setShowDeleteConfirm(true),
                 }
-            ] : []),
-        ] : []),
+            ] : [
+                {
+                    id: 'mute-thread',
+                    testId: 'postDropdownMuteThreadBtn',
+                    label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
+                    icon: <PostMuteThreadIcon />,
+                    onClick: handleToggleMuteThread,
+                },
+                {
+                    id: 'mute-words-tags',
+                    testId: 'postDropdownMuteWordsBtn',
+                    label: t('post.mute_words', 'Mute words & tags'),
+                    icon: <PostMuteWordsIcon />,
+                    hasDivider: true,
+                    onClick: () => dispatch(openMutedWords()),
+                },
+                {
+                    id: 'hide-post',
+                    testId: 'postDropdownHideBtn',
+                    label: t('post.hide_post', 'Hide post for me'),
+                    icon: <PostHideIcon />,
+                    hasDivider: true,
+                    onClick: handleHidePost,
+                },
+                {
+                    id: 'mute-account',
+                    testId: 'postDropdownMuteBtn',
+                    label: isAuthorMuted ? t('post.unmute_account', 'Unmute account') : t('post.mute_account', 'Mute account'),
+                    icon: <PostMuteAccountIcon />,
+                    onClick: handleToggleMuteAuthor,
+                },
+                {
+                    id: 'block-account',
+                    testId: 'postDropdownBlockBtn',
+                    label: isAuthorBlocked ? t('post.unblock_account', 'Unblock account') : t('post.block_account', 'Block account'),
+                    icon: <PostBlockAccountIcon />,
+                    onClick: handleToggleBlockAuthor,
+                },
+                {
+                    id: 'report-post',
+                    testId: 'postDropdownReportBtn',
+                    label: t('post.report_post', 'Report post'),
+                    icon: <PostReportIcon />,
+                    onClick: () => {
+                        if (post.uri && post.cid) {
+                            dispatch(openReport({ uri: post.uri, cid: post.cid, type: 'post' }));
+                        }
+                    },
+                }
+            ]
+        ) : []),
     ];
 
 
@@ -807,6 +980,18 @@ const PostDetailPage: React.FC = () => {
                             </div>
 
                             {/* Content */}
+                            {isPostHidden && (
+                                <div className="flex items-center justify-between p-3 mb-3 rounded-lg bg-gray-100 dark:bg-dark-surface border border-[#DCE2EA] dark:border-dark-border text-[13.1px] text-gray-600 dark:text-gray-300">
+                                    <span>{t('post.post_hidden_notice', 'You hid this post for yourself.')}</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleUnhidePost}
+                                        className="text-primary-500 font-semibold hover:underline cursor-pointer"
+                                    >
+                                        {t('common.undo', 'Undo')}
+                                    </button>
+                                </div>
+                            )}
                             <ExpandableRichText
                                 content={post.content}
                                 facets={post.facets}

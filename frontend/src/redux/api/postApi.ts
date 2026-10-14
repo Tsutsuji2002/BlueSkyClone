@@ -298,6 +298,22 @@ export const postApi = apiSlice.injectEndpoints({
             }),
             invalidatesTags: [{ type: 'Feed', id: 'TIMELINE' }],
         }),
+        muteThread: builder.mutation<void, { root: string }>({
+            query: ({ root }) => ({
+                url: '/xrpc/app.bsky.graph.muteThread',
+                method: 'POST',
+                body: { root },
+            }),
+            invalidatesTags: (result, error, { root }) => [{ type: 'Post', id: root }],
+        }),
+        unmuteThread: builder.mutation<void, { root: string }>({
+            query: ({ root }) => ({
+                url: '/xrpc/app.bsky.graph.unmuteThread',
+                method: 'POST',
+                body: { root },
+            }),
+            invalidatesTags: (result, error, { root }) => [{ type: 'Post', id: root }],
+        }),
     }),
 });
 
@@ -314,4 +330,7 @@ export const {
     useRepostMutation,
     useDeletePostMutation,
     useCreatePostMutation,
+    useMuteThreadMutation,
+    useUnmuteThreadMutation,
 } = postApi;
+

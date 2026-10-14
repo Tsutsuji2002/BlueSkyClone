@@ -5,6 +5,19 @@ import { toggleLike, repostPost, toggleBookmark, pinPost, unpinPost } from '../.
 import LinkPreviewCard from '../common/LinkPreviewCard';
 import { blockUserAsync, muteUserAsync } from '../../redux/slices/userSlice';
 import { openReply, openEditPost, openQuote, openDeleteConfirm, openReport, openAuthWall, openMutedWords } from '../../redux/slices/modalsSlice';
+import { useMuteThreadMutation, useUnmuteThreadMutation } from '../../redux/api/postApi';
+import {
+    PostTranslateIcon,
+    PostCopyTextIcon,
+    PostMuteThreadIcon,
+    PostMuteWordsIcon,
+    PostHideIcon,
+    PostMuteAccountIcon,
+    PostBlockAccountIcon,
+    PostReportIcon,
+    PostPinIcon,
+    PostDeleteIcon
+} from '../common/PostDropdownIcons';
 import QuotedPost from './QuotedPost';
 import { showToast } from '../../redux/slices/toastSlice';
 import { usePostActions } from '../../hooks/usePostActions';
@@ -117,6 +130,62 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
 
     const [isUnmuted, setIsUnmuted] = React.useState(false);
     const [isExpanded, setIsExpanded] = React.useState(false);
+    const [muteThreadMutation] = useMuteThreadMutation();
+    const [unmuteThreadMutation] = useUnmuteThreadMutation();
+    const [isThreadMuted, setIsThreadMuted] = React.useState<boolean>(!!post?.viewer?.threadMuted);
+    const [isPostHidden, setIsPostHidden] = React.useState<boolean>(false);
+
+    React.useEffect(() => {
+        if (post?.viewer?.threadMuted !== undefined) {
+            setIsThreadMuted(!!post.viewer.threadMuted);
+        }
+    }, [post?.viewer?.threadMuted]);
+
+    React.useEffect(() => {
+        try {
+            const hidden = JSON.parse(localStorage.getItem('bluesky_hidden_posts') || '[]');
+            if ((post.uri && hidden.includes(post.uri)) || (post.id && hidden.includes(post.id))) {
+                setIsPostHidden(true);
+            }
+        } catch {}
+    }, [post.uri, post.id]);
+
+    const handleToggleMuteThread = async () => {
+        if (!currentUser) {
+            dispatch(openAuthWall());
+            return;
+        }
+        const rootUri = post.uri;
+        if (!rootUri) return;
+        try {
+            if (isThreadMuted) {
+                await unmuteThreadMutation({ root: rootUri }).unwrap();
+                setIsThreadMuted(false);
+                dispatch(showToast({ message: t('post.thread_unmuted', 'Thread unmuted'), type: 'success' }));
+            } else {
+                await muteThreadMutation({ root: rootUri }).unwrap();
+                setIsThreadMuted(true);
+                dispatch(showToast({ message: t('post.thread_muted', 'Thread muted'), type: 'success' }));
+            }
+        } catch (err: any) {
+            dispatch(showToast({ message: err?.data?.message || err?.message || 'Failed to update thread mute', type: 'error' }));
+        }
+    };
+
+    const handleHidePost = () => {
+        const targetUri = post.uri || post.id;
+        if (targetUri) {
+            try {
+                const hidden = JSON.parse(localStorage.getItem('bluesky_hidden_posts') || '[]');
+                if (!hidden.includes(targetUri)) {
+                    hidden.push(targetUri);
+                    localStorage.setItem('bluesky_hidden_posts', JSON.stringify(hidden));
+                }
+            } catch {}
+            setIsPostHidden(true);
+            dispatch(showToast({ message: isComment ? t('post.hide_reply', 'Hide reply for me') : t('post.post_hidden', 'Post hidden for me'), type: 'info' }));
+        }
+    };
 
     // Report interactionSeen when this card scrolls into view (≥50% visible, ≥100ms dwell)
     useEffect(() => {
@@ -317,80 +386,75 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
         // Full options for normal context
         {
             id: 'translate',
-            label: `${t('post.translate')} → ${primaryLangName}`,
-            icon: <FiHelpCircle />,
+            testId: 'postDropdownTranslateBtn',
+            label: t('post.translate', 'Translate'),
+            icon: <PostTranslateIcon />,
             onClick: () => handleTranslate(post.content),
         },
         {
             id: 'copy-text',
-            label: t('post.copy_text'),
-            icon: <FiType />,
-            hasDivider: !isComment && !!currentUser,
+            testId: 'postDropdownCopyTextBtn',
+            label: t('post.copy_text', 'Copy post text'),
+            icon: <PostCopyTextIcon />,
+            hasDivider: true,
             onClick: () => handleCopyText(post.content)
         },
         ...(currentUser ? [
-            ...(!isComment && !isOwnPost ? [
-                {
-                    id: 'show-more',
-                    label: t('post.show_more'),
-                    icon: <FiSmile />,
-                    onClick: () => { },
-                },
-                {
-                    id: 'show-less',
-                    label: t('post.show_less'),
-                    icon: <FiFrown />,
-                    hasDivider: true,
-                    onClick: () => { },
-                },
-            ] : []),
-            {
-                id: 'mute-thread',
-                label: t('post.mute_thread'),
-                icon: <FiBellOff />,
-                onClick: () => { },
-            },
             ...(!isOwnPost ? [
                 {
+                    id: 'mute-thread',
+                    testId: 'postDropdownMuteThreadBtn',
+                    label: isThreadMuted ? t('post.unmute_thread', 'Unmute thread') : t('post.mute_thread', 'Mute thread'),
+                    icon: <PostMuteThreadIcon />,
+                    onClick: handleToggleMuteThread,
+                },
+                {
                     id: 'muted-words-tags',
-                    label: t('moderation.muted_words_tags', 'Muted words & tags'),
-                    icon: <FiFilter />,
+                    testId: 'postDropdownMuteWordsBtn',
+                    label: t('post.mute_words', 'Mute words & tags'),
+                    icon: <PostMuteWordsIcon />,
                     hasDivider: true,
                     onClick: () => dispatch(openMutedWords()),
                 },
                 {
                     id: isComment ? 'hide-reply' : 'hide-post',
-                    label: isComment ? t('post.hide_reply') : t('post.hide_post'),
-                    icon: <FiEyeOff />,
+                    testId: 'postDropdownHideBtn',
+                    label: isComment ? t('post.hide_reply', 'Hide reply for me') : t('post.hide_post', 'Hide post for me'),
+                    icon: <PostHideIcon />,
                     hasDivider: true,
-                    onClick: () => { },
+                    onClick: handleHidePost,
                 },
                 {
                     id: 'mute-account',
-                    label: t('post.mute_account'),
-                    icon: <FiUserMinus />,
+                    testId: 'postDropdownMuteBtn',
+                    label: t('post.mute_account', 'Mute account'),
+                    icon: <PostMuteAccountIcon />,
                     onClick: () => {
-                        if (post.author?.id) {
-                            dispatch(muteUserAsync(post.author.id));
-                            dispatch(showToast({ message: t('profile.muted_success'), type: 'success' }));
+                        const authorActor = post.author?.did || post.author?.handle || post.author?.id;
+                        if (authorActor) {
+                            dispatch(muteUserAsync(authorActor));
+                            dispatch(showToast({ message: t('profile.muted_success', 'Account muted'), type: 'success' }));
                         }
                     },
                 },
                 {
                     id: 'block-account',
-                    label: t('post.block_account'),
-                    icon: <FiUserX />,
+                    testId: 'postDropdownBlockBtn',
+                    label: t('post.block_account', 'Block account'),
+                    icon: <PostBlockAccountIcon />,
                     onClick: () => {
-                        if (post.author?.id) {
-                            dispatch(blockUserAsync(post.author.id));
-                            dispatch(showToast({ message: t('profile.blocked_success'), type: 'success' }));
+                        const authorActor = post.author?.did || post.author?.handle || post.author?.id;
+                        if (authorActor) {
+                            dispatch(blockUserAsync(authorActor));
+                            dispatch(showToast({ message: t('profile.blocked_success', 'Account blocked'), type: 'success' }));
                         }
                     },
                 },
                 {
                     id: 'report-post',
-                    label: t('post.report_post'),
-                    icon: <FiAlertTriangle />,
+                    testId: 'postDropdownReportBtn',
+                    label: t('post.report_post', 'Report post'),
+                    icon: <PostReportIcon />,
                     onClick: () => dispatch(openReport({
                         uri: post.uri,
                         cid: post.cid,
@@ -403,26 +467,19 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                 {
                     id: 'remove-from-list',
                     label: t('lists.remove_from_list'),
-                    icon: <FiTrash2 />,
+                    icon: <PostDeleteIcon />,
                     onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri!, isListRemoval: true, onConfirm: onRemoveFromList })),
                     danger: true,
                 }
             ] : []),
             ...(isOwnPost ? [
                 { id: 'divider-own', label: '', icon: null, onClick: () => { }, hasDivider: true },
-
-                {
-                    id: 'delete',
-                    label: t('common.delete_post'),
-                    icon: <FiTrash2 />,
-                    onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
-                    danger: true,
-                },
-                { id: 'divider-pin', label: '', icon: null, onClick: () => { }, hasDivider: true },
                 {
                     id: 'pin',
+                    testId: 'postDropdownPinBtn',
                     label: post.isPinned ? t('post.unpin_from_profile', 'Unpin from profile') : t('post.pin_to_profile', 'Pin to profile'),
-                    icon: <FiPin />,
+                    icon: <PostPinIcon />,
+                    hasDivider: true,
                     onClick: () => {
                         if (post.isPinned) {
                             dispatch(unpinPost());
@@ -432,12 +489,39 @@ const PostCard: React.FC<PostCardProps> = React.memo(({ post: postData, isOwnPos
                             dispatch(showToast({ message: t('post.pinned_success', 'Post pinned to profile'), type: 'success' }));
                         }
                     }
-                }
+                },
+                {
+                    id: 'delete',
+                    testId: 'postDropdownDeleteBtn',
+                    label: t('common.delete_post', 'Delete post'),
+                    icon: <PostDeleteIcon />,
+                    onClick: () => dispatch(openDeleteConfirm({ postUri: post.uri! })),
+                    danger: true,
+                },
             ] : []),
         ] : []),
     ]);
 
-
+    if (isPostHidden) {
+        return (
+            <div className="p-3 text-[13.1px] text-gray-500 border-b border-gray-100 dark:border-dark-border flex items-center justify-between">
+                <span>{t('post.post_hidden_notice', 'You hid this post for yourself.')}</span>
+                <button
+                    type="button"
+                    onClick={() => {
+                        try {
+                            const hidden = JSON.parse(localStorage.getItem('bluesky_hidden_posts') || '[]').filter((id: string) => id !== post.uri && id !== post.id);
+                            localStorage.setItem('bluesky_hidden_posts', JSON.stringify(hidden));
+                        } catch {}
+                        setIsPostHidden(false);
+                    }}
+                    className="text-primary-500 font-semibold hover:underline cursor-pointer"
+                >
+                    {t('common.undo', 'Undo')}
+                </button>
+            </div>
+        );
+    }
 
     if (post.isDeleted) {
         return (

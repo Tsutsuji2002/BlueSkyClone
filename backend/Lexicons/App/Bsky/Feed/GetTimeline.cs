@@ -60,6 +60,15 @@ namespace BSkyClone.Lexicons.App.Bsky.Feed
 
         [JsonPropertyName("like")]
         public string? Like { get; set; }
+
+        [JsonPropertyName("threadMuted")]
+        public bool ThreadMuted { get; set; }
+
+        [JsonPropertyName("replyDisabled")]
+        public bool ReplyDisabled { get; set; }
+
+        [JsonPropertyName("embeddingDisabled")]
+        public bool EmbeddingDisabled { get; set; }
     }
 
     public class GetAuthorFeedResponse

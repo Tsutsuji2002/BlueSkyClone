@@ -4,6 +4,7 @@ import { cn } from '../../utils/classNames';
 
 export interface DropdownItem {
     id?: string;
+    testId?: string;
     label?: string;
     content?: React.ReactNode;
     icon?: React.ReactNode;
@@ -146,7 +147,7 @@ const Dropdown: React.FC<DropdownProps> = ({
                         ref={menuRef}
                         style={getAlignmentStyles()}
                         className={cn(
-                            'bg-white dark:bg-dark-surface border border-gray-100 dark:border-dark-border rounded-lg shadow-xl p-1 transition-all',
+                            'bg-white dark:bg-dark-surface border border-[#DCE2EA] dark:border-dark-border rounded-lg shadow-xl p-1 transition-all',
                             'max-h-[min(480px,80vh)] overflow-y-auto scrollbar-hide'
                         )}
                     >
@@ -156,6 +157,10 @@ const Dropdown: React.FC<DropdownProps> = ({
                                 {(item.label || item.content) && (
                                     <button
                                         type="button"
+                                        role="menuitem"
+                                        tabIndex={-1}
+                                        aria-label={item.label}
+                                        data-testid={item.testId}
                                         onClick={(e) => {
                                             e.preventDefault();
                                             e.stopPropagation();
@@ -166,11 +171,11 @@ const Dropdown: React.FC<DropdownProps> = ({
                                             }
                                         }}
                                         className={cn(
-                                            'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px]',
-                                            'hover:bg-gray-50 dark:hover:bg-dark-hover',
+                                            'w-full px-[10px] py-2 text-left flex items-center justify-between transition-colors font-semibold text-[13.1px] tracking-[0.25px] rounded-[4px] min-h-[32px] outline-none',
+                                            'hover:bg-gray-100 dark:hover:bg-dark-hover',
                                             item.danger
                                                 ? 'text-red-500'
-                                                : 'text-gray-900 dark:text-dark-text',
+                                                : 'text-[#232E3E] dark:text-dark-text',
                                             item.content ? 'p-0 h-auto' : ''
                                         )}
                                     >
@@ -178,10 +183,12 @@ const Dropdown: React.FC<DropdownProps> = ({
                                             item.content
                                         ) : (
                                             <>
-                                                <span>{item.label}</span>
+                                                <div dir="auto" className="text-[13.1px] tracking-[0.25px] leading-[17px] flex-1 font-semibold truncate text-left">
+                                                    {item.label}
+                                                </div>
                                                 {item.type === 'radio' ? (
                                                     <div className={cn(
-                                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                                                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ml-3",
                                                         item.selected 
                                                             ? "border-primary-500 bg-primary-500" 
                                                             : "border-gray-300 dark:border-dark-border"
@@ -189,14 +196,18 @@ const Dropdown: React.FC<DropdownProps> = ({
                                                         {item.selected && <div className="w-2 h-2 rounded-full bg-white" />}
                                                     </div>
                                                 ) : (
-                                                    item.icon && <span className={cn("text-lg", item.danger ? "text-red-500" : "text-gray-500")}>{item.icon}</span>
+                                                    item.icon && (
+                                                        <div className={cn("mr-[-2px] ml-3 flex-shrink-0", item.danger ? "text-red-500" : "text-[#405168] dark:text-[#8798B0]")}>
+                                                            {item.icon}
+                                                        </div>
+                                                    )
                                                 )}
                                             </>
                                         )}
                                     </button>
                                 )}
                                 {(item.hasDivider || item.h) && (
-                                    <div className="h-[1px] bg-gray-100 dark:bg-dark-border mx-0" />
+                                    <div role="separator" aria-orientation="horizontal" className="my-1 bg-[#DCE2EA] dark:bg-dark-border h-[1px] flex-shrink-0" />
                                 )}
                             </React.Fragment>
                         ))}

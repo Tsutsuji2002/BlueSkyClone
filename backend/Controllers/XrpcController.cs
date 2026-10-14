@@ -1970,6 +1970,157 @@ namespace BSkyClone.Controllers
             }
         }
 
+        [Authorize]
+        [HttpPost("app.bsky.graph.muteThread")]
+        public async Task<IActionResult> MuteThread([FromBody] BSkyClone.Lexicons.App.Bsky.Graph.MuteThreadRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                if (string.IsNullOrWhiteSpace(request?.Root))
+                    return BadRequest(new { error = "InvalidRequest", message = "root is required" });
+
+                var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
+                {
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.graph.muteThread", new Dictionary<string, string?>(), token, "POST", request);
+                    }
+                }
+
+                await _cache.SetStringAsync($"thread_muted:{userId}:{request.Root}", "true", new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30)
+                });
+
+                return Ok(new { });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in muteThread XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("app.bsky.graph.unmuteThread")]
+        public async Task<IActionResult> UnmuteThread([FromBody] BSkyClone.Lexicons.App.Bsky.Graph.MuteThreadRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                if (string.IsNullOrWhiteSpace(request?.Root))
+                    return BadRequest(new { error = "InvalidRequest", message = "root is required" });
+
+                var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
+                {
+                    var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.graph.unmuteThread", new Dictionary<string, string?>(), token, "POST", request);
+                    }
+                }
+
+                await _cache.RemoveAsync($"thread_muted:{userId}:{request.Root}");
+
+                return Ok(new { });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in unmuteThread XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("app.bsky.graph.muteActor")]
+        public async Task<IActionResult> MuteActor([FromBody] BSkyClone.Lexicons.App.Bsky.Graph.MuteActorRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                if (string.IsNullOrWhiteSpace(request?.Actor))
+                    return BadRequest(new { error = "InvalidRequest", message = "actor is required" });
+
+                var targetUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == request.Actor || u.Handle == request.Actor);
+                if (targetUser != null)
+                {
+                    await _userService.MuteUserAsync(userId, targetUser.Id);
+                }
+                else
+                {
+                    var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
+                    if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
+                    {
+                        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.graph.muteActor", new Dictionary<string, string?>(), token, "POST", request);
+                        }
+                    }
+                }
+
+                return Ok(new { });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in muteActor XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("app.bsky.graph.unmuteActor")]
+        public async Task<IActionResult> UnmuteActor([FromBody] BSkyClone.Lexicons.App.Bsky.Graph.MuteActorRequest request)
+        {
+            try
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                if (string.IsNullOrEmpty(userIdStr) || !Guid.TryParse(userIdStr, out var userId))
+                    return Unauthorized();
+
+                if (string.IsNullOrWhiteSpace(request?.Actor))
+                    return BadRequest(new { error = "InvalidRequest", message = "actor is required" });
+
+                var targetUser = await _unitOfWork.Users.Query().FirstOrDefaultAsync(u => u.Did == request.Actor || u.Handle == request.Actor);
+                if (targetUser != null)
+                {
+                    await _userService.UnmuteUserAsync(userId, targetUser.Id);
+                }
+                else
+                {
+                    var authorUser = await _unitOfWork.Users.GetByIdAsync(userId);
+                    if (authorUser != null && !string.IsNullOrEmpty(authorUser.Did))
+                    {
+                        var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.graph.unmuteActor", new Dictionary<string, string?>(), token, "POST", request);
+                        }
+                    }
+                }
+
+                return Ok(new { });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in unmuteActor XRPC");
+                return StatusCode(500, new { error = "InternalError", message = ex.Message });
+            }
+        }
+
         private async Task<ProfileViewDetailed> MapUserToProfileViewDetailed(User user, Guid? viewerId = null, bool resolveRemotePinnedPost = true)
         {
             var profile = new ProfileViewDetailed
