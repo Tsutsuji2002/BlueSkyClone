@@ -240,25 +240,25 @@ const MobileMenu: React.FC = () => {
                     </div>
 
                     <div className="flex gap-2 px-2 mt-4">
-                        <button
-                            onClick={() => {
-                                navigate('/support');
-                                dispatch(closeMobileMenu());
-                            }}
+                        <a
+                            href="https://bskyclone.site/support"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => dispatch(closeMobileMenu())}
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border rounded-full text-sm font-bold text-gray-900 dark:text-dark-text transition-all"
                         >
                             <FiMessageSquare size={18} />
                             {t('sidebar.feedback')}
-                        </button>
-                        <button
-                            onClick={() => {
-                                navigate('/support?category=other');
-                                dispatch(closeMobileMenu());
-                            }}
+                        </a>
+                        <a
+                            href="https://blueskyweb.zendesk.com/hc/en-us"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => dispatch(closeMobileMenu())}
                             className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-dark-border rounded-full text-sm font-bold text-gray-900 dark:text-dark-text transition-all"
                         >
                             {t('sidebar.help')}
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>

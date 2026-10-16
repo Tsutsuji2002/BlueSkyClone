@@ -379,17 +379,13 @@ const RightSidebar: React.FC = () => {
 
             {/* Footer Links */}
             <div className="text-[13.1px] tracking-[0px] text-[#8798B0] leading-[17px] select-none">
-                {isAuthenticated && (
-                    <>
-                        <a href="https://bsky.app/feedback" target="_blank" rel="noopener noreferrer" className="text-[#405168] dark:text-[#dce2ea] hover:underline">Feedback</a>
-                        <span className="text-[#8798B0]"> ∙ </span>
-                    </>
-                )}
+                <a href="https://bskyclone.site/support" target="_blank" rel="noopener noreferrer" className="text-[#405168] dark:text-[#dce2ea] hover:underline">Feedback</a>
+                <span className="text-[#8798B0]"> ∙ </span>
                 <a href="/settings/privacy" onClick={(e) => { e.preventDefault(); navigate('/settings/privacy'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Privacy</a>
                 <span className="text-[#8798B0]"> ∙ </span>
-                <a href="/about?tab=terms" onClick={(e) => { e.preventDefault(); navigate('/about?tab=terms'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Terms</a>
+                <a href="/settings/about" onClick={(e) => { e.preventDefault(); navigate('/settings/about'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Terms</a>
                 <span className="text-[#8798B0]"> ∙ </span>
-                <a href="/support" onClick={(e) => { e.preventDefault(); navigate('/support'); }} className="text-[#405168] dark:text-[#dce2ea] hover:underline">Help</a>
+                <a href="https://blueskyweb.zendesk.com/hc/en-us" target="_blank" rel="noopener noreferrer" className="text-[#405168] dark:text-[#dce2ea] hover:underline">Help</a>
             </div>
         </div>
     );

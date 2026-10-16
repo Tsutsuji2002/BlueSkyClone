@@ -256,11 +256,8 @@ const AppRoutes: React.FC = () => {
                             <LanguagePage />
                         </ProtectedRoute>
                     } />
-                    <Route path="settings/about" element={
-                        <ProtectedRoute>
-                            <AboutPage />
-                        </ProtectedRoute>
-                    } />
+                    <Route path="settings/about" element={<AboutPage />} />
+                    <Route path="about" element={<AboutPage />} />
                     <Route path="settings/accessibility" element={
                         <ProtectedRoute>
                             <AccessibilityPage />
