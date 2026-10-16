@@ -37,6 +37,18 @@ mkdir -p backend/wwwroot/uploads/covers
 mkdir -p backend/wwwroot/uploads/avatars
 sudo chown -R 1654:1654 backend/wwwroot/uploads
 
+# Update frontend/src/version.json with latest git tag and commit hash before build
+echo "Updating frontend/src/version.json with latest git info..."
+GIT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.1.0")
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION_CLEAN=${GIT_TAG#v}
+cat <<EOF > frontend/src/version.json
+{
+  "version": "$VERSION_CLEAN",
+  "commitHash": "$GIT_COMMIT"
+}
+EOF
+
 # 5. SSL Certificate Check and Generation
 echo "Checking for SSL certificates for $DOMAIN_NAME..."
 if [ ! -d "./certbot/conf/live/$DOMAIN_NAME" ]; then
