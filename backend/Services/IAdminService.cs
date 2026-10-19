@@ -34,5 +34,5 @@ public interface IAdminService
     Task<bool> BroadcastNotificationAsync(BroadcastNotificationRequest request);
     Task ReindexSystemAsync();
     Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action, string? browser, string? dateRange);
-    Task<AccessLogStatsDto> GetAccessLogStatsAsync();
+    Task<AccessLogStatsDto> GetAccessLogStatsAsync(string? search = null, string? browser = null, string? dateRange = null);
 }

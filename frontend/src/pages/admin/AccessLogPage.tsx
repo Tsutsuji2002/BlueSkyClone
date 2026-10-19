@@ -54,17 +54,21 @@ const AccessLogPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [lastRefresh, setLastRefresh] = useState(new Date());
 
-    const fetchStats = useCallback(async () => {
+    const fetchStats = useCallback(async (q = search, b = browserFilter, d = dateFilter) => {
         setStatsLoading(true);
         try {
-            const result = await adminService.getAccessLogStats();
+            const result = await adminService.getAccessLogStats(
+                q || undefined,
+                b !== 'all' ? b : undefined,
+                d !== 'all' ? d : undefined
+            );
             setStats(result);
         } catch {
             // Non-critical if stats fail
         } finally {
             setStatsLoading(false);
         }
-    }, []);
+    }, [search, browserFilter, dateFilter]);
 
     const fetchLogs = useCallback(async (s = skip, q = search, a = actionFilter, b = browserFilter, d = dateFilter) => {
         setLoading(true);
@@ -89,23 +93,23 @@ const AccessLogPage: React.FC = () => {
     }, [skip, search, actionFilter, browserFilter, dateFilter]);
 
     const refreshAll = useCallback(() => {
-        fetchLogs();
-        fetchStats();
-    }, [fetchLogs, fetchStats]);
+        fetchLogs(skip, search, actionFilter, browserFilter, dateFilter);
+        fetchStats(search, browserFilter, dateFilter);
+    }, [fetchLogs, fetchStats, skip, search, actionFilter, browserFilter, dateFilter]);
 
     useEffect(() => {
         fetchLogs(skip, search, actionFilter, browserFilter, dateFilter);
-    }, [skip, search, actionFilter, browserFilter, dateFilter]);
+    }, [skip, search, actionFilter, browserFilter, dateFilter, fetchLogs]);
 
     useEffect(() => {
-        fetchStats();
-    }, [fetchStats]);
+        fetchStats(search, browserFilter, dateFilter);
+    }, [search, browserFilter, dateFilter, fetchStats]);
 
     // Auto-refresh every 30 seconds
     useEffect(() => {
         const timer = setInterval(() => {
             fetchLogs(skip, search, actionFilter, browserFilter, dateFilter);
-            fetchStats();
+            fetchStats(search, browserFilter, dateFilter);
         }, 30000);
         return () => clearInterval(timer);
     }, [skip, search, actionFilter, browserFilter, dateFilter, fetchLogs, fetchStats]);
@@ -154,65 +158,135 @@ const AccessLogPage: React.FC = () => {
             {/* Access Stats Overview Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 {/* Total Accesses */}
-                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                <div
+                    onClick={() => { setSkip(0); setActionFilter('all'); }}
+                    className={`border rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 select-none hover:-translate-y-0.5 hover:shadow-md ${card} ${
+                        actionFilter === 'all'
+                            ? 'ring-2 ring-indigo-500 shadow-sm border-indigo-500/40 bg-indigo-500/[0.04]'
+                            : 'hover:border-indigo-400'
+                    }`}
+                >
                     <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">
                         <FiActivity size={22} />
                     </div>
                     <div>
-                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Total Accesses</span>
-                        <p className="text-2xl font-extrabold mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Total Accesses</span>
+                            {dateFilter !== 'all' && (
+                                <span className="text-[10px] font-bold text-indigo-500 bg-indigo-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    {dateFilter}
+                                </span>
+                            )}
+                        </div>
+                        <p className={`text-2xl font-extrabold mt-0.5 ${statsLoading ? 'opacity-50 animate-pulse' : ''}`}>
                             {stats ? stats.totalAccesses.toLocaleString() : '—'}
                         </p>
                     </div>
                 </div>
 
                 {/* User Logins */}
-                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                <div
+                    onClick={() => { setSkip(0); setActionFilter(actionFilter === 'login' ? 'all' : 'login'); }}
+                    className={`border rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 select-none hover:-translate-y-0.5 hover:shadow-md ${card} ${
+                        actionFilter === 'login'
+                            ? 'ring-2 ring-green-500 shadow-sm border-green-500/40 bg-green-500/[0.04]'
+                            : 'hover:border-green-400'
+                    }`}
+                >
                     <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center font-bold">
                         <FiUserCheck size={22} />
                     </div>
                     <div>
-                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>User Logins</span>
-                        <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>User Logins</span>
+                            {dateFilter !== 'all' && (
+                                <span className="text-[10px] font-bold text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    {dateFilter}
+                                </span>
+                            )}
+                        </div>
+                        <p className={`text-2xl font-extrabold text-green-600 dark:text-green-400 mt-0.5 ${statsLoading ? 'opacity-50 animate-pulse' : ''}`}>
                             {stats ? stats.userLogins.toLocaleString() : '—'}
                         </p>
                     </div>
                 </div>
 
                 {/* User Return Visits */}
-                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                <div
+                    onClick={() => { setSkip(0); setActionFilter(actionFilter === 'user_visit' ? 'all' : 'user_visit'); }}
+                    className={`border rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 select-none hover:-translate-y-0.5 hover:shadow-md ${card} ${
+                        actionFilter === 'user_visit'
+                            ? 'ring-2 ring-purple-500 shadow-sm border-purple-500/40 bg-purple-500/[0.04]'
+                            : 'hover:border-purple-400'
+                    }`}
+                >
                     <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold">
                         <FiUserCheck size={22} />
                     </div>
                     <div>
-                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>User Return Visits</span>
-                        <p className="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Return Visits</span>
+                            {dateFilter !== 'all' && (
+                                <span className="text-[10px] font-bold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    {dateFilter}
+                                </span>
+                            )}
+                        </div>
+                        <p className={`text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-0.5 ${statsLoading ? 'opacity-50 animate-pulse' : ''}`}>
                             {stats ? (stats.userVisits || 0).toLocaleString() : '—'}
                         </p>
                     </div>
                 </div>
 
                 {/* Guest Visits */}
-                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                <div
+                    onClick={() => { setSkip(0); setActionFilter(actionFilter === 'guest_visit' ? 'all' : 'guest_visit'); }}
+                    className={`border rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 select-none hover:-translate-y-0.5 hover:shadow-md ${card} ${
+                        actionFilter === 'guest_visit'
+                            ? 'ring-2 ring-amber-500 shadow-sm border-amber-500/40 bg-amber-500/[0.04]'
+                            : 'hover:border-amber-400'
+                    }`}
+                >
                     <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
                         <FiUsers size={22} />
                     </div>
                     <div>
-                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Guest Visits</span>
-                        <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Guest Visits</span>
+                            {dateFilter !== 'all' && (
+                                <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    {dateFilter}
+                                </span>
+                            )}
+                        </div>
+                        <p className={`text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-0.5 ${statsLoading ? 'opacity-50 animate-pulse' : ''}`}>
                             {stats ? stats.guestVisits.toLocaleString() : '—'}
                         </p>
                     </div>
                 </div>
 
                 {/* Logouts & Expired */}
-                <div className={`border rounded-xl p-4 flex items-center gap-4 ${card}`}>
+                <div
+                    onClick={() => { setSkip(0); setActionFilter(actionFilter === 'logout' ? 'all' : 'logout'); }}
+                    className={`border rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all duration-200 select-none hover:-translate-y-0.5 hover:shadow-md ${card} ${
+                        actionFilter === 'logout'
+                            ? 'ring-2 ring-blue-500 shadow-sm border-blue-500/40 bg-blue-500/[0.04]'
+                            : 'hover:border-blue-400'
+                    }`}
+                >
                     <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center font-bold">
                         <FiLogOut size={22} />
                     </div>
                     <div>
-                        <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Logouts & Expired</span>
-                        <p className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-0.5">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${textSub}`}>Logouts</span>
+                            {dateFilter !== 'all' && (
+                                <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded uppercase">
+                                    {dateFilter}
+                                </span>
+                            )}
+                        </div>
+                        <p className={`text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-0.5 ${statsLoading ? 'opacity-50 animate-pulse' : ''}`}>
                             {stats ? (stats.logouts + stats.expiredSessions).toLocaleString() : '—'}
                         </p>
                     </div>

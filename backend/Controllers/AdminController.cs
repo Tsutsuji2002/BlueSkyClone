@@ -265,9 +265,12 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("access-logs/stats")]
-    public async Task<IActionResult> GetAccessLogStats()
+    public async Task<IActionResult> GetAccessLogStats(
+        [FromQuery] string? search = null,
+        [FromQuery] string? browser = null,
+        [FromQuery] string? dateRange = null)
     {
-        var result = await _adminService.GetAccessLogStatsAsync();
+        var result = await _adminService.GetAccessLogStatsAsync(search, browser, dateRange);
         return Ok(result);
     }
 }

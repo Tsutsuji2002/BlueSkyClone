@@ -826,82 +826,87 @@ public class AdminService : IAdminService
         await _searchService.ReindexAllAsync();
     }
 
+    private IQueryable<AccessLog> FilterAccessLogsQuery(IQueryable<AccessLog> query, string? search, string? action, string? browser, string? dateRange)
+    {
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(l => l.Handle.ToLower().Contains(s) || l.IpAddress.Contains(s));
+        }
+
+        if (!string.IsNullOrWhiteSpace(action) && action.ToLower() != "all")
+        {
+            query = query.Where(l => l.Action.ToLower() == action.ToLower());
+        }
+
+        // Browser filter
+        if (!string.IsNullOrWhiteSpace(browser) && browser.ToLower() != "all")
+        {
+            var b = browser.ToLower();
+            if (b == "chrome")
+            {
+                query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Chrome") && !l.UserAgent.Contains("Edg"));
+            }
+            else if (b == "safari")
+            {
+                query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Safari") && !l.UserAgent.Contains("Chrome"));
+            }
+            else if (b == "edge")
+            {
+                query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Edg"));
+            }
+            else if (b == "firefox")
+            {
+                query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Firefox"));
+            }
+            else if (b == "bot")
+            {
+                query = query.Where(l => l.UserAgent != null && (
+                    l.UserAgent.ToLower().Contains("bot") ||
+                    l.UserAgent.ToLower().Contains("crawler") ||
+                    l.UserAgent.ToLower().Contains("spider") ||
+                    l.UserAgent.ToLower().Contains("palo alto") ||
+                    l.UserAgent.ToLower().Contains("libredtail") ||
+                    l.UserAgent.ToLower().Contains("curl")
+                ));
+            }
+        }
+
+        // Date Range filter
+        if (!string.IsNullOrWhiteSpace(dateRange) && dateRange.ToLower() != "all")
+        {
+            var now = DateTime.UtcNow;
+            var dr = dateRange.ToLower();
+            if (dr == "today")
+            {
+                var today = now.Date;
+                query = query.Where(l => l.CreatedAt >= today);
+            }
+            else if (dr == "24h")
+            {
+                var threshold = now.AddHours(-24);
+                query = query.Where(l => l.CreatedAt >= threshold);
+            }
+            else if (dr == "7d")
+            {
+                var threshold = now.AddDays(-7);
+                query = query.Where(l => l.CreatedAt >= threshold);
+            }
+            else if (dr == "30d")
+            {
+                var threshold = now.AddDays(-30);
+                query = query.Where(l => l.CreatedAt >= threshold);
+            }
+        }
+
+        return query;
+    }
+
     public async Task<PaginatedResult<AccessLogDto>> GetAccessLogsAsync(int skip, int take, string? search, string? action, string? browser, string? dateRange)
     {
         try
         {
-            var query = _context.AccessLogs.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var s = search.ToLower();
-                query = query.Where(l => l.Handle.ToLower().Contains(s) || l.IpAddress.Contains(s));
-            }
-
-            if (!string.IsNullOrWhiteSpace(action) && action.ToLower() != "all")
-            {
-                query = query.Where(l => l.Action.ToLower() == action.ToLower());
-            }
-
-            // Browser filter
-            if (!string.IsNullOrWhiteSpace(browser) && browser.ToLower() != "all")
-            {
-                var b = browser.ToLower();
-                if (b == "chrome")
-                {
-                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Chrome") && !l.UserAgent.Contains("Edg"));
-                }
-                else if (b == "safari")
-                {
-                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Safari") && !l.UserAgent.Contains("Chrome"));
-                }
-                else if (b == "edge")
-                {
-                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Edg"));
-                }
-                else if (b == "firefox")
-                {
-                    query = query.Where(l => l.UserAgent != null && l.UserAgent.Contains("Firefox"));
-                }
-                else if (b == "bot")
-                {
-                    query = query.Where(l => l.UserAgent != null && (
-                        l.UserAgent.ToLower().Contains("bot") ||
-                        l.UserAgent.ToLower().Contains("crawler") ||
-                        l.UserAgent.ToLower().Contains("spider") ||
-                        l.UserAgent.ToLower().Contains("palo alto") ||
-                        l.UserAgent.ToLower().Contains("libredtail") ||
-                        l.UserAgent.ToLower().Contains("curl")
-                    ));
-                }
-            }
-
-            // Date Range filter
-            if (!string.IsNullOrWhiteSpace(dateRange) && dateRange.ToLower() != "all")
-            {
-                var now = DateTime.UtcNow;
-                var dr = dateRange.ToLower();
-                if (dr == "today")
-                {
-                    var today = now.Date;
-                    query = query.Where(l => l.CreatedAt >= today);
-                }
-                else if (dr == "24h")
-                {
-                    var threshold = now.AddHours(-24);
-                    query = query.Where(l => l.CreatedAt >= threshold);
-                }
-                else if (dr == "7d")
-                {
-                    var threshold = now.AddDays(-7);
-                    query = query.Where(l => l.CreatedAt >= threshold);
-                }
-                else if (dr == "30d")
-                {
-                    var threshold = now.AddDays(-30);
-                    query = query.Where(l => l.CreatedAt >= threshold);
-                }
-            }
+            var query = FilterAccessLogsQuery(_context.AccessLogs.AsQueryable(), search, action, browser, dateRange);
 
             var total = await query.CountAsync();
 
@@ -928,16 +933,18 @@ public class AdminService : IAdminService
         }
     }
 
-    public async Task<AccessLogStatsDto> GetAccessLogStatsAsync()
+    public async Task<AccessLogStatsDto> GetAccessLogStatsAsync(string? search = null, string? browser = null, string? dateRange = null)
     {
         try
         {
-            var total = await _context.AccessLogs.CountAsync();
-            var userLogins = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "login");
-            var guestVisits = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "guest_visit");
-            var userVisits = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "user_visit");
-            var logouts = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "logout");
-            var expiredSessions = await _context.AccessLogs.CountAsync(l => l.Action.ToLower() == "session_expired");
+            var query = FilterAccessLogsQuery(_context.AccessLogs.AsQueryable(), search, null, browser, dateRange);
+
+            var total = await query.CountAsync();
+            var userLogins = await query.CountAsync(l => l.Action.ToLower() == "login");
+            var guestVisits = await query.CountAsync(l => l.Action.ToLower() == "guest_visit");
+            var userVisits = await query.CountAsync(l => l.Action.ToLower() == "user_visit");
+            var logouts = await query.CountAsync(l => l.Action.ToLower() == "logout");
+            var expiredSessions = await query.CountAsync(l => l.Action.ToLower() == "session_expired");
 
             return new AccessLogStatsDto(total, userLogins, guestVisits, userVisits, logouts, expiredSessions);
         }

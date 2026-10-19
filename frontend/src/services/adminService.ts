@@ -311,8 +311,13 @@ export const adminService = {
         return response.json();
     },
 
-    getAccessLogStats: async (): Promise<AccessLogStats> => {
-        const response = await fetch(`${API_BASE_URL}/admin/access-logs/stats`, {
+    getAccessLogStats: async (search?: string, browser?: string, dateRange?: string): Promise<AccessLogStats> => {
+        const query = new URLSearchParams();
+        if (search) query.append('search', search);
+        if (browser && browser !== 'all') query.append('browser', browser);
+        if (dateRange && dateRange !== 'all') query.append('dateRange', dateRange);
+        const qs = query.toString();
+        const response = await fetch(`${API_BASE_URL}/admin/access-logs/stats${qs ? `?${qs}` : ''}`, {
             credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to fetch access log stats');
