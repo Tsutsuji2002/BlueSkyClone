@@ -36,6 +36,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
+    "prestart": "node scripts/generate-version.js",
     "prebuild": "node scripts/generate-version.js",
     "start": "react-scripts start",
     "build": "react-scripts build",

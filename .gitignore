@@ -31,3 +31,6 @@ archive/
 # AI Analysis
 brain/
 .agents/
+
+# Generated build version
+frontend/src/version.json
