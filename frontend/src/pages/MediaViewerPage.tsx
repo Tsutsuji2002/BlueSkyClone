@@ -32,9 +32,14 @@ const MediaViewerPage: React.FC = () => {
 
     useDocumentTitle('');
 
-    const [currentIndex, setCurrentIndex] = useState(parseInt(indexParam || '0', 10));
+    const currentIndex = useMemo(() => {
+        const parsed = parseInt(indexParam || '0', 10);
+        return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    }, [indexParam]);
+
     const [showOptionsMenu, setShowOptionsMenu] = useState(false);
     const [showShareMenu, setShowShareMenu] = useState(false);
+    const [mediaLoadingStates, setMediaLoadingStates] = useState<Record<string, { loaded: boolean; error: boolean }>>({});
 
     // Swipe state
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -105,16 +110,6 @@ const MediaViewerPage: React.FC = () => {
         [mediaPosts, postId]
     );
 
-    useEffect(() => {
-        if (indexParam) {
-            setCurrentIndex(parseInt(indexParam, 10));
-        }
-    }, [indexParam]);
-
-    useEffect(() => {
-        // Post data is handled by useGetPostDetailsQuery
-    }, [postId, handle]);
-
     const getMediaUrl = useCallback((url: string) => {
         if (!url) return '';
         if (url.startsWith('http') || url.startsWith('data:')) return url;
@@ -128,13 +123,60 @@ const MediaViewerPage: React.FC = () => {
         if (currentPost.media && currentPost.media.length > 0) {
             return currentPost.media;
         }
+        if (currentPost.images && currentPost.images.length > 0) {
+            return currentPost.images.map(img => ({
+                url: img.url,
+                altText: img.alt,
+                type: 'image' as const
+            }));
+        }
         return [
             ...(currentPost.imageUrls || []).map(url => ({ url, type: 'image' as const })),
-            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : [])
+            ...(currentPost.videoUrl ? [{ url: currentPost.videoUrl, type: 'video' as const }] : []),
+            ...(currentPost.video?.url ? [{ url: currentPost.video.url, type: 'video' as const }] : [])
         ];
     }, [currentPost]);
 
     const currentMedia = allMedia[currentIndex];
+    const currentMediaUrl = currentMedia?.url ? getMediaUrl(currentMedia.url) : '';
+    const mediaKey = `${currentPost?.id || postId || 'post'}-${currentIndex}-${currentMedia?.url || ''}`;
+    const isCurrentMediaLoaded = !!mediaLoadingStates[mediaKey]?.loaded;
+    const isCurrentMediaError = !!mediaLoadingStates[mediaKey]?.error;
+
+    // Preload adjacent images for smooth navigation
+    useEffect(() => {
+        if (!allMedia || allMedia.length <= 1) return;
+
+        const adjacentIndices = [currentIndex - 1, currentIndex + 1].filter(
+            idx => idx >= 0 && idx < allMedia.length
+        );
+
+        adjacentIndices.forEach(idx => {
+            const item = allMedia[idx];
+            if (item && item.type !== 'video' && item.url) {
+                const url = getMediaUrl(item.url);
+                const adjKey = `${currentPost?.id || postId || 'post'}-${idx}-${item.url}`;
+                if (!mediaLoadingStates[adjKey]?.loaded) {
+                    const preloadImg = new Image();
+                    preloadImg.src = url;
+                    preloadImg.onload = () => {
+                        setMediaLoadingStates(prev => {
+                            if (prev[adjKey]?.loaded) return prev;
+                            return { ...prev, [adjKey]: { loaded: true, error: false } };
+                        });
+                    };
+                }
+            }
+        });
+    }, [currentIndex, allMedia, getMediaUrl, currentPost?.id, postId, mediaLoadingStates]);
+
+    // Bounds checking
+    useEffect(() => {
+        if (allMedia.length > 0 && currentIndex >= allMedia.length && currentPost) {
+            const currentPostId = currentPost.tid || currentPost.id;
+            navigate(`/profile/${currentPost.author.handle}/post/${currentPostId}/media/${allMedia.length - 1}`, { replace: true });
+        }
+    }, [allMedia.length, currentIndex, currentPost, navigate]);
 
     // Navigation (Moved above early return for Rules of Hooks)
     const handlePrevMedia = useCallback(() => {
@@ -326,6 +368,12 @@ const MediaViewerPage: React.FC = () => {
                     <FiX size={28} />
                 </button>
 
+                {allMedia.length > 1 && (
+                    <div className="px-3.5 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-white/90 text-sm font-semibold tracking-wide border border-white/10 shadow-lg select-none">
+                        {currentIndex + 1} / {allMedia.length}
+                    </div>
+                )}
+
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowOptionsMenu(true); }}
                     className="p-3 bg-black/20 hover:bg-white/10 rounded-full text-white transition-all active:scale-90"
@@ -336,24 +384,104 @@ const MediaViewerPage: React.FC = () => {
 
             {/* Media/Swipe Area */}
             <div
-                className="relative flex-1 flex flex-col items-center justify-center bg-black overflow-hidden"
+                className="relative flex-1 flex flex-col items-center justify-center bg-black overflow-hidden select-none"
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
             >
                 <div className="w-full h-full flex items-center justify-center relative bg-black">
                     {/* PC Subtle Background Blur */}
-                    <div className="hidden lg:block absolute inset-0 overflow-hidden opacity-30 pointer-events-none">
-                        {currentMedia?.type !== 'video' && (
-                            <img src={getMediaUrl(currentMedia?.url || '')} alt="" className="w-full h-full object-cover blur-3xl scale-125" />
+                    <div className="hidden lg:block absolute inset-0 overflow-hidden pointer-events-none">
+                        {currentMedia?.type !== 'video' && currentMediaUrl && (
+                            <img
+                                key={`bg-${mediaKey}`}
+                                src={currentMediaUrl}
+                                alt=""
+                                className={cn(
+                                    "w-full h-full object-cover blur-3xl scale-125 transition-opacity duration-500",
+                                    isCurrentMediaLoaded ? "opacity-30" : "opacity-0"
+                                )}
+                            />
                         )}
                     </div>
 
                     <div className="relative z-10 w-full h-full flex items-center justify-center lg:p-12">
+                        {/* Loading indicator when current media is loading */}
+                        {!isCurrentMediaLoaded && !isCurrentMediaError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none z-20">
+                                <div className="p-4 bg-black/40 rounded-full backdrop-blur-md">
+                                    <LoadingIndicator />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Error state if media fails to load */}
+                        {isCurrentMediaError && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/70 gap-3 z-20">
+                                <div className="p-3 bg-white/10 rounded-full">
+                                    <FiX size={32} className="text-red-400" />
+                                </div>
+                                <p className="text-sm font-medium">
+                                    {i18n.language === 'vi' ? 'Không thể tải phương tiện' : 'Failed to load media'}
+                                </p>
+                            </div>
+                        )}
+
                         {currentMedia?.type === 'video' ? (
-                            <video src={getMediaUrl(currentMedia.url)} className="max-w-full max-h-full object-contain" controls onClick={e => e.stopPropagation()} />
+                            <video
+                                key={`video-${mediaKey}`}
+                                src={currentMediaUrl}
+                                className={cn(
+                                    "max-w-full max-h-full object-contain transition-opacity duration-300",
+                                    isCurrentMediaLoaded ? "opacity-100" : "opacity-0"
+                                )}
+                                controls
+                                autoPlay
+                                playsInline
+                                onLoadedData={() => {
+                                    setMediaLoadingStates(prev => ({
+                                        ...prev,
+                                        [mediaKey]: { loaded: true, error: false }
+                                    }));
+                                }}
+                                onError={() => {
+                                    setMediaLoadingStates(prev => ({
+                                        ...prev,
+                                        [mediaKey]: { loaded: false, error: true }
+                                    }));
+                                }}
+                                onClick={e => e.stopPropagation()}
+                            />
                         ) : (
-                            <img src={getMediaUrl(currentMedia?.url || '')} alt={('altText' in currentMedia! ? currentMedia.altText : '') || ''} className="max-w-full max-h-full object-contain shadow-2xl transition-all duration-300" />
+                            <img
+                                key={`img-${mediaKey}`}
+                                ref={(el) => {
+                                    if (el && el.complete && el.naturalWidth > 0 && !isCurrentMediaLoaded) {
+                                        setMediaLoadingStates(prev => ({
+                                            ...prev,
+                                            [mediaKey]: { loaded: true, error: false }
+                                        }));
+                                    }
+                                }}
+                                src={currentMediaUrl}
+                                alt={('altText' in (currentMedia || {}) ? (currentMedia as any).altText : '') || ''}
+                                onLoad={() => {
+                                    setMediaLoadingStates(prev => ({
+                                        ...prev,
+                                        [mediaKey]: { loaded: true, error: false }
+                                    }));
+                                }}
+                                onError={() => {
+                                    setMediaLoadingStates(prev => ({
+                                        ...prev,
+                                        [mediaKey]: { loaded: false, error: true }
+                                    }));
+                                }}
+                                className={cn(
+                                    "max-w-full max-h-full object-contain shadow-2xl transition-opacity duration-300 select-none",
+                                    isCurrentMediaLoaded ? "opacity-100" : "opacity-0"
+                                )}
+                            />
                         )}
                     </div>
                 </div>
@@ -419,7 +547,7 @@ const MediaViewerPage: React.FC = () => {
                     <p className="text-sm text-gray-500 dark:text-dark-text-secondary mb-4">{formatDistanceToNow(new Date(currentPost.createdAt), { addSuffix: true, locale: dateLocale })}</p>
 
                     {/* Alt Text for Current Media */}
-                    {'altText' in currentMedia && currentMedia.altText && (
+                    {currentMedia && 'altText' in currentMedia && currentMedia.altText && (
                         <div className="mb-6 p-4 bg-gray-50 dark:bg-dark-surface/30 rounded-xl border border-gray-100 dark:border-dark-border">
                             <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">{t('post.alt_text')}</h4>
                             <p className="text-[15px] text-gray-700 dark:text-dark-text leading-snug italic">
