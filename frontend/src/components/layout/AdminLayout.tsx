@@ -75,11 +75,6 @@ const AdminLayout: React.FC = () => {
                     label: 'Access Logs',
                     badge: 'Live'
                 },
-                {
-                    path: '/admin/lists',
-                    icon: <FiList size={19} />,
-                    label: t('admin.lists.title', 'User Lists')
-                },
             ]
         },
         {

@@ -118,8 +118,7 @@ const AdminDashboardPage: React.FC = () => {
             icon: FiList,
             gradient: 'from-pink-500 to-rose-500',
             bgGlow: 'bg-pink-500/10',
-            change: '+10%',
-            path: '/admin/lists'
+            change: '+10%'
         },
         {
             title: t('admin.stats.total_conversations', 'Direct Messages'),
