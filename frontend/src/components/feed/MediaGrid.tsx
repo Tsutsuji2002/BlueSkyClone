@@ -66,12 +66,22 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
 
-    // Auto-hide touch controls after 3 seconds
+    // Timeline scrubbing and interaction states
+    const [isScrubbing, setIsScrubbing] = useState(false);
+    const [hoverTime, setHoverTime] = useState<number | null>(null);
+    const [hoverPosition, setHoverPosition] = useState<number>(0);
+    const isScrubbingRef = React.useRef(false);
+    const wasPlayingBeforeScrubRef = React.useRef(false);
+    const progressBarRef = React.useRef<HTMLDivElement>(null);
+
+    // Auto-hide touch controls after 3 seconds (pause timer while scrubbing)
     const touchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const showTouchControls = () => {
         setIsTouched(true);
         if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
-        touchTimerRef.current = setTimeout(() => setIsTouched(false), 3000);
+        if (!isScrubbingRef.current) {
+            touchTimerRef.current = setTimeout(() => setIsTouched(false), 3000);
+        }
     };
     React.useEffect(() => () => { if (touchTimerRef.current) clearTimeout(touchTimerRef.current); }, []);
 
@@ -274,10 +284,139 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
     };
 
     const formatTime = (timeInSeconds: number) => {
-        if (isNaN(timeInSeconds)) return "0:00";
+        if (isNaN(timeInSeconds) || !isFinite(timeInSeconds) || timeInSeconds < 0) return "0:00";
         const m = Math.floor(timeInSeconds / 60);
         const s = Math.floor(timeInSeconds % 60);
         return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
+    const calculateSeek = (clientX: number) => {
+        if (!progressBarRef.current) return null;
+        const rect = progressBarRef.current.getBoundingClientRect();
+        if (rect.width <= 0) return null;
+        const clampedX = Math.max(0, Math.min(clientX - rect.left, rect.width));
+        const ratio = clampedX / rect.width;
+        const dur = videoRef.current?.duration || duration || 0;
+        const targetTime = ratio * dur;
+        const percent = ratio * 100;
+        return { ratio, percent, targetTime, dur };
+    };
+
+    const handleSeek = (clientX: number) => {
+        const seek = calculateSeek(clientX);
+        if (!seek || !videoRef.current) return;
+        
+        setProgress(seek.percent);
+        setCurrentTime(seek.targetTime);
+        if (seek.dur > 0 && isFinite(seek.dur)) {
+            try {
+                videoRef.current.currentTime = Math.max(0, Math.min(seek.targetTime, seek.dur));
+            } catch (_) {}
+        }
+    };
+
+    const handleProgressPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        if (e.button !== 0) return; // Only primary mouse button or touch
+        
+        isScrubbingRef.current = true;
+        setIsScrubbing(true);
+        showTouchControls();
+
+        if (videoRef.current) {
+            wasPlayingBeforeScrubRef.current = !videoRef.current.paused;
+            videoRef.current.pause();
+        }
+
+        try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+        } catch (_) {}
+
+        handleSeek(e.clientX);
+    };
+
+    const handleProgressPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const seek = calculateSeek(e.clientX);
+        if (seek && seek.dur > 0 && isFinite(seek.dur)) {
+            setHoverTime(seek.targetTime);
+            setHoverPosition(seek.percent);
+        }
+
+        if (!isScrubbingRef.current) return;
+        e.stopPropagation();
+        handleSeek(e.clientX);
+    };
+
+    const handleProgressPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isScrubbingRef.current) return;
+        e.stopPropagation();
+
+        isScrubbingRef.current = false;
+        setIsScrubbing(false);
+
+        try {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+        } catch (_) {}
+
+        handleSeek(e.clientX);
+
+        if (wasPlayingBeforeScrubRef.current && videoRef.current) {
+            videoRef.current.play().catch(err => console.warn('[MediaGrid] Resume failed:', err));
+        }
+
+        if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+        touchTimerRef.current = setTimeout(() => setIsTouched(false), 3000);
+    };
+
+    const handleProgressPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isScrubbingRef.current) return;
+        e.stopPropagation();
+
+        isScrubbingRef.current = false;
+        setIsScrubbing(false);
+
+        try {
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+        } catch (_) {}
+
+        if (wasPlayingBeforeScrubRef.current && videoRef.current) {
+            videoRef.current.play().catch(() => {});
+        }
+    };
+
+    const handleProgressPointerLeave = () => {
+        if (!isScrubbingRef.current) {
+            setHoverTime(null);
+        }
+    };
+
+    const handleProgressKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        const currentDur = videoRef.current?.duration || duration || 0;
+        if (!videoRef.current || !currentDur) return;
+        const step = 5;
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            e.stopPropagation();
+            const newTime = Math.max(0, videoRef.current.currentTime - step);
+            videoRef.current.currentTime = newTime;
+            setCurrentTime(newTime);
+            setProgress((newTime / currentDur) * 100);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            e.stopPropagation();
+            const newTime = Math.min(currentDur, videoRef.current.currentTime + step);
+            videoRef.current.currentTime = newTime;
+            setCurrentTime(newTime);
+            setProgress((newTime / currentDur) * 100);
+        } else if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePlayPause();
+        }
     };
 
     // Reset error state when URL changes
@@ -362,12 +501,21 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                         onCanPlay={() => setIsVideoLoading(false)}
                         onCanPlayThrough={() => setIsVideoLoading(false)}
                         onTimeUpdate={() => {
-                            if (videoRef.current) {
+                            if (videoRef.current && !isScrubbingRef.current) {
                                 setCurrentTime(videoRef.current.currentTime);
-                                setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
+                                const dur = videoRef.current.duration || duration;
+                                if (dur && !isNaN(dur) && dur > 0) {
+                                    setProgress((videoRef.current.currentTime / dur) * 100);
+                                }
                                 if (isVideoLoading && videoRef.current.currentTime > 0) {
                                     setIsVideoLoading(false);
                                 }
+                            }
+                        }}
+                        onDurationChange={(e) => {
+                            const dur = e.currentTarget.duration;
+                            if (dur && !isNaN(dur) && isFinite(dur)) {
+                                setDuration(dur);
                             }
                         }}
                         onLoadedData={() => setIsVideoLoading(false)}
@@ -388,7 +536,11 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             }
                         }}
                         onSeeked={() => setIsVideoLoading(false)}
-                        onSeeking={() => setIsVideoLoading(true)}
+                        onSeeking={() => {
+                            if (!isScrubbingRef.current) {
+                                setIsVideoLoading(true);
+                            }
+                        }}
                         onError={(e) => {
                             console.error('Video load error');
                             setIsVideoLoading(false);
@@ -399,9 +551,9 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     <div 
                         className={cn(
                             "absolute inset-0 flex items-center justify-center transition-opacity duration-200 z-10",
-                            // FIX 1: In feed, show overlay when paused OR when touched (so mobile can see play btn)
-                            // Hide overlay only when actively playing AND not recently touched
-                            (isPlaying && !isTouched && !isVideoLoading) ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto"
+                            // In feed, show overlay when paused OR when touched (so mobile can see play btn)
+                            // Hide overlay when actively playing or actively scrubbing
+                            ((isPlaying && !isTouched && !isVideoLoading) || isScrubbing) ? "opacity-0 invisible pointer-events-none" : "opacity-100 visible pointer-events-auto"
                         )}
                         onClick={(e) => {
                             // Only toggle if we're not clicking the button itself (which has its own handler)
@@ -410,7 +562,7 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                             togglePlayPause();
                         }}
                     >
-                                                {isVideoLoading ? (
+                        {isVideoLoading ? (
                             <div className="w-16 h-16 rounded-full bg-black/40 flex items-center justify-center text-white backdrop-blur-md pointer-events-none">
                                 <svg className="animate-spin w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -444,25 +596,58 @@ const GridItem: React.FC<GridItemProps> = ({ item, index, className, showOverlay
                     {isDetailView && (
                         <div 
                             data-testid="antigravity-video-controls"
-                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-30 pointer-events-auto px-2 pb-1.5 pt-8">
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent z-30 pointer-events-auto px-2 pb-1.5 pt-8">
                             {/* Controls Bar */}
                             <div className="flex flex-col w-full">
-                                {/* Top row: Progress Bar */}
+                                {/* Top row: Progress Bar Slider */}
                                 <div 
-                                    className="w-full h-[3px] mb-2 px-1 relative cursor-pointer group/progress" 
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (!videoRef.current || !duration) return;
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        const x = e.clientX - rect.left;
-                                        const percent = x / rect.width;
-                                        videoRef.current.currentTime = percent * duration;
-                                    }}
+                                    ref={progressBarRef}
+                                    role="slider"
+                                    tabIndex={0}
+                                    aria-label="Video timeline"
+                                    aria-valuemin={0}
+                                    aria-valuemax={duration || 100}
+                                    aria-valuenow={currentTime}
+                                    className="w-full h-6 flex items-center mb-1 px-1 relative cursor-pointer group/progress touch-none select-none focus:outline-none" 
+                                    onPointerDown={handleProgressPointerDown}
+                                    onPointerMove={handleProgressPointerMove}
+                                    onPointerUp={handleProgressPointerUp}
+                                    onPointerCancel={handleProgressPointerCancel}
+                                    onPointerLeave={handleProgressPointerLeave}
+                                    onKeyDown={handleProgressKeyDown}
+                                    onClick={(e) => e.stopPropagation()}
                                 >
-                                    <div className="h-full bg-white/30 rounded-full overflow-hidden">
-                                        <div className="h-full bg-white relative transition-all duration-100" style={{ width: `${progress}%` }}>
-                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg scale-0 group-hover/progress:scale-100 transition-transform z-10" />
+                                    {/* Hover / Scrub Timestamp Tooltip */}
+                                    {hoverTime !== null && (duration > 0 || (videoRef.current?.duration ?? 0) > 0) && (
+                                        <div 
+                                            className="absolute -top-7 px-1.5 py-0.5 bg-black/90 text-white text-[11px] font-mono rounded shadow-lg pointer-events-none z-30 whitespace-nowrap transform -translate-x-1/2 border border-white/10"
+                                            style={{ 
+                                                left: `${Math.max(4, Math.min(96, hoverPosition))}%` 
+                                            }}
+                                        >
+                                            {formatTime(hoverTime)}
                                         </div>
+                                    )}
+
+                                    {/* Track Background */}
+                                    <div className="w-full h-1 group-hover/progress:h-1.5 transition-all duration-150 bg-white/30 rounded-full relative">
+                                        {/* Progress Fill */}
+                                        <div 
+                                            className={cn(
+                                                "h-full bg-white rounded-full relative",
+                                                isScrubbing ? "transition-none" : "transition-all duration-100"
+                                            )} 
+                                            style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} 
+                                        />
+                                        {/* Scrubber Knob (Thumb) */}
+                                        <div 
+                                            className={cn(
+                                                "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg pointer-events-none transition-transform duration-100 z-10 ring-2 ring-black/20",
+                                                isScrubbing ? "scale-100" : "scale-0 group-hover/progress:scale-100"
+                                            )}
+                                            style={{ left: `${Math.max(0, Math.min(100, progress))}%` }} 
+                                        />
                                     </div>
                                 </div>
 
