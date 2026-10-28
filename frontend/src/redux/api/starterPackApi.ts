@@ -71,11 +71,8 @@ export const starterPackApi = createApi({
     reducerPath: 'starterPackApi',
     baseQuery: fetchBaseQuery({
         baseUrl: `${API_BASE_URL}/starterpack`,
+        credentials: 'include',
         prepareHeaders: (headers) => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                headers.set('authorization', `Bearer ${token}`);
-            }
             return headers;
         },
     }),

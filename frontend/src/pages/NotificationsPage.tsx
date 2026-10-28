@@ -20,11 +20,11 @@ const NotificationsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'all' | 'mentions'>('all');
 
     useEffect(() => {
-        if (!isSessionSettled || isReverifying) return;
+        if (!isSessionSettled) return;
         dispatch(fetchNotifications()).then(() => {
             dispatch(markAllNotificationsAsRead());
         });
-    }, [dispatch, isSessionSettled, isReverifying]);
+    }, [dispatch, isSessionSettled]);
 
     const handleNotificationClick = (id: string) => {
         dispatch(markNotificationAsRead(id));

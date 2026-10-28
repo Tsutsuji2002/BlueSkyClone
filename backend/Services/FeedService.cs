@@ -170,100 +170,42 @@ public class FeedService : IFeedService
     private async Task<List<FeedDto>> ResolveFeedsMetadataAsync(List<string> uris, Guid? userId, CancellationToken ct = default)
     {
         if (!uris.Any()) return new List<FeedDto>();
-        
-        var savedUris = new HashSet<string>();
-        var pinnedUris = new HashSet<string>();
-
-        try
-        {
-            var token = userId.HasValue ? await _userService.GetOrRefreshBlueskyTokenAsync(userId.Value, false, ct) : null;
-            
-            // Try to get user preferences to mark sub/pin status
-            try
-            {
-                if (userId.HasValue)
-                {
-                    var userObj = await _unitOfWork.Users.GetByIdAsync(userId.Value);
-                    if (userObj != null && !string.IsNullOrEmpty(userObj.Did) && !string.IsNullOrEmpty(token))
-                    {
-                        var pref = await GetUserPreferencesAsync(userObj.Did, token, ct);
-                        if (pref != null)
-                        {
-                            savedUris = pref.SavedUris;
-                            pinnedUris = pref.PinnedUris;
-                        }
-                    }
-                }
-            } catch { }
-
-            var user = userId.HasValue ? await _unitOfWork.Users.GetByIdAsync(userId.Value) : null;
-            if (user == null || string.IsNullOrEmpty(user.Did) || string.IsNullOrEmpty(token))
-            {
-                // If not authenticated, we can't use the proxy for specific DID. 
-                // We'll use a direct call to the public AppView as a final fallback.
-                return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris);
-            }
-
-            // Use the proxy for metadata resolution to ensure consistent network access via PDS
-            // [OPTIMIZATION] Using batch call app.bsky.feed.getFeedGenerators instead of sequential calls
-            var queryParams = uris.Select(uri => new KeyValuePair<string, string?>("feeds", uri)).ToList();
-            var resp = await _xrpcProxy.ProxyRequestAsync(user.Did, "app.bsky.feed.getFeedGenerators", queryParams, token);
-            
-            if (resp.Success)
-            {
-                using var gDoc = JsonDocument.Parse(resp.Content);
-                if (gDoc.RootElement.TryGetProperty("feeds", out var feedsArray))
-                {
-                    var resultList = new List<FeedDto>();
-                    foreach (var gen in feedsArray.EnumerateArray())
-                    {
-                        resultList.Add(MapGeneratorViewToDto(gen, savedUris, pinnedUris));
-                    }
-                    if (userId.HasValue)
-                    {
-                        var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
-                        ApplyFeedLikeOverrides(resultList, overrides);
-                    }
-                    return resultList;
-                }
-            }
-
-            // Fallback to direct resolution if proxy fails
-            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris, userId, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "[FeedService] Error resolving feeds metadata via proxy, falling back to direct.");
-            return await ResolveMetadataDirectAsync(uris, savedUris, pinnedUris, userId, ct);
-        }
+        return await ResolveMetadataDirectAsync(uris, new HashSet<string>(), new HashSet<string>(), userId, ct);
     }
 
     private async Task<List<FeedDto>> ResolveMetadataDirectAsync(List<string> uris, HashSet<string> saved, HashSet<string> pinned, Guid? userId = null, CancellationToken ct = default)
     {
         var result = new List<FeedDto>();
+        if (!uris.Any()) return result;
+
         try {
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend/1.0");
             
-            // [OPTIMIZATION] Batch call even for public API
-            var queryParams = string.Join("&", uris.Select(u => $"feeds={Uri.EscapeDataString(u)}"));
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{queryParams}", cts.Token);
-            
-            if (response.IsSuccessStatusCode)
+            // AppView batch limit is 25 per request
+            foreach (var chunk in uris.Chunk(25))
             {
-                var content = await response.Content.ReadAsStringAsync(cts.Token);
-                using var doc = JsonDocument.Parse(content);
-                if (doc.RootElement.TryGetProperty("feeds", out var feedsArray))
+                var queryParams = string.Join("&", chunk.Select(u => $"feeds={Uri.EscapeDataString(u)}"));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
+                var response = await httpClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerators?{queryParams}", linkedCts.Token);
+                
+                if (response.IsSuccessStatusCode)
                 {
-                    foreach (var gen in feedsArray.EnumerateArray())
-                        result.Add(MapGeneratorViewToDto(gen, saved, pinned));
-                    if (userId.HasValue)
+                    var content = await response.Content.ReadAsStringAsync(linkedCts.Token);
+                    using var doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.TryGetProperty("feeds", out var feedsArray))
                     {
-                        var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
-                        ApplyFeedLikeOverrides(result, overrides);
+                        foreach (var gen in feedsArray.EnumerateArray())
+                            result.Add(MapGeneratorViewToDto(gen, saved, pinned));
                     }
                 }
+            }
+
+            if (userId.HasValue && result.Any())
+            {
+                var overrides = await GetUserFeedLikeOverridesAsync(userId.Value, ct);
+                ApplyFeedLikeOverrides(result, overrides);
             }
         } catch (Exception ex) {
             _logger.LogWarning(ex, "[FeedService] ResolveMetadataDirectAsync error");
@@ -464,10 +406,6 @@ public class FeedService : IFeedService
     private async Task<List<FeedDto>> GetRemoteFeedsAsync(Guid userId, System.Threading.CancellationToken ct = default)
     {
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
-        if (string.IsNullOrEmpty(token))
-        {
-            token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true, ct: ct);
-        }
         if (string.IsNullOrEmpty(token)) return new List<FeedDto>();
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
@@ -1796,53 +1734,78 @@ public class FeedService : IFeedService
                         new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
                 var fetchLimit = string.IsNullOrEmpty(cursor) ? Math.Clamp(take + skip + 10, 30, 100) : Math.Max(take + 10, 30);
-                
-                foreach (var host in new[] { "https://public.api.bsky.app", "https://api.bsky.app" })
+                var queryParamsStr = $"feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
+                if (!string.IsNullOrEmpty(cursor)) queryParamsStr += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+                // Step 1: If authenticated, try authenticated AppView endpoint
+                if (!string.IsNullOrEmpty(token))
                 {
                     try
                     {
-                        var url = $"{host}/xrpc/app.bsky.feed.getFeed?feed={Uri.EscapeDataString(resolvedUri)}&limit={fetchLimit}";
-                        if (!string.IsNullOrEmpty(cursor)) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+                        using var authClient = _httpClientFactory.CreateClient();
+                        authClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                        authClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                        using var authCts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                        using var linkedAuthCts = CancellationTokenSource.CreateLinkedTokenSource(authCts.Token, ct);
 
-                        _logger.LogInformation("[FeedService] Fetching remote feed from {Host} with URI: {Uri}", host, resolvedUri);
-
-                        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
-                        var response = await httpClient.GetAsync(url, linkedCts.Token);
-
-                        if (!response.IsSuccessStatusCode)
+                        var authResp = await authClient.GetAsync($"https://api.bsky.app/xrpc/app.bsky.feed.getFeed?{queryParamsStr}", linkedAuthCts.Token);
+                        if (authResp.IsSuccessStatusCode)
                         {
-                            _logger.LogWarning("[FeedService] Remote feed request failed: {Status} from {Host}", response.StatusCode, host);
-                            continue;
-                        }
-
-                        var content = await response.Content.ReadAsStringAsync(cts.Token);
-                        using var doc = JsonDocument.Parse(content);
-                        if (!doc.RootElement.TryGetProperty("feed", out var feedArray))
-                        {
-                            _logger.LogWarning("[FeedService] Remote feed response missing 'feed' property from {Host}", host);
-                            continue;
-                        }
-
-                        var posts = _postService.MapBlueskyFeed(feedArray);
-                        var outCursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
-
-                        _logger.LogInformation("[FeedService] Successfully fetched {Count} posts from {Host}", posts.Count, host);
-
-                        if (posts.Count > 0)
-                        {
-                            rawResult = new PagedPostDto { Posts = posts, Cursor = outCursor };
-                            
-                            // Cache raw result for 2 minutes
-                            await _cache.SetStringAsync(cacheKeyRaw, JsonSerializer.Serialize(rawResult), 
-                                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, ct);
-                            break;
+                            var authContent = await authResp.Content.ReadAsStringAsync(linkedAuthCts.Token);
+                            using var authDoc = JsonDocument.Parse(authContent);
+                            if (authDoc.RootElement.TryGetProperty("feed", out var fArray))
+                            {
+                                var posts = _postService.MapBlueskyFeed(fArray);
+                                var outCursor = authDoc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                                if (posts.Count > 0)
+                                {
+                                    rawResult = new PagedPostDto { Posts = posts, Cursor = outCursor };
+                                }
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "[FeedService] Error fetching from {Host}: {Message}", host, ex.Message);
+                        _logger.LogWarning(ex, "[FeedService] Authenticated getFeed failed for {Uri}", resolvedUri);
                     }
+                }
+
+                // Step 2: Public AppView fallback (Never send Authorization header to public.api.bsky.app)
+                if (rawResult == null)
+                {
+                    try
+                    {
+                        using var pubClient = _httpClientFactory.CreateClient();
+                        pubClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone/1.0");
+                        using var pubCts = new CancellationTokenSource(TimeSpan.FromSeconds(6));
+                        using var linkedPubCts = CancellationTokenSource.CreateLinkedTokenSource(pubCts.Token, ct);
+
+                        var pubResp = await pubClient.GetAsync($"https://public.api.bsky.app/xrpc/app.bsky.feed.getFeed?{queryParamsStr}", linkedPubCts.Token);
+                        if (pubResp.IsSuccessStatusCode)
+                        {
+                            var pubContent = await pubResp.Content.ReadAsStringAsync(linkedPubCts.Token);
+                            using var pubDoc = JsonDocument.Parse(pubContent);
+                            if (pubDoc.RootElement.TryGetProperty("feed", out var fArray))
+                            {
+                                var posts = _postService.MapBlueskyFeed(fArray);
+                                var outCursor = pubDoc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+                                if (posts.Count > 0)
+                                {
+                                    rawResult = new PagedPostDto { Posts = posts, Cursor = outCursor };
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[FeedService] Public getFeed failed for {Uri}", resolvedUri);
+                    }
+                }
+
+                if (rawResult != null && rawResult.Posts.Any())
+                {
+                    await _cache.SetStringAsync(cacheKeyRaw, JsonSerializer.Serialize(rawResult),
+                        new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(2) }, ct);
                 }
             }
 

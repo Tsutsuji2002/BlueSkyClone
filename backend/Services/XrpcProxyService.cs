@@ -134,6 +134,11 @@ namespace BSkyClone.Services
                     request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
                 }
 
+                if (nsid.StartsWith("app.bsky.", StringComparison.OrdinalIgnoreCase))
+                {
+                    request.Headers.TryAddWithoutValidation("atproto-proxy", "did:web:api.bsky.app#bsky_appview");
+                }
+
                 if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && body != null)
                 {
                     var json = System.Text.Json.JsonSerializer.Serialize(body, new JsonSerializerOptions { WriteIndented = true });
@@ -145,9 +150,8 @@ namespace BSkyClone.Services
                 var clientReq = _httpClientFactory.CreateClient();
                 clientReq.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
                 
-                // Add a strict timeout to prevent hanging the whole backend thread
-                // [OPTIMIZATION] Reduced from 12s to 5s to allow faster fallback/failure
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                // Allow sufficient time for PDS + AppView WAN round trip
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
                 using var linkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
                 
                 var response = await clientReq.SendAsync(request, linkedCts.Token);
@@ -171,6 +175,10 @@ namespace BSkyClone.Services
                             _logger.LogInformation("[XrpcProxy] Token refreshed for user {UserId}. Retrying request to {Url}.", userId.Value, finalUrl);
                             var retryRequest = new HttpRequestMessage(new HttpMethod(method), finalUrl);
                             retryRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", freshToken);
+                            if (nsid.StartsWith("app.bsky.", StringComparison.OrdinalIgnoreCase))
+                            {
+                                retryRequest.Headers.TryAddWithoutValidation("atproto-proxy", "did:web:api.bsky.app#bsky_appview");
+                            }
                             if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && body != null)
                             {
                                 var retryJson = System.Text.Json.JsonSerializer.Serialize(body);

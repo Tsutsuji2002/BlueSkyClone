@@ -74,10 +74,6 @@ public class NotificationService : INotificationService
             using var scope = _scopeFactory.CreateScope();
             var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
             var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
-            if (string.IsNullOrEmpty(token))
-            {
-                token = await userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
-            }
             if (!string.IsNullOrEmpty(token))
             {
                 try
@@ -93,7 +89,8 @@ public class NotificationService : INotificationService
                     var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.listNotifications", queryParams, token, userId: userId);
                     if (response.Success)
                     {
-                        var remoteResponse = JsonSerializer.Deserialize<ListNotificationsResponse>(response.Content);
+                        var jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        var remoteResponse = JsonSerializer.Deserialize<ListNotificationsResponse>(response.Content, jsonOpts);
                         if (remoteResponse?.Notifications != null)
                         {
                             foreach (var remote in remoteResponse.Notifications)
@@ -184,10 +181,6 @@ public class NotificationService : INotificationService
             using var scope = _scopeFactory.CreateScope();
             var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
             var token = await userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
-            if (string.IsNullOrEmpty(token))
-            {
-                token = await userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true, ct: ct);
-            }
             if (!string.IsNullOrEmpty(token))
             {
                 try
@@ -195,7 +188,8 @@ public class NotificationService : INotificationService
                     var response = await _xrpcProxy.ProxyRequestAsync(authorUser.Did, "app.bsky.notification.getUnreadCount", new Dictionary<string, string?>(), token, userId: userId, ct: ct);
                     if (response.Success)
                     {
-                        var unreadResponse = JsonSerializer.Deserialize<GetUnreadCountResponse>(response.Content);
+                        var jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        var unreadResponse = JsonSerializer.Deserialize<GetUnreadCountResponse>(response.Content, jsonOpts);
                         return localCount + (unreadResponse?.Count ?? 0);
                     }
                 }
@@ -232,10 +226,6 @@ public class NotificationService : INotificationService
             using var scope = _scopeFactory.CreateScope();
             var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
             var token = await userService.GetOrRefreshBlueskyTokenAsync(userId);
-            if (string.IsNullOrEmpty(token))
-            {
-                token = await userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
-            }
             if (!string.IsNullOrEmpty(token))
             {
                 try

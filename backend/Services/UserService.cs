@@ -3105,19 +3105,19 @@ public class UserService : IUserService
         return anyMerged;
     }
 
-    private static bool IsJwtValid(string? jwt, int skewSeconds = 120)
+    private static bool IsJwtValid(string? jwt, int skewSeconds = 60)
     {
         if (string.IsNullOrWhiteSpace(jwt)) return false;
         try
         {
             var handler = new JwtSecurityTokenHandler();
-            if (!handler.CanReadToken(jwt)) return false;
+            if (!handler.CanReadToken(jwt)) return true;
             var token = handler.ReadJwtToken(jwt);
             return token.ValidTo > DateTime.UtcNow.AddSeconds(skewSeconds);
         }
         catch
         {
-            return false;
+            return true;
         }
     }
 
@@ -3129,41 +3129,28 @@ public class UserService : IUserService
             var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}", ct);
             if (!string.IsNullOrEmpty(token) && IsJwtValid(token)) return token;
         }
-        else
-        {
-            // Clear the stale cached access token so the semaphore block definitely refreshes
-            await _distributedCache.RemoveAsync($"BlueskyToken_{userId}");
-        }
 
         // Slow path: we need to refresh. Use a per-user semaphore to avoid thundering herd.
-        // When many requests hit simultaneously (e.g. after token expiry on long-time re-access),
-        // only ONE of them does the refresh; the rest wait and then reuse the fresh result.
         var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
         
-        // Wait up to 15s for the refresh lock.
-        // 15s allows the in-flight network call to Bluesky PDS (typically 1.5 - 3.5s) to finish,
-        // so concurrent requests reuse the fresh token rather than timing out and returning empty data.
-        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(15), ct))
+        // Wait up to 8s for the refresh lock.
+        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(8), ct))
         {
-            _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Lock wait timeout for {UserId}. Serving cached token if valid.", userId);
-
+            _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Lock wait timeout for {UserId}. Serving cached token if available.", userId);
             var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}", ct);
+            if (!string.IsNullOrEmpty(cachedToken)) return cachedToken;
+            return null;
+        }
+        try
+        {
+            // Double-check inside the lock — another concurrent waiter may have refreshed already
+            var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
             if (!string.IsNullOrEmpty(cachedToken) && IsJwtValid(cachedToken))
             {
                 return cachedToken;
             }
 
-            return null;
-        }
-        try
-        {
-            // Double-check inside the lock — another waiter may have refreshed already
-            if (!forceRefresh)
-            {
-                var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-                if (!string.IsNullOrEmpty(cachedToken) && IsJwtValid(cachedToken)) return cachedToken;
-            }
-            else
+            if (forceRefresh)
             {
                 _logger.LogInformation("[GetOrRefreshBlueskyTokenAsync] Forced refresh requested for {UserId}.", userId);
             }
