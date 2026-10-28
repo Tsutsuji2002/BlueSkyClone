@@ -449,8 +449,10 @@ const AppContent: React.FC = () => {
             }
             const unreadPromise = dispatch(fetchUnreadCount() as any);
             const notifyPromise = dispatch(fetchNotifications({ limit: 40 }) as any);
+            const convoPromise = dispatch(fetchConversations() as any);
+            const feedsPromise = dispatch(fetchSubscribedFeeds({ bypassThrottle: true }) as any);
 
-            Promise.allSettled([unreadPromise, notifyPromise])
+            Promise.allSettled([unreadPromise, notifyPromise, convoPromise, feedsPromise])
                 .then(() => {
                     console.log('[App] Parallel background sync complete.');
                 })

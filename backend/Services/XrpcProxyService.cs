@@ -165,7 +165,7 @@ namespace BSkyClone.Services
                     {
                         using var scope = _scopeFactory.CreateScope();
                         var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                        var freshToken = await userService.GetOrRefreshBlueskyTokenAsync(userId.Value, forceRefresh: true, ct: linkedCts.Token);
+                        var freshToken = await userService.GetOrRefreshBlueskyTokenAsync(userId.Value, forceRefresh: true, ct: ct);
                         if (!string.IsNullOrEmpty(freshToken))
                         {
                             _logger.LogInformation("[XrpcProxy] Token refreshed for user {UserId}. Retrying request to {Url}.", userId.Value, finalUrl);
@@ -178,9 +178,10 @@ namespace BSkyClone.Services
                             }
                             var retryClient = _httpClientFactory.CreateClient();
                             retryClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
-                            using var retryCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                            response = await retryClient.SendAsync(retryRequest, retryCts.Token);
-                            content = await response.Content.ReadAsStringAsync(retryCts.Token);
+                            using var retryCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(8));
+                            using var retryLinkedCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(retryCts.Token, ct);
+                            response = await retryClient.SendAsync(retryRequest, retryLinkedCts.Token);
+                            content = await response.Content.ReadAsStringAsync(retryLinkedCts.Token);
                             _logger.LogInformation("[XrpcProxy] Retry result for {Url}: {Status}", finalUrl, response.StatusCode);
                         }
                         else

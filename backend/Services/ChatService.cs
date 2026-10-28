@@ -44,41 +44,57 @@ public class ChatService : IChatService
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return Enumerable.Empty<ConversationDto>();
 
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
-        
         // If the user has a DID, they are a Bluesky user.
         // We MUST fetch from proxy and NOT fall back to local chats.
         if (!string.IsNullOrEmpty(user.Did))
         {
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            if (string.IsNullOrEmpty(token))
+            {
+                token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+            }
+
             if (!string.IsNullOrEmpty(token))
             {
                 try 
                 { 
-                    IEnumerable<ConversationDto> proxyConvos;
-                    
                     if (isRequest.HasValue && isRequest.Value)
                     {
-                        // For requests: call the listConvoRequests endpoint
-                        proxyConvos = await _chatProxy.GetConvoRequestsAsync(token, limit, cursor);
+                        var proxyConvos = await _chatProxy.GetConvoRequestsAsync(token, limit, cursor);
                         _logger.LogInformation("Fetched {Count} conversation requests from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
+                        return proxyConvos;
                     }
                     else
                     {
-                        // For messages: call the listConvos endpoint  
-                        proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor);
+                        var proxyConvos = await _chatProxy.GetConversationsAsync(token, limit, cursor);
                         _logger.LogInformation("Fetched {Count} conversations from proxy (cursor: {Cursor}) for user {UserId}", proxyConvos.Count(), cursor, userId);
+                        return proxyConvos;
                     }
-                    
-                    return proxyConvos;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Chat proxy fetch failed for {UserId}", userId);
+                    _logger.LogWarning(ex, "[ChatService] Chat proxy fetch failed for {UserId}. Retrying with force-refreshed token...", userId);
+                    try
+                    {
+                        var freshToken = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                        if (!string.IsNullOrEmpty(freshToken))
+                        {
+                            if (isRequest.HasValue && isRequest.Value)
+                            {
+                                return await _chatProxy.GetConvoRequestsAsync(freshToken, limit, cursor);
+                            }
+                            return await _chatProxy.GetConversationsAsync(freshToken, limit, cursor);
+                        }
+                    }
+                    catch (Exception retryEx)
+                    {
+                        _logger.LogError(retryEx, "[ChatService] Chat proxy retry also failed for {UserId}", userId);
+                    }
                 }
             }
             else
             {
-                _logger.LogWarning("Missing Bluesky token for user {UserId} (DID: {Did}) in cache", userId, user.Did);
+                _logger.LogWarning("Missing Bluesky token for user {UserId} (DID: {Did})", userId, user.Did);
             }
             
             // For Bluesky users, we return empty if proxy is unavailable or token is missing.
@@ -142,10 +158,27 @@ public class ChatService : IChatService
 
     public async Task<ConversationDto?> GetConversationAsync(Guid userId, string conversationId)
     {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
-        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        if (!IsGuid(conversationId))
         {
-            return await _chatProxy.GetConversationAsync(token, conversationId);
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            if (string.IsNullOrEmpty(token)) token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+            if (!string.IsNullOrEmpty(token))
+            {
+                try
+                {
+                    var convo = await _chatProxy.GetConversationAsync(token, conversationId);
+                    if (convo != null) return convo;
+                }
+                catch
+                {
+                    var freshToken = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                    if (!string.IsNullOrEmpty(freshToken))
+                    {
+                        return await _chatProxy.GetConversationAsync(freshToken, conversationId);
+                    }
+                }
+            }
+            return null;
         }
 
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;
@@ -168,16 +201,37 @@ public class ChatService : IChatService
 
     public async Task<IEnumerable<MessageDto>> GetConversationMessagesAsync(Guid userId, string conversationId, int limit = 50, DateTimeOffset? before = null)
     {
-            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
-        if (!string.IsNullOrEmpty(token) && !IsGuid(conversationId))
+        if (!IsGuid(conversationId))
         {
-            var msgs = await _chatProxy.GetMessagesAsync(token, conversationId, limit, before?.ToString("O"));
-            if (!before.HasValue && msgs.Any())
+            var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId);
+            if (string.IsNullOrEmpty(token)) token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+            if (!string.IsNullOrEmpty(token))
             {
-                // Mark the latest message as read
-                await MarkAsReadAsync(userId, conversationId, msgs.Last().Id);
+                try
+                {
+                    var msgs = await _chatProxy.GetMessagesAsync(token, conversationId, limit, before?.ToString("O"));
+                    if (!before.HasValue && msgs.Any())
+                    {
+                        // Mark the latest message as read
+                        await MarkAsReadAsync(userId, conversationId, msgs.Last().Id);
+                    }
+                    return msgs;
+                }
+                catch
+                {
+                    var freshToken = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
+                    if (!string.IsNullOrEmpty(freshToken))
+                    {
+                        var msgs = await _chatProxy.GetMessagesAsync(freshToken, conversationId, limit, before?.ToString("O"));
+                        if (!before.HasValue && msgs.Any())
+                        {
+                            await MarkAsReadAsync(userId, conversationId, msgs.Last().Id);
+                        }
+                        return msgs;
+                    }
+                }
             }
-            return msgs;
+            return Enumerable.Empty<MessageDto>();
         }
 
         var convId = Guid.TryParse(conversationId, out var g) ? g : Guid.Empty;

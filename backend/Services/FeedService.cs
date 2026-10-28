@@ -464,6 +464,10 @@ public class FeedService : IFeedService
     private async Task<List<FeedDto>> GetRemoteFeedsAsync(Guid userId, System.Threading.CancellationToken ct = default)
     {
         var token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, false, ct);
+        if (string.IsNullOrEmpty(token))
+        {
+            token = await _userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true, ct: ct);
+        }
         if (string.IsNullOrEmpty(token)) return new List<FeedDto>();
 
         var user = await _unitOfWork.Users.GetByIdAsync(userId);

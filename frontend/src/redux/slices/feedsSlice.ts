@@ -795,6 +795,13 @@ const feedsSlice = createSlice({
                 [...state.subscribedFeeds, ...state.recommendedFeeds, ...state.searchResults, ...state.feeds].forEach((feed) => {
                     cacheByKey.set(feedActionKey(feed), feed);
                 });
+
+                // Guard: If server returned an empty array, but we already have valid cached feeds,
+                // do not wipe them out to prevent blank feeds tab on cold-start / token-refresh races.
+                if (action.payload.length === 0 && state.subscribedFeeds.length > 0) {
+                    console.warn('feedsSlice: Received empty subscribed feeds; preserving existing cached feeds.');
+                    return;
+                }
  
                 state.subscribedFeeds = action.payload.map((incoming) => {
                     const key = feedActionKey(incoming);

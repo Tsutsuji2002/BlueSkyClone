@@ -143,12 +143,15 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id);
 
-        var bskyCacheOptions = new DistributedCacheEntryOptions { 
+        var bskyAccessCacheOptions = new DistributedCacheEntryOptions { 
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(110) 
+        };
+        var bskyRefreshCacheOptions = new DistributedCacheEntryOptions { 
             AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) 
         };
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions, cts.Token);
-        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions, cts.Token);
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyAccessCacheOptions, cts.Token);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyRefreshCacheOptions, cts.Token);
 
         try
         {
@@ -292,12 +295,15 @@ public class AuthService : IAuthService
         var token = GenerateJwtToken(user, request.RememberMe);
         var refreshToken = await GenerateAndSaveRefreshToken(user.Id, request.RememberMe);
 
-        var bskyCacheOptions = new DistributedCacheEntryOptions { 
-            AbsoluteExpirationRelativeToNow = request.RememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+        var bskyAccessCacheOptions = new DistributedCacheEntryOptions { 
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(110) 
+        };
+        var bskyRefreshCacheOptions = new DistributedCacheEntryOptions { 
+            AbsoluteExpirationRelativeToNow = request.RememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7) 
         };
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyCacheOptions, cts.Token);
-        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyCacheOptions, cts.Token);
+        await _cache.SetStringAsync($"BlueskyToken_{user.Id}", accessJwt, bskyAccessCacheOptions, cts.Token);
+        await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", refreshJwt, bskyRefreshCacheOptions, cts.Token);
 
         // [CACHE INVALIDATION] Clear feeds on login to ensure account switches (or re-logins) 
         // pull fresh data from the PDS instead of stale cached data.
@@ -385,12 +391,15 @@ public class AuthService : IAuthService
                                 _unitOfWork.Users.Update(user);
                                 await _unitOfWork.CompleteAsync();
 
-                                var bskyCacheOptions = new DistributedCacheEntryOptions { 
-                                    AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromHours(24) 
+                                var bskyAccessCacheOptions = new DistributedCacheEntryOptions { 
+                                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(110) 
+                                };
+                                var bskyRefreshCacheOptions = new DistributedCacheEntryOptions { 
+                                    AbsoluteExpirationRelativeToNow = rememberMe ? TimeSpan.FromDays(30) : TimeSpan.FromDays(7) 
                                 };
                                 using var ctsSet = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                                await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyCacheOptions, ctsSet.Token);
-                                await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyCacheOptions, ctsSet.Token);
+                                await _cache.SetStringAsync($"BlueskyToken_{user.Id}", nextAccessJwt, bskyAccessCacheOptions, ctsSet.Token);
+                                await _cache.SetStringAsync($"BlueskyRefreshToken_{user.Id}", nextRefreshJwt, bskyRefreshCacheOptions, ctsSet.Token);
                                 _logger.LogInformation("Successfully refreshed and PERSISTED Bluesky session for user {UserId}", user.Id);
                             }
                             else
@@ -468,10 +477,8 @@ public class AuthService : IAuthService
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user == null) return null;
 
-        // Global handshake cap: 3 seconds (was 8s). 
-        // 3 seconds is more than enough for parallel DB queries but short enough to 
-        // prevent the UI from feeling stuck if a remote service is slow.
-        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        // Global handshake cap: 8 seconds (allows WAN token refresh and metadata to settle cleanly)
+        using var globalCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
         using var finalLinkedCts = CancellationTokenSource.CreateLinkedTokenSource(globalCts.Token, ct);
         var globalToken = finalLinkedCts.Token;
 
@@ -519,7 +526,7 @@ public class AuthService : IAuthService
         try
         {
             var allTasks = Task.WhenAll(feedsTask, countTask, mutedWordsTask);
-            var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(3), ct));
+            var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(8), ct));
 
             if (completedTask == allTasks)
             {
@@ -529,7 +536,7 @@ public class AuthService : IAuthService
             {
                 if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
                 await globalCts.CancelAsync();
-                _logger.LogWarning("Handshake hard timeout (3s) reached for user {UserId}. Returning partial data.", userId);
+                _logger.LogWarning("Handshake hard timeout (8s) reached for user {UserId}. Returning partial data.", userId);
             }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)

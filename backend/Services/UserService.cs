@@ -10,6 +10,7 @@ using System.Text;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.IO;
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Http; // For QueryCollection
 using BSkyClone.UnitOfWork;
 using BSkyClone.Utilities;
@@ -3104,13 +3105,29 @@ public class UserService : IUserService
         return anyMerged;
     }
 
+    private static bool IsJwtValid(string? jwt, int skewSeconds = 120)
+    {
+        if (string.IsNullOrWhiteSpace(jwt)) return false;
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            if (!handler.CanReadToken(jwt)) return false;
+            var token = handler.ReadJwtToken(jwt);
+            return token.ValidTo > DateTime.UtcNow.AddSeconds(skewSeconds);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<string?> GetOrRefreshBlueskyTokenAsync(Guid userId, bool forceRefresh = false, CancellationToken ct = default)
     {
-        // Fast path: token is still cached (skipped if forceRefresh is requested)
+        // Fast path: token is still cached and valid (skipped if forceRefresh is requested)
         if (!forceRefresh)
         {
             var token = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}", ct);
-            if (!string.IsNullOrEmpty(token)) return token;
+            if (!string.IsNullOrEmpty(token) && IsJwtValid(token)) return token;
         }
         else
         {
@@ -3119,41 +3136,24 @@ public class UserService : IUserService
         }
 
         // Slow path: we need to refresh. Use a per-user semaphore to avoid thundering herd.
-        // When many requests hit simultaneously (e.g. after token expiry at night),
-        // only ONE of them does the refresh; the rest wait and then reuse the result.
+        // When many requests hit simultaneously (e.g. after token expiry on long-time re-access),
+        // only ONE of them does the refresh; the rest wait and then reuse the fresh result.
         var semaphore = _tokenRefreshLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
         
-        // [OPTIMIZATION] Short wait for lock (2s) to avoid blocking cold-starts during peak thundering herds.
-        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(2), ct))
+        // Wait up to 15s for the refresh lock.
+        // 15s allows the in-flight network call to Bluesky PDS (typically 1.5 - 3.5s) to finish,
+        // so concurrent requests reuse the fresh token rather than timing out and returning empty data.
+        if (!await semaphore.WaitAsync(TimeSpan.FromSeconds(15), ct))
         {
-            _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Lock wait timeout for {UserId}. Serving cached token while refresh happens in background.", userId);
+            _logger.LogWarning("[GetOrRefreshBlueskyTokenAsync] Lock wait timeout for {UserId}. Serving cached token if valid.", userId);
 
             var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}", ct);
-
-            // Proactively trigger one scoped background refresh per user; do not let each API
-            // request start another worker while the original lock holder is still busy.
-            if (_backgroundRefreshes.TryAdd(userId, 0))
+            if (!string.IsNullOrEmpty(cachedToken) && IsJwtValid(cachedToken))
             {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        using var scope = _scopeFactory.CreateScope();
-                        var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
-                        await userService.GetOrRefreshBlueskyTokenAsync(userId, forceRefresh: true);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "[GetOrRefreshBlueskyTokenAsync] Background refresh failed for {UserId}", userId);
-                    }
-                    finally
-                    {
-                        _backgroundRefreshes.TryRemove(userId, out _);
-                    }
-                });
+                return cachedToken;
             }
 
-            return cachedToken;
+            return null;
         }
         try
         {
@@ -3161,7 +3161,7 @@ public class UserService : IUserService
             if (!forceRefresh)
             {
                 var cachedToken = await _distributedCache.GetStringAsync($"BlueskyToken_{userId}");
-                if (!string.IsNullOrEmpty(cachedToken)) return cachedToken;
+                if (!string.IsNullOrEmpty(cachedToken) && IsJwtValid(cachedToken)) return cachedToken;
             }
             else
             {
@@ -3184,7 +3184,7 @@ public class UserService : IUserService
             try
             {
                 using var httpClient = _httpClientFactory.CreateClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(6); // Hard cap — don't hang forever
+                httpClient.Timeout = TimeSpan.FromSeconds(12); // Hard cap — don't hang forever
                 httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
                 httpClient.DefaultRequestHeaders.Add("User-Agent", "BSkyClone-Backend");
 
@@ -3200,8 +3200,8 @@ public class UserService : IUserService
                 var resolvedPds = await _xrpcProxy.ResolvePdsEndpointAsync(userLocal.Did, forceRefresh, ct);
                 if (!string.IsNullOrEmpty(resolvedPds)) pdsUrl = resolvedPds;
 
-                // 3s limit for token refresh to avoid blocking the whole app/handshake
-                using var refreshCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                // 8s limit for token refresh to allow sufficient WAN round-trip time
+                using var refreshCts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(refreshCts.Token, ct);
 
                 var response = await httpClient.PostAsync($"{pdsUrl.TrimEnd('/')}/xrpc/com.atproto.server.refreshSession", null, linkedCts.Token);
@@ -3238,13 +3238,14 @@ public class UserService : IUserService
                     return null;
                 }
 
+                // AT Protocol access tokens expire in 2 hours; cache for max 110 minutes
                 var accessCacheOptions = new DistributedCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2) // Access tokens expire in 2h
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(110)
                 };
                 var refreshCacheOptions = new DistributedCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24) // Refresh tokens last longer
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(30) // Refresh tokens last up to 30-90 days
                 };
 
                 await _distributedCache.SetStringAsync($"BlueskyToken_{userId}", nextAccessJwt, accessCacheOptions);
@@ -3277,7 +3278,6 @@ public class UserService : IUserService
         finally
         {
             semaphore.Release();
-            // Optional: periodically clean up the locks dictionary if it grows too large
         }
     }
 
